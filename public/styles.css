@@ -288,6 +288,7 @@ body {
 .rtable th, .rtable td { text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
 .rtable th { font-size: 12px; font-weight: 500; color: var(--label-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
 .rtable tr:last-child td { border-bottom: none; }
+.rtable tr.hl-row td { background: var(--light-green-bg); }
 .table-scroll { overflow-x: auto; border: 0.5px solid var(--separator); border-radius: var(--r-lg); background: var(--bg-primary); }
 
 /* Goal plan */

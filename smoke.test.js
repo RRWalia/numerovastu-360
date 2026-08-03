@@ -26,6 +26,7 @@ const $ = (s) => window.document.querySelector(s);
 $("#fullName").value = "Priya Sharma";
 $("#dob").value = "2005-08-20";
 $("#mobile").value = "9876543210";
+$("#vehicle").value = "HR51AB1234";
 $("#goalChips .chip[data-goal='Money']").click();
 $("#goalChips .chip[data-goal='Career']").click();
 $("#entrance").value = "SW";
@@ -45,6 +46,11 @@ const checks = [
   ["missing numbers section", report.includes("Missing Numbers")],
   ["name section", report.includes("Name Analysis")],
   ["mobile section", report.includes("Mobile Number Vibration")],
+  ["vehicle section", report.includes("Vehicle Number Vibration")],
+  ["vehicle number analysed", report.includes("HR51AB1234")],
+  ["colors section", report.includes("Lucky Colours") && report.includes("Day-wise Dressing")],
+  ["career section", report.includes("Best Fields")],
+  ["timing section", report.includes("Favourable Years") && report.includes("Personal Year")],
   ["watch section", report.includes("Watch &amp; Wearable Remedy")],
   ["vastu section", report.includes("Vastu Dosh Scan")],
   ["SW entrance dosh detected", report.includes("Southwest entrance")],
@@ -77,6 +83,34 @@ const checks2 = [
   ["no undefined leaks", !r2.includes("undefined")],
 ];
 checks2.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// third case: Meher Afrose 01/05/1979 — practitioner example.
+// Missing 6 must be compensatable by a sound-preserving spelling
+// (e.g. MMeher-style doubling), and no variant may drop letters.
+$("#editBtn").click();
+$("#fullName").value = "Meher Afrose";
+$("#dob").value = "1979-05-01";
+$("#mobile").value = "9812345678";
+$("#vehicle").value = "";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r3 = $("#reportRoot").innerHTML;
+const sug3 = window.__NV.nameSuggestions(window.__NV.computeProfile({
+  name: "Meher Afrose", dob: "1979-05-01", mobile: "9812345678",
+  goals: ["Money"], entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
+}));
+const has6 = sug3.variants && sug3.variants.some((v) => v.reduced === 6);
+const noDrops = sug3.variants && sug3.variants.every((v) => v.text.replace(/\s/g, "").length >= "MeherAfrose".length);
+const soundOnly = sug3.variants && sug3.variants.every((v) => !/drop/i.test(v.change));
+const checks3 = [
+  ["driver 1 / conductor 5", r3.includes('num-value">1<') && r3.includes('num-value">5<')],
+  ["missing-6 compensation suggested", !!has6],
+  ["no letter drops in variants", !!noDrops && !!soundOnly],
+  ["why-it-helps column", r3.includes("Why it helps")],
+  ["vehicle empty state", r3.includes("Choosing a Lucky Vehicle Number")],
+  ["no undefined leaks", !r3.includes("undefined")],
+];
+checks3.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+if (sug3.variants) console.log("  Meher variants:", sug3.variants.map((v) => `${v.text} (${v.compound}->${v.reduced})`).join(" | "));
 
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

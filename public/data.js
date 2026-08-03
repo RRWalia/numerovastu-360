@@ -258,6 +258,57 @@ const DB = {
     ]
   },
 
+  /* ---- Career / profession fields per number ---- */
+  careers: {
+    1: ["Government & administration", "Politics & public leadership", "Business ownership / entrepreneurship", "Senior management & CEO roles", "Army / police leadership", "Medicine (leadership positions)"],
+    2: ["Human resources & public relations", "Hospitality, hotels & tourism", "Nursing, caregiving & psychology", "Counseling & healing", "Dairy, liquids & water trade", "Media & creative arts"],
+    3: ["Teaching, education & training", "Banking, finance & accounts", "Law & judiciary", "Consulting & advisory", "Astrology & spiritual guidance", "Writing & publishing"],
+    4: ["IT, software & electronics", "Aviation & aerospace", "Foreign trade / MNC jobs", "Startups & unconventional ventures", "Research & innovation", "Film, photography & media tech"],
+    5: ["Business, trading & commerce", "Marketing, sales & advertising", "Media, journalism & writing", "Chartered accountancy & audit", "Data analytics & telecom", "Stock market & speculation"],
+    6: ["Fashion, beauty & luxury", "Arts, entertainment & cinema", "Interior design & architecture", "Jewellery & automobiles", "Hospitality & fine dining", "Cosmetics & perfumes"],
+    7: ["Research & laboratories", "Spirituality, occult & healing", "Investigation & detective work", "Analytics & strategy", "Work in foreign lands", "Philosophy & academia"],
+    8: ["Engineering & manufacturing", "Real estate & construction", "Mining, oil & steel", "Law, insurance & compliance", "Large-scale & long-term projects", "Logistics & heavy industry"],
+    9: ["Defence, army & police", "Sports & fitness", "Surgery & emergency medicine", "Engineering & mechanics", "Property & land dealing", "Energy, fire & metals sector"]
+  },
+
+  /* ---- Day-wise clothing colours (weekday -> planet) ---- */
+  dayWear: [
+    { day: "Monday",    num: 2, colors: "White, silver, cream or light grey", note: "Moon day — calming, mind-soothing colours" },
+    { day: "Tuesday",   num: 9, colors: "Red, coral or maroon",               note: "Mars day — energising, courage-boosting colours" },
+    { day: "Wednesday", num: 5, colors: "Green, mint or light green",         note: "Mercury day — sharpens communication and business luck" },
+    { day: "Thursday",  num: 3, colors: "Yellow, mustard or gold",            note: "Jupiter day — attracts wisdom, wealth and mentors" },
+    { day: "Friday",    num: 6, colors: "White, pink, cream or pastels",      note: "Venus day — love, luxury and relationship harmony" },
+    { day: "Saturday",  num: 8, colors: "Dark blue, black or purple",         note: "Saturn day — discipline, structure and protection" },
+    { day: "Sunday",    num: 1, colors: "Orange, gold, saffron or royal red", note: "Sun day — authority, vitality and recognition" }
+  ],
+
+  /* ---- Personal-year meanings (timing section) ---- */
+  personalYear: {
+    1: "New beginnings and leadership — launch ventures, take initiative, start what you've been postponing.",
+    2: "Patience and partnerships — nurture relationships and alliances; avoid big solo launches.",
+    3: "Growth, creativity and expansion — excellent for wealth moves, visibility and learning.",
+    4: "Foundation and discipline — build systems and save; expect delays, don't force outcomes.",
+    5: "Change and opportunity — travel, marketing pushes, business pivots and bold experiments pay off.",
+    6: "Harmony, family and comfort — relationships, home, luxury and creative work flourish.",
+    7: "Introspection and mastery — research, upskill, spiritual practice; avoid impulsive risks.",
+    8: "Results and recognition — karma delivers; career milestones and rewards for past effort.",
+    9: "Completion and action — close old cycles, settle debts, bold moves in property and courage-led goals."
+  },
+
+  /* ---- Sound-preserving spelling transforms (Bollywood-style) ----
+     Used to generate name corrections that keep pronunciation:
+     Tripti -> Triptii, Sunil -> Suniel, Ashish -> Aashish, Kumar -> Kumarr */
+  spelling: {
+    vowelDoubles: { A: "AA", E: "EE", I: "II", O: "OO", U: "UU" },
+    homophones: {
+      K: ["C", "KH"], C: ["K", "CK"], S: ["SH", "SS"], F: ["PH"],
+      J: ["Z"], Z: ["J"], V: ["W"], W: ["V"], Q: ["K"],
+      I: ["Y", "EE"], Y: ["I"], U: ["OO"], PH: ["F"]
+    },
+    insertVowels: ["A", "E", "I"],          // Suniel-style vowel insertion
+    note: "Corrections preserve pronunciation — letters are doubled, added or swapped for same-sound equivalents, never dropped."
+  },
+
   /* ---- Name-number verdicts ---- */
   nameAdvice: {
     friendly: "Your name number vibrates in harmony with your birth numbers — no spelling change needed.",

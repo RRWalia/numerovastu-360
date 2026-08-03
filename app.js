@@ -119,61 +119,101 @@
     };
   }
 
-  /* -------- name spelling suggestions -------- */
+  /* -------- name spelling suggestions --------
+     Two correction goals, in priority order:
+       A) compensate a MISSING Loshu number (practitioner style — e.g.
+          Meher Afrose, missing 6 -> "MMeher Afrose", total 51 -> 6)
+       B) align with numbers harmonious to Driver & Conductor
+     All transforms preserve pronunciation (Bollywood style: Tripti ->
+     Triptii, Sunil -> Suniel, Kumar -> Kumarr) — never letter drops. */
   function nameSuggestions(p) {
     if (p.nameRelD !== "enemy" && p.nameRelC !== "enemy") return { needed: false, verdict: p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly" };
 
-    // good targets: friendly to both; fallback friendly to one & neutral to other
-    const both = [], one = [];
+    // ---- target numbers ----
+    // A) missing grid numbers, best first: friendly-to-both > enemy-to-one > enemy-to-both
+    const missingRanked = p.missing.slice().sort((a, b) => {
+      const score = (n) => {
+        const rd = relation(p.driver, n), rc = relation(p.conductor, n);
+        if (rd === "friendly" && rc === "friendly") return 0;
+        if (rd !== "enemy" || rc !== "enemy") return 1;
+        return 2;
+      };
+      return score(a) - score(b);
+    }).map((n) => ({ n, why: `compensates your missing number ${n} (${DB.numbers[n].planet})` }));
+    // B) harmonious numbers not already covered
+    const harm = [];
     for (let n = 1; n <= 9; n++) {
       const rd = relation(p.driver, n), rc = relation(p.conductor, n);
-      if (rd === "friendly" && rc === "friendly") both.push(n);
-      else if (rd !== "enemy" && rc !== "enemy") one.push(n);
+      if (rd !== "enemy" && rc !== "enemy" && !p.missing.includes(n)) {
+        harm.push({ n, why: rd === "friendly" && rc === "friendly"
+          ? `harmonious with both Driver ${p.driver} and Conductor ${p.conductor}`
+          : `acceptable to Driver ${p.driver} and Conductor ${p.conductor}` });
+      }
     }
-    const targets = both.length ? both : one;
+    const targets = missingRanked.concat(harm);
     if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
 
-    const letters = p.name.toUpperCase().split("");
-    const variants = [];
-    const seen = new Set();
-    const pushVariant = (text, change, newC) => {
-      const key = text;
+    // ---- candidate transforms (sound-preserving only) ----
+    const name = p.name;
+    const up = name.toUpperCase();
+    const S = DB.spelling;
+    const candidates = []; // {text, change, compound, kind}
+    const seen = new Set([up.replace(/\s+/g, " ")]);
+    const keepCase = (i, str) => { // match original letter case at position
+      return str.split("").map((c, j) => {
+        const orig = name[i + j];
+        if (orig && orig === orig.toLowerCase()) return c.toLowerCase();
+        return c;
+      }).join("");
+    };
+    const addCand = (text, change, kind, deltaV) => {
+      const key = text.toUpperCase();
       if (seen.has(key)) return;
       seen.add(key);
-      variants.push({ text, change, compound: newC, reduced: reduce(newC), delta: Math.abs(newC - p.nameCompound) });
+      const compound = chaldeanValue(text);
+      candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - p.nameCompound) + (deltaV || 0) });
     };
 
-    // substitution / removal / vowel-doubling (single edit)
-    letters.forEach((ch, i) => {
+    up.split("").forEach((ch, i) => {
       const v = DB.chaldean[ch];
-      if (!v) return;
-      // substitute
-      Object.entries(DB.chaldean).forEach(([L, v2]) => {
-        if (L === ch) return;
-        const newC = p.nameCompound - v + v2;
-        if (targets.includes(reduce(newC))) {
-          const arr = p.name.split(""); arr[i] = arr[i] === arr[i].toUpperCase() ? L : L.toLowerCase();
-          pushVariant(arr.join(""), `${ch} → ${L}`, newC);
-        }
-      });
-      // removal
-      const newCrem = p.nameCompound - v;
-      if (targets.includes(reduce(newCrem))) {
-        const arr = p.name.split(""); arr.splice(i, 1);
-        pushVariant(arr.join(""), `drop “${ch}”`, newCrem);
+      if (!v) return; // skip spaces / non-letters
+      // 1) double a letter (vowel or consonant) — Triptii, Kumarr
+      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
+        const t = name.slice(0, i) + name[i] + name.slice(i);
+        addCand(t, `double "${name[i]}"`, "double", 0);
       }
-      // vowel doubling (keeps pronunciation)
-      if ("AEIOU".includes(ch)) {
-        const newCadd = p.nameCompound + v;
-        if (targets.includes(reduce(newCadd))) {
-          const arr = p.name.split(""); arr.splice(i, 0, arr[i]);
-          pushVariant(arr.join(""), `double “${ch}”`, newCadd);
-        }
+      // 2) homophone swap — same sound, different value (C<->K, S->SH, I->Y...)
+      (S.homophones[ch] || []).forEach((rep) => {
+        const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
+        addCand(t, `${name[i]} → ${rep}`, "swap", 1);
+      });
+      // 3) vowel insertion after this letter — Suniel style (only inside words)
+      if (i > 0 && up[i - 1] !== " ") {
+        S.insertVowels.forEach((vowel) => {
+          const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
+          addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
+        });
       }
     });
 
-    variants.sort((a, b) => a.delta - b.delta);
-    return { needed: true, verdict: "enemy", variants: variants.slice(0, 4), targets };
+    // ---- pick best candidates per target ----
+    const kindRank = { double: 0, swap: 1, insert: 2 };
+    const variants = [];
+    targets.forEach((t) => {
+      const hits = candidates
+        .filter((c) => c.reduced === t.n)
+        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
+      hits.slice(0, 2).forEach((c) => variants.push({ ...c, why: t.why, targetN: t.n }));
+    });
+    // de-dupe by spelling, keep target priority order
+    const finalSeen = new Set();
+    const out = [];
+    variants.forEach((v) => {
+      const k = v.text.toUpperCase();
+      if (finalSeen.has(k)) return;
+      finalSeen.add(k); out.push(v);
+    });
+    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((t) => t.n) };
   }
 
   /* -------- mobile number suggestion -------- */
@@ -186,6 +226,82 @@
       if (relation(p.driver, r) === "friendly" && relation(p.conductor, r) === "friendly") good.push(t);
     }
     return { needed: true, goodTotals: good.slice(0, 6) };
+  }
+
+  /* -------- vehicle number analysis -------- */
+  function vehicleAnalysis(p) {
+    // good totals: friendly to both driver & conductor; fallback not-enemy to either
+    const bothGood = [], okTotals = [];
+    for (let t = 4; t <= 45; t++) {
+      const r = reduce(t);
+      const rd = relation(p.driver, r), rc = relation(p.conductor, r);
+      if (rd === "friendly" && rc === "friendly") bothGood.push(t);
+      else if (rd !== "enemy" && rc !== "enemy") okTotals.push(t);
+    }
+    const goodTotals = bothGood.length ? bothGood : okTotals;
+    // lucky vehicle colours: friendly planets' colours
+    const luckyPlanetNums = [p.driver, p.conductor].filter((n, i, a) => a.indexOf(n) === i);
+    const luckyColors = luckyPlanetNums.map((n) => DB.numbers[n].color.split(",")[0] + " (" + DB.numbers[n].planet.split(" ")[0] + ")");
+
+    if (!p.vehicle) return { provided: false, goodTotals: goodTotals.slice(0, 8), luckyColors };
+
+    // letters carry Chaldean values, digits carry face value
+    const letters = p.vehicle.replace(/[^a-zA-Z]/g, "");
+    const digits = p.vehicle.replace(/\D/g, "");
+    const letterVal = chaldeanValue(letters);
+    const digitVal = digitSum(digits);
+    const total = letterVal + digitVal;
+    const num = reduce(total);
+    const relD = relation(p.driver, num), relC = relation(p.conductor, num);
+    return {
+      provided: true, raw: p.vehicle.toUpperCase(),
+      letters: letters.toUpperCase(), letterVal, digitVal, total, num,
+      relD, relC,
+      conflicting: relD === "enemy" || relC === "enemy",
+      goodTotals: goodTotals.slice(0, 8), luckyColors
+    };
+  }
+
+  /* -------- timing: personal years, lucky years, milestone ages -------- */
+  function timingAnalysis(p) {
+    const now = new Date();
+    const cy = now.getFullYear();
+    const personalYearNum = (yr) => reduce(p.day + p.month + reduce(yr));
+
+    // current + next 3 personal years
+    const years = [0, 1, 2, 3].map((off) => {
+      const yr = cy + off;
+      const n = personalYearNum(yr);
+      return { yr, n, meaning: DB.personalYear[n], current: off === 0 };
+    });
+
+    // lucky calendar years (next 12): year vibration friendly to driver,
+    // or personal year matching driver/conductor/friendly
+    const luckyYears = [];
+    for (let off = 0; off <= 12 && luckyYears.length < 6; off++) {
+      const yr = cy + off;
+      const yv = reduce(yr);
+      const py = personalYearNum(yr);
+      const reasons = [];
+      if (relation(p.driver, yv) === "friendly") reasons.push(`year vibration ${yv} supports Driver ${p.driver}`);
+      if (py === p.driver) reasons.push(`personal year ${py} = your Driver — a personal-power year`);
+      else if (py === p.conductor) reasons.push(`personal year ${py} = your Conductor — destiny doors open`);
+      else if (relation(p.driver, py) === "friendly") reasons.push(`personal year ${py} is friendly to Driver ${p.driver}`);
+      if (reasons.length) luckyYears.push({ yr, py, why: reasons.join("; ") });
+    }
+
+    // milestone ages (next 25 years of life): age reduces to driver,
+    // conductor, or a number friendly to both
+    const curAge = cy - p.year - (new Date(cy, p.month - 1, p.day) > now ? 1 : 0);
+    const milestones = [];
+    for (let age = curAge; age <= curAge + 25 && milestones.length < 6; age++) {
+      const a = reduce(age);
+      const rd = relation(p.driver, a), rc = relation(p.conductor, a);
+      if (a === p.driver) milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} = your Driver — peak personal-power year` });
+      else if (a === p.conductor) milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} = your Conductor — destiny-alignment year` });
+      else if (rd === "friendly" && rc === "friendly") milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} — harmonious with both your numbers` });
+    }
+    return { years, luckyYears, milestones, curAge };
   }
 
   /* -------- watch remedy spec -------- */
@@ -273,9 +389,9 @@
     if (mobSug.needed) {
       items.push(`Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
     }
-    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 6) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
+    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 7) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
     vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 7.`);
+      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 11.`);
     });
     const day2 = DAY_OF[p.conductor];
     items.push(`Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>) and Conductor day (<strong>${day2}</strong>) remedies — charity, colours and fasting as listed.`);
@@ -337,7 +453,7 @@
         </div>
         <div class="plane-list">${planes}</div>
       </div>
-      ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in Section 8.</div></div>`}
+      ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
       ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
     </section>`;
   }
@@ -367,6 +483,8 @@
   function renderReport(p) {
     const nameSug = nameSuggestions(p);
     const mobSug = mobileSuggestion(p);
+    const vehicle = vehicleAnalysis(p);
+    const timing = timingAnalysis(p);
     const vastu = vastuReport(p);
     const goals = goalPlan(p);
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
@@ -399,13 +517,13 @@
         </table>
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>Recommended spellings</strong> (single-letter corrections, pronunciation preserved where possible):</div>
+            ? `<div class="card-sub"><strong>Recommended spellings</strong> — pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:</div>
                <div class="table-scroll"><table class="rtable">
-                 <tr><th>Suggested spelling</th><th>Change</th><th>New total</th><th>New number</th></tr>
-                 ${nameSug.variants.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced} ${relBadge("friendly")}</td></tr>`).join("")}
+                 <tr><th>Suggested spelling</th><th>Change</th><th>New total</th><th>New number</th><th>Why it helps</th></tr>
+                 ${nameSug.variants.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}
                </table></div>
                <div class="card-sub">Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.</div>`
-            : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
+            : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
           : `<div class="kit-value">${esc(DB.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
       </div>
     </section>`;
@@ -429,9 +547,35 @@
       </div>
     </section>`;
 
-    /* Section 6: watch */
+    /* Section 6: vehicle number */
+    const vehicleSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">6</span>Vehicle Number Vibration</h2>
+      <p class="rsection-desc">You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values.</p>
+      ${vehicle.provided
+        ? `<div class="card">
+            <div class="goal-head">
+              <div class="card-title">${esc(vehicle.raw)}</div>
+              <span class="badge info">Letters ${vehicle.letterVal} + digits ${vehicle.digitVal} = ${vehicle.total} → Number ${vehicle.num} (${esc(DB.numbers[vehicle.num].planet)})</span>
+              ${relBadge(vehicle.conflicting ? "enemy" : vehicle.relD === "neutral" && vehicle.relC === "neutral" ? "neutral" : "friendly")}
+            </div>
+            <table class="rtable">
+              <tr><th>vs Driver ${p.driver}</th><td>${relBadge(vehicle.relD)}</td></tr>
+              <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(vehicle.relC)}</td></tr>
+            </table>
+            ${vehicle.conflicting
+              ? `<div class="kit-value">This number works against your birth numbers. When you next register or change a vehicle, choose a plate whose letters (Chaldean) + digits total <strong>${vehicle.goodTotals.join(", ")}</strong>. Until then, keep a small ${esc(DB.numbers[p.driver].crystal.split(" ")[0])} or ${esc(DB.numbers[p.driver].planet.split(" ")[0])} yantra in the vehicle and start new journeys on ${DAY_OF[p.driver]}.</div>`
+              : `<div class="kit-value">Your vehicle number vibrates acceptably with your birth numbers — keep it. For your next vehicle, the totals below remain your best picks.</div>`}
+          </div>`
+        : `<div class="card"><div class="kit-value">No vehicle number was entered — use the guidance below whenever you buy a car/bike or choose a registration number.</div></div>`}
+      <div class="card">
+        <div class="card-title">Choosing a Lucky Vehicle Number</div>
+        <div class="kit-value">Pick a registration whose <strong>letter values + digits total</strong> is one of: <strong>${vehicle.goodTotals.join(", ")}</strong> (these reduce to numbers in harmony with Driver ${p.driver} and Conductor ${p.conductor}). Favour vehicle colours <strong>${esc(vehicle.luckyColors.join(" or "))}</strong>. Take delivery of a new vehicle on a <strong>${DAY_OF[p.driver]}</strong> or <strong>${DAY_OF[p.conductor]}</strong>, ideally in the morning.</div>
+      </div>
+    </section>`;
+
+    /* Section 7: watch */
     const watchSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">6</span>Watch &amp; Wearable Remedy</h2>
+      <h2 class="rsection-title"><span class="idx">7</span>Watch &amp; Wearable Remedy</h2>
       <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</p>
       <div class="table-scroll"><table class="rtable">
         <tr><th>Element</th><th>Recommended</th><th>Why</th></tr>
@@ -442,10 +586,87 @@
       <div class="card"><div class="card-title">Auspicious Activation</div><div class="kit-value">Wear the new watch for the first time on a <strong>${watch.days.join(" or ")}</strong> morning, ${watch.time}. Set a clear intention for your ${esc(p.goals[0] || "goal")} goal while putting it on.</div></div>
     </section>`;
 
-    /* Section 7: vastu */
+    /* Section 8: lucky colours & day-wise dressing */
+    const powerDaySet = [...new Set([DAY_OF[p.driver], DAY_OF[p.conductor]])];
+    const colorSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">8</span>Lucky Colours &amp; Day-wise Dressing</h2>
+      <div class="card">
+        <div class="card-title">Your Power Colours</div>
+        <div class="kit-value">Wear <strong>${esc(DB.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(DB.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</div>
+      </div>
+      <div class="card">
+        <div class="card-title">What to Wear, Day by Day</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>Day</th><th>Planet</th><th>Wear these colours</th><th>Note</th></tr>
+          ${DB.dayWear.map((d) => `<tr${powerDaySet.includes(d.day) ? ' class="hl-row"' : ""}>
+            <td><strong>${esc(d.day)}</strong>${powerDaySet.includes(d.day) ? ' <span class="badge good">Your power day</span>' : ""}</td>
+            <td>${esc(DB.numbers[d.num].planet.split(" ")[0])}</td>
+            <td>${esc(d.colors)}</td>
+            <td>${esc(d.note)}</td>
+          </tr>`).join("")}
+        </table></div>
+        <div class="card-sub">Rule of thumb: never wear dull or torn clothes on your power days — that is when your planets receive energy most directly.</div>
+      </div>
+    </section>`;
+
+    /* Section 9: career & profession guidance */
+    const driverCareers = DB.careers[p.driver], conductorCareers = DB.careers[p.conductor];
+    const overlap = driverCareers.filter((c) => conductorCareers.includes(c));
+    const careerSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">9</span>Best Fields &amp; Professions</h2>
+      <p class="rsection-desc">Fields ruled by your Driver suit your natural talent; fields ruled by your Conductor bring destiny-level success. The sweet spot is where they overlap.</p>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">Natural Talent — Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)})</div>
+          <div class="kit">${driverCareers.map((c) => `<div class="kit-row"><div class="kit-ico">›</div><div class="kit-body"><div class="kit-value">${esc(c)}</div></div></div>`).join("")}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Destiny Growth — Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)})</div>
+          <div class="kit">${conductorCareers.map((c) => `<div class="kit-row"><div class="kit-ico">›</div><div class="kit-body"><div class="kit-value">${esc(c)}</div></div></div>`).join("")}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Career Direction Verdict</div>
+        <div class="kit-value">${overlap.length
+          ? `Your talent and destiny align beautifully in: <strong>${overlap.map(esc).join(", ")}</strong> — prioritise these for the highest chance of excelling.`
+          : `Your Driver and Conductor pull towards different fields — combine them (e.g. a Driver-${p.driver} skill applied inside a Conductor-${p.conductor} industry) and success probability multiplies.`}
+          ${p.missing.includes(3) ? ` Number 3 (Jupiter) is missing from your grid — careers involving teaching, finance or advisory need extra Jupiter remedy support (see Section 3).` : ""}
+          ${p.missing.includes(8) ? ` Number 8 (Saturn) is missing — long-term career stability improves as you apply the Saturn remedies in Section 3.` : ""}</div>
+      </div>
+    </section>`;
+
+    /* Section 10: favourable years & timing */
+    const timingSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">10</span>Favourable Years &amp; Timing</h2>
+      <div class="card">
+        <div class="card-title">Your Personal Year Cycle</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>Year</th><th>Personal Year</th><th>Theme — how to use it</th></tr>
+          ${timing.years.map((y) => `<tr${y.current ? ' class="hl-row"' : ""}>
+            <td><strong>${y.yr}</strong>${y.current ? ' <span class="badge info">Now</span>' : ""}</td>
+            <td>${y.n} (${esc(DB.numbers[y.n].planet.split(" ")[0])})</td>
+            <td>${esc(y.meaning)}</td>
+          </tr>`).join("")}
+        </table></div>
+      </div>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">Best Years Ahead</div>
+          <div class="kit">${timing.luckyYears.map((l) => `<div class="kit-row"><div class="kit-ico"><strong>${l.yr}</strong></div><div class="kit-body"><div class="kit-value">Personal year ${l.py} — ${esc(l.why)}</div></div></div>`).join("")}</div>
+          <div class="card-sub">Schedule launches, investments, job switches and major purchases in these years for maximum support.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Milestone Ages</div>
+          <div class="kit">${timing.milestones.map((m) => `<div class="kit-row"><div class="kit-ico"><strong>${m.age}</strong></div><div class="kit-body"><div class="kit-value">Year ${m.yr} — ${esc(m.why)}</div></div></div>`).join("")}</div>
+          <div class="card-sub">These ages carry extra momentum — plan your biggest moves to land on them.</div>
+        </div>
+      </div>
+    </section>`;
+
+    /* Section 11: vastu */
     const vastuSection = vastu.length
       ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">7</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">11</span>Vastu Dosh Scan</h2>
           <div class="card">
             <div class="kit">
             ${vastu.map((f) => `<div class="kit-row">
@@ -460,13 +681,13 @@
           <p class="rsection-desc">General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya.</p>
         </section>`
       : `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">7</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">11</span>Vastu Dosh Scan</h2>
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
-    /* Section 8: goal plans */
+    /* Section 12+: goal plans */
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${8 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${12 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
         ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
         : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
@@ -475,7 +696,7 @@
 
     /* final section: priority plan */
     const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${8 + goals.length}</span>Your 40-Day Priority Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${12 + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
@@ -502,7 +723,11 @@
       ${weakSection}
       ${nameSection}
       ${mobSection}
+      ${vehicleSection}
       ${watchSection}
+      ${colorSection}
+      ${careerSection}
+      ${timingSection}
       ${vastuSection}
       ${goalSections}
       ${prioritySection}
@@ -537,6 +762,7 @@
       name: $("#fullName").value.trim(),
       dob: $("#dob").value,
       mobile: $("#mobile").value.replace(/[^\d+]/g, ""),
+      vehicle: $("#vehicle").value.trim(),
       goals: Array.from(selectedGoals),
       entrance: $("#entrance").value,
       kitchen: $("#kitchen").value,
@@ -552,5 +778,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, reduce, relation, chaldeanValue };
 })();
