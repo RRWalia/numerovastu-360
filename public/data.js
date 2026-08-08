@@ -174,17 +174,142 @@ const DB = {
     [8, 1, 6]
   ],
 
-  /* ---- Loshu planes / arrows of strength ---- */
+  /* ---- The 8 planes of the Loshu grid, fully analysed ----
+     Each plane: zone, about (generic meaning), per-cell role
+     (short label, consequence when weak, fix), complete-text. */
   planes: [
-    { name: "Mental Plane",      cells: [4,9,2], meaning: "Intellect, memory and analytical thinking" },
-    { name: "Emotional Plane",   cells: [3,5,7], meaning: "Feelings, intuition and spiritual depth" },
-    { name: "Practical Plane",   cells: [8,1,6], meaning: "Material execution, wealth and physical world" },
-    { name: "Thought Arrow",     cells: [4,3,8], meaning: "Planning and disciplined thinking" },
-    { name: "Will Arrow",        cells: [9,5,1], meaning: "Determination and persistence" },
-    { name: "Action Arrow",      cells: [2,7,6], meaning: "Energy to convert plans into results" },
-    { name: "Raj Yoga (Wealth)", cells: [4,5,6], meaning: "Prosperity combination — abundance and success" },
-    { name: "Spiritual Yoga",    cells: [2,5,8], meaning: "Inner balance and spiritual growth" }
+    { name: "Mental Plane", zone: "Top row of the Lo Shu Grid", cells: [4, 9, 2],
+      about: "This plane describes your thinking pattern — how you plan, judge, decide, and turn an idea into a practical direction. A strong mental plane does not simply mean intelligence; it shows whether your mind naturally connects planning, confidence, and grounded judgement. A weak or missing pattern does not mean you cannot think well, but it usually means you need external structure, written planning, or better decision systems to avoid scattered or delayed choices.",
+      roles: {
+        4: { short: "Planning", label: "planning & structure", con: "deciding first and structuring later, which can create avoidable reversals", fix: "write the goal, risk, cost, and next three steps before every major choice" },
+        9: { short: "Action", label: "decisive action & confidence", con: "hesitation at the exact moment a decision is needed", fix: "practise small, quick decisions daily to rebuild decision confidence" },
+        2: { short: "Grounding", label: "grounded judgement", con: "judgements made on emotion or urgency rather than ground facts", fix: "pause before concluding and test decisions against facts and one trusted advisor" }
+      },
+      complete: "Planning, confidence, and grounded judgement work together — this supports clear strategy, confident decisions, and the ability to explain your reasoning. A strong advisory and leadership mind. Guard against over-analysis; even the best mind must eventually decide." },
+
+    { name: "Emotional Plane", zone: "Middle row of the Lo Shu Grid", cells: [3, 5, 7],
+      about: "This plane describes your emotional processing — how you feel, express, absorb, regulate, and set boundaries. It is not only about being emotional; it shows whether feelings become clear communication, stable self-understanding, and mature limits. A weaker pattern can still give warmth or sensitivity, but the person may need more deliberate reflection before reacting, sharing, or closing themselves off.",
+      roles: {
+        3: { short: "Expression", label: "emotional expression & growth", con: "appearing composed and controlled outside while feelings stay unexpressed — over time this can turn into distance or quiet resentment", fix: "create a safe method of expression — honest conversations, writing, therapy-style reflection, or creative work" },
+        5: { short: "Grounding", label: "emotional grounding", con: "emotions that swing before they settle, especially under pressure", fix: "practise centring rituals — breathwork, journaling, or time near water" },
+        7: { short: "Boundaries", label: "boundaries & refinement", con: "porous boundaries — absorbing other people's moods and problems as your own", fix: "define what you will and will not accept, and communicate it calmly and early" }
+      },
+      complete: "Feelings flow into words cleanly, you read others well, and relationships receive both warmth and mature limits. This is a strong pattern for partnerships, caregiving, public-facing work, and team harmony." },
+
+    { name: "Practical Plane", zone: "Bottom row of the Lo Shu Grid", cells: [8, 1, 6],
+      about: "This plane describes your material execution — how you handle work, money, resources, delivery, and real-world results. A strong practical plane usually supports converting ability into visible outcomes. A weaker pattern does not mean failure; it means the person may need stronger systems, partners, deadlines, distribution habits, or financial discipline so effort does not remain incomplete or unmonetised.",
+      roles: {
+        8: { short: "Resources", label: "responsibility & resource handling", con: "effort that stays incomplete or unmonetised despite hard work", fix: "build systems — budgets, checklists, deadlines — that carry work to completion" },
+        1: { short: "Ownership", label: "drive & personal ownership", con: "waiting for direction instead of owning outcomes end-to-end", fix: "take single-point ownership of one outcome at a time" },
+        6: { short: "Finish Quality", label: "quality & refinement of output", con: "rushed output that undersells your real ability", fix: "define a finish standard before starting and deliver to it" }
+      },
+      complete: "Resources, ownership, and execution quality work together — a strong pattern for business, career growth, property, operations, and money management. You naturally ask 'how will this actually work?' The area to manage is becoming too outcome-focused; do not let productivity dry out your inner life." },
+
+    { name: "Thought Plane", zone: "Left column of the Lo Shu Grid", cells: [4, 3, 8],
+      about: "This plane describes long-form thinking — how you learn, analyse, connect ideas, and build understanding over time. It is different from quick intelligence. It shows whether your thoughts naturally become structured insight, deep study, and useful strategy. When this plane is weak, the person may still be smart, but thinking often improves when it is written down, discussed with the right people, and tested against real-world outcomes.",
+      roles: {
+        4: { short: "Ideas", label: "idea generation", con: "repeating known frames instead of questioning whether the strategy itself needs change", fix: "capture ideas the moment they appear — a notes habit turns sparks into strategy" },
+        3: { short: "Learning", label: "learning & knowledge growth", con: "skill growth that plateaus because new inputs stop arriving", fix: "schedule one new input every week — a book, course, or mentor conversation" },
+        8: { short: "Depth", label: "mental endurance & depth", con: "giving up on hard problems just before the breakthrough", fix: "schedule periodic zoom-outs: review assumptions and check that effort is going in the right direction" }
+      },
+      complete: "Ideas, learning, and depth reinforce each other — you can master complex subjects and convert study into strategy. This supports advisory roles, research, teaching, and any field where understanding compounds." },
+
+    { name: "Will Plane", zone: "Middle column of the Lo Shu Grid", cells: [9, 5, 1],
+      about: "This plane describes willpower — how you push through resistance, stay steady under pressure, and adjust when circumstances change. It is not only about aggression or ambition; it shows whether your drive has stamina and flexibility. When this plane is weak, motivation may come in waves, so external accountability, public commitments, routines, and pressure-based deadlines become especially important.",
+      roles: {
+        9: { short: "Drive", label: "drive & pushing power", con: "strong intentions without force behind them when resistance appears", fix: "use physical training, sport, or competition to build healthy pushing power" },
+        5: { short: "Steadiness", label: "steadiness & adaptability", con: "motivation that wavers whenever conditions change", fix: "anchor yourself with fixed routines that hold you steady through change" },
+        1: { short: "Direction", label: "self-belief & direction", con: "drive that depends on others' approval or borrowed goals", fix: "write your own direction down — self-chosen goals feed this plane" }
+      },
+      complete: "You can start with force, continue with patience, and change tactics when the situation demands — useful for entrepreneurship, sports, leadership, crisis work, and long projects. Strong will can also push past healthy limits; pair ambition with recovery and honest review points." },
+
+    { name: "Action Plane", zone: "Right column of the Lo Shu Grid", cells: [2, 7, 6],
+      about: "This plane describes follow-through — how you take intention and convert it into disciplined, finished action. It shows patience, boundaries, standards, and the ability to complete work cleanly. A weaker action plane can create delay, overthinking, poor finish, or difficulty enforcing limits, even when the person has good ideas or strong desire. The solution is usually clearer rules, smaller deadlines, and a defined finish standard.",
+      roles: {
+        2: { short: "Patience", label: "patience & grounding in action", con: "over-editing, checking, or holding back instead of completing — hidden perfection does not produce results", fix: "work to practical deadlines and minimum-viable standards — decide what is good enough for the current stage" },
+        7: { short: "Standards", label: "standards & limits", con: "unclear limits, so work expands endlessly past its useful size", fix: "set clear rules for when to stop refining and ship" },
+        6: { short: "Completion", label: "finish quality", con: "many things started, few cleanly finished", fix: "define 'done' before you start, and close tasks fully before opening new ones" }
+      },
+      complete: "Intentions reliably become finished work — patience, standards, and finish quality combine into a reputation for clean delivery. This supports operations, craftsmanship, and any role where the last 10% decides the value." },
+
+    { name: "Golden Rajyoga", zone: "Diagonal of the Lo Shu Grid (4 – 5 – 6)", cells: [4, 5, 6],
+      about: "This diagonal is read as an opportunity-to-output pattern. It shows whether a person can notice openings, stabilise them into a workable structure, and refine them into something valuable. It is useful for business, career growth, freelancing, branding, sales, and opportunity conversion. It does not guarantee wealth by itself; it shows the natural support for converting chances into organised and presentable results.",
+      roles: {
+        4: { short: "Opportunity", label: "spotting fresh opportunities", con: "comfort with known formats while faster-moving openings pass unnoticed", fix: "scan your market weekly — competitors, customer behaviour, new platforms, changing prices" },
+        5: { short: "Structure", label: "structuring what you find", con: "opportunities that stay informal and leak value before they crystallise", fix: "give every opportunity a structure: owner, timeline, and budget" },
+        6: { short: "Refinement", label: "refining results into value", con: "results delivered plain when they could be packaged premium", fix: "polish before you present — packaging converts work into value" }
+      },
+      complete: "Opportunity spotting, structure, and refinement connect into a strong wealth-conversion pattern — business, sales, branding, and career growth all benefit directly. Once you identify the right opening, your ability to structure and refine converts it well." },
+
+    { name: "Silver Rajyoga", zone: "Diagonal of the Lo Shu Grid (8 – 5 – 2)", cells: [8, 5, 2],
+      about: "This diagonal is read as a material-stability and asset-consolidation pattern. It is connected with property, savings, resource management, patience, and grounded progress. It does not mean instant money. It shows whether the person naturally understands holding, managing, protecting, and slowly building material security. When weak, property or asset growth may still happen, but it usually needs deliberate planning and disciplined external systems.",
+      roles: {
+        8: { short: "Assets", label: "asset & resource structure", con: "assets held without structure, documentation, or protection", fix: "formalise your assets — documentation, insurance, and clear ownership" },
+        5: { short: "Management", label: "balanced management", con: "money and resources handled reactively instead of on a rhythm", fix: "review money and resources on a fixed monthly rhythm" },
+        2: { short: "Patience", label: "patience & continuity", con: "becoming too controlling or pressure-driven when dealing with assets", fix: "let assets mature — add patience, relationship sensitivity, and gradual planning instead of pressure" }
+      },
+      complete: "Asset sense, balanced management, and patience combine into steady material security — property, savings, and long-term holdings grow well under your hand. This is the classic wealth-consolidation diagonal." }
   ],
+
+  /* ---- Core nature per Mulank: traits, strengths & shadows ----
+     Mulank = visible day-to-day personality; the same signature set
+     marks what to amplify (adopt) and what to release. */
+  traits: {
+    1: { nature: "A born leader — independent, original, and authoritative. You prefer to initiate rather than follow, and you recover quickly from setbacks.",
+         innerDrive: "a deep need to lead, to be recognised, and to stand on your own name",
+         strengths: ["Leadership and initiative", "Confidence under pressure", "Original, independent thinking", "Determination and quick recovery"],
+         shadows: ["Ego and pride when challenged", "Stubbornness — my way or no way", "Impatience with slower people", "Dominating conversations and decisions"],
+         adopt: ["Decisive action", "Self-belief without arrogance", "Pioneering spirit", "Personal accountability"],
+         release: ["Micromanaging others", "Need for constant approval", "Anger when opposed", "Doing everything alone"] },
+    2: { nature: "Gentle, intuitive, and diplomatic. You sense undercurrents others miss and bring people together — the quiet force behind harmony.",
+         innerDrive: "a deep need for connection, emotional security, and peaceful surroundings",
+         strengths: ["Empathy and emotional intelligence", "Cooperation and peacemaking", "Patience and diplomacy", "Strong intuition about people"],
+         shadows: ["Over-sensitivity to criticism", "Mood swings and worry loops", "Self-doubt at decision time", "Dependency on others' reassurance"],
+         adopt: ["Calm persistence", "Healthy collaboration", "Trusting your intuition", "Nurturing yourself first"],
+         release: ["Taking things personally", "People-pleasing", "Hesitation and over-deliberation", "Absorbing others' moods"] },
+    3: { nature: "Optimistic, expressive, and wise. You think big, teach naturally, and lift the mood of every room you enter.",
+         innerDrive: "a deep need to grow, to teach, and to see your ideas expand in the world",
+         strengths: ["Communication and expression", "Vision and big-picture thinking", "Teaching and mentoring ability", "Generosity and humour"],
+         shadows: ["Scattered energy across too many projects", "Over-promising and exaggeration", "Extravagance with money", "Preaching instead of listening"],
+         adopt: ["Disciplined learning", "Mentoring others", "Gratitude practice", "Finishing what you envision"],
+         release: ["Judging others quickly", "Impulse spending", "Unfinished projects", "Talking more than listening"] },
+    4: { nature: "Unconventional, practical, and tireless. You build differently — systems, gadgets, methods — and you are at your best when breaking an old pattern.",
+         innerDrive: "a deep need to build something different and break through imposed limits",
+         strengths: ["Out-of-the-box thinking", "Endurance and hard work", "Technology and systems aptitude", "Courage to reform"],
+         shadows: ["Restlessness and sudden extremes", "Rigidity inside your own routines", "Suspicion of others' motives", "All-or-nothing decisions"],
+         adopt: ["Structured innovation", "Persistence through boring phases", "Financial prudence", "Adaptability to change"],
+         release: ["Worst-case overthinking", "Unnecessary secrecy", "Impulsive risks", "Rules for the sake of rules"] },
+    5: { nature: "Versatile, witty, and quick. You are the communicator and the deal-maker — freedom, variety, and movement keep you alive.",
+         innerDrive: "a deep need for freedom, variety, and movement — mental and physical",
+         strengths: ["Communication and persuasion", "Adaptability in any situation", "Sharp calculation and business sense", "Networking and multi-tasking"],
+         shadows: ["Restlessness and inconsistency", "Scattered focus", "Starting without finishing", "Nervous energy and over-analysis"],
+         adopt: ["Curiosity with follow-through", "Clear, honest speech", "Financial planning", "Flexibility with commitments"],
+         release: ["Gossip and loose talk", "Impatience with slower minds", "Too many open loops", "Chasing every new thing"] },
+    6: { nature: "Charming, caring, and responsible. Beauty, comfort, and relationships matter to you — people feel looked-after around you.",
+         innerDrive: "a deep need for love, beauty, harmony, and a beautiful environment",
+         strengths: ["Magnetism and charm", "Nurturing and responsibility", "Aesthetic taste", "Harmony-building in groups"],
+         shadows: ["Perfectionism that delays", "Over-attachment and possessiveness", "Indulgence and comfort spending", "Interfering in others' lives"],
+         adopt: ["Self-care alongside caregiving", "Healthy boundaries", "Appreciation of beauty daily", "Deep commitment"],
+         release: ["Possessiveness", "Vanity", "Carrying others' burdens", "Comfort-zone spending"] },
+    7: { nature: "Introspective, analytical, and spiritual. You seek the truth beneath the surface — a researcher of life, happiest with depth over noise.",
+         innerDrive: "a deep need for meaning, truth, and inner knowing",
+         strengths: ["Research and analytical depth", "Strong intuition", "Independence of thought", "Wisdom-seeking"],
+         shadows: ["Isolation and aloofness", "Over-thinking into paralysis", "Distrust of people", "Detachment from practical duties"],
+         adopt: ["Purposeful solitude", "Faith in your intuition", "Deep, focused study", "Simplicity in living"],
+         release: ["Suspicion without evidence", "Analysis-paralysis", "Pessimism", "Withdrawing when hurt"] },
+    8: { nature: "Disciplined, enduring, and justice-oriented. Life tests you early and often — and it is exactly that pressure that forges your authority.",
+         innerDrive: "a deep need for order, justice, and lasting results that outlive you",
+         strengths: ["Hard work and endurance", "Organization and systems", "Loyalty and dependability", "Long-term vision"],
+         shadows: ["Pessimism and self-criticism", "Rigidity", "Feelings locked inside", "Workaholism"],
+         adopt: ["Patience with the process", "Systems thinking", "Fairness in judgement", "Consistency over intensity"],
+         release: ["Grudges", "Fear of failure", "All work and no play", "Carrying the world alone"] },
+    9: { nature: "Energetic, courageous, and protective. You are built for action — you defend your people fiercely and finish what others abandon.",
+         innerDrive: "a deep need to act, to protect, and to win",
+         strengths: ["Courage and decisiveness", "High energy and stamina", "Drive to completion", "Protection of others"],
+         shadows: ["Anger and impulsiveness", "Ego in conflict", "Haste that skips details", "Burnout from over-driving"],
+         adopt: ["Channelled aggression through sport or service", "Quick forgiveness", "Bold initiative", "Disciplined action"],
+         release: ["Arguments for winning's sake", "Revenge thoughts", "Uncalculated risks", "Rushing past people"] }
+  },
 
   /* ---- Missing-number quick remedies shown on the grid ---- */
   missingFix: {

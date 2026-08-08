@@ -296,6 +296,40 @@ body {
 .goal-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .goal-name { font-size: 15px; font-weight: 500; }
 
+/* Core nature (Section 2) */
+.nature-pair { display: flex; gap: 32px; justify-content: center; padding: 8px 0 4px; }
+.nature-chip { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.nature-chip .num-value { width: 56px; height: 56px; font-size: 24px; line-height: 56px; }
+.num-value.alt { background: var(--purple); }
+.judge-note {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--kimi-blue-10); border-left: 3px solid var(--kimi-blue);
+  border-radius: var(--r-sm); font-size: 13px; line-height: 20px; color: var(--label-secondary);
+}
+.good-ico { color: var(--positive); font-weight: 700; }
+.bad-ico { color: var(--danger); font-weight: 700; }
+.adopt-release { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+.adopt-col, .release-col {
+  border-radius: var(--r-md); padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.adopt-col { background: var(--light-green-bg); }
+.release-col { background: var(--light-red-bg); }
+.ar-item { font-size: 14px; line-height: 20px; }
+
+/* 8-plane analysis cards */
+.plane-cards { display: flex; flex-direction: column; gap: 16px; }
+.plane-card { display: flex; flex-direction: column; gap: 8px; }
+.plane-chips { display: flex; gap: 8px; }
+.plane-chip {
+  width: 28px; height: 28px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+}
+.plane-chip.on { background: var(--kimi-blue); color: #fff; }
+.plane-chip.off { background: var(--light-red-bg); color: var(--label-quaternary); text-decoration: line-through; }
+.plane-about { color: var(--label-secondary); font-style: italic; }
+
 /* Priority plan */
 .priority-list { counter-reset: p; display: flex; flex-direction: column; gap: 8px; }
 .priority-item {
@@ -335,6 +369,8 @@ body {
   .form-block { padding: 16px; }
   .loshu-wrap { flex-direction: column; }
   .loshu-grid { max-width: 100%; }
+  .adopt-release { grid-template-columns: 1fr; }
+  .nature-pair { gap: 20px; }
   .header-actions { gap: 6px; }
   .header-actions .btn { padding: 6px 9px; min-width: 34px; }
   .header-actions .btn-text { display: none; }

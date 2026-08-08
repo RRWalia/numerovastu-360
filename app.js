@@ -406,9 +406,9 @@
     if (mobSug.needed) {
       items.push(`Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
     }
-    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 8) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
+    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 9) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
     vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 13.`);
+      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 14.`);
     });
     const day2 = DAY_OF[p.conductor];
     items.push(`Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>) and Conductor day (<strong>${day2}</strong>) remedies — charity, colours and fasting as listed.`);
@@ -437,12 +437,40 @@
       </div>`;
     }).join("");
 
-    const planes = DB.planes.map((pl) => {
-      const complete = pl.cells.every((n) => p.counts[n] > 0);
-      return `<div class="plane-item ${complete ? "complete" : ""}">
-        <span class="pname">${esc(pl.name)}</span>
-        <span class="pdesc">${esc(pl.meaning)}</span>
-        <span class="cells">${pl.cells.join("-")} ${complete ? "✓" : ""}</span>
+    /* 8 fully-analysed plane cards */
+    const planeCards = DB.planes.map((pl) => {
+      const present = pl.cells.filter((n) => p.counts[n] > 0);
+      const absent = pl.cells.filter((n) => p.counts[n] === 0);
+      const chips = pl.cells.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const badge = present.length === 3 ? '<span class="badge good">Active</span>'
+        : present.length === 2 ? '<span class="badge warn">Partial</span>'
+        : '<span class="badge bad">Weak</span>';
+      let title, reading;
+      if (present.length === 3) {
+        title = `Complete ${pl.name}`;
+        reading = `You have the full ${pl.name.toLowerCase()} — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} work together. ${pl.complete}`;
+      } else if (present.length === 0) {
+        title = `${pl.name} — Fully Missing`;
+        reading = `All three energies of this plane — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — need deliberate support. ${absent.map((n) => pl.roles[n].fix[0].toUpperCase() + pl.roles[n].fix.slice(1)).join("; ")}.`;
+      } else {
+        const presTxt = present.map((n) => pl.roles[n].label).join(" and ");
+        const absTxt = absent.map((n) => pl.roles[n].label).join(" and ");
+        title = present.length === 1
+          ? `${pl.name} — Only ${pl.roles[present[0]].short}`
+          : `${pl.name} — Without ${absent.map((n) => pl.roles[n].short).join(" & ")}`;
+        const cons = absent.map((n) => pl.roles[n].con).join("; ");
+        const fixes = absent.map((n) => pl.roles[n].fix).join("; ");
+        reading = `You have ${presTxt} in your ${pl.name.toLowerCase()}, but ${absTxt} ${absent.length > 1 ? "are" : "is"} weaker here. This can show up as ${cons}. Your remedy: ${fixes}.`;
+      }
+      return `<div class="card plane-card">
+        <div class="goal-head">
+          <div class="card-title">${esc(title)}</div>
+          ${badge}
+        </div>
+        <div class="card-sub">${esc(pl.zone)}</div>
+        <div class="plane-chips">${chips}</div>
+        <div class="kit-value plane-about">${esc(pl.about)}</div>
+        <div class="kit-value">${esc(reading)}</div>
       </div>`;
     }).join("");
 
@@ -457,8 +485,11 @@
 
     return `
     <section class="rsection">
-      <h2 class="rsection-title"><span class="idx">2</span>Your Loshu Grid</h2>
-      <p class="rsection-desc">Built from your date of birth plus your Driver and Conductor numbers. Missing numbers mark the planets that need strengthening.</p>
+      <h2 class="rsection-title"><span class="idx">3</span>Your Loshu Grid — the 8 Planes, Fully Analysed</h2>
+      <div class="card">
+        <div class="card-title">What is the Loshu Grid?</div>
+        <div class="kit-value">A 3×3 grid that maps which energies are present, weak, or missing in your birth. Every number from 1 to 9 sits in a fixed cell. When we plot the digits of your date of birth (along with your Mulank and Bhagyank) onto that grid, each row, column, and diagonal becomes a <strong>plane</strong> — an energy line that tells us something specific about your mind, emotions, will, and material life. Below, each of the 8 planes is interpreted based on exactly which of its required numbers you have.</div>
+      </div>
       <div class="loshu-wrap">
         <div>
           <div class="loshu-grid" role="img" aria-label="Loshu grid visualization">${cells}</div>
@@ -468,8 +499,14 @@
             <span><i class="dot w"></i>Missing (weak)</span>
           </div>
         </div>
-        <div class="plane-list">${planes}</div>
+        <div class="card">
+          <div class="card-title">Your Numbers at a Glance</div>
+          <div class="kit-value"><span class="badge good">Present</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
+          <div class="kit-value"><span class="badge bad">Missing</span> ${p.missing.length ? p.missing.join(", ") : "none — complete grid"}</div>
+          <div class="card-sub">Blue cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
+        </div>
       </div>
+      <div class="plane-cards">${planeCards}</div>
       ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
       ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
     </section>`;
@@ -511,11 +548,56 @@
     const watch = watchSpec(p);
     const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
 
-    /* Section 3: weak planets */
+    /* Section 2: core nature — traits, strengths & shadows */
+    const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
+    const traitsSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">2</span>Your Core Nature — Traits, Strengths &amp; Shadows</h2>
+      <div class="card">
+        <div class="card-sub" style="text-transform:uppercase;letter-spacing:.05em;font-weight:600">Two numbers shape your nature</div>
+        <div class="nature-pair">
+          <div class="nature-chip">
+            <div class="num-value">${p.driver}</div>
+            <div class="num-label">Mulank · ${esc(DB.numbers[p.driver].planet.split(" ")[0])}</div>
+          </div>
+          <div class="nature-chip">
+            <div class="num-value alt">${p.conductor}</div>
+            <div class="num-label">Bhagyank · ${esc(DB.numbers[p.conductor].planet.split(" ")[0])}</div>
+          </div>
+        </div>
+        <div class="kit-value">${esc(td.nature)} Beneath the surface, your Bhagyank carries ${esc(tc.innerDrive)}.</div>
+        <div class="judge-note"><strong>How we judge this:</strong> Your nature is not read from your Mulank alone. Your <strong>Mulank</strong> (from your birth day) is your visible, day-to-day personality, while your <strong>Bhagyank</strong> (from your full birth date) drives your deeper instincts. We read <strong>both together</strong> for the full picture.</div>
+      </div>
+      <div class="card-grid two">
+        <div class="card strength-card">
+          <div class="card-title">Your Strengths — Amplify These</div>
+          <div class="kit">${td.strengths.map((s) => `<div class="kit-row"><div class="kit-ico good-ico">✓</div><div class="kit-body"><div class="kit-value">${esc(s)}</div></div></div>`).join("")}</div>
+        </div>
+        <div class="card shadow-card">
+          <div class="card-title">Your Shadows — Watch These</div>
+          <div class="kit">${td.shadows.map((s) => `<div class="kit-row"><div class="kit-ico bad-ico">!</div><div class="kit-body"><div class="kit-value">${esc(s)}</div></div></div>`).join("")}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Which Qualities to Adopt, Which to Let Go</div>
+        <div class="adopt-release">
+          <div class="adopt-col">
+            <div class="kit-label" style="color:var(--positive)">Adopt</div>
+            ${td.adopt.map((s) => `<div class="ar-item">+ ${esc(s)}</div>`).join("")}
+          </div>
+          <div class="release-col">
+            <div class="kit-label" style="color:var(--danger)">Release</div>
+            ${td.release.map((s) => `<div class="ar-item">− ${esc(s)}</div>`).join("")}
+          </div>
+        </div>
+        <div class="judge-note"><strong>How we judge this:</strong> Each Mulank carries a signature set of strengths to <strong>amplify</strong> and tendencies to <strong>release</strong>, shaped by its ruling planet and how that planet tends to over- or under-express in daily life.</div>
+      </div>
+    </section>`;
+
+    /* Section 4: weak planets */
     const weakNums = p.missing.filter((n) => n !== p.driver && n !== p.conductor);
     const weakSection = p.missing.length
       ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">3</span>Weak Planet Remedy Kits</h2>
+          <h2 class="rsection-title"><span class="idx">4</span>Weak Planet Remedy Kits</h2>
           <p class="rsection-desc">Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.</p>
           <div class="card-grid two">${p.missing.slice(0, 4).map((n) => kitCard(n)).join("")}</div>
           ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section 2.</p>` : ""}
@@ -524,7 +606,7 @@
     /* Section 4: zodiac power kit */
     const z = DB.zodiac[p.zodiac];
     const zodiacSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">4</span>Your Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <h2 class="rsection-title"><span class="idx">5</span>Your Zodiac Power Kit — ${esc(p.zodiac)}</h2>
       <p class="rsection-desc">Your sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
       <div class="card">
         <div class="goal-head">
@@ -542,7 +624,7 @@
     /* Section 5: name */
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
     const nameSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">5</span>Name Analysis &amp; Spelling Correction</h2>
+      <h2 class="rsection-title"><span class="idx">6</span>Name Analysis &amp; Spelling Correction</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
@@ -568,7 +650,7 @@
 
     /* Section 6: mobile */
     const mobSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">6</span>Mobile Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">7</span>Mobile Number Vibration</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.mobile)}</div>
@@ -587,7 +669,7 @@
 
     /* Section 7: vehicle number */
     const vehicleSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">7</span>Vehicle Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">8</span>Vehicle Number Vibration</h2>
       <p class="rsection-desc">You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values.</p>
       ${vehicle.provided
         ? `<div class="card">
@@ -613,7 +695,7 @@
 
     /* Section 8: watch */
     const watchSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">8</span>Watch &amp; Wearable Remedy</h2>
+      <h2 class="rsection-title"><span class="idx">9</span>Watch &amp; Wearable Remedy</h2>
       <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</p>
       <div class="table-scroll"><table class="rtable">
         <tr><th>Element</th><th>Recommended</th><th>Why</th></tr>
@@ -638,7 +720,7 @@
     }
     const cg = crystalGuide(p);
     const crystalSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">9</span>Crystal Companion Guide</h2>
+      <h2 class="rsection-title"><span class="idx">10</span>Crystal Companion Guide</h2>
       <p class="rsection-desc">Your chart (Driver ${p.driver}, Conductor ${p.conductor}, ${esc(p.zodiac)} sign${p.missing.length ? `, missing ${p.missing.join("/")}` : ""}) points to these crystals — each with its energy centre, core benefits and the pairing that amplifies it.</p>
       ${cg.picks.length ? `<div class="card-grid two">${cg.picks.map((k) => {
         const c = DB.crystals[k];
@@ -661,7 +743,7 @@
     /* Section 10: lucky colours & day-wise dressing */
     const powerDaySet = [...new Set([DAY_OF[p.driver], DAY_OF[p.conductor]])];
     const colorSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">10</span>Lucky Colours &amp; Day-wise Dressing</h2>
+      <h2 class="rsection-title"><span class="idx">11</span>Lucky Colours &amp; Day-wise Dressing</h2>
       <div class="card">
         <div class="card-title">Your Power Colours</div>
         <div class="kit-value">Wear <strong>${esc(DB.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(DB.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</div>
@@ -685,7 +767,7 @@
     const driverCareers = DB.careers[p.driver], conductorCareers = DB.careers[p.conductor];
     const overlap = driverCareers.filter((c) => conductorCareers.includes(c));
     const careerSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">11</span>Best Fields &amp; Professions</h2>
+      <h2 class="rsection-title"><span class="idx">12</span>Best Fields &amp; Professions</h2>
       <p class="rsection-desc">Fields ruled by your Driver suit your natural talent; fields ruled by your Conductor bring destiny-level success. The sweet spot is where they overlap.</p>
       <div class="card-grid two">
         <div class="card">
@@ -702,14 +784,14 @@
         <div class="kit-value">${overlap.length
           ? `Your talent and destiny align beautifully in: <strong>${overlap.map(esc).join(", ")}</strong> — prioritise these for the highest chance of excelling.`
           : `Your Driver and Conductor pull towards different fields — combine them (e.g. a Driver-${p.driver} skill applied inside a Conductor-${p.conductor} industry) and success probability multiplies.`}
-          ${p.missing.includes(3) ? ` Number 3 (Jupiter) is missing from your grid — careers involving teaching, finance or advisory need extra Jupiter remedy support (see Section 3).` : ""}
-          ${p.missing.includes(8) ? ` Number 8 (Saturn) is missing — long-term career stability improves as you apply the Saturn remedies in Section 3.` : ""}</div>
+          ${p.missing.includes(3) ? ` Number 3 (Jupiter) is missing from your grid — careers involving teaching, finance or advisory need extra Jupiter remedy support (see Section 4).` : ""}
+          ${p.missing.includes(8) ? ` Number 8 (Saturn) is missing — long-term career stability improves as you apply the Saturn remedies in Section 4.` : ""}</div>
       </div>
     </section>`;
 
     /* Section 12: favourable years & timing */
     const timingSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">12</span>Favourable Years &amp; Timing</h2>
+      <h2 class="rsection-title"><span class="idx">13</span>Favourable Years &amp; Timing</h2>
       <div class="card">
         <div class="card-title">Your Personal Year Cycle</div>
         <div class="table-scroll"><table class="rtable">
@@ -735,10 +817,10 @@
       </div>
     </section>`;
 
-    /* Section 13: vastu */
+    /* Section 14: vastu */
     const vastuSection = vastu.length
       ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">13</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">14</span>Vastu Dosh Scan</h2>
           <div class="card">
             <div class="kit">
             ${vastu.map((f) => `<div class="kit-row">
@@ -753,13 +835,13 @@
           <p class="rsection-desc">General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya.</p>
         </section>`
       : `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">13</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">14</span>Vastu Dosh Scan</h2>
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
-    /* Section 14+: goal plans */
+    /* Section 15+: goal plans */
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${14 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${15 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
         ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
         : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
@@ -768,7 +850,7 @@
 
     /* final section: priority plan */
     const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${14 + goals.length}</span>Your 40-Day Priority Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${15 + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
@@ -797,6 +879,7 @@
           <div class="kit-value">Your mind runs on <strong>${esc(DB.numbers[p.driver].planet)}</strong> (${esc(DB.numbers[p.driver].traits.split(",")[0].toLowerCase())}) while your destiny demands <strong>${esc(DB.numbers[p.conductor].planet)}</strong> (${esc(DB.numbers[p.conductor].traits.split(",")[0].toLowerCase())}). This pair is <strong>${relation(p.driver, p.conductor)}</strong> — ${relation(p.driver, p.conductor) === "friendly" ? "a naturally cooperative chart; remedies will amplify what already flows." : relation(p.driver, p.conductor) === "neutral" ? "a workable chart; targeted remedies will sharpen results." : "the remedies below are chosen to bridge these two energies."}</div>
         </div>
       </section>
+      ${traitsSection}
       ${renderLoshu(p)}
       ${weakSection}
       ${zodiacSection}
