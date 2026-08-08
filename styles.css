@@ -73,14 +73,14 @@ body {
   max-width: 880px; margin: 0 auto; padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
 }
-.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark {
-  width: 36px; height: 36px; border-radius: var(--r-md);
-  background: var(--label-primary); color: #fff;
+  width: 40px; height: 40px; border-radius: var(--r-md);
   display: flex; align-items: center; justify-content: center; flex: none;
+  filter: drop-shadow(0 3px 8px rgba(109, 40, 217, 0.35));
 }
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
-.brand-name { font-size: 16px; font-weight: 500; line-height: 24px; white-space: nowrap; }
+.brand-name { font-size: 16px; font-weight: 500; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-sub { font-size: 12px; line-height: 18px; color: var(--label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-actions { display: flex; gap: 8px; flex: none; }
 
@@ -325,13 +325,23 @@ body {
 /* ---------- Responsive (platform fit: mobile = vertical flow, touch targets) ---------- */
 @media (max-width: 640px) {
   .page { padding: 24px 16px 40px; }
+  .header-inner { padding: 10px 12px; gap: 8px; }
+  .brand { gap: 8px; }
+  .brand-mark { width: 34px; height: 34px; }
+  .brand-mark svg { width: 34px; height: 34px; }
+  .brand-name { font-size: 15px; max-width: 38vw; }
   .brand-sub { display: none; }
   .field-row { flex-direction: column; gap: 16px; }
   .form-block { padding: 16px; }
   .loshu-wrap { flex-direction: column; }
   .loshu-grid { max-width: 100%; }
-  .header-actions .btn span { display: none; }
+  .header-actions { gap: 6px; }
+  .header-actions .btn { padding: 6px 9px; min-width: 34px; }
+  .header-actions .btn-text { display: none; }
   .rtable th, .rtable td { padding: 8px; }
+}
+@media (max-width: 380px) {
+  .brand-name { max-width: 28vw; }
 }
 @media (hover: hover) and (pointer: fine) {
   .chip:hover { transform: scale(1.02); }
