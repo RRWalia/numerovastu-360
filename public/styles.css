@@ -363,7 +363,7 @@ body {
   .brand { gap: 8px; }
   .brand-mark { width: 34px; height: 34px; }
   .brand-mark svg { width: 34px; height: 34px; }
-  .brand-name { font-size: 15px; max-width: 38vw; }
+  .brand-name { font-size: 15px; }
   .brand-sub { display: none; }
   .field-row { flex-direction: column; gap: 16px; }
   .form-block { padding: 16px; }
@@ -375,9 +375,6 @@ body {
   .header-actions .btn { padding: 6px 9px; min-width: 34px; }
   .header-actions .btn-text { display: none; }
   .rtable th, .rtable td { padding: 8px; }
-}
-@media (max-width: 380px) {
-  .brand-name { max-width: 28vw; }
 }
 @media (hover: hover) and (pointer: fine) {
   .chip:hover { transform: scale(1.02); }
