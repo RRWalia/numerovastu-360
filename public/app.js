@@ -37,6 +37,22 @@
     return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
   }
 
+  /* ---- sun-sign (zodiac) from day & month ---- */
+  const ZRANGES = [
+    ["Aries", [3, 21], [4, 19]], ["Taurus", [4, 20], [5, 20]], ["Gemini", [5, 21], [6, 20]],
+    ["Cancer", [6, 21], [7, 22]], ["Leo", [7, 23], [8, 22]], ["Virgo", [8, 23], [9, 22]],
+    ["Libra", [9, 23], [10, 22]], ["Scorpio", [10, 23], [11, 21]], ["Sagittarius", [11, 22], [12, 21]],
+    ["Capricorn", [12, 22], [1, 19]], ["Aquarius", [1, 20], [2, 18]], ["Pisces", [2, 19], [3, 20]]
+  ];
+  function zodiacSign(d, m) {
+    const v = m * 100 + d;
+    for (const [name, s, e] of ZRANGES) {
+      const sv = s[0] * 100 + s[1], ev = e[0] * 100 + e[1];
+      if (sv <= ev ? (v >= sv && v <= ev) : (v >= sv || v <= ev)) return name;
+    }
+    return "Capricorn";
+  }
+
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
 
@@ -115,7 +131,8 @@
       ...input, day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated,
       nameCompound, nameNum, nameRelD, nameRelC,
-      mobCompound, mobNum, mobRelD, mobRelC
+      mobCompound, mobNum, mobRelD, mobRelC,
+      zodiac: zodiacSign(d, m)
     };
   }
 
@@ -389,9 +406,9 @@
     if (mobSug.needed) {
       items.push(`Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
     }
-    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 7) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
+    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 8) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
     vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 11.`);
+      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 13.`);
     });
     const day2 = DAY_OF[p.conductor];
     items.push(`Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>) and Conductor day (<strong>${day2}</strong>) remedies — charity, colours and fasting as listed.`);
@@ -460,6 +477,7 @@
 
   function kitCard(n, heading) {
     const i = DB.numbers[n];
+    const sm = DB.mantraShort[n];
     return `<div class="card">
       <div class="goal-head">
         <div class="num-value" style="width:40px;height:40px;font-size:18px;line-height:40px">${n}</div>
@@ -469,7 +487,9 @@
         </div>
       </div>
       <div class="kit">
-        <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">Mantra</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">Beej Mantra</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">Daily Short Mantra</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
+        <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow.</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Crystal</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">Rudraksha</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">Colour / Day / Metal</div><div class="kit-value">${esc(i.color)} · ${esc(i.day)} · ${esc(i.metal)}</div></div></div>
@@ -501,10 +521,28 @@
           ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section 2.</p>` : ""}
         </section>` : "";
 
-    /* Section 4: name */
+    /* Section 4: zodiac power kit */
+    const z = DB.zodiac[p.zodiac];
+    const zodiacSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">4</span>Your Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <p class="rsection-desc">Your sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
+      <div class="card">
+        <div class="goal-head">
+          <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(DB.numbers[z.ruler].planet)}</div>
+          <span class="badge info">Supports intentions: ${esc(z.intentions)}</span>
+        </div>
+        <div class="kit">
+          <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Your Sign's Crystals</div><div class="kit-value">${z.crystals.map(esc).join(" · ")}</div></div></div>
+          <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">Sign Mantra</div><div class="kit-value"><span class="mantra">${esc(z.dev)}</span> <em>(${esc(z.pron)})</em><br><span class="card-sub">${esc(z.meaning)} Chant 11 times each morning.</span></div></div></div>
+          <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(z.affirmation)}”</div></div></div>
+        </div>
+      </div>
+    </section>`;
+
+    /* Section 5: name */
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
     const nameSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">4</span>Name Analysis &amp; Spelling Correction</h2>
+      <h2 class="rsection-title"><span class="idx">5</span>Name Analysis &amp; Spelling Correction</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
@@ -528,9 +566,9 @@
       </div>
     </section>`;
 
-    /* Section 5: mobile */
+    /* Section 6: mobile */
     const mobSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">5</span>Mobile Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">6</span>Mobile Number Vibration</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.mobile)}</div>
@@ -547,9 +585,9 @@
       </div>
     </section>`;
 
-    /* Section 6: vehicle number */
+    /* Section 7: vehicle number */
     const vehicleSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">6</span>Vehicle Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">7</span>Vehicle Number Vibration</h2>
       <p class="rsection-desc">You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values.</p>
       ${vehicle.provided
         ? `<div class="card">
@@ -573,9 +611,9 @@
       </div>
     </section>`;
 
-    /* Section 7: watch */
+    /* Section 8: watch */
     const watchSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">7</span>Watch &amp; Wearable Remedy</h2>
+      <h2 class="rsection-title"><span class="idx">8</span>Watch &amp; Wearable Remedy</h2>
       <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</p>
       <div class="table-scroll"><table class="rtable">
         <tr><th>Element</th><th>Recommended</th><th>Why</th></tr>
@@ -586,10 +624,44 @@
       <div class="card"><div class="card-title">Auspicious Activation</div><div class="kit-value">Wear the new watch for the first time on a <strong>${watch.days.join(" or ")}</strong> morning, ${watch.time}. Set a clear intention for your ${esc(p.goals[0] || "goal")} goal while putting it on.</div></div>
     </section>`;
 
-    /* Section 8: lucky colours & day-wise dressing */
+    /* Section 9: crystal companion guide */
+    function crystalGuide(p) {
+      const zz = DB.zodiac[p.zodiac];
+      const poolText = [
+        ...zz.crystals,
+        DB.numbers[p.driver].crystal, DB.numbers[p.conductor].crystal,
+        ...p.missing.map((n) => DB.numbers[n].crystal)
+      ].join(" | ").toLowerCase();
+      const matched = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha" && poolText.includes(k.toLowerCase()));
+      const rudrakshaNote = poolText.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
+      return { picks: matched.slice(0, 5), rudrakshaNote };
+    }
+    const cg = crystalGuide(p);
+    const crystalSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">9</span>Crystal Companion Guide</h2>
+      <p class="rsection-desc">Your chart (Driver ${p.driver}, Conductor ${p.conductor}, ${esc(p.zodiac)} sign${p.missing.length ? `, missing ${p.missing.join("/")}` : ""}) points to these crystals — each with its energy centre, core benefits and the pairing that amplifies it.</p>
+      ${cg.picks.length ? `<div class="card-grid two">${cg.picks.map((k) => {
+        const c = DB.crystals[k];
+        return `<div class="card">
+          <div class="card-title">💎 ${esc(k)}</div>
+          <div class="kit">
+            <div class="kit-row"><div class="kit-ico">⚡</div><div class="kit-body"><div class="kit-label">Energy / Chakra</div><div class="kit-value">${esc(c.chakra)}</div></div></div>
+            <div class="kit-row"><div class="kit-ico">✨</div><div class="kit-body"><div class="kit-label">Core Benefits</div><div class="kit-value">${esc(c.benefits)}</div></div></div>
+            <div class="kit-row"><div class="kit-ico">🔗</div><div class="kit-body"><div class="kit-label">Best Paired With</div><div class="kit-value">${esc(c.pair)}</div></div></div>
+          </div>
+        </div>`;
+      }).join("")}</div>` : `<div class="card"><div class="kit-value">Your primary crystals are listed with each planet kit above — follow the pairings below for best results.</div></div>`}
+      <div class="card">
+        <div class="card-title">🧼 Cleansing &amp; Charging — the Selenite Rule</div>
+        <div class="kit-value">${esc(DB.crystals["Selenite"].benefits)}<br><strong>${esc(DB.seleniteRitual)}</strong></div>
+      </div>
+      ${cg.rudrakshaNote ? `<div class="card"><div class="card-title">📿 5 Mukhi Rudraksha Note</div><div class="kit-value">${esc(cg.rudrakshaNote.benefits)} Best paired with: ${esc(cg.rudrakshaNote.pair)}.</div></div>` : ""}
+    </section>`;
+
+    /* Section 10: lucky colours & day-wise dressing */
     const powerDaySet = [...new Set([DAY_OF[p.driver], DAY_OF[p.conductor]])];
     const colorSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">8</span>Lucky Colours &amp; Day-wise Dressing</h2>
+      <h2 class="rsection-title"><span class="idx">10</span>Lucky Colours &amp; Day-wise Dressing</h2>
       <div class="card">
         <div class="card-title">Your Power Colours</div>
         <div class="kit-value">Wear <strong>${esc(DB.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(DB.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</div>
@@ -609,11 +681,11 @@
       </div>
     </section>`;
 
-    /* Section 9: career & profession guidance */
+    /* Section 11: career & profession guidance */
     const driverCareers = DB.careers[p.driver], conductorCareers = DB.careers[p.conductor];
     const overlap = driverCareers.filter((c) => conductorCareers.includes(c));
     const careerSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">9</span>Best Fields &amp; Professions</h2>
+      <h2 class="rsection-title"><span class="idx">11</span>Best Fields &amp; Professions</h2>
       <p class="rsection-desc">Fields ruled by your Driver suit your natural talent; fields ruled by your Conductor bring destiny-level success. The sweet spot is where they overlap.</p>
       <div class="card-grid two">
         <div class="card">
@@ -635,9 +707,9 @@
       </div>
     </section>`;
 
-    /* Section 10: favourable years & timing */
+    /* Section 12: favourable years & timing */
     const timingSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">10</span>Favourable Years &amp; Timing</h2>
+      <h2 class="rsection-title"><span class="idx">12</span>Favourable Years &amp; Timing</h2>
       <div class="card">
         <div class="card-title">Your Personal Year Cycle</div>
         <div class="table-scroll"><table class="rtable">
@@ -663,10 +735,10 @@
       </div>
     </section>`;
 
-    /* Section 11: vastu */
+    /* Section 13: vastu */
     const vastuSection = vastu.length
       ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">11</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">13</span>Vastu Dosh Scan</h2>
           <div class="card">
             <div class="kit">
             ${vastu.map((f) => `<div class="kit-row">
@@ -681,13 +753,13 @@
           <p class="rsection-desc">General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya.</p>
         </section>`
       : `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">11</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">13</span>Vastu Dosh Scan</h2>
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
-    /* Section 12+: goal plans */
+    /* Section 14+: goal plans */
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${12 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${14 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
         ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
         : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
@@ -696,7 +768,7 @@
 
     /* final section: priority plan */
     const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${12 + goals.length}</span>Your 40-Day Priority Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${14 + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
@@ -713,6 +785,12 @@
           ${numCard("Conductor (Bhagyank)", p.conductor, "Your destiny path and long-term results")}
           ${numCard("Name Number", p.nameNum, `Chaldean total ${p.nameCompound} — how the world receives you`)}
           ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — your most-used vibration`)}
+          <div class="card num-card">
+            <div class="num-value" style="font-size:26px">${esc(p.zodiac)}</div>
+            <div class="num-label">Zodiac (Sun Sign)</div>
+            <div class="num-planet">${esc(DB.zodiac[p.zodiac].element)} · Ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}</div>
+            <div class="num-traits">Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Driver ${p.driver} × Conductor ${p.conductor} combination</div>
@@ -721,10 +799,12 @@
       </section>
       ${renderLoshu(p)}
       ${weakSection}
+      ${zodiacSection}
       ${nameSection}
       ${mobSection}
       ${vehicleSection}
       ${watchSection}
+      ${crystalSection}
       ${colorSection}
       ${careerSection}
       ${timingSection}
@@ -778,5 +858,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, reduce, relation, chaldeanValue };
 })();

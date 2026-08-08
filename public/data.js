@@ -309,6 +309,82 @@ const DB = {
     note: "Corrections preserve pronunciation — letters are doubled, added or swapped for same-sound equivalents, never dropped."
   },
 
+  /* ---- Short daily mantras + wish-paper affirmations per number ----
+     (Owner-provided table: simple devotional mantra, meaning, affirmation) */
+  mantraShort: {
+    1: { dev: "ॐ घृणिः सूर्याय नमः", pron: "Om Ghrinih Suryaya Namah", meaning: "Salutations to the radiant Sun, the source of light and life.",
+         affirmation: "I radiate confidence, vitality, and leadership. I am the creator of my own destiny." },
+    2: { dev: "ॐ सोमाय नमः", pron: "Om Somaya Namah", meaning: "Salutations to the Moon, the nectar of life and emotion.",
+         affirmation: "I am calm, intuitive, and emotionally balanced. My heart is open to receiving love." },
+    3: { dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the divine teacher and expander of wisdom.",
+         affirmation: "I am open to wisdom, growth, and abundant opportunities. My path is blessed." },
+    4: { dev: "ॐ राहवे नमः", pron: "Om Rahave Namah", meaning: "Salutations to Rahu, the force of sudden change and material mastery.",
+         affirmation: "I embrace change, overcome all obstacles, and manifest my unique path with courage." },
+    5: { dev: "ॐ बुधाय नमः", pron: "Om Budhaya Namah", meaning: "Salutations to Mercury, the planet of intellect and communication.",
+         affirmation: "My mind is sharp, my words are clear, and I adapt to life with grace and joy." },
+    6: { dev: "ॐ शुक्राय नमः", pron: "Om Shukraya Namah", meaning: "Salutations to Venus, the bestower of love, beauty and wealth.",
+         affirmation: "I attract love, beauty, and harmonious relationships. I am worthy of abundance." },
+    7: { dev: "ॐ केतवे नमः", pron: "Om Ketave Namah", meaning: "Salutations to Ketu, the force of spiritual liberation and intuition.",
+         affirmation: "I trust my intuition, release the past, and walk my spiritual path with absolute clarity." },
+    8: { dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn, the lord of karma, discipline and justice.",
+         affirmation: "I am disciplined, resilient, and deserving of karmic rewards, wealth, and success." },
+    9: { dev: "ॐ मंगलाय नमः", pron: "Om Mangalaya Namah", meaning: "Salutations to Mars, the divine warrior and protector.",
+         affirmation: "I act with courage, strength, and unwavering focus. I am protected in all my endeavors." }
+  },
+
+  /* ---- Zodiac (sun sign) power kits ----
+     (Owner-provided tables: crystals, intentions, mantra, affirmation per sign) */
+  zodiac: {
+    "Aries":       { ruler: 9, element: "Fire",  crystals: ["Red Jasper", "Carnelian", "Tiger's Eye"],           intentions: "Fitness, courage, leadership",
+                     dev: "ॐ मंगलाय नमः", pron: "Om Mangalaya Namah", meaning: "Salutations to Mars.",
+                     affirmation: "I lead with courage, act with purpose, and ignite positive change in my life." },
+    "Taurus":      { ruler: 6, element: "Earth", crystals: ["Rose Quartz", "Green Aventurine", "Emerald"],       intentions: "Love aura, wealth, stability",
+                     dev: "ॐ शुक्राय नमः", pron: "Om Shukraya Namah", meaning: "Salutations to Venus.",
+                     affirmation: "I am grounded, abundant, and open to receiving life's greatest pleasures." },
+    "Gemini":      { ruler: 5, element: "Air",   crystals: ["Citrine", "Clear Quartz", "Aquamarine"],            intentions: "Study success, communication",
+                     dev: "ॐ बुधाय नमः", pron: "Om Budhaya Namah", meaning: "Salutations to Mercury.",
+                     affirmation: "I communicate with clarity, embrace new ideas, and find joy in connection." },
+    "Cancer":      { ruler: 2, element: "Water", crystals: ["Moonstone", "Pearl", "Rose Quartz"],                intentions: "Inner peace, emotional healing, pregnancy balance",
+                     dev: "ॐ सोमाय नमः", pron: "Om Somaya Namah", meaning: "Salutations to the Moon.",
+                     affirmation: "My heart is a sanctuary of peace. I nurture myself and others with love." },
+    "Leo":         { ruler: 1, element: "Fire",  crystals: ["Sunstone", "Citrine", "Tiger's Eye"],               intentions: "Career success, confidence, wealth",
+                     dev: "ॐ घृणिः सूर्याय नमः", pron: "Om Ghrinih Suryaya Namah", meaning: "Salutations to the Sun.",
+                     affirmation: "I shine brightly, lead with grace, and inspire warmth in everyone I meet." },
+    "Virgo":       { ruler: 5, element: "Earth", crystals: ["Amazonite", "Blue Lace Agate", "Amethyst"],         intentions: "Health & wellness, anxiety relief, study",
+                     dev: "ॐ बुधाय नमः", pron: "Om Budhaya Namah", meaning: "Salutations to Mercury.",
+                     affirmation: "I find perfection in the present moment and heal my mind, body, and spirit." },
+    "Libra":       { ruler: 6, element: "Air",   crystals: ["Rose Quartz", "Lapis Lazuli", "Malachite"],         intentions: "Rebuild relationships, harmony, love aura",
+                     dev: "ॐ शुक्राय नमः", pron: "Om Shukraya Namah", meaning: "Salutations to Venus.",
+                     affirmation: "I cultivate harmony, beauty, and deep, meaningful relationships in my life." },
+    "Scorpio":     { ruler: 9, element: "Water", crystals: ["Black Tourmaline", "Obsidian", "Malachite"],        intentions: "Protection, debt clearing, deep transformation",
+                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the transformer.",
+                     affirmation: "I embrace transformation, release what no longer serves me, and rise stronger." },
+    "Sagittarius": { ruler: 3, element: "Fire",  crystals: ["Turquoise", "Lapis Lazuli", "Amethyst"],            intentions: "Study success, travel protection, wisdom",
+                     dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
+                     affirmation: "I expand my horizons, seek truth, and trust the beautiful journey ahead." },
+    "Capricorn":   { ruler: 8, element: "Earth", crystals: ["Smoky Quartz", "Black Onyx", "Garnet"],             intentions: "Career growth, discipline, debt clearing",
+                     dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn.",
+                     affirmation: "My hard work builds lasting success. I am grounded, patient, and unstoppable." },
+    "Aquarius":    { ruler: 8, element: "Air",   crystals: ["Amethyst", "Aquamarine", "Clear Quartz"],           intentions: "Inner peace, innovation, spiritual growth",
+                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the universal consciousness.",
+                     affirmation: "I embrace my uniqueness, break boundaries, and contribute positively to the world." },
+    "Pisces":      { ruler: 3, element: "Water", crystals: ["Amethyst", "Aquamarine", "Moonstone"],              intentions: "Rebuild relationships, intuition, inner peace",
+                     dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
+                     affirmation: "I am deeply connected to my intuition and the universal flow of love and grace." }
+  },
+
+  /* ---- Crystal companion guide (Owner-provided table) ---- */
+  crystals: {
+    "Amethyst":         { chakra: "Third Eye / Crown", benefits: "Calms the mind, reduces stress, enhances intuition, and promotes spiritual peace.", pair: "Clear Quartz (to amplify) or Selenite (to cleanse)" },
+    "Rose Quartz":      { chakra: "Heart", benefits: "Unconditional love, emotional healing, self-care, and attracting romance.", pair: "Moonstone (for emotional balance)" },
+    "Citrine":          { chakra: "Solar Plexus", benefits: "Wealth generation, abundance, joy, and personal power. Known as the \"Merchant's Stone\".", pair: "Pyrite or Green Aventurine (the Dhan Yog combo)" },
+    "Black Tourmaline": { chakra: "Root", benefits: "Ultimate protection against negative energy, EMF smog, and the Evil Eye (Nazar). Grounding.", pair: "Smoky Quartz (for deep grounding and debt clearing)" },
+    "Tiger's Eye":      { chakra: "Solar Plexus / Sacral", benefits: "Courage, confidence, focus, and protection from ill-wishing. Great for decision-making.", pair: "Carnelian (for action and motivation)" },
+    "Selenite":         { chakra: "Crown / Ether", benefits: "Liquid light. Cleanses, charges, and recharges other crystals. Promotes deep peace and clarity.", pair: "Use as a base — place your bracelets and crystals on Selenite weekly" },
+    "5 Mukhi Rudraksha": { chakra: "Throat / Heart", benefits: "Ruled by Lord Kalagni (Shiva). Balances the 5 elements, lowers blood pressure, and calms the mind.", pair: "Crystal beads (combines spiritual grounding with mineral energy)" }
+  },
+  seleniteRitual: "Weekly cleansing ritual: every Saturday night, place all your crystals and bracelets on a Selenite plate or slab. By morning they are cleansed and recharged — never let crystals go more than a month without cleansing.",
+
   /* ---- Name-number verdicts ---- */
   nameAdvice: {
     friendly: "Your name number vibrates in harmony with your birth numbers — no spelling change needed.",
