@@ -170,6 +170,20 @@ body {
 .report-hero h1 { font-size: 20px; font-weight: 600; line-height: 30px; }
 .report-hero p { font-size: 14px; color: var(--label-secondary); }
 
+/* Ganesh invocation — Vitality & Wisdom (yellow / gold / orange) */
+.invocation {
+  text-align: center;
+  font-size: 24px; font-weight: 700; line-height: 34px;
+  letter-spacing: 0.02em;
+  padding: 6px 0 10px;
+  background: linear-gradient(92deg, #eab308 0%, #f59e0b 45%, #ea580c 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+@media print {
+  .invocation { background: none; -webkit-text-fill-color: #b45309; color: #b45309; }
+}
+
 .rsection { display: flex; flex-direction: column; gap: 16px; animation: rise 300ms var(--ease-out) both; }
 .rsection:nth-child(2) { animation-delay: 50ms; }
 .rsection:nth-child(3) { animation-delay: 100ms; }
@@ -326,7 +340,7 @@ body {
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 600;
 }
-.plane-chip.on { background: var(--kimi-blue); color: #fff; }
+.plane-chip.on { background: var(--positive); color: #fff; }
 .plane-chip.off { background: var(--light-red-bg); color: var(--label-quaternary); text-decoration: line-through; }
 .plane-about { color: var(--label-secondary); font-style: italic; }
 

@@ -40,6 +40,8 @@ $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }))
 const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
+  ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
+  ["green wording", report.includes("Green cells are present")],
   ["driver = 2", report.includes('num-value">2<')],
   ["conductor = 8", report.includes('num-value">8<')],
   ["loshu grid rendered", (report.match(/loshu-cell/g) || []).length === 9],

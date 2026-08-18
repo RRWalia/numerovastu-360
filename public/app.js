@@ -503,7 +503,7 @@
           <div class="card-title">Your Numbers at a Glance</div>
           <div class="kit-value"><span class="badge good">Present</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
           <div class="kit-value"><span class="badge bad">Missing</span> ${p.missing.length ? p.missing.join(", ") : "none — complete grid"}</div>
-          <div class="card-sub">Blue cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
+          <div class="card-sub">Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
         </div>
       </div>
       <div class="plane-cards">${planeCards}</div>
@@ -857,6 +857,7 @@
 
     return `
       <div class="report-hero">
+        <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>Remedy Report — ${esc(p.name)}</h1>
         <p>DOB ${dobStr} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
       </div>
