@@ -32,6 +32,220 @@
     : '<span class="badge bad">Conflicting</span>';
 
   const DAY_OF = { 1: "Sunday", 2: "Monday", 9: "Tuesday", 5: "Wednesday", 3: "Thursday", 6: "Friday", 8: "Saturday", 4: "Saturday", 7: "Tuesday" };
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.1.0";
+  const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
+  const STORAGE_KEYS = {
+    packCache: "nv360.packCache.v1",
+    history: "nv360.history.v1",
+    practice: "nv360.practice.v1",
+    journal: "nv360.journal.v1",
+    contributionEnabled: "nv360.contributionEnabled.v1",
+    contributionOutbox: "nv360.contributionOutbox.v1"
+  };
+  const SECTION = { core: 1, traits: 2, loshu: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, memory: 14, vastu: 15, kua: 16, compatibility: 17, goalsStart: 18 };
+  const state = {
+    pack: null,
+    history: [],
+    contributionEnabled: false,
+    lastInput: null,
+    activeProfileKey: "",
+    toastTimer: null,
+    updatePromise: null
+  };
+
+  function safeJSONParse(value, fallback) {
+    if (!value) return fallback;
+    try { return JSON.parse(value); } catch { return fallback; }
+  }
+  function readStore(key, fallback) {
+    try {
+      return safeJSONParse(window.localStorage.getItem(key), fallback);
+    } catch {
+      return fallback;
+    }
+  }
+  function writeStore(key, value) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function compareVersions(a, b) {
+    const pa = String(a || "0").split(".").map((n) => parseInt(n, 10) || 0);
+    const pb = String(b || "0").split(".").map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const diff = (pa[i] || 0) - (pb[i] || 0);
+      if (diff) return diff;
+    }
+    return 0;
+  }
+  function isoDate(d) {
+    return new Date(d || Date.now()).toISOString();
+  }
+  function prettyDate(input) {
+    try {
+      return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(input));
+    } catch {
+      return String(input || "");
+    }
+  }
+  function profileKeyOf(input) {
+    return `${String(input.name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}|${input.dob || ""}`;
+  }
+  function normalizePack(raw, source) {
+    if (!raw) return null;
+    if (raw.db && raw.packVersion) {
+      return {
+        app: raw.app || "NumeroVastu 360",
+        schemaVersion: Number(raw.schemaVersion) || 1,
+        packVersion: String(raw.packVersion),
+        generatedAt: raw.generatedAt || null,
+        manifestPath: raw.manifestPath || DEFAULT_MANIFEST_PATH,
+        contribution: raw.contribution || { mode: "scaffold", endpoint: null },
+        db: raw.db,
+        source: source || raw.source || "bundled"
+      };
+    }
+    if (raw.numbers && raw.friendship) {
+      return {
+        app: "NumeroVastu 360",
+        schemaVersion: 1,
+        packVersion: APP_VERSION,
+        generatedAt: null,
+        manifestPath: DEFAULT_MANIFEST_PATH,
+        contribution: { mode: "scaffold", endpoint: null },
+        db: raw,
+        source: source || "legacy"
+      };
+    }
+    return null;
+  }
+  function validatePack(pack) {
+    const errors = [];
+    if (!pack || typeof pack !== "object") errors.push("pack must be an object");
+    if (!pack || !pack.packVersion) errors.push("missing packVersion");
+    const db = pack && pack.db;
+    if (!db || typeof db !== "object") errors.push("missing db");
+    const requiredTop = ["chaldean", "friendship", "numbers", "watch", "loshuLayout", "planes", "traits", "missingFix", "yantra", "arrows", "kua", "goals", "vastu", "careers", "dayWear", "personalYear", "spelling", "mantraShort", "zodiac", "crystals", "compound", "masterNumbers", "nameAdvice"];
+    requiredTop.forEach((key) => { if (!db || !(key in db)) errors.push(`db.${key} missing`); });
+    if (db && (!Array.isArray(db.loshuLayout) || db.loshuLayout.length !== 3)) errors.push("db.loshuLayout must have 3 rows");
+    if (db && (!Array.isArray(db.planes) || db.planes.length < 8)) errors.push("db.planes must contain the full plane set");
+    if (db && (!Array.isArray(db.arrows) || db.arrows.length < 8)) errors.push("db.arrows must contain the full arrow set");
+    for (let n = 1; n <= 9; n++) {
+      if (!db || !db.numbers || !db.numbers[n]) errors.push(`db.numbers.${n} missing`);
+      if (!db || !db.friendship || !db.friendship[n]) errors.push(`db.friendship.${n} missing`);
+    }
+    return { ok: errors.length === 0, errors };
+  }
+  function showToast(message, tone) {
+    const host = $("#toastViewport");
+    if (!host) return;
+    const toast = document.createElement("div");
+    toast.className = `toast ${tone || "info"}`;
+    toast.textContent = message;
+    host.appendChild(toast);
+    clearTimeout(state.toastTimer);
+    state.toastTimer = window.setTimeout(() => { toast.remove(); }, 3200);
+  }
+  function bundledPack() {
+    return normalizePack(window.__NV_BUNDLED_PACK || (typeof DB !== "undefined" ? DB : null), "bundled");
+  }
+  function activePack() {
+    return state.pack || bundledPack();
+  }
+  function setActivePack(pack, source, persist) {
+    const normalized = normalizePack(pack, source);
+    const check = validatePack(normalized);
+    if (!check.ok) return false;
+    state.pack = normalized;
+    DB = normalized.db;
+    if (persist) writeStore(STORAGE_KEYS.packCache, normalized);
+    updateKnowledgeUI();
+    return true;
+  }
+  function latestSnapshot() {
+    return state.history[0] || null;
+  }
+  function hydrateState() {
+    const bundled = bundledPack();
+    const cached = normalizePack(readStore(STORAGE_KEYS.packCache, null), "cached");
+    const bundledVersion = bundled ? bundled.packVersion : APP_VERSION;
+    if (cached && validatePack(cached).ok && compareVersions(cached.packVersion, bundledVersion) > 0) setActivePack(cached, "cached", false);
+    else if (bundled) setActivePack(bundled, bundled.source || "bundled", false);
+    state.history = readStore(STORAGE_KEYS.history, []).sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    state.contributionEnabled = !!readStore(STORAGE_KEYS.contributionEnabled, false);
+  }
+  function updateContributionUI() {
+    const toggle = $("#contributeAnonymous");
+    if (toggle) toggle.checked = !!state.contributionEnabled;
+    const hint = $("#contributionHint");
+    if (hint) hint.textContent = state.contributionEnabled
+      ? "Opt-in is on. Only anonymous aggregate counts are prepared — never your name, DOB, phone, vehicle number or free-text journal notes."
+      : "Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.";
+  }
+  function updateKnowledgeUI() {
+    const pack = activePack();
+    const label = `Knowledge pack v${pack ? pack.packVersion : APP_VERSION}`;
+    const sourceText = pack ? (pack.source === "remote" ? "Live update active" : pack.source === "cached" ? "Cached update active" : "Bundled pack active") : "Bundled pack active";
+    if ($("#knowledgeBadge")) $("#knowledgeBadge").textContent = label;
+    if ($("#knowledgeVersionText")) $("#knowledgeVersionText").textContent = `v${pack ? pack.packVersion : APP_VERSION}`;
+    if ($("#knowledgeStatusText")) $("#knowledgeStatusText").textContent = `${sourceText}. The app works instantly offline, then can optionally fetch a newer public knowledge pack.`;
+    if ($("#knowledgeSubtext")) $("#knowledgeSubtext").textContent = pack && pack.generatedAt
+      ? `Published ${prettyDate(pack.generatedAt)} · schema v${pack.schemaVersion}`
+      : "Uses bundled content instantly, then quietly checks for a newer pack.";
+  }
+  function updateMemoryUI() {
+    const snap = latestSnapshot();
+    if ($("#memoryBadge")) $("#memoryBadge").textContent = state.history.length ? `${state.history.length} local snapshot${state.history.length > 1 ? "s" : ""}` : "Local memory ready";
+    if ($("#memorySummaryText")) $("#memorySummaryText").textContent = state.history.length ? `${state.history.length} saved chart${state.history.length > 1 ? "s" : ""}` : "No saved charts yet";
+    if ($("#memoryStatusText")) $("#memoryStatusText").textContent = snap
+      ? `Latest: ${snap.name} · ${prettyDate(snap.savedAt)} · Driver ${snap.driver}, Conductor ${snap.conductor}`
+      : "Saved reports stay on this device only.";
+    if ($("#loadLatestBtn")) $("#loadLatestBtn").classList.toggle("hidden", !snap);
+  }
+  async function refreshKnowledgePack(opts) {
+    const options = Object.assign({ silent: true }, opts || {});
+    if (state.updatePromise) return state.updatePromise;
+    const pack = activePack();
+    if (!window.fetch || !pack || !pack.manifestPath) return null;
+    state.updatePromise = (async () => {
+      try {
+        if ($("#knowledgeStatusText")) $("#knowledgeStatusText").textContent = "Checking for a newer knowledge pack…";
+        const manifestRes = await window.fetch(`${pack.manifestPath}?t=${Date.now()}`, { cache: "no-store" });
+        if (!manifestRes.ok) throw new Error(`manifest ${manifestRes.status}`);
+        const manifest = await manifestRes.json();
+        const latestVersion = String(manifest.latestVersion || manifest.packVersion || pack.packVersion);
+        if (compareVersions(latestVersion, pack.packVersion) <= 0) {
+          updateKnowledgeUI();
+          if (!options.silent) showToast(`Already on knowledge pack v${pack.packVersion}`, "info");
+          return null;
+        }
+        const nextUrl = manifest.packUrl || manifest.url;
+        if (!nextUrl) throw new Error("manifest missing packUrl");
+        const packRes = await window.fetch(`${nextUrl}?v=${encodeURIComponent(latestVersion)}`, { cache: "no-store" });
+        if (!packRes.ok) throw new Error(`pack ${packRes.status}`);
+        const incoming = normalizePack(await packRes.json(), "remote");
+        const check = validatePack(incoming);
+        if (!check.ok) throw new Error(check.errors.join(", "));
+        setActivePack(incoming, "remote", true);
+        if (state.lastInput) {
+          lastProfile = computeProfile(state.lastInput);
+          showReport(lastProfile, { preserveScroll: true });
+        }
+        showToast(`Knowledge updated to v${incoming.packVersion}`, "good");
+        return incoming;
+      } catch (err) {
+        updateKnowledgeUI();
+        if (!options.silent) showToast(`Knowledge update unavailable right now`, "warn");
+        return null;
+      } finally {
+        state.updatePromise = null;
+      }
+    })();
+    return state.updatePromise;
+  }
 
   function chaldeanValue(name) {
     return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
@@ -108,6 +322,16 @@
   });
 
   const selectedGoals = new Set();
+  function syncGoalChips(goals) {
+    selectedGoals.clear();
+    const incoming = new Set(goals || []);
+    $$("#goalChips .chip").forEach((chip) => {
+      const on = incoming.has(chip.dataset.goal);
+      chip.classList.toggle("selected", on);
+      if (on) selectedGoals.add(chip.dataset.goal);
+    });
+    $("#err-goals").hidden = selectedGoals.size > 0;
+  }
   $$("#goalChips .chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       const g = chip.dataset.goal;
@@ -116,6 +340,26 @@
       $("#err-goals").hidden = selectedGoals.size > 0;
     });
   });
+  function fillFormFromSnapshot(snapshot) {
+    if (!snapshot || !snapshot.input) return;
+    $("#fullName").value = snapshot.input.name || "";
+    $("#dob").value = snapshot.input.dob || "";
+    $("#mobile").value = snapshot.input.mobile || "";
+    $("#vehicle").value = snapshot.input.vehicle || "";
+    $("#entrance").value = snapshot.input.entrance || "unsure";
+    $("#kitchen").value = snapshot.input.kitchen || "unsure";
+    $("#bedroom").value = snapshot.input.bedroom || "unsure";
+    $("#toilet").value = snapshot.input.toilet || "unsure";
+    $("#study").value = snapshot.input.study || "unsure";
+    $("#staircase").value = snapshot.input.staircase || "unsure";
+    $("#plotShape").value = snapshot.input.plotShape || "unsure";
+    $("#watchType").value = snapshot.input.watchType || "none";
+    $("#gender").value = snapshot.input.gender || "";
+    $("#brand").value = snapshot.input.brand || "";
+    $("#partnerName").value = snapshot.input.partnerName || "";
+    $("#partnerDob").value = snapshot.input.partnerDob || "";
+    syncGoalChips(snapshot.input.goals || []);
+  }
 
   /* ---------------- validation ---------------- */
   function setErr(id, on) {
@@ -538,13 +782,122 @@
     if (mobSug.needed) {
       items.push(`Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
     }
-    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section 9) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
+    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section ${SECTION.watch}) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
     vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section 14.`);
+      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section ${SECTION.vastu}.`);
     });
     const day2 = DAY_OF[p.conductor];
     items.push(`Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>) and Conductor day (<strong>${day2}</strong>) remedies — charity, colours and fasting as listed.`);
     return items.slice(0, 7);
+  }
+
+  function saveSnapshot(input, profile, timing) {
+    const snapshot = {
+      id: `${profileKeyOf(input)}|${Date.now()}`,
+      key: profileKeyOf(input),
+      name: input.name,
+      dob: input.dob,
+      savedAt: isoDate(),
+      packVersion: activePack().packVersion,
+      driver: profile.driver,
+      conductor: profile.conductor,
+      missing: profile.missing,
+      goals: input.goals,
+      personalYear: timing.years[0] ? timing.years[0].n : null,
+      input: Object.assign({}, input)
+    };
+    state.activeProfileKey = snapshot.key;
+    state.history = [snapshot].concat(state.history).slice(0, 24);
+    writeStore(STORAGE_KEYS.history, state.history);
+    updateMemoryUI();
+    return snapshot;
+  }
+  function readPracticeStore() {
+    return readStore(STORAGE_KEYS.practice, {});
+  }
+  function writePracticeStore(store) {
+    writeStore(STORAGE_KEYS.practice, store);
+  }
+  function readJournalStore() {
+    return readStore(STORAGE_KEYS.journal, {});
+  }
+  function writeJournalStore(store) {
+    writeStore(STORAGE_KEYS.journal, store);
+  }
+  function logPractice(profileKey, number) {
+    const store = readPracticeStore();
+    const current = store[profileKey] || [];
+    current.unshift({ number, at: isoDate() });
+    store[profileKey] = current.slice(0, 120);
+    writePracticeStore(store);
+  }
+  function addJournalEntry(profileKey, text) {
+    const store = readJournalStore();
+    const current = store[profileKey] || [];
+    current.unshift({ text: text.trim(), at: isoDate() });
+    store[profileKey] = current.slice(0, 40);
+    writeJournalStore(store);
+  }
+  function contributionPayload(profile, timing) {
+    const counts = {};
+    profile.missing.forEach((n) => { counts[n] = (counts[n] || 0) + 1; });
+    return {
+      schemaVersion: 1,
+      packVersion: activePack().packVersion,
+      createdAt: isoDate(),
+      driver: profile.driver,
+      conductor: profile.conductor,
+      zodiac: profile.zodiac,
+      goals: profile.goals,
+      missingCounts: counts,
+      hasVehicle: !!profile.vehicle,
+      hasBrand: !!profile.brand,
+      hasPartner: !!(profile.partnerName && profile.partnerDob),
+      currentPersonalYear: timing.years[0] ? timing.years[0].n : null
+    };
+  }
+  function queueAnonymousContribution(profile, timing) {
+    if (!state.contributionEnabled) return;
+    const pack = activePack();
+    const payload = contributionPayload(profile, timing);
+    if (pack.contribution && pack.contribution.endpoint) {
+      try {
+        const body = JSON.stringify(payload);
+        if (navigator.sendBeacon) navigator.sendBeacon(pack.contribution.endpoint, new Blob([body], { type: "application/json" }));
+        else if (window.fetch) window.fetch(pack.contribution.endpoint, { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => {});
+      } catch {
+        // ignore transport failures; analytics must never block UX
+      }
+      return;
+    }
+    const outbox = readStore(STORAGE_KEYS.contributionOutbox, []);
+    outbox.unshift(payload);
+    writeStore(STORAGE_KEYS.contributionOutbox, outbox.slice(0, 20));
+  }
+  function evolvingChartData(profile, timing) {
+    const key = state.activeProfileKey || profileKeyOf(profile);
+    const snapshots = state.history.filter((entry) => entry.key === key);
+    const practice = readPracticeStore()[key] || [];
+    const journal = readJournalStore()[key] || [];
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const thisYear = String(new Date().getFullYear());
+    const focusNumbers = Array.from(new Set([].concat(profile.missing.slice(0, 2), [profile.driver, profile.conductor]))).slice(0, 4);
+    const practiceSummary = focusNumbers.map((n) => {
+      const total = practice.filter((entry) => entry.number === n).length;
+      const month = practice.filter((entry) => entry.number === n && String(entry.at).slice(0, 7) === thisMonth).length;
+      return { n, total, month };
+    });
+    const currentYearLucky = timing.luckyYears.some((entry) => entry.yr === new Date().getFullYear());
+    const movesThisYear = journal.filter((entry) => String(entry.at).slice(0, 4) === thisYear).length;
+    return {
+      key,
+      snapshots,
+      practiceSummary,
+      journal: journal.slice(0, 4),
+      currentYearLucky,
+      movesThisYear,
+      previewPayload: contributionPayload(profile, timing)
+    };
   }
 
   /* ---------------- rendering ---------------- */
@@ -647,8 +1000,8 @@
     }).join("");
 
     return `
-    <section class="rsection">
-      <h2 class="rsection-title"><span class="idx">3</span>Your Loshu Grid — the 8 Planes, Fully Analysed</h2>
+    <section class="rsection" id="loshu-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.loshu}</span>Your Loshu Grid — the 8 Planes, Fully Analysed</h2>
       <div class="card">
         <div class="card-title">What is the Loshu Grid?</div>
         <div class="kit-value">A 3×3 grid that maps which energies are present, weak, or missing in your birth. Every number from 1 to 9 sits in a fixed cell. When we plot the digits of your date of birth (along with your Mulank and Bhagyank) onto that grid, each row, column, and diagonal becomes a <strong>plane</strong> — an energy line that tells us something specific about your mind, emotions, will, and material life. Below, each of the 8 planes is interpreted based on exactly which of its required numbers you have.</div>
@@ -729,12 +1082,13 @@
     const goals = goalPlan(p);
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
     const watch = watchSpec(p);
+    const evolving = evolvingChartData(p, timing);
     const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
 
     /* Section 2: core nature — traits, strengths & shadows */
     const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
-    const traitsSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">2</span>Your Core Nature — Traits, Strengths &amp; Shadows</h2>
+    const traitsSection = `<section class="rsection" id="traits-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.traits}</span>Your Core Nature — Traits, Strengths &amp; Shadows</h2>
       <div class="card">
         <div class="card-sub" style="text-transform:uppercase;letter-spacing:.05em;font-weight:600">Two numbers shape your nature</div>
         <div class="nature-pair">
@@ -779,17 +1133,17 @@
     /* Section 4: weak planets */
     const weakNums = p.missing.filter((n) => n !== p.driver && n !== p.conductor);
     const weakSection = p.missing.length
-      ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">4</span>Weak Planet Remedy Kits</h2>
+      ? `<section class="rsection" id="remedy-section">
+          <h2 class="rsection-title"><span class="idx">${SECTION.weak}</span>Weak Planet Remedy Kits</h2>
           <p class="rsection-desc">Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.</p>
           <div class="card-grid two">${p.missing.slice(0, 4).map((n) => kitCard(n)).join("")}</div>
-          ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section 2.</p>` : ""}
+          ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.loshu}.</p>` : ""}
         </section>` : "";
 
     /* Section 4: zodiac power kit */
     const z = DB.zodiac[p.zodiac];
     const zodiacSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">5</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.zodiac}</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
       <p class="rsection-desc">Your Vedic (sidereal / Nirayana) Sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you. ${p.zodiac !== p.zodiacTropical ? `Sidereal sign ${esc(p.zodiac)} vs. the Western tropical ${esc(p.zodiacTropical)} — we follow the Vedic (Lahiri ayanamsa) position.` : ""} This is a Sun sign; the deeper Moon Rashi needs your birth time and place.</p>
       <div class="card">
         <div class="goal-head">
@@ -808,7 +1162,7 @@
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
     const nameMaster = masterNumber(p.nameCompound);
     const nameSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">6</span>Name Analysis &amp; Spelling Correction</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.name}</span>Name Analysis &amp; Spelling Correction</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
@@ -851,7 +1205,7 @@
 
     /* Section 6: mobile */
     const mobSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">7</span>Mobile Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.mobile}</span>Mobile Number Vibration</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.mobile)}</div>
@@ -871,7 +1225,7 @@
 
     /* Section 7: vehicle number */
     const vehicleSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">8</span>Vehicle Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.vehicle}</span>Vehicle Number Vibration</h2>
       <p class="rsection-desc">You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values.</p>
       ${vehicle.provided
         ? `<div class="card">
@@ -897,7 +1251,7 @@
 
     /* Section 8: watch */
     const watchSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">9</span>Watch &amp; Wearable Remedy</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.watch}</span>Watch &amp; Wearable Remedy</h2>
       <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</p>
       <div class="table-scroll"><table class="rtable">
         <tr><th>Element</th><th>Recommended</th><th>Why</th></tr>
@@ -943,7 +1297,7 @@
     }
     const cg = crystalGuide(p);
     const crystalSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">10</span>Crystal Companion Guide</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>Crystal Companion Guide</h2>
       <p class="rsection-desc">Your chart (Driver ${p.driver}, Conductor ${p.conductor}, ${esc(p.zodiac)} sign${p.missing.length ? `, missing ${p.missing.join("/")}` : ""}) points to these crystals — each with its energy centre, core benefits and the pairing that amplifies it.</p>
       ${cg.picks.length ? `<div class="card-grid two">${cg.picks.map((k) => {
         const c = DB.crystals[k];
@@ -966,7 +1320,7 @@
     /* Section 10: lucky colours & day-wise dressing */
     const powerDaySet = [...new Set([DAY_OF[p.driver], DAY_OF[p.conductor]])];
     const colorSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">11</span>Lucky Colours &amp; Day-wise Dressing</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.colours}</span>Lucky Colours &amp; Day-wise Dressing</h2>
       <div class="card">
         <div class="card-title">Your Power Colours</div>
         <div class="kit-value">Wear <strong>${esc(DB.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(DB.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</div>
@@ -990,7 +1344,7 @@
     const driverCareers = DB.careers[p.driver], conductorCareers = DB.careers[p.conductor];
     const overlap = driverCareers.filter((c) => conductorCareers.includes(c));
     const careerSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">12</span>Best Fields &amp; Professions</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.career}</span>Best Fields &amp; Professions</h2>
       <p class="rsection-desc">Fields ruled by your Driver suit your natural talent; fields ruled by your Conductor bring destiny-level success. The sweet spot is where they overlap.</p>
       <div class="card-grid two">
         <div class="card">
@@ -1013,8 +1367,8 @@
     </section>`;
 
     /* Section 12: favourable years & timing */
-    const timingSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">13</span>Favourable Years &amp; Timing</h2>
+    const timingSection = `<section class="rsection" id="timing-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.timing}</span>Favourable Years &amp; Timing</h2>
       <div class="card">
         <div class="card-title">Your Personal Year Cycle</div>
         <div class="table-scroll"><table class="rtable">
@@ -1040,10 +1394,65 @@
       </div>
     </section>`;
 
-    /* Section 14: vastu */
+    const memorySection = `<section class="rsection" id="memory-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.memory}</span>Your Evolving Chart</h2>
+      <p class="rsection-desc">This section is private, on-device memory only. It helps the app learn your own journey over time without uploading personal data.</p>
+      <div class="insight-grid">
+        <div class="metric-card">
+          <div class="metric-label">Saved snapshots</div>
+          <div class="metric-value">${evolving.snapshots.length}</div>
+          <div class="metric-sub">Latest saved on ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "this device not yet"}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">This year in context</div>
+          <div class="metric-value">${evolving.currentYearLucky ? "Favourable" : "Build steadily"}</div>
+          <div class="metric-sub">${evolving.currentYearLucky ? "This year appears in your lucky-year window." : "Not one of your top timing windows — use discipline and consistency."}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Moves logged this year</div>
+          <div class="metric-value">${evolving.movesThisYear}</div>
+          <div class="metric-sub">A local reality-check against your timing cycle.</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Knowledge source</div>
+          <div class="metric-value">v${esc(activePack().packVersion)}</div>
+          <div class="metric-sub">${esc(activePack().source === "remote" ? "Live-updated content pack" : activePack().source === "cached" ? "Cached content pack" : "Bundled starter pack")}</div>
+        </div>
+      </div>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">Remedy engagement this month</div>
+          <div class="card-sub">One tap adds a private check-in for the planets that matter most in this chart.</div>
+          <div class="engagement-list">
+            ${evolving.practiceSummary.map((item) => `<div class="engagement-item"><div><strong>${item.n} — ${esc(DB.numbers[item.n].planet)}</strong><span>${item.month} logged this month · ${item.total} total</span></div><button class="btn btn-secondary btn-32" type="button" data-practice-number="${item.n}">Log practice</button></div>`).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Lucky-year timing vs what you actually did</div>
+          <div class="card-sub">Log a real-world move locally — job switch, launch, purchase, proposal, relocation, or a strong 40-day remedy push.</div>
+          <form id="localJournalForm" class="mini-form">
+            <input id="localJournalText" class="input" type="text" maxlength="160" placeholder="e.g. Started Friday Venus remedy streak and redesigned bedroom" />
+            <button class="btn btn-primary btn-32" type="submit">Save locally</button>
+          </form>
+          <div class="timeline">
+            ${evolving.journal.length ? evolving.journal.map((entry) => `<div class="timeline-item"><div><strong>${esc(entry.text)}</strong><span>${prettyDate(entry.at)}</span></div></div>`).join("") : `<div class="timeline-item"><div><strong>No local moves logged yet</strong><span>Your notes stay on this device and never enter the anonymous contribution payload.</span></div></div>`}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="goal-head">
+          <div class="card-title">Anonymous contribution scaffold</div>
+          <span class="badge ${state.contributionEnabled ? "good" : "warn"}">${state.contributionEnabled ? "Opted in" : "Off by default"}</span>
+        </div>
+        <div class="kit-value">${state.contributionEnabled ? "Only anonymous aggregate counts are prepared. If a contribution endpoint is configured in a future knowledge pack, the app can send just these counts — never names, DOBs, phones, vehicle numbers or your private notes." : "Anonymous cross-user learning is currently disabled for this device. You can turn it on in the intake form at any time."}</div>
+        <div class="code-block">${esc(JSON.stringify(evolving.previewPayload, null, 2))}</div>
+      </div>
+    </section>`;
+
+    /* Section 15: vastu */
     const vastuSection = vastu.length
-      ? `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">14</span>Vastu Dosh Scan</h2>
+      ? `<section class="rsection" id="vastu-section">
+          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>Vastu Dosh Scan</h2>
           <div class="card">
             <div class="kit">
             ${vastu.map((f) => `<div class="kit-row">
@@ -1057,15 +1466,15 @@
           </div>
           <p class="rsection-desc">General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya.</p>
         </section>`
-      : `<section class="rsection">
-          <h2 class="rsection-title"><span class="idx">14</span>Vastu Dosh Scan</h2>
+      : `<section class="rsection" id="vastu-section">
+          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>Vastu Dosh Scan</h2>
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
     /* Section 15: personal lucky directions (Kua — Feng Shui, clearly labelled) */
     const kuaInfo = p.kua ? DB.kua[p.kua] : null;
-    const kuaSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">15</span>Personal Lucky Directions — Kua Number</h2>
+    const kuaSection = `<section class="rsection" id="kua-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.kua}</span>Personal Lucky Directions — Kua Number</h2>
       <p class="rsection-desc">Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".</p>
       ${kuaInfo ? `<div class="card">
         <div class="goal-head">
@@ -1082,8 +1491,8 @@
     const compat = partnerValid
       ? compatibility(p, computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }))
       : null;
-    const compatSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">16</span>Compatibility &amp; Matchmaking</h2>
+    const compatSection = `<section class="rsection" id="compatibility-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>Compatibility &amp; Matchmaking</h2>
       ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
         <div class="card">
           <div class="goal-head">
@@ -1106,8 +1515,8 @@
         </div>`}
     </section>`;
 
-    /* Section 17+: goal plans */
-    const goalsStart = 17;
+    /* Section 18+: goal plans */
+    const goalsStart = SECTION.goalsStart;
     const goalSections = goals.map((g, i) => `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
@@ -1128,9 +1537,21 @@
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>Remedy Report — ${esc(p.name)}</h1>
         <p>DOB ${dobStr} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
+        <div class="report-meta">
+          <span class="status-pill status-private">Private report · browser only</span>
+          <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
+          <span class="status-pill status-memory">${evolving.snapshots.length} local snapshot${evolving.snapshots.length === 1 ? "" : "s"}</span>
+        </div>
+        <nav class="report-nav" aria-label="Quick report navigation">
+          <a href="#core-profile">Profile</a>
+          <a href="#loshu-section">Loshu Grid</a>
+          <a href="#timing-section">Timing</a>
+          <a href="#memory-section">Evolving Chart</a>
+          <a href="#vastu-section">Vastu</a>
+        </nav>
       </div>
-      <section class="rsection">
-        <h2 class="rsection-title"><span class="idx">1</span>Core Numerology Profile</h2>
+      <section class="rsection" id="core-profile">
+        <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
         <div class="card-grid">
           ${numCard("Driver (Moolank)", p.driver, "Your mind, personality and day-to-day energy")}
           ${numCard("Conductor (Bhagyank)", p.conductor, "Your destiny path and long-term results")}
@@ -1160,6 +1581,7 @@
       ${colorSection}
       ${careerSection}
       ${timingSection}
+      ${memorySection}
       ${vastuSection}
       ${kuaSection}
       ${compatSection}
@@ -1171,13 +1593,46 @@
   /* ---------------- view switching ---------------- */
   let lastProfile = null;
 
-  function showReport(p) {
+  function bindReportInteractions() {
+    $$('[data-practice-number]', $("#reportRoot")).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const n = Number(btn.getAttribute("data-practice-number"));
+        if (!state.activeProfileKey || !n) return;
+        logPractice(state.activeProfileKey, n);
+        showToast(`Logged ${DB.numbers[n].planet} practice locally`, "good");
+        lastProfile = computeProfile(state.lastInput);
+        showReport(lastProfile, { preserveScroll: true });
+        const anchor = $("#memory-section");
+        if (anchor) anchor.scrollIntoView({ block: "start" });
+      });
+    });
+    const journalForm = $("#localJournalForm");
+    const journalInput = $("#localJournalText");
+    if (journalForm && journalInput) {
+      journalForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const text = journalInput.value.trim();
+        if (!text || !state.activeProfileKey) return;
+        addJournalEntry(state.activeProfileKey, text);
+        journalInput.value = "";
+        showToast("Saved to your local evolving chart", "good");
+        lastProfile = computeProfile(state.lastInput);
+        showReport(lastProfile, { preserveScroll: true });
+        const anchor = $("#memory-section");
+        if (anchor) anchor.scrollIntoView({ block: "start" });
+      });
+    }
+  }
+  function showReport(p, options) {
+    const opts = options || {};
+    const scrollTop = window.scrollY || 0;
     $("#reportRoot").innerHTML = renderReport(p);
     $("#intakeView").classList.add("hidden");
     $("#reportView").classList.remove("hidden");
     $("#editBtn").classList.remove("hidden");
     $("#printBtn").classList.remove("hidden");
-    window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+    bindReportInteractions();
+    window.scrollTo({ top: opts.preserveScroll ? scrollTop : 0, behavior: "auto" });
     document.title = `Report — ${p.name} | NumeroVastu 360`;
   }
   function showIntake() {
@@ -1188,6 +1643,25 @@
     document.title = "NumeroVastu 360 — Numerology & Vastu Remedy Report";
     window.scrollTo({ top: 0 });
   }
+
+  hydrateState();
+  updateContributionUI();
+  updateKnowledgeUI();
+  updateMemoryUI();
+
+  $("#contributeAnonymous").addEventListener("change", (e) => {
+    state.contributionEnabled = !!e.target.checked;
+    writeStore(STORAGE_KEYS.contributionEnabled, state.contributionEnabled);
+    updateContributionUI();
+    showToast(state.contributionEnabled ? "Anonymous aggregate contribution enabled" : "Anonymous aggregate contribution turned off", state.contributionEnabled ? "good" : "info");
+  });
+  $("#refreshKnowledgeBtn").addEventListener("click", () => { refreshKnowledgePack({ silent: false }); });
+  $("#loadLatestBtn").addEventListener("click", () => {
+    const snap = latestSnapshot();
+    if (!snap) return;
+    fillFormFromSnapshot(snap);
+    showToast(`Loaded local chart for ${snap.name}`, "info");
+  });
 
   $("#intakeForm").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1211,13 +1685,18 @@
       partnerName: $("#partnerName").value.trim(),
       partnerDob: $("#partnerDob").value
     };
+    state.lastInput = Object.assign({}, input);
     lastProfile = computeProfile(input);
+    const timing = timingAnalysis(lastProfile);
+    saveSnapshot(input, lastProfile, timing);
+    queueAnonymousContribution(lastProfile, timing);
     showReport(lastProfile);
   });
 
   $("#editBtn").addEventListener("click", showIntake);
   $("#printBtn").addEventListener("click", () => window.print());
+  refreshKnowledgePack({ silent: true });
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue, validatePack, normalizePack, contributionPayload };
 })();

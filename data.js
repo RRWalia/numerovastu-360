@@ -5,7 +5,7 @@
    and Vastu zone mappings.
    ============================================================ */
 
-const DB = {
+var DB = {
 
   /* ---- Chaldean letter -> number map (name numerology) ---- */
   chaldean: {
@@ -759,4 +759,25 @@ const DB = {
   }
 };
 
-if (typeof module !== "undefined") module.exports = DB;
+const KNOWLEDGE_PACK = {
+  app: "NumeroVastu 360",
+  schemaVersion: 1,
+  packVersion: "2.1.0",
+  generatedAt: "2026-08-20T00:00:00Z",
+  manifestPath: "knowledge-pack/latest.json",
+  contribution: {
+    mode: "scaffold",
+    endpoint: null,
+    description: "Anonymous aggregate counts only. Off by default; no names, DOBs, phones or raw free-text are sent."
+  },
+  db: DB
+};
+
+if (typeof window !== "undefined") {
+  window.DB = DB;
+  window.__NV_BUNDLED_PACK = KNOWLEDGE_PACK;
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { DB, KNOWLEDGE_PACK };
+}

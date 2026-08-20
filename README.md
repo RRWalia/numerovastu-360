@@ -22,6 +22,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
 | **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
 | **Priority plan** | A 40-day, highest-impact action plan ordered by priority |
+| **Evolving skill system** | Bundled **Knowledge Pack** with optional self-update, on-device chart memory, private remedy check-ins, and an off-by-default anonymous aggregate contribution scaffold |
 
 ---
 
@@ -29,11 +30,18 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 All calculations run **entirely in the visitor's browser** — no name, DOB, phone or Vastu data is ever sent to a server. There is no backend.
 
+The new **Knowledge Pack** updater does **not** change that promise: the pack is public content, not personal data. The app ships with a bundled pack for instant offline use, then can optionally fetch a newer public pack and cache it locally.
+
+The new **on-device memory** also stays local: saved reports, remedy check-ins and evolving-chart notes are stored only in the browser on that device.
+
+An **anonymous contribution** switch is included as a scaffold and is **off by default**. When enabled, it only prepares aggregate counts such as selected goals or missing-number totals. It never includes names, dates of birth, phone numbers, vehicle numbers or private journal notes.
+
 ---
 
 ## Tech stack
 
-- **Vanilla JavaScript** (no framework) — an IIFE-based engine (`app.js`) + a curated content database (`data.js`)
+- **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
+- **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
 - **[Vite](https://vitejs.dev/)** for local development
 - **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test
@@ -45,8 +53,9 @@ All calculations run **entirely in the visitor's browser** — no name, DOB, pho
 ```
 numerovastu-360/
 ├── index.html          # Single-page app (intake form + report view)
-├── app.js              # Calculation engine + report renderer
-├── data.js             # Curated numerology / Vastu / remedy database
+├── app.js              # Stable engine: calculations, rendering, self-update + local memory
+├── data.js             # Bundled fallback knowledge pack (instant/offline)
+├── knowledge-pack/     # Manifest, schema and versioned JSON packs for silent upgrades
 ├── styles.css          # Styling (light theme, print + mobile)
 ├── smoke.test.js       # Headless end-to-end smoke test (jsdom)
 ├── share.bat           # Windows script to share over HTTPS (see below)
@@ -57,6 +66,22 @@ numerovastu-360/
 The root files are the single source of truth — Vite serves them directly
 (`index.html` loads `data.js` and `app.js`), and the `share.bat` static server
 should be pointed at the repository root.
+
+## Knowledge Pack architecture
+
+The app now has two layers:
+
+1. **Engine (`app.js`)** — calculations, rendering, local caching, update checks and on-device memory.
+2. **Knowledge Pack (`data.js` + `knowledge-pack/packs/*.json`)** — the curated numerology/Vastu database, versioned with `packVersion`.
+
+Startup flow:
+
+1. Load the bundled pack from `data.js` immediately.
+2. Restore any newer validated pack cached in `localStorage`.
+3. Optionally fetch `knowledge-pack/latest.json`.
+4. If a newer pack exists, download it, validate it, cache it, and surface a “Knowledge updated…” toast.
+
+This keeps the app usable offline while still allowing content to evolve without touching the core engine.
 
 ---
 
@@ -119,6 +144,9 @@ visitor data still stays in the visitor's browser.
 The app is a set of static files with **no build step required** — `index.html`
 loads `data.js` and `app.js` directly.
 
+When deploying, publish the `knowledge-pack/` directory too so the self-update
+manifest and versioned JSON packs remain reachable.
+
 ### GitHub Pages (simplest)
 
 1. Push the repo to GitHub.
@@ -132,8 +160,9 @@ loads `data.js` and `app.js` directly.
 
 ### Any static host
 
-Upload `index.html`, `app.js`, `data.js` and `styles.css` to any static host
-(Netlify, Vercel, S3, nginx, etc.). No server-side runtime is needed.
+Upload `index.html`, `app.js`, `data.js`, `styles.css` and the full
+`knowledge-pack/` directory to any static host (Netlify, Vercel, S3, nginx,
+etc.). No server-side runtime is needed.
 
 ---
 
