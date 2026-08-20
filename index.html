@@ -108,6 +108,15 @@
         </div>
 
         <div class="field">
+          <label class="field-label" for="gender">Gender <span class="optional">(optional — for your Kua number)</span></label>
+          <select class="input select" id="gender" name="gender">
+            <option value="">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label class="field-label" for="vehicle">Vehicle Number <span class="optional">(optional — car / bike)</span></label>
           <input class="input" id="vehicle" name="vehicle" type="text" placeholder="e.g. HR51AB1234" autocomplete="off" />
           <p class="field-hint">Letters carry Chaldean values and digits carry face value — we check how your vehicle's vibration sits with your chart.</p>
@@ -160,6 +169,23 @@
             <option value="digital">Digital watch</option>
             <option value="smart">Smartwatch</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Compatibility (optional) -->
+      <div class="form-block">
+        <h2 class="form-block-title">Compatibility <span class="optional">(optional — partner / spouse / business partner)</span></h2>
+        <p class="form-block-desc">Add a second person to compare Driver &amp; Conductor compatibility for marriage or partnership.</p>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="partnerName">Partner's Full Name</label>
+            <input class="input" id="partnerName" name="partnerName" type="text" placeholder="e.g. Anjali Verma" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="partnerDob">Partner's Date of Birth</label>
+            <input class="input" id="partnerDob" name="partnerDob" type="date" />
+          </div>
         </div>
       </div>
 

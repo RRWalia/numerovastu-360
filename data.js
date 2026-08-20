@@ -324,6 +324,61 @@ const DB = {
     9: "Strengthen Mars: exercise daily; keep the south well-lit; recite Hanuman Chalisa on Tuesdays."
   },
 
+  /* ---- Yantra per number (classical remedy category) ---- */
+  yantra: {
+    1: "Surya Yantra", 2: "Chandra Yantra", 3: "Brihaspati (Guru) Yantra",
+    4: "Rahu Yantra", 5: "Budh Yantra", 6: "Shukra Yantra",
+    7: "Ketu Yantra", 8: "Shani Yantra", 9: "Mangal Yantra"
+  },
+
+  /* ---- The 8 Arrows of the Loshu grid (Chaldean "arrow" framing) ----
+     Same 8 lines as the planes above, but under the classical "arrow" names
+     practitioners and clients search for. When all three numbers of an arrow
+     are present the arrow is "strong"; when they are all missing the arrow is
+     "frustrated/confused" (a recognised weakness in classical practice). */
+  arrows: [
+    { name: "Arrow of Planning", line: [4, 9, 2], axis: "Top row (4-9-2)",
+      present: "You think before you act — you plan, weigh options and move with a clear strategy. Strong for business, study and any long project.",
+      missing: "Arrow of Confusion — decisions come impulsively or too late. Use written plans, cost/benefit checks and a decision checklist before acting." },
+    { name: "Arrow of Emotions", line: [3, 5, 7], axis: "Middle row (3-5-7)",
+      present: "You feel deeply and express it well — warmth, empathy and intuition flow naturally, making you naturally good with people.",
+      missing: "Arrow of Emotional Restlessness — feelings get bottled up or swing under pressure. Practise daily expression, journaling and centring rituals." },
+    { name: "Arrow of Practicality", line: [8, 1, 6], axis: "Bottom row (8-1-6)",
+      present: "You convert ideas into real results — money, work and delivery come naturally. Strong material, career and business instincts.",
+      missing: "Arrow of Frustration — effort does not convert into results. Install systems: budgets, deadlines and checklists that carry work to completion." },
+    { name: "Arrow of Intellect", line: [4, 3, 8], axis: "Left column (4-3-8)",
+      present: "A strong analytical mind — you learn deeply, connect ideas and master complex subjects over time.",
+      missing: "Arrow of Shallow Thinking — learning plateaus and known patterns repeat. Feed the mind weekly with books, courses or a mentor conversation." },
+    { name: "Arrow of Determination", line: [9, 5, 1], axis: "Middle column (1-5-9)",
+      present: "You push through resistance with steady will and self-belief — a natural leader who finishes what they start.",
+      missing: "Arrow of Wavering Will — motivation comes in waves. Anchor yourself with fixed routines, public commitments and physical training." },
+    { name: "Arrow of Activity", line: [2, 7, 6], axis: "Right column (2-7-6)",
+      present: "You finish what you start — patience, standards and follow-through combine into reliable, clean delivery.",
+      missing: "Arrow of Unfinished Work — many things started, few completed. Define 'done' before you begin and close tasks fully." },
+    { name: "Arrow of Prosperity", line: [4, 5, 6], axis: "Diagonal (4-5-6)",
+      present: "Opportunity meets structure and polish — you convert chances into wealth, branding and recognition.",
+      missing: "Openings slip past or leak value. Scan your market weekly and give every opportunity an owner, timeline and budget." },
+    { name: "Arrow of Spirituality", line: [8, 5, 2], axis: "Diagonal (8-5-2)",
+      present: "Inner calm and patience — you hold steady, build assets slowly and stay grounded under stress.",
+      missing: "Restlessness and money-pressure. Let assets mature; add patience and a fixed monthly review of money and resources." }
+  ],
+
+  /* ---- Kua number (Feng Shui personal directions) ----
+     NOTE: this is a Chinese / Feng Shui system, NOT classical Vastu Shastra.
+     It is included (clearly labelled) because Indian numerology-Vastu apps
+     commonly offer it as "your personal lucky direction". 5 maps to 2 (male)
+     or 8 (female) at computation time, so no "5" entry exists here. */
+  kua: {
+    1: { group: "East", element: "Water", shengChi: "Southeast", auspicious: ["Southeast", "East", "South", "North"] },
+    2: { group: "West", element: "Earth", shengChi: "Northeast", auspicious: ["Northeast", "West", "Northwest", "Southwest"] },
+    3: { group: "East", element: "Wood",  shengChi: "South",     auspicious: ["South", "North", "Southeast", "East"] },
+    4: { group: "East", element: "Wood",  shengChi: "North",     auspicious: ["North", "South", "East", "Southeast"] },
+    6: { group: "West", element: "Metal", shengChi: "West",      auspicious: ["West", "Northeast", "Southwest", "Northwest"] },
+    7: { group: "West", element: "Metal", shengChi: "Northwest", auspicious: ["Northwest", "Southwest", "Northeast", "West"] },
+    8: { group: "West", element: "Earth", shengChi: "Southwest", auspicious: ["Southwest", "Northwest", "West", "Northeast"] },
+    9: { group: "East", element: "Fire",  shengChi: "East",      auspicious: ["East", "Southeast", "North", "South"] }
+  },
+
   /* ---- Goal -> relevant numbers mapping ---- */
   goals: {
     "Money":        [3, 5, 6, 9, 8],

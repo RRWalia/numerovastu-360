@@ -127,5 +127,56 @@ const checks3 = [
 checks3.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 if (sug3.variants) console.log("  Meher variants:", sug3.variants.map((v) => `${v.text} (${v.compound}->${v.reduced})`).join(" | "));
 
+// fourth block: engine functions (kua + compatibility)
+const NV = window.__NV;
+const kuaCases = [
+  ["male", 1985, 6], ["female", 1985, 9], ["male", 2005, 4], ["female", 2005, 2],
+  ["male", 1950, 2], ["female", 1990, 8], ["male", 2000, 9], ["female", 2000, 6]
+];
+const kuaChecks = kuaCases.map(([g, y, exp]) => [`kua ${g} ${y} = ${exp}`, NV.kuaNumber(g, y) === exp]);
+kuaChecks.push(["kua null when no gender", NV.kuaNumber("", 1990) === null]);
+kuaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+const pa = NV.computeProfile({ name: "A", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
+const pb = NV.computeProfile({ name: "B", dob: "1990-04-15", mobile: "", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
+const comp = NV.compatibility(pa, pb);
+const compChecks = [
+  ["compatibility 4 pairs", comp.pairs.length === 4],
+  ["compatibility score bounded", comp.score >= 0 && comp.score <= 8],
+  ["compatibility verdict present", ["Strong", "Good", "Workable", "Challenging"].includes(comp.verdict)],
+  ["compatibility tallies sum to 4", comp.friendly + comp.neutral + comp.enemy === 4],
+];
+compChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// fifth block: render of new features (gender + partner)
+$("#editBtn").click();
+$("#fullName").value = "Priya Sharma";
+$("#dob").value = "2005-08-20";
+$("#mobile").value = "9876543210";
+$("#vehicle").value = "";
+$("#gender").value = "female";
+$("#partnerName").value = "Anjali Verma";
+$("#partnerDob").value = "1990-04-15";
+$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r4 = $("#reportRoot").innerHTML;
+const checks4 = [
+  ["8 arrow cards", (r4.match(/card arrow-card/g) || []).length === 8],
+  ["arrow names present", ["Arrow of Determination", "Arrow of Intellect", "Arrow of Spirituality", "Arrow of Prosperity", "Arrow of Planning", "Arrow of Emotions", "Arrow of Practicality", "Arrow of Activity"].every((n) => r4.includes(n))],
+  ["arrow state badges", r4.includes("Strong") || r4.includes("Partial") || r4.includes("Frustrated")],
+  ["yantra in remedy kits", r4.includes("Yantra") && r4.includes("Surya Yantra")],
+  ["weak tier shown", r4.includes(">Weak</span>")],
+  ["missing severity badge", r4.includes("Critical") || r4.includes("Echoed by")],
+  ["kua section (Feng Shui labelled)", r4.includes("Personal Lucky Directions") && r4.includes("Feng Shui")],
+  ["kua number computed (female 2005 -> 2)", r4.includes("Kua number is 2")],
+  ["compatibility section", r4.includes("Compatibility &amp; Matchmaking") && r4.includes("Anjali Verma")],
+  ["compatibility verdict", r4.includes("Overall verdict")],
+  ["no undefined leaks", !r4.includes("undefined")],
+  ["no NaN leaks", !r4.includes("NaN")],
+];
+checks4.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

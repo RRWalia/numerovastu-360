@@ -71,6 +71,25 @@
   const zodiacSign = (d, m) => zodiacFromRanges(d, m, ZRANGES);           // Sayana (tropical)
   const zodiacSignSidereal = (d, m) => zodiacFromRanges(d, m, SRANGES);   // Nirayana (Vedic)
 
+  /* ---- Kua number (Feng Shui personal-direction number) ----
+     NOTE: a Chinese system, NOT classical Vastu Shastra (labelled as such in
+     the report). Formula — reduce the last two digits of the birth year to a
+     single digit n, then:
+       male:   10 − n (pre-2000) or 9 − n (2000+)
+       female: n + 5 (pre-2000) or n + 6 (2000+)
+     Reduce the result to a single digit; a result of 5 becomes 2 (male) /
+     8 (female). Returns null when gender is not given. */
+  function kuaNumber(gender, year) {
+    if (!gender || !year) return null;
+    const yy = year % 100;
+    const n = yy === 0 ? 0 : reduce(yy);
+    const post2000 = year >= 2000;
+    let k = gender === "male" ? (post2000 ? 9 - n : 10 - n) : (post2000 ? n + 6 : n + 5);
+    k = reduce(k);
+    if (k === 5) k = gender === "male" ? 2 : 8;
+    return k;
+  }
+
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
 
@@ -132,6 +151,7 @@
     [...digitsOf(dd), ...digitsOf(mm), ...digitsOf(yyyy), driver, conductor].forEach((n) => counts[n]++);
     const missing = Object.keys(counts).filter((k) => counts[k] === 0).map(Number);
     const repeated = Object.keys(counts).filter((k) => counts[k] >= 3).map(Number);
+    const weak = Object.keys(counts).filter((k) => counts[k] === 1).map(Number);
 
     // Name (Chaldean)
     const nameCompound = chaldeanValue(input.name);
@@ -145,11 +165,23 @@
     const mobRelD = relation(driver, mobNum);
     const mobRelC = relation(conductor, mobNum);
 
+    // Severity tiers for missing numbers: a number missing from the grid but
+    // echoed by the name or mobile vibration is "partially supported"; one
+    // missing everywhere is "critical".
+    const missingSeverity = missing.map((n) => {
+      const echoedBy = [];
+      if (nameNum === n) echoedBy.push("name number");
+      if (mobNum === n) echoedBy.push("mobile number");
+      return { n, critical: echoedBy.length === 0, echoedBy };
+    });
+    const kua = kuaNumber(input.gender, y);
+
     return {
       ...input, day: d, month: m, year: y,
-      driver, conductor, counts, missing, repeated,
+      driver, conductor, counts, missing, repeated, weak,
       nameCompound, nameNum, nameRelD, nameRelC,
       mobCompound, mobNum, mobRelD, mobRelC,
+      missingSeverity, kua,
       zodiac: zodiacSignSidereal(d, m),
       zodiacTropical: zodiacSign(d, m)
     };
@@ -262,6 +294,24 @@
       if (relation(p.driver, r) === "friendly" && relation(p.conductor, r) === "friendly") good.push(t);
     }
     return { needed: true, goodTotals: good.slice(0, 6) };
+  }
+
+  /* -------- compatibility (two-person Driver/Conductor match) --------
+     Compares all four Driver/Conductor cross-pairs using the friendship table.
+     Score: friendly = 2, neutral = 1, enemy = 0 (max 8). */
+  function compatibility(a, b) {
+    const pairs = [
+      { a: `Your Driver ${a.driver}`, b: `their Driver ${b.driver}`, r: relation(a.driver, b.driver) },
+      { a: `Your Driver ${a.driver}`, b: `their Conductor ${b.conductor}`, r: relation(a.driver, b.conductor) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Driver ${b.driver}`, r: relation(a.conductor, b.driver) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Conductor ${b.conductor}`, r: relation(a.conductor, b.conductor) }
+    ];
+    const score = pairs.reduce((s, p) => s + (p.r === "friendly" ? 2 : p.r === "neutral" ? 1 : 0), 0);
+    const friendly = pairs.filter((p) => p.r === "friendly").length;
+    const neutral = pairs.filter((p) => p.r === "neutral").length;
+    const enemy = pairs.filter((p) => p.r === "enemy").length;
+    const verdict = score >= 7 ? "Strong" : score >= 5 ? "Good" : score >= 3 ? "Workable" : "Challenging";
+    return { pairs, score, max: 8, verdict, friendly, neutral, enemy };
   }
 
   /* -------- vehicle number analysis -------- */
@@ -493,14 +543,41 @@
       </div>`;
     }).join("");
 
-    const missingFixes = p.missing.map((n) => `
+    const sevOf = {};
+    (p.missingSeverity || []).forEach((s) => { sevOf[s.n] = s; });
+    const missingFixes = p.missing.map((n) => {
+      const sev = sevOf[n];
+      const badge = sev
+        ? (sev.critical ? '<span class="badge bad">Critical</span>' : `<span class="badge warn">Echoed by ${sev.echoedBy.join(", ")}</span>`)
+        : "";
+      return `
       <div class="kit-row">
         <div class="kit-ico"><strong>${n}</strong></div>
         <div class="kit-body">
-          <div class="kit-label">${esc(DB.numbers[n].planet)} — weak / missing</div>
+          <div class="kit-label">${esc(DB.numbers[n].planet)} — weak / missing ${badge}</div>
           <div class="kit-value">${esc(DB.missingFix[n])}</div>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
+
+    const arrowCards = DB.arrows.map((ar) => {
+      const present = ar.line.filter((n) => p.counts[n] > 0).length;
+      const state = present === 3 ? "strong" : present === 0 ? "missing" : "partial";
+      const badge = state === "strong" ? '<span class="badge good">Strong</span>'
+        : state === "partial" ? '<span class="badge warn">Partial</span>'
+        : '<span class="badge bad">Frustrated</span>';
+      const chips = ar.line.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const reading = state === "strong" ? ar.present : (state === "partial" ? `Only partially present — the full line is not formed. ${ar.missing}` : ar.missing);
+      return `<div class="card arrow-card">
+        <div class="goal-head">
+          <div class="card-title">${esc(ar.name)}</div>
+          ${badge}
+        </div>
+        <div class="card-sub">${esc(ar.axis)}</div>
+        <div class="plane-chips">${chips}</div>
+        <div class="kit-value">${esc(reading)}</div>
+      </div>`;
+    }).join("");
 
     return `
     <section class="rsection">
@@ -521,11 +598,17 @@
         <div class="card">
           <div class="card-title">Your Numbers at a Glance</div>
           <div class="kit-value"><span class="badge good">Present</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
+          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">Weak</span> ${p.weak.join(", ")} <span class="card-sub">— appears only once, so it needs light support.</span></div>` : ""}
           <div class="kit-value"><span class="badge bad">Missing</span> ${p.missing.length ? p.missing.join(", ") : "none — complete grid"}</div>
           <div class="card-sub">Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
         </div>
       </div>
       <div class="plane-cards">${planeCards}</div>
+      <div class="card">
+        <div class="card-title">The 8 Arrows of Your Loshu Grid</div>
+        <div class="card-sub">The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.</div>
+      </div>
+      <div class="plane-cards">${arrowCards}</div>
       ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
       ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
     </section>`;
@@ -548,6 +631,7 @@
         <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow.</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Crystal</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">Rudraksha</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🔱</div><div class="kit-body"><div class="kit-label">Yantra</div><div class="kit-value">${esc(DB.yantra[n])}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">Colour / Day / Metal</div><div class="kit-value">${esc(i.color)} · ${esc(i.day)} · ${esc(i.metal)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎁</div><div class="kit-body"><div class="kit-label">Charity</div><div class="kit-value">${esc(i.charity)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🌿</div><div class="kit-body"><div class="kit-label">Lifestyle</div><div class="kit-value">${esc(i.lifestyle)}</div></div></div>
@@ -879,9 +963,54 @@
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
-    /* Section 15+: goal plans */
+    /* Section 15: personal lucky directions (Kua — Feng Shui, clearly labelled) */
+    const kuaInfo = p.kua ? DB.kua[p.kua] : null;
+    const kuaSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">15</span>Personal Lucky Directions — Kua Number</h2>
+      <p class="rsection-desc">Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".</p>
+      ${kuaInfo ? `<div class="card">
+        <div class="goal-head">
+          <div class="card-title">Your Kua number is ${p.kua} — ${esc(kuaInfo.group)} group, ${esc(kuaInfo.element)} element</div>
+          <span class="badge info">Feng Shui</span>
+        </div>
+        <div class="kit-value">Your best direction (Sheng Chi — wealth &amp; success) is <strong>${esc(kuaInfo.shengChi)}</strong>. Face this direction when working or sleeping for maximum support.</div>
+        <div class="kit-value">Your four auspicious directions: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. Orient your desk, bed head and main door towards these wherever practical.</div>
+      </div>` : `<div class="card"><div class="kit-value">Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.</div></div>`}
+    </section>`;
+
+    /* Section 16: compatibility */
+    const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
+    const compat = partnerValid
+      ? compatibility(p, computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }))
+      : null;
+    const compatSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">16</span>Compatibility &amp; Matchmaking</h2>
+      ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
+        <div class="card">
+          <div class="goal-head">
+            <div class="card-title">Overall verdict: ${compat.verdict}</div>
+            <span class="badge ${compat.verdict === "Strong" || compat.verdict === "Good" ? "good" : compat.verdict === "Workable" ? "warn" : "bad"}">${compat.friendly} harmonious · ${compat.neutral} neutral · ${compat.enemy} conflicting</span>
+          </div>
+          <div class="table-scroll"><table class="rtable">
+            <tr><th>Pairing</th><th>Relation</th></tr>
+            ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
+          </table></div>
+          <div class="kit-value">${compat.verdict === "Strong" ? "A naturally cooperative pairing — your numbers reinforce each other." : compat.verdict === "Good" ? "A supportive pairing with a couple of neutral links — manageable and mostly aligned." : compat.verdict === "Workable" ? "Workable, but needs conscious effort — the conflicting links are the areas to manage." : "Challenging pairing — the conflicting numbers need remedies and clear communication to bridge."}</div>
+        </div>`
+      : `<div class="card">
+          <div class="card-title">Who are you compatible with?</div>
+          <div class="kit-value">Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:</div>
+          <div class="table-scroll"><table class="rtable">
+            <tr><th>Other person's Driver</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(DB.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
+          </table></div>
+        </div>`}
+    </section>`;
+
+    /* Section 17+: goal plans */
+    const goalsStart = 17;
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${15 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
         ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
         : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
@@ -890,7 +1019,7 @@
 
     /* final section: priority plan */
     const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${15 + goals.length}</span>Your 40-Day Priority Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
@@ -933,6 +1062,8 @@
       ${careerSection}
       ${timingSection}
       ${vastuSection}
+      ${kuaSection}
+      ${compatSection}
       ${goalSections}
       ${prioritySection}
     `;
@@ -972,7 +1103,10 @@
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
       toilet: $("#toilet").value,
-      watchType: $("#watchType").value
+      watchType: $("#watchType").value,
+      gender: $("#gender").value,
+      partnerName: $("#partnerName").value.trim(),
+      partnerDob: $("#partnerDob").value
     };
     lastProfile = computeProfile(input);
     showReport(lastProfile);
@@ -982,5 +1116,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, reduce, relation, chaldeanValue };
 })();

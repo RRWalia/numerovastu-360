@@ -11,12 +11,13 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | Area | What's analysed / generated |
 | --- | --- |
 | **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic (sidereal) Sun sign |
-| **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga), missing & repeated numbers |
+| **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
 | **Name analysis** | Chaldean total, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
 | **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
-| **Remedy kits** | Per-planet mantras, crystals, rudraksha, colours, charity, fasting & lifestyle remedies |
+| **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table |
+| **Remedy kits** | Per-planet mantras, crystals, rudraksha, yantras, colours, charity, fasting & lifestyle remedies |
 | **Timing** | Personal-year cycle, favourable years, milestone ages |
-| **Vastu** | Entrance, kitchen, bedroom & toilet dosh scan with fixes |
+| **Vastu** | Entrance, kitchen, bedroom & toilet dosh scan with fixes, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
 | **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
 | **Priority plan** | A 40-day, highest-impact action plan ordered by priority |
 
