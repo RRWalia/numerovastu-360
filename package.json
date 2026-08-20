@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "Numerology & Vastu Remedy Engine — Loshu Grid, name/mobile analysis, remedies",
   "scripts": {
-    "dev": "vite --host"
+    "dev": "vite --host",
+    "test": "node smoke.test.js"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
