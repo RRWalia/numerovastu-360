@@ -160,6 +160,32 @@
             <select class="input select" id="toilet" name="toilet"></select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="study">Study Room In</label>
+            <select class="input select" id="study" name="study"></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="staircase">Staircase Located In</label>
+            <select class="input select" id="staircase" name="staircase"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="plotShape">Plot Shape <span class="optional">(optional)</span></label>
+          <select class="input select" id="plotShape" name="plotShape">
+            <option value="unsure">Not sure</option>
+            <option value="rectangular">Rectangular (standard)</option>
+            <option value="square">Square</option>
+            <option value="gomukhi">Gomukhi (narrow front, wide back)</option>
+            <option value="shermukhi">Shermukhi (wide front, narrow back)</option>
+            <option value="missing-northeast">Missing / cut Northeast corner</option>
+            <option value="missing-southwest">Missing / cut Southwest corner</option>
+            <option value="missing-southeast">Missing / cut Southeast corner</option>
+            <option value="missing-northwest">Missing / cut Northwest corner</option>
+            <option value="extended-northeast">Extension in Northeast</option>
+            <option value="extended-southwest">Extension in Southwest</option>
+          </select>
+        </div>
         <div class="field">
           <label class="field-label" for="watchType">Watch You Currently Wear <span class="optional">(optional)</span></label>
           <select class="input select" id="watchType" name="watchType">
@@ -169,6 +195,16 @@
             <option value="digital">Digital watch</option>
             <option value="smart">Smartwatch</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Business / Brand (optional) -->
+      <div class="form-block">
+        <h2 class="form-block-title">Business / Brand Name <span class="optional">(optional)</span></h2>
+        <p class="form-block-desc">Enter your business, brand, shop or venture name for a Chaldean success reading — its compound number, auspiciousness and sound-preserving spelling corrections.</p>
+        <div class="field">
+          <label class="field-label" for="brand">Business / Brand Name</label>
+          <input class="input" id="brand" name="brand" type="text" placeholder="e.g. Shree Balaji Textiles" autocomplete="off" />
         </div>
       </div>
 

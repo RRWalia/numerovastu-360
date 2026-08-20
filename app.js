@@ -37,6 +37,11 @@
     return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
   }
 
+  // Compound-number meaning for a Chaldean total (1–108); null if out of range.
+  const compoundMeaning = (n) => (n >= 1 && n <= 108 ? DB.compound[n] : null);
+  // Master numbers (11 / 22 / 33) — applied to name & business totals only.
+  const masterNumber = (n) => DB.masterNumbers[n] || null;
+
   /* ---- sun-sign (zodiac) from day & month ----
      Two zodiacs are computed:
      • Sayana (tropical) — the fixed-date Western zodiac (kept for reference).
@@ -94,7 +99,7 @@
   const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
 
   /* ---------------- intake setup ---------------- */
-  const roomSelects = ["entrance", "kitchen", "bedroom", "toilet"];
+  const roomSelects = ["entrance", "kitchen", "bedroom", "toilet", "study", "staircase"];
   roomSelects.forEach((id) => {
     const sel = $("#" + id);
     const opts = ['<option value="unsure">Not sure</option>']
@@ -159,6 +164,14 @@
     const nameRelD = relation(driver, nameNum);
     const nameRelC = relation(conductor, nameNum);
 
+    // Name-based Loshu grid (Chaldean letter values 1–8; no 9 in Chaldean),
+    // and the combined grid (birth digits + name values).
+    const nameCounts = {};
+    for (let i = 1; i <= 9; i++) nameCounts[i] = 0;
+    input.name.toUpperCase().split("").forEach((ch) => { const v = DB.chaldean[ch]; if (v) nameCounts[v]++; });
+    const combinedCounts = {};
+    for (let i = 1; i <= 9; i++) combinedCounts[i] = counts[i] + nameCounts[i];
+
     // Mobile
     const mobCompound = digitSum(input.mobile);
     const mobNum = reduce(mobCompound);
@@ -180,11 +193,55 @@
       ...input, day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak,
       nameCompound, nameNum, nameRelD, nameRelC,
+      nameCounts, combinedCounts,
       mobCompound, mobNum, mobRelD, mobRelC,
       missingSeverity, kua,
       zodiac: zodiacSignSidereal(d, m),
       zodiacTropical: zodiacSign(d, m)
     };
+  }
+
+  /* -------- sound-preserving spelling transforms (shared) --------
+     Generates candidate respellings of a name that preserve pronunciation:
+       double a letter (Tripti -> Triptii), swap a homophone (Sunil -> Suniel),
+       or insert a vowel (Suniel style). Never drops letters.
+     Returns [{ text, change, compound, reduced, kind, delta }]. */
+  function spellingCandidates(name, baseCompound) {
+    const up = name.toUpperCase();
+    const S = DB.spelling;
+    const candidates = [];
+    const seen = new Set([up.replace(/\s+/g, " ")]);
+    const keepCase = (i, str) => str.split("").map((c, j) => {
+      const orig = name[i + j];
+      if (orig && orig === orig.toLowerCase()) return c.toLowerCase();
+      return c;
+    }).join("");
+    const addCand = (text, change, kind, deltaV) => {
+      const key = text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const compound = chaldeanValue(text);
+      candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - baseCompound) + (deltaV || 0) });
+    };
+    up.split("").forEach((ch, i) => {
+      const v = DB.chaldean[ch];
+      if (!v) return; // skip spaces / non-letters
+      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
+        const t = name.slice(0, i) + name[i] + name.slice(i);
+        addCand(t, `double "${name[i]}"`, "double", 0);
+      }
+      (S.homophones[ch] || []).forEach((rep) => {
+        const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
+        addCand(t, `${name[i]} → ${rep}`, "swap", 1);
+      });
+      if (i > 0 && up[i - 1] !== " ") {
+        S.insertVowels.forEach((vowel) => {
+          const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
+          addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
+        });
+      }
+    });
+    return candidates;
   }
 
   /* -------- name spelling suggestions --------
@@ -222,47 +279,7 @@
     if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
 
     // ---- candidate transforms (sound-preserving only) ----
-    const name = p.name;
-    const up = name.toUpperCase();
-    const S = DB.spelling;
-    const candidates = []; // {text, change, compound, kind}
-    const seen = new Set([up.replace(/\s+/g, " ")]);
-    const keepCase = (i, str) => { // match original letter case at position
-      return str.split("").map((c, j) => {
-        const orig = name[i + j];
-        if (orig && orig === orig.toLowerCase()) return c.toLowerCase();
-        return c;
-      }).join("");
-    };
-    const addCand = (text, change, kind, deltaV) => {
-      const key = text.toUpperCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      const compound = chaldeanValue(text);
-      candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - p.nameCompound) + (deltaV || 0) });
-    };
-
-    up.split("").forEach((ch, i) => {
-      const v = DB.chaldean[ch];
-      if (!v) return; // skip spaces / non-letters
-      // 1) double a letter (vowel or consonant) — Triptii, Kumarr
-      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
-        const t = name.slice(0, i) + name[i] + name.slice(i);
-        addCand(t, `double "${name[i]}"`, "double", 0);
-      }
-      // 2) homophone swap — same sound, different value (C<->K, S->SH, I->Y...)
-      (S.homophones[ch] || []).forEach((rep) => {
-        const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
-        addCand(t, `${name[i]} → ${rep}`, "swap", 1);
-      });
-      // 3) vowel insertion after this letter — Suniel style (only inside words)
-      if (i > 0 && up[i - 1] !== " ") {
-        S.insertVowels.forEach((vowel) => {
-          const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
-          addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
-        });
-      }
-    });
+    const candidates = spellingCandidates(p.name, p.nameCompound);
 
     // ---- pick best candidates per target ----
     const kindRank = { double: 0, swap: 1, insert: 2 };
@@ -282,6 +299,42 @@
       finalSeen.add(k); out.push(v);
     });
     return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((t) => t.n) };
+  }
+
+  /* -------- business / brand name analysis --------
+     Same Chaldean engine, framed for business success. Computes the brand's
+     compound number, reduced root, relationship to the owner's Driver &
+     Conductor, and (when conflicting) sound-preserving spelling corrections. */
+  function brandAnalysis(brand, p) {
+    const total = chaldeanValue(brand);
+    const root = reduce(total);
+    const relD = relation(p.driver, root);
+    const relC = relation(p.conductor, root);
+    const conflicting = relD === "enemy" || relC === "enemy";
+
+    // auspicious business roots: not-enemy to both Driver & Conductor
+    const auspicious = [];
+    for (let n = 1; n <= 9; n++) {
+      if (relation(p.driver, n) !== "enemy" && relation(p.conductor, n) !== "enemy") auspicious.push(n);
+    }
+
+    let suggestions = [];
+    if (conflicting) {
+      const candidates = spellingCandidates(brand, total);
+      const kindRank = { double: 0, swap: 1, insert: 2 };
+      suggestions = candidates
+        .filter((c) => auspicious.includes(c.reduced))
+        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta)
+        .slice(0, 6)
+        .map((c) => ({ ...c, why: `brand number ${c.reduced} is friendly to your Driver ${p.driver} and Conductor ${p.conductor}` }));
+    }
+
+    return {
+      brand, total, root, relD, relC, conflicting, auspicious,
+      suggestions,
+      master: masterNumber(total),
+      compound: compoundMeaning(total)
+    };
   }
 
   /* -------- mobile number suggestion -------- */
@@ -432,7 +485,7 @@
         label: e.score, note: e.note
       });
     }
-    const roomMap = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet" };
+    const roomMap = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet", study: "Study Room", staircase: "Staircase" };
     Object.entries(roomMap).forEach(([key, roomName]) => {
       const dir = p[key];
       if (!dir || dir === "unsure") return;
@@ -446,6 +499,16 @@
         note: status === "dosh" ? rule.doshText.replace("{dir}", dirLabel(dir)) + " " + rule.fix : status === "ok" ? "Acceptable placement. " + rule.fix : "Well placed — supports balanced energy."
       });
     });
+    // Plot shape (missing corners / extensions)
+    if (p.plotShape && p.plotShape !== "unsure" && DB.vastu.plotShapes[p.plotShape]) {
+      const ps = DB.vastu.plotShapes[p.plotShape];
+      findings.push({
+        item: `Plot shape — ${p.plotShape.replace(/-/g, " ")}`,
+        tone: ps.tone,
+        label: ps.tone === "good" ? "Balanced" : ps.tone === "warn" ? "Caution" : "Dosh",
+        note: ps.note
+      });
+    }
     return findings;
   }
 
@@ -495,9 +558,9 @@
     </div>`;
   };
 
-  function renderLoshu(p) {
-    const cells = DB.loshuLayout.flat().map((n) => {
-      const c = p.counts[n];
+  function renderGridCells(counts) {
+    return DB.loshuLayout.flat().map((n) => {
+      const c = counts[n] || 0;
       const cls = c === 0 ? "missing" : c >= 3 ? "present multi" : "present";
       const digits = c > 0 ? Array(c).fill(n).map((x) => `<span>${x}</span>`).join("") : `<span>${n}</span>`;
       return `<div class="loshu-cell ${cls}" title="${n} — ${esc(DB.numbers[n].planet)}: ${c} occurrence(s)">
@@ -505,6 +568,10 @@
         ${c > 0 ? `<div class="cnt">${DB.numbers[n].planet.split(" ")[0]}</div>` : ""}
       </div>`;
     }).join("");
+  }
+
+  function renderLoshu(p) {
+    const cells = renderGridCells(p.counts);
 
     /* 8 fully-analysed plane cards */
     const planeCards = DB.planes.map((pl) => {
@@ -609,6 +676,18 @@
         <div class="card-sub">The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.</div>
       </div>
       <div class="plane-cards">${arrowCards}</div>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">Name Grid</div>
+          <div class="loshu-grid" role="img" aria-label="Name-based Loshu grid">${renderGridCells(p.nameCounts)}</div>
+          <div class="card-sub">The Chaldean values of your name's letters, plotted the same way. Note: the Chaldean system has no value 9, so that cell stays empty in the name grid.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Combined Grid (DOB + Name)</div>
+          <div class="loshu-grid" role="img" aria-label="Combined Loshu grid">${renderGridCells(p.combinedCounts)}</div>
+          <div class="card-sub">Birth digits and name values together — the blended energy you project into the world.</div>
+        </div>
+      </div>
       ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
       ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
     </section>`;
@@ -643,6 +722,7 @@
   function renderReport(p) {
     const nameSug = nameSuggestions(p);
     const mobSug = mobileSuggestion(p);
+    const brand = p.brand ? brandAnalysis(p.brand, p) : null;
     const vehicle = vehicleAnalysis(p);
     const timing = timingAnalysis(p);
     const vastu = vastuReport(p);
@@ -726,18 +806,20 @@
 
     /* Section 5: name */
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
+    const nameMaster = masterNumber(p.nameCompound);
     const nameSection = `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">6</span>Name Analysis &amp; Spelling Correction</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
-          <span class="badge info">Chaldean total ${p.nameCompound} → Name Number ${p.nameNum}</span>
+          <span class="badge info">Chaldean total ${p.nameCompound}${nameMaster ? " (Master Number)" : ""} → Name Number ${p.nameNum}</span>
           ${relBadge(p.nameRelD === "enemy" || p.nameRelC === "enemy" ? "enemy" : p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly")}
         </div>
         <table class="rtable">
           <tr><th>Name number vs Driver ${p.driver}</th><td>${relBadge(p.nameRelD)} ${p.nameRelD === "enemy" ? "— clashes with your core mind/self energy" : ""}</td></tr>
           <tr><th>Name number vs Conductor ${p.conductor}</th><td>${relBadge(p.nameRelC)} ${p.nameRelC === "enemy" ? "— works against your destiny path" : ""}</td></tr>
         </table>
+        ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
             ? `<div class="card-sub"><strong>Recommended spellings</strong> — pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:</div>
@@ -749,6 +831,22 @@
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
           : `<div class="kit-value">${esc(DB.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
       </div>
+      ${brand ? `<div class="card">
+        <div class="card-title">Business / Brand Name — Chaldean Success Reading</div>
+        <div class="goal-head">
+          <div class="card-title">${esc(brand.brand)}</div>
+          <span class="badge info">Chaldean total ${brand.total}${brand.master ? " (Master Number)" : ""} → Number ${brand.root}</span>
+          ${relBadge(brand.conflicting ? "enemy" : (brand.relD === "neutral" && brand.relC === "neutral" ? "neutral" : "friendly"))}
+        </div>
+        <table class="rtable">
+          <tr><th>vs Driver ${p.driver}</th><td>${relBadge(brand.relD)}</td></tr>
+          <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(brand.relC)}</td></tr>
+        </table>
+        ${brand.master ? `<div class="judge-note"><strong>${esc(brand.master.name)}:</strong> ${esc(brand.master.meaning)}</div>` : (brand.compound ? `<div class="judge-note"><strong>Compound Number ${brand.total}:</strong> ${esc(brand.compound)}</div>` : "")}
+        ${brand.conflicting
+          ? `<div class="kit-value">This brand name works against your birth numbers. <strong>Auspicious business roots for you: ${brand.auspicious.join(", ")}.</strong></div>${brand.suggestions.length ? `<div class="card-sub"><strong>Sound-preserving corrections</strong> (pronunciation stays the same):</div><div class="table-scroll"><table class="rtable"><tr><th>Suggested</th><th>Change</th><th>New total</th><th>Number</th><th>Why</th></tr>${brand.suggestions.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}</table></div>` : `<div class="card-sub">No pronunciation-preserving correction reaches an auspicious root — consult a numerologist for a custom brand name.</div>`}`
+          : `<div class="kit-value">This brand name vibrates harmoniously with your birth numbers — an auspicious choice for your venture.</div>`}
+      </div>` : ""}
     </section>`;
 
     /* Section 6: mobile */
@@ -764,6 +862,7 @@
           <tr><th>vs Driver ${p.driver}</th><td>${relBadge(p.mobRelD)}</td></tr>
           <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(p.mobRelC)}</td></tr>
         </table>
+        ${compoundMeaning(p.mobCompound) ? `<div class="judge-note"><strong>Compound Number ${p.mobCompound}:</strong> ${esc(compoundMeaning(p.mobCompound))}</div>` : ""}
         ${mobSug.needed
           ? `<div class="kit-value">Your mobile number works against your birth numbers — since your phone is your most-used device, this is a high-impact change. When choosing a new number, pick one whose digits total <strong>${mobSug.goodTotals.join(", ")}</strong>. Activate the new SIM on a ${DAY_OF[p.driver]} or ${DAY_OF[p.conductor]} morning.</div>`
           : `<div class="kit-value">Your mobile number vibrates acceptably with your birth numbers — no change required.</div>`}
@@ -1103,8 +1202,12 @@
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
       toilet: $("#toilet").value,
+      study: $("#study").value,
+      staircase: $("#staircase").value,
+      plotShape: $("#plotShape").value,
       watchType: $("#watchType").value,
       gender: $("#gender").value,
+      brand: $("#brand").value.trim(),
       partnerName: $("#partnerName").value.trim(),
       partnerDob: $("#partnerDob").value
     };
@@ -1116,5 +1219,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue };
 })();

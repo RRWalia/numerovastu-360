@@ -44,7 +44,7 @@ const checks = [
   ["green wording", report.includes("Green cells are present")],
   ["driver = 2", report.includes('num-value">2<')],
   ["conductor = 8", report.includes('num-value">8<')],
-  ["loshu grid rendered", (report.match(/loshu-cell/g) || []).length === 9],
+  ["loshu grid rendered (3 grids × 9)", (report.match(/loshu-cell/g) || []).length === 27],
   ["core nature section", report.includes("Core Nature") && report.includes("Two numbers shape your nature")],
   ["strengths & shadows", report.includes("Amplify These") && report.includes("Watch These")],
   ["adopt & release", report.includes("Adopt") && report.includes("Release")],
@@ -177,6 +177,51 @@ const checks4 = [
   ["no NaN leaks", !r4.includes("NaN")],
 ];
 checks4.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// sixth block: compound numbers, master numbers, name/combined grids, brand, vastu extras
+const compoundChecks = [
+  ["compound 51 meaning", typeof NV.compoundMeaning(51) === "string" && NV.compoundMeaning(51).includes("Warrior")],
+  ["compound out-of-range is null", NV.compoundMeaning(200) === null && NV.compoundMeaning(0) === null],
+  ["master number 22", NV.masterNumber(22) && NV.masterNumber(22).name.includes("Master Builder")],
+  ["master number 11", NV.masterNumber(11) && NV.masterNumber(11).name.includes("Illuminator")],
+  ["master number 33", NV.masterNumber(33) && NV.masterNumber(33).name.includes("Master Teacher")],
+  ["master non-master is null", NV.masterNumber(20) === null],
+];
+compoundChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// brand analysis (reuses the Chaldean engine)
+const brand = NV.brandAnalysis("Shree Balaji Textiles", NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" }));
+const brandChecks = [
+  ["brand total/root computed", brand.total > 0 && brand.root >= 1 && brand.root <= 9],
+  ["brand auspicious roots present", Array.isArray(brand.auspicious) && brand.auspicious.length > 0],
+  ["brand suggestions are sound-preserving", brand.suggestions.every((v) => !/drop/i.test(v.change))],
+];
+brandChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// render with brand + study + staircase + plot shape
+$("#editBtn").click();
+$("#fullName").value = "Priya Sharma";
+$("#dob").value = "2005-08-20";
+$("#mobile").value = "9876543210";
+$("#brand").value = "Shree Balaji Textiles";
+$("#study").value = "E";
+$("#staircase").value = "NE";
+$("#plotShape").value = "missing-northeast";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r5 = $("#reportRoot").innerHTML;
+const checks5 = [
+  ["name compound meaning shown", r5.includes("Compound Number")],
+  ["name grid & combined grid", r5.includes("Name Grid") && r5.includes("Combined Grid")],
+  ["brand section rendered", r5.includes("Business / Brand Name") && r5.includes("Shree Balaji Textiles")],
+  ["brand compound/m&#8203;aster shown", r5.includes("Chaldean total")],
+  ["study room analysed", r5.includes("Study Room")],
+  ["staircase dosh (NE)", r5.includes("Staircase")],
+  ["plot shape dosh", r5.includes("Plot shape") && r5.includes("Northeast corner")],
+  ["mobile compound meaning", r5.includes("Compound Number")],
+  ["no undefined leaks", !r5.includes("undefined")],
+  ["no NaN leaks", !r5.includes("NaN")],
+];
+checks5.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

@@ -12,12 +12,14 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | --- | --- |
 | **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic (sidereal) Sun sign |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
-| **Name analysis** | Chaldean total, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
+| **Name analysis** | Chaldean total, **compound number (1–108) meaning**, **master numbers (11/22/33)**, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
+| **Name & combined grids** | Loshu grids plotted from your **name's Chaldean letter values** and a **combined DOB + name** grid, alongside the birth grid |
+| **Business / brand mode** | Chaldean success reading for a brand, shop or venture name — compound number, auspicious roots, and sound-preserving corrections |
 | **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
 | **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table |
 | **Remedy kits** | Per-planet mantras, crystals, rudraksha, yantras, colours, charity, fasting & lifestyle remedies |
 | **Timing** | Personal-year cycle, favourable years, milestone ages |
-| **Vastu** | Entrance, kitchen, bedroom & toilet dosh scan with fixes, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
+| **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
 | **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
 | **Priority plan** | A 40-day, highest-impact action plan ordered by priority |
 
