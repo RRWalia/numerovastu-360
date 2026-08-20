@@ -27,6 +27,8 @@ $("#fullName").value = "Priya Sharma";
 $("#dob").value = "2005-08-20";
 $("#mobile").value = "9876543210";
 $("#vehicle").value = "HR51AB1234";
+$("#birthTime").value = "14:05";
+$("#birthPlace").value = "New Delhi, India";
 $("#goalChips .chip[data-goal='Money']").click();
 $("#goalChips .chip[data-goal='Career']").click();
 $("#entrance").value = "SW";
@@ -67,6 +69,13 @@ const checks = [
   ["anonymous scaffold shown", report.includes("Anonymous contribution scaffold")],
   ["zodiac section (Leo for 20/08)", report.includes("Zodiac Power Kit") && report.includes("Leo")],
   ["zodiac card in core profile", report.includes("Sun Sign")],
+  ["vedic sun sign + surya rashi label", report.includes("Vedic Sun Sign") && report.includes("Surya Rashi")],
+  ["sidereal / lahiri wording", report.includes("Sidereal") && report.includes("Lahiri")],
+  ["western tropical reference shown", report.includes("Western tropical reference") && report.includes("Leo")],
+  ["birth time shown in hero", report.includes("Born 2:05 PM, New Delhi, India")],
+  ["vedic tier 2 prepared badge", report.includes("Tier 2 · Prepared")],
+  ["chandra rashi + nakshatra disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Transit precision")],
+  ["cross-system harmony note (ruler missing)", report.includes("Cross-system harmony") && report.includes("number 1 is")],
   ["crystal companion section", report.includes("Crystal Companion Guide")],
   ["selenite ritual", report.includes("Selenite")],
   ["short mantra in kits", report.includes("Wish-Paper Affirmation") && report.includes("Daily Short Mantra")],
@@ -89,6 +98,7 @@ $("#editBtn").click();
 $("#fullName").value = "Rahul"; // chaldean 17 -> 8 (enemy of driver 2 & conductor... check)
 $("#dob").value = "2010-10-15";  // driver 6, conductor 1
 $("#mobile").value = "9999999999";
+$("#birthTime").value = ""; $("#birthPlace").value = ""; // clear Vedic Tier-2 fields
 $("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
 $("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
 $("#watchType").value = "none";
@@ -99,6 +109,8 @@ const checks2 = [
   ["name verdict shown", r2.includes("Name Number")],
   ["spelling suggestions rendered", r2.includes("Recommended spellings") || r2.includes("no spelling change needed") || r2.includes("vibrates in harmony") || r2.includes("Consult a numerologist")],
   ["vastu empty state", r2.includes("No direction details")],
+  ["harmony note present (aligns comfortably branch)", r2.includes("Cross-system harmony") && r2.includes("align comfortably")],
+  ["tier 2 prepare-now wording (no birth details)", r2.includes("Tier 2 · Prepare now")],
   ["no undefined leaks", !r2.includes("undefined")],
 ];
 checks2.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -152,10 +164,27 @@ const compChecks = [
 ];
 compChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// Vedic precision tiers + birth-time formatting (progressive disclosure engine)
+const baseInput = { name: "T", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" };
+const pTier2 = NV.computeProfile(Object.assign({}, baseInput, { birthTime: "14:05", birthPlace: "New Delhi, India" }));
+const pTierPartial = NV.computeProfile(Object.assign({}, baseInput, { birthTime: "23:30" }));
+const pTier1 = NV.computeProfile(Object.assign({}, baseInput));
+const vedicChecks = [
+  ["formatBirthTime 14:05 -> 2:05 PM", NV.formatBirthTime("14:05") === "2:05 PM"],
+  ["formatBirthTime 00:05 -> 12:05 AM", NV.formatBirthTime("00:05") === "12:05 AM"],
+  ["formatBirthTime empty -> ''", NV.formatBirthTime("") === ""],
+  ["tier 2 when time + place", pTier2.vedicTier === 2],
+  ["tier partial with time only", pTierPartial.vedicTier === "partial"],
+  ["tier 1 with no birth details", pTier1.vedicTier === 1],
+  ["birthTimeDisplay on profile", pTier2.birthTimeDisplay === "2:05 PM"],
+  ["birthPlace flows into profile", pTier2.birthPlace === "New Delhi, India"],
+];
+vedicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 const anonPayload = NV.contributionPayload(pa, NV.timingAnalysis(pa));
 const anonChecks = [
   ["anonymous payload has packVersion", typeof anonPayload.packVersion === "string" && anonPayload.packVersion.length > 0],
-  ["anonymous payload excludes personal strings", !("name" in anonPayload) && !("dob" in anonPayload) && !("mobile" in anonPayload)],
+  ["anonymous payload excludes personal strings", !("name" in anonPayload) && !("dob" in anonPayload) && !("mobile" in anonPayload) && !("birthTime" in anonPayload) && !("birthPlace" in anonPayload)],
   ["anonymous payload includes missingCounts", anonPayload.missingCounts && typeof anonPayload.missingCounts === "object"],
 ];
 anonChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -234,6 +263,26 @@ const checks5 = [
   ["no NaN leaks", !r5.includes("NaN")],
 ];
 checks5.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// seventh block: reinforcing harmony branch — zodiac ruler equals the Driver.
+// 06/06/1990 -> Driver 6, sidereal Taurus (ruled by Venus/number 6) -> overlap.
+$("#editBtn").click();
+$("#fullName").value = "Priya Sharma";
+$("#dob").value = "1990-06-06";
+$("#mobile").value = "9876543210";
+$("#vehicle").value = "";
+$("#birthTime").value = ""; $("#birthPlace").value = "";
+$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r6 = $("#reportRoot").innerHTML;
+const checks6 = [
+  ["harmony reinforcing branch (ruler = driver)", r6.includes("Cross-system harmony") && r6.includes("Driver (Moolank)")],
+  ["tier 1 pill shown in hero", r6.includes("Vedic Sun Sign · Sidereal (Lahiri)")],
+  ["no undefined leaks", !r6.includes("undefined")],
+];
+checks6.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

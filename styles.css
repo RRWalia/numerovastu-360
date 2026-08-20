@@ -120,6 +120,7 @@ body {
 .status-private { background: rgba(22, 196, 86, 0.12); color: #0b7c39; border-color: rgba(22, 196, 86, 0.18); }
 .status-knowledge { background: rgba(23, 131, 255, 0.1); color: #0f63c9; border-color: rgba(23, 131, 255, 0.16); }
 .status-memory { background: rgba(152, 95, 251, 0.12); color: #6d28d9; border-color: rgba(152, 95, 251, 0.18); }
+.status-vedic { background: rgba(255, 149, 0, 0.12); color: #a05c00; border-color: rgba(255, 149, 0, 0.2); }
 
 .status-surface {
   background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.92));
@@ -438,6 +439,38 @@ body {
   background: var(--kimi-blue-10); border-left: 3px solid var(--kimi-blue);
   border-radius: var(--r-sm); font-size: 13px; line-height: 20px; color: var(--label-secondary);
 }
+
+/* Vedic precision — progressive disclosure tiers (Tier 1 ready / Tier 2 prepare) */
+.tier-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.tier {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px; border-radius: var(--r-md);
+  border: 0.5px solid var(--separator); background: var(--fill-f1);
+  font-size: 13px; line-height: 20px; color: var(--label-secondary);
+}
+.tier-ready { border-color: rgba(22, 196, 86, 0.25); background: rgba(22, 196, 86, 0.06); }
+.tier-upcoming { border-style: dashed; background: var(--bg-primary); }
+.tier-badge {
+  flex: none; display: inline-flex; align-items: center;
+  min-height: 22px; padding: 2px 8px; border-radius: var(--r-full);
+  font-size: 11px; font-weight: 600; line-height: 18px; letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.tier-badge-ready { background: rgba(22, 196, 86, 0.16); color: #0b7c39; }
+.tier-badge-upcoming { background: var(--light-orange-bg); color: #a05c00; }
+.tier-body { min-width: 0; }
+.tier-body strong { color: var(--label-primary); }
+
+/* Cross-system harmony note (zodiac ruler vs Lo Shu grid) — warm gold accent */
+.harmony-note {
+  margin-top: 4px; padding: 12px 14px;
+  background: var(--light-yellow-bg); border-left: 3px solid var(--amber);
+  border-radius: var(--r-sm); font-size: 13px; line-height: 21px; color: var(--label-secondary);
+}
+.harmony-note strong { color: var(--label-primary); }
+
+/* Western tropical reference line under the Vedic Sun Sign card */
+.vedic-western-ref { font-size: 12px; line-height: 18px; color: var(--label-tertiary); }
 .good-ico { color: var(--positive); font-weight: 700; }
 .bad-ico { color: var(--danger); font-weight: 700; }
 .adopt-release { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
