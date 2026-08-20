@@ -10,13 +10,16 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 | Area | What's analysed / generated |
 | --- | --- |
-| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Zodiac sun sign |
-| **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga), missing & repeated numbers |
-| **Name analysis** | Chaldean total, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
+| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic (sidereal) Sun sign |
+| **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
+| **Name analysis** | Chaldean total, **compound number (1–108) meaning**, **master numbers (11/22/33)**, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
+| **Name & combined grids** | Loshu grids plotted from your **name's Chaldean letter values** and a **combined DOB + name** grid, alongside the birth grid |
+| **Business / brand mode** | Chaldean success reading for a brand, shop or venture name — compound number, auspicious roots, and sound-preserving corrections |
 | **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
-| **Remedy kits** | Per-planet mantras, crystals, rudraksha, colours, charity, fasting & lifestyle remedies |
+| **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table |
+| **Remedy kits** | Per-planet mantras, crystals, rudraksha, yantras, colours, charity, fasting & lifestyle remedies |
 | **Timing** | Personal-year cycle, favourable years, milestone ages |
-| **Vastu** | Entrance, kitchen, bedroom & toilet dosh scan with fixes |
+| **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
 | **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
 | **Priority plan** | A 40-day, highest-impact action plan ordered by priority |
 
@@ -48,13 +51,12 @@ numerovastu-360/
 ├── smoke.test.js       # Headless end-to-end smoke test (jsdom)
 ├── share.bat           # Windows script to share over HTTPS (see below)
 ├── reference/          # Source tables (table-A/B xlsx) used to curate data.js
-└── public/             # Mirror of the static files (see note below)
+└── .github/workflows/  # CI (runs the smoke test on push/PR)
 ```
 
-> **Note on `public/`:** this directory currently mirrors the four root files
-> (`index.html`, `app.js`, `data.js`, `styles.css`). It exists for the static
-> server used by `share.bat`. When editing, keep it in sync with the root files,
-> or remove it once a single source of truth is chosen.
+The root files are the single source of truth — Vite serves them directly
+(`index.html` loads `data.js` and `app.js`), and the `share.bat` static server
+should be pointed at the repository root.
 
 ---
 
@@ -77,8 +79,10 @@ npm run dev
 ### Run the tests
 
 ```bash
-node smoke.test.js
+npm test
 ```
+
+(runs `node smoke.test.js`)
 
 The smoke test loads the app in jsdom, submits several profiles (including a
 practitioner example and a name-correction case), and asserts every report
@@ -96,7 +100,8 @@ deploying anywhere.
 **Requirements (not committed to the repo — see `.gitignore`):**
 
 - `tools/static-server.js` — a small Node static file server that serves the
-  app on `http://localhost:8321`
+  **repository root** (the app files `index.html`, `app.js`, `data.js`,
+  `styles.css`) on `http://localhost:8321`
 - `tools/cloudflared.exe` — the [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
   client
 

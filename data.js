@@ -324,6 +324,61 @@ const DB = {
     9: "Strengthen Mars: exercise daily; keep the south well-lit; recite Hanuman Chalisa on Tuesdays."
   },
 
+  /* ---- Yantra per number (classical remedy category) ---- */
+  yantra: {
+    1: "Surya Yantra", 2: "Chandra Yantra", 3: "Brihaspati (Guru) Yantra",
+    4: "Rahu Yantra", 5: "Budh Yantra", 6: "Shukra Yantra",
+    7: "Ketu Yantra", 8: "Shani Yantra", 9: "Mangal Yantra"
+  },
+
+  /* ---- The 8 Arrows of the Loshu grid (Chaldean "arrow" framing) ----
+     Same 8 lines as the planes above, but under the classical "arrow" names
+     practitioners and clients search for. When all three numbers of an arrow
+     are present the arrow is "strong"; when they are all missing the arrow is
+     "frustrated/confused" (a recognised weakness in classical practice). */
+  arrows: [
+    { name: "Arrow of Planning", line: [4, 9, 2], axis: "Top row (4-9-2)",
+      present: "You think before you act — you plan, weigh options and move with a clear strategy. Strong for business, study and any long project.",
+      missing: "Arrow of Confusion — decisions come impulsively or too late. Use written plans, cost/benefit checks and a decision checklist before acting." },
+    { name: "Arrow of Emotions", line: [3, 5, 7], axis: "Middle row (3-5-7)",
+      present: "You feel deeply and express it well — warmth, empathy and intuition flow naturally, making you naturally good with people.",
+      missing: "Arrow of Emotional Restlessness — feelings get bottled up or swing under pressure. Practise daily expression, journaling and centring rituals." },
+    { name: "Arrow of Practicality", line: [8, 1, 6], axis: "Bottom row (8-1-6)",
+      present: "You convert ideas into real results — money, work and delivery come naturally. Strong material, career and business instincts.",
+      missing: "Arrow of Frustration — effort does not convert into results. Install systems: budgets, deadlines and checklists that carry work to completion." },
+    { name: "Arrow of Intellect", line: [4, 3, 8], axis: "Left column (4-3-8)",
+      present: "A strong analytical mind — you learn deeply, connect ideas and master complex subjects over time.",
+      missing: "Arrow of Shallow Thinking — learning plateaus and known patterns repeat. Feed the mind weekly with books, courses or a mentor conversation." },
+    { name: "Arrow of Determination", line: [9, 5, 1], axis: "Middle column (1-5-9)",
+      present: "You push through resistance with steady will and self-belief — a natural leader who finishes what they start.",
+      missing: "Arrow of Wavering Will — motivation comes in waves. Anchor yourself with fixed routines, public commitments and physical training." },
+    { name: "Arrow of Activity", line: [2, 7, 6], axis: "Right column (2-7-6)",
+      present: "You finish what you start — patience, standards and follow-through combine into reliable, clean delivery.",
+      missing: "Arrow of Unfinished Work — many things started, few completed. Define 'done' before you begin and close tasks fully." },
+    { name: "Arrow of Prosperity", line: [4, 5, 6], axis: "Diagonal (4-5-6)",
+      present: "Opportunity meets structure and polish — you convert chances into wealth, branding and recognition.",
+      missing: "Openings slip past or leak value. Scan your market weekly and give every opportunity an owner, timeline and budget." },
+    { name: "Arrow of Spirituality", line: [8, 5, 2], axis: "Diagonal (8-5-2)",
+      present: "Inner calm and patience — you hold steady, build assets slowly and stay grounded under stress.",
+      missing: "Restlessness and money-pressure. Let assets mature; add patience and a fixed monthly review of money and resources." }
+  ],
+
+  /* ---- Kua number (Feng Shui personal directions) ----
+     NOTE: this is a Chinese / Feng Shui system, NOT classical Vastu Shastra.
+     It is included (clearly labelled) because Indian numerology-Vastu apps
+     commonly offer it as "your personal lucky direction". 5 maps to 2 (male)
+     or 8 (female) at computation time, so no "5" entry exists here. */
+  kua: {
+    1: { group: "East", element: "Water", shengChi: "Southeast", auspicious: ["Southeast", "East", "South", "North"] },
+    2: { group: "West", element: "Earth", shengChi: "Northeast", auspicious: ["Northeast", "West", "Northwest", "Southwest"] },
+    3: { group: "East", element: "Wood",  shengChi: "South",     auspicious: ["South", "North", "Southeast", "East"] },
+    4: { group: "East", element: "Wood",  shengChi: "North",     auspicious: ["North", "South", "East", "Southeast"] },
+    6: { group: "West", element: "Metal", shengChi: "West",      auspicious: ["West", "Northeast", "Southwest", "Northwest"] },
+    7: { group: "West", element: "Metal", shengChi: "Northwest", auspicious: ["Northwest", "Southwest", "Northeast", "West"] },
+    8: { group: "West", element: "Earth", shengChi: "Southwest", auspicious: ["Southwest", "Northwest", "West", "Northeast"] },
+    9: { group: "East", element: "Fire",  shengChi: "East",      auspicious: ["East", "Southeast", "North", "South"] }
+  },
+
   /* ---- Goal -> relevant numbers mapping ---- */
   goals: {
     "Money":        [3, 5, 6, 9, 8],
@@ -379,8 +434,28 @@ const DB = {
         fix: "Keep the door always closed; place a bowl of sea salt (change weekly); add a yellow bulb if in NE; place a brass pyramid on the outer wall; maintain strict dryness and ventilation; mirror on the outer door (not facing the seat) deflects energy." },
       { room: "Pooja Room",     ideal: ["NE"], acceptable: ["E", "N"], doshDirs: ["S", "SW", "SE", "under-stairs"],
         doshText: "Pooja space in {dir} weakens spiritual protection of the home.",
-        fix: "If relocation is impossible, face east or north while praying; keep the altar on the east wall; light a diya twice daily in the NE of the home regardless." }
-    ]
+        fix: "If relocation is impossible, face east or north while praying; keep the altar on the east wall; light a diya twice daily in the NE of the home regardless." },
+      { room: "Study Room",     ideal: ["E", "N", "NE"], acceptable: ["NW", "W"], doshDirs: ["S", "SW", "SE"],
+        doshText: "Study room in {dir} works against concentration and memory retention.",
+        fix: "Face east or north while studying; place the desk against a solid wall; keep a bookshelf in the west; use light yellow or green tones; keep a crystal or image that inspires focus on the desk." },
+      { room: "Staircase",      ideal: ["S", "SW", "W"], acceptable: ["SE", "NW"], doshDirs: ["NE", "N", "E"],
+        doshText: "Staircase in {dir} (and especially in the centre/Brahmasthan) creates instability and drains energy.",
+        fix: "Keep the staircase well-lit and clutter-free; avoid it rising directly toward the main door; place a heavy object or plant at its base; if central, a skylight or bright light above helps." }
+    ],
+
+    /* ---- Plot shapes (missing corners / extensions) ---- */
+    plotShapes: {
+      "square":             { tone: "good", note: "A square or rectangular plot with all corners intact is the most balanced and auspicious — energy flows evenly." },
+      "rectangular":        { tone: "good", note: "A rectangular plot (longer north-south) is balanced; a slight east-north extension is auspicious for growth." },
+      "gomukhi":            { tone: "good", note: "Gomukhi (narrow at the front, wide at the back) is auspicious for residence — it holds and gathers prosperity." },
+      "shermukhi":          { tone: "bad",  note: "Shermukhi (wide at the front, narrow at the back) is generally avoided — energy and wealth are said to drain away. Remedy: strengthen the rear boundary with a wall or heavy planting." },
+      "missing-northeast":  { tone: "bad",  note: "A cut/missing Northeast corner weakens the most sacred zone (Jupiter). Remedy: light a diya there daily, place a water feature, and keep it clean and bright." },
+      "missing-southwest":  { tone: "bad",  note: "A missing Southwest corner destabilises the support zone (Rahu / master-bedroom area). Remedy: place heavy furniture or a brass pyramid to anchor the zone." },
+      "missing-southeast":  { tone: "warn", note: "A cut Southeast corner weakens the fire (kitchen) zone. Remedy: add a red/orange element and a copper pyramid." },
+      "missing-northwest":  { tone: "warn", note: "A cut Northwest corner weakens the movement/support zone (Moon). Remedy: add white/silver elements and a metal wind chime." },
+      "extended-northeast": { tone: "good", note: "An extension in the Northeast is highly auspicious — it strengthens prosperity, clarity and spiritual growth." },
+      "extended-southwest": { tone: "bad",  note: "An extension in the Southwest adds excessive heaviness. Remedy: keep it uncluttered and light, and use it for storage rather than living." }
+    }
   },
 
   /* ---- Career / profession fields per number ---- */
@@ -482,7 +557,7 @@ const DB = {
                      dev: "ॐ शुक्राय नमः", pron: "Om Shukraya Namah", meaning: "Salutations to Venus.",
                      affirmation: "I cultivate harmony, beauty, and deep, meaningful relationships in my life." },
     "Scorpio":     { ruler: 9, element: "Water", crystals: ["Black Tourmaline", "Obsidian", "Malachite"],        intentions: "Protection, debt clearing, deep transformation",
-                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the transformer.",
+                     dev: "ॐ मंगलाय नमः", pron: "Om Mangalaya Namah", meaning: "Salutations to Mars, the divine warrior and protector.",
                      affirmation: "I embrace transformation, release what no longer serves me, and rise stronger." },
     "Sagittarius": { ruler: 3, element: "Fire",  crystals: ["Turquoise", "Lapis Lazuli", "Amethyst"],            intentions: "Study success, travel protection, wisdom",
                      dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
@@ -491,24 +566,190 @@ const DB = {
                      dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn.",
                      affirmation: "My hard work builds lasting success. I am grounded, patient, and unstoppable." },
     "Aquarius":    { ruler: 8, element: "Air",   crystals: ["Amethyst", "Aquamarine", "Clear Quartz"],           intentions: "Inner peace, innovation, spiritual growth",
-                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the universal consciousness.",
+                     dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn, the lord of karma, discipline and justice.",
                      affirmation: "I embrace my uniqueness, break boundaries, and contribute positively to the world." },
     "Pisces":      { ruler: 3, element: "Water", crystals: ["Amethyst", "Aquamarine", "Moonstone"],              intentions: "Rebuild relationships, intuition, inner peace",
                      dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
                      affirmation: "I am deeply connected to my intuition and the universal flow of love and grace." }
   },
 
-  /* ---- Crystal companion guide (Owner-provided table) ---- */
+  /* ---- Crystal companion guide ----
+     Every crystal/gem named in DB.numbers[].crystal and DB.zodiac[].crystals
+     has an entry here, so crystalGuide() can surface a full card for each one
+     actually relevant to a chart. Names must match verbatim (case-insensitive)
+     the names used in those fields. */
   crystals: {
-    "Amethyst":         { chakra: "Third Eye / Crown", benefits: "Calms the mind, reduces stress, enhances intuition, and promotes spiritual peace.", pair: "Clear Quartz (to amplify) or Selenite (to cleanse)" },
-    "Rose Quartz":      { chakra: "Heart", benefits: "Unconditional love, emotional healing, self-care, and attracting romance.", pair: "Moonstone (for emotional balance)" },
-    "Citrine":          { chakra: "Solar Plexus", benefits: "Wealth generation, abundance, joy, and personal power. Known as the \"Merchant's Stone\".", pair: "Pyrite or Green Aventurine (the Dhan Yog combo)" },
-    "Black Tourmaline": { chakra: "Root", benefits: "Ultimate protection against negative energy, EMF smog, and the Evil Eye (Nazar). Grounding.", pair: "Smoky Quartz (for deep grounding and debt clearing)" },
-    "Tiger's Eye":      { chakra: "Solar Plexus / Sacral", benefits: "Courage, confidence, focus, and protection from ill-wishing. Great for decision-making.", pair: "Carnelian (for action and motivation)" },
-    "Selenite":         { chakra: "Crown / Ether", benefits: "Liquid light. Cleanses, charges, and recharges other crystals. Promotes deep peace and clarity.", pair: "Use as a base — place your bracelets and crystals on Selenite weekly" },
+    /* --- Navagraha gemstones (primary + accessible substitutes) --- */
+    "Ruby":              { chakra: "Root / Heart", benefits: "Sun's gem of vitality, authority and courage; strengthens the heart, confidence and leadership.", pair: "Red Coral or Gold (Sun energy)" },
+    "Red Coral":         { chakra: "Root", benefits: "Mars's gem of courage, protection and blood vitality; energises and defends.", pair: "Carnelian (for accessible action energy)" },
+    "Pearl":             { chakra: "Crown / Sacral", benefits: "Moon's gem of the mind — soothes emotions, cools the temper, and supports intuition and calm sleep.", pair: "Moonstone (deepens emotional balance)" },
+    "Yellow Sapphire":   { chakra: "Crown / Throat", benefits: "Jupiter's gem of wisdom, wealth and dharma; attracts mentors, growth and prosperity.", pair: "Citrine (its accessible substitute)" },
+    "Emerald":           { chakra: "Heart", benefits: "Mercury's gem of intellect and speech; sharpens communication, memory and business acumen.", pair: "Green Aventurine (its accessible substitute)" },
+    "Diamond":           { chakra: "Crown", benefits: "Venus's gem of purity and light; amplifies love, clarity and self-worth.", pair: "Clear Quartz (its accessible stand-in)" },
+    "Blue Sapphire":     { chakra: "Throat / Third Eye", benefits: "Saturn's gem of discipline, structure and rapid karmic reward; powerful — wear only after an expert check.", pair: "Amethyst or Lapis Lazuli (gentler substitutes)" },
+    "Hessonite":         { chakra: "Root", benefits: "Rahu's gem (Gomed) — clears confusion, breaks illusions and stabilises sudden change; wear only on expert advice.", pair: "Smoky Quartz (for gentle grounding)" },
+    "Cat's Eye":         { chakra: "Root / Third Eye", benefits: "Ketu's gem (Lehsunia) — sharpens intuition, protects from the unseen and steadies karmic shifts; wear on expert advice.", pair: "Tiger's Eye (for a gentler version)" },
+
+    /* --- Quartz family & substitutes --- */
+    "Amethyst":          { chakra: "Third Eye / Crown", benefits: "Calms the mind, reduces stress, enhances intuition, and promotes spiritual peace.", pair: "Clear Quartz (to amplify) or Selenite (to cleanse)" },
+    "Clear Quartz":      { chakra: "Crown", benefits: "The master healer; amplifies intention, cleanses the aura and programmes easily for any goal.", pair: "Amethyst (to amplify) or Selenite (to cleanse)" },
+    "Rose Quartz":       { chakra: "Heart", benefits: "Unconditional love, emotional healing, self-care, and attracting romance.", pair: "Moonstone (for emotional balance)" },
+    "Smoky Quartz":      { chakra: "Root", benefits: "Deeply grounding; absorbs negativity, dissolves debt-mindset and anchors scattered energy.", pair: "Black Tourmaline (for protection)" },
+    "Citrine":           { chakra: "Solar Plexus", benefits: "Wealth generation, abundance, joy, and personal power. Known as the \"Merchant's Stone\".", pair: "Pyrite or Green Aventurine (the Dhan Yog combo)" },
+    "Black Tourmaline":  { chakra: "Root", benefits: "Ultimate protection against negative energy, EMF smog, and the Evil Eye (Nazar). Grounding.", pair: "Smoky Quartz (for deep grounding and debt clearing)" },
+    "Obsidian":          { chakra: "Root", benefits: "Protective truth-mirror; grounds, shields and surfaces what needs releasing — no sugar-coating.", pair: "Black Tourmaline" },
+    "Black Onyx":        { chakra: "Root", benefits: "Strength, self-mastery and protection; supports discipline and steady Saturnian grounding.", pair: "Smoky Quartz" },
+    "White Opal":        { chakra: "Crown", benefits: "Amplifies emotional clarity and inspiration; the Moon's substitute for pearl when the real gem is unavailable.", pair: "Moonstone" },
+    "White Zircon":      { chakra: "Crown", benefits: "Venus's substitute for diamond; brings clarity, brilliance and refined charm.", pair: "Clear Quartz" },
+    "Moonstone":         { chakra: "Sacral / Crown", benefits: "Enhances intuition, balances hormones and cycles, and invites gentle emotional flow.", pair: "Pearl (for pure calming Moon energy)" },
+    "Red Jasper":        { chakra: "Root", benefits: "Steadies the emotions, builds endurance and gently grounds fiery energy; a protective, nurturing stone.", pair: "Carnelian (for action)" },
+    "Carnelian":         { chakra: "Sacral", benefits: "Ignites courage, motivation and creative drive; Mars's warm, accessible stone of action.", pair: "Red Jasper (for grounding)" },
+    "Tiger's Eye":       { chakra: "Solar Plexus / Sacral", benefits: "Courage, confidence, focus, and protection from ill-wishing. Great for decision-making.", pair: "Carnelian (for action and motivation)" },
+    "Green Aventurine":  { chakra: "Heart", benefits: "The merchant's good-luck stone; attracts opportunity, soothes nerves and supports steady growth.", pair: "Citrine (the Dhan Yog combo)" },
+    "Red Aventurine":    { chakra: "Root", benefits: "Grounding and energising; boosts drive, stamina and courage, and clears creative blocks.", pair: "Red Jasper (for stability)" },
+    "Yellow Aventurine": { chakra: "Solar Plexus", benefits: "Lightens pessimism, attracts opportunity and supports confident decisions — Jupiter's accessible stone.", pair: "Citrine" },
+    "Peridot":           { chakra: "Heart / Solar Plexus", benefits: "Clears jealousy and resentment, opens the heart and refreshes confidence; Mercury's warm-green ally.", pair: "Citrine" },
+    "Lapis Lazuli":      { chakra: "Throat / Third Eye", benefits: "Stone of truth and wisdom; supports honest speech, memory and Saturn's steady discipline.", pair: "Clear Quartz (to amplify)" },
+
+    /* --- Zodiac-supporting stones --- */
+    "Sunstone":          { chakra: "Sacral / Solar Plexus", benefits: "Carries Sun confidence, joy and personal power; lifts mood and banishes self-doubt.", pair: "Citrine (for abundance)" },
+    "Aquamarine":        { chakra: "Throat", benefits: "Cooling and courageous; calms the mind, eases communication and soothes emotional storms.", pair: "Clear Quartz" },
+    "Amazonite":         { chakra: "Heart / Throat", benefits: "The truth-teller; balances emotion with speech, soothes anxiety and supports healthy boundaries.", pair: "Amethyst" },
+    "Blue Lace Agate":   { chakra: "Throat", benefits: "Gentlest communicator; dissolves tension, encourages calm expression and eases overthinking.", pair: "Aquamarine" },
+    "Malachite":         { chakra: "Heart", benefits: "Powerful heart-transformer; clears old emotional patterns and invites deep healing and growth.", pair: "Rose Quartz (to soften its intensity)" },
+    "Turquoise":         { chakra: "Throat / Heart", benefits: "The sky stone; protects, aligns speech with truth, and balances giving and receiving.", pair: "Lapis Lazuli" },
+    "Garnet":            { chakra: "Root", benefits: "Devotion, stamina and grounded passion; anchors energy and supports commitment.", pair: "Smoky Quartz (for grounding)" },
+
+    /* --- Ritual / special --- */
+    "Selenite":          { chakra: "Crown / Ether", benefits: "Liquid light. Cleanses, charges, and recharges other crystals. Promotes deep peace and clarity.", pair: "Use as a base — place your bracelets and crystals on Selenite weekly" },
     "5 Mukhi Rudraksha": { chakra: "Throat / Heart", benefits: "Ruled by Lord Kalagni (Shiva). Balances the 5 elements, lowers blood pressure, and calms the mind.", pair: "Crystal beads (combines spiritual grounding with mineral energy)" }
   },
   seleniteRitual: "Weekly cleansing ritual: every Saturday night, place all your crystals and bracelets on a Selenite plate or slab. By morning they are cleansed and recharged — never let crystals go more than a month without cleansing.",
+
+  /* ---- Compound numbers 1–108 (Chaldean name / business totals) ----
+     The full Chaldean total of a name, brand or business carries its own
+     meaning BEFORE it is reduced to a single digit. These are classical
+     Chaldean compound readings (Cheiro tradition), used for name and
+     business analysis. Single digits 1–9 restate the planetary nature. */
+  compound: {
+    1: "Unity — beginnings, leadership and initiative. The seed energy of the Sun; a strong, independent vibration.",
+    2: "Duality — partnership, receptivity and the Moon's calm. Favours cooperation and diplomacy over force.",
+    3: "Expression — Jupiter's optimism, growth and communication. A fortunate, expansive vibration.",
+    4: "Foundation — Rahu's unconventional builder. Discipline, structure and hard work; watch for rigidity.",
+    5: "Change — Mercury's versatility, trade and movement. Quick, adaptable and entrepreneurial.",
+    6: "Harmony — Venus's love, beauty and comfort. Diplomatic and creative; watch indulgence.",
+    7: "Analysis — Ketu's depth, introspection and spirituality. Wise but inclined to solitude.",
+    8: "Power — Saturn's discipline, karma and long-term reward. Authority earned through endurance.",
+    9: "Completion — Mars's courage and action. Strong, decisive and protective; channel anger into sport.",
+    10: "Wheel of Fortune — a fortunate compound of rising and falling cycles. Success comes through adaptability and seizing the turning point; avoid complacency.",
+    11: "The Lion Muzzled — a master number of intuition and illumination carrying a classic warning: hidden opposition or over-idealism can undermine you. Channel it through clear purpose and honesty.",
+    12: "The Sacrifice — emotional sensitivity and self-sacrifice. Excellent for service, care and teaching, but guard against being taken advantage of.",
+    13: "Change & Regeneration — death-and-rebirth energy. A fortunate number for transformation and new beginnings, though often felt through upheaval first.",
+    14: "Movement & Combination — favourable for deals, media, travel and communication; but avoid rash speculation and keep commitments grounded.",
+    15: "The Magician — strong personal magnetism, eloquence and persuasive power. Excellent for the arts, sales and the occult, but carries a caution against manipulation.",
+    16: "The Tower — a cautionary number: sudden falls follow over-ambition or hidden pride. Build on honest foundations and heed warnings early.",
+    17: "Star of the Magi — highly fortunate: success, recognition and enduring love. Steady effort is rewarded with lasting fame.",
+    18: "Materialism with a spiritual warning — business and wealth can flourish, but guard against greed and conflict; balance material gains with ethics.",
+    19: "Prince of Heaven — one of the most fortunate: victory, happiness and worldly success. Rare and auspicious for leadership.",
+    20: "Awakening — a call to purpose and responsibility; the more deliberate the direction, the stronger the outcome. Avoid indecision.",
+    21: "Crown of the Magi — success and advancement through discipline and vision. A fortunate number for long-term goals and leadership.",
+    22: "The Master Builder — a master number of great vision and manifestation, but heavy: it demands discipline, patience and practical follow-through to avoid illusion.",
+    23: "Royal Star of the Lion — a fortunate number of success, protection and favour from those in power. Confident action is rewarded.",
+    24: "Love & Success — harmonious relationships, creative fulfilment and material comfort; but avoid possessiveness and dependence.",
+    25: "Strength through trial — growth comes through experience and struggle; intuition deepens with each test. Persist — the rewards are real.",
+    26: "Caution in partnerships — risk of loss through misjudged alliances or contracts. Verify agreements, trust slowly, and document everything.",
+    27: "The Command — a fortunate number of authority, wisdom and good counsel; excellent for leadership, law and teaching.",
+    28: "Contradiction & trust — great potential marred by inconsistency or misplaced trust; decide firmly and keep your word.",
+    29: "Uncertainty & warning — ambition is present but outcomes are unstable; avoid over-promising and double-check every commitment.",
+    30: "Mental superiority, emotional detachment — a strong, intellectual vibration; excellent for study and research, but soften the heart and stay connected.",
+    31: "The Hermit — a number of independence and self-reliance; a leader who may stand alone. Success is real but solitary.",
+    32: "Success & harmony — a fortunate combination of growth and balance; excellent for long-term ventures, partnerships and public work.",
+    33: "The Master Teacher — a master number of compassion and guidance; powerful for healing and teaching, but it demands service over ego.",
+    34: "Order & method — steady building through systems and patience; strong for business, but avoid rigidity and worry.",
+    35: "Social fortune — eloquence and popularity bring opportunities; guard against scattered energy and over-socialising.",
+    36: "Genius & humanity — intellectual brilliance devoted to service; watch the tendency to overthink or feel unappreciated.",
+    37: "Lucky in love & friendship — deep, harmonious relationships and creative success; one of the warmest, most fortunate bonds.",
+    38: "Pressure & caution — success is possible but often through strain; avoid envy, hasty decisions and questionable dealings.",
+    39: "Honour & fame — public recognition, achievement and artistic success; but watch pride and self-absorption.",
+    40: "Order & protection — a stable, guarded vibration; good for building quietly, but avoid isolation and complacency.",
+    41: "Ambition & achievement — strong drive with visible results; channel intensity into constructive work and avoid burnout.",
+    42: "Spiritual strength through adversity — trials refine the soul; patience and faith turn difficulty into wisdom and quiet power.",
+    43: "Rebellion & reform — a number of change-makers and unconventional paths; constructive reform succeeds, but avoid revolt for its own sake.",
+    44: "The Master of Discipline — a double-4 vibration of formidable endurance and structure; immense achievement is possible, but balance work with recovery.",
+    45: "Loss & warning — a cautionary number: avoid speculation, hasty partnerships and neglect of details; what is built must be protected.",
+    46: "Success through diplomacy — harmonious relations and steady effort bring reward; excellent for marriage and business alike.",
+    47: "Stability & wisdom — patience and reflection produce lasting, well-earned success; a fortunate, grounded number.",
+    48: "Ambition with caution — drive is strong, but impatience or misjudgement can cost you; plan carefully and act with restraint.",
+    49: "Completion & transformation — a powerful number of endings that clear the way for new beginnings; release what no longer serves.",
+    50: "Power through experience — authority earned by depth and endurance; a steady, commanding vibration for leadership.",
+    51: "The Warrior — a fortunate, dynamic number of courage and success in battle, business and competition; act decisively and fairly.",
+    52: "Adversity & endurance — progress is slow and tested; persistence through hardship builds unshakable strength and eventual reward.",
+    53: "Change & renewal — transformation through knowledge; fortunate for those who embrace learning and let go of the past.",
+    54: "Courage with risk — bold action brings results, but impulsiveness invites loss; temper fire with planning.",
+    55: "The Magician's power — immense charisma and influence, but with a real caution against misuse; integrity decides the outcome.",
+    56: "Harmony & abundance — love, comfort and growth align; a fortunate number for family, art and stable wealth.",
+    57: "Intuition & breakthrough — deep insight leads to sudden, positive change; trust your inner knowing and act on it.",
+    58: "Discipline with reward — Saturn's steady hand: hard, consistent work is repaid with lasting success and respect.",
+    59: "Transformation through courage — change is bold and complete; let go of fear and step into the new.",
+    60: "Balance & completion — a harmonious closing of cycles; rest, integrate and prepare for the next beginning.",
+    61: "Independence & originality — a pioneer's number; self-reliance and fresh ideas bring success, but guard against isolation.",
+    62: "Retreat & reflection — a number of the hidden counsellor; wisdom grows in quiet, then serves the world.",
+    63: "Communication & charm — persuasive, popular and creative; excellent for writing, teaching and trade.",
+    64: "Structure & caution — solid building with a watchful eye; avoid over-control and worry, which sap the gains.",
+    65: "Change with grace — adaptability and eloquence smooth life's transitions; a fortunate number for reinvention.",
+    66: "Caution in domestic life — love and home need conscious care; guard against possessiveness, indulgence and family friction.",
+    67: "Wisdom & stability — a fortunate blend of insight and grounding; excellent for long-term success and teaching.",
+    68: "Effort & patience — Saturn tests and then rewards; avoid pessimism and keep moving steadily toward the goal.",
+    69: "Completion & courage — endings met with strength clear the path; act bravely and close old chapters cleanly.",
+    70: "Introspection & wisdom — a number of the seeker; deep understanding and spiritual growth come through stillness.",
+    71: "The Gift — good fortune through unexpected openings and hidden help; stay open and grateful.",
+    72: "Partnership & completion — collaborative success; clear agreements and mutual respect bring the best results.",
+    73: "Expansion & vision — growth through wisdom and generosity; a fortunate number for leaders and mentors.",
+    74: "Structure & service — steady, reliable building in service of others; avoid rigidity and martyrdom.",
+    75: "Change & opportunity — adaptability opens doors; a fortunate number for trade, travel and reinvention.",
+    76: "Love & beauty — Venus's grace: harmony, art and affection flourish; watch indulgence and possessiveness.",
+    77: "Deep wisdom & mystery — a powerful number of intuition and spiritual depth; guard against isolation and over-secrecy.",
+    78: "Delusion & caution — glamour and material allure may mislead; verify facts, keep commitments simple and honest.",
+    79: "Completion & release — the end of a karmic cycle; let go with grace and prepare for renewal.",
+    80: "Power & organisation — strong, structured authority; excellent for management, but temper control with warmth.",
+    81: "Achievement & wisdom — a fortunate, elevated number; disciplined effort is crowned with lasting success and respect.",
+    82: "Adversity & patience — Saturn's test of endurance; steady, humble work converts hardship into authority.",
+    83: "Growth & renewal — expansion through learning and letting go; a fortunate number for scholars and reformers.",
+    84: "Structure & transformation — reform through discipline; change is steady and lasting when systems support it.",
+    85: "Change with wisdom — adaptability guided by insight; excellent for trade, teaching and communication.",
+    86: "Harmony & success — love and achievement align; a fortunate number for partnership and creative work.",
+    87: "Intuition & completion — inner guidance brings cycles to a graceful close; trust the still, small voice.",
+    88: "Discipline & mastery — the double-8 vibration of Saturn; immense, patient achievement is possible; avoid rigidity and self-criticism.",
+    89: "Courage & completion — bold endings clear the way for new beginnings; act with strength and integrity.",
+    90: "Introspection & renewal — a number of the seeker at rest; wisdom gathered in quiet prepares the next cycle.",
+    91: "Independence & leadership — a pioneer's power; self-reliance and fresh vision bring success; guard against isolation.",
+    92: "Partnership & insight — wisdom shared in cooperation; excellent for counselling, teaching and stable alliances.",
+    93: "Expansion & service — growth through generosity and guidance; a fortunate number for mentors and healers.",
+    94: "Structure & completion — steady building brings cycles to a full, satisfying close; avoid over-control.",
+    95: "Change & courage — bold, adaptable action transforms circumstances; a fortunate number for reinvention.",
+    96: "Love & completion — relationships and creative cycles reach fulfilment; nurture what you love.",
+    97: "Wisdom & release — deep understanding allows graceful letting-go; a powerful number of inner peace.",
+    98: "Patience & reward — Saturn's long game: endurance and discipline are repaid with lasting, respected success.",
+    99: "Mastery & completion — the highest single-figure compound; wisdom, courage and karma align for major achievement.",
+    100: "Favour of the Divine — completion of the first cycle; grace, protection and the blessing of new beginnings.",
+    101: "New beginnings — unity renewed at a higher turn of the wheel; initiation and fresh leadership energy.",
+    102: "Partnership with purpose — cooperation elevated by clarity; strong for unions and joint ventures with clear roles.",
+    103: "Expression & growth — wisdom, communication and expansion in harmony; fortunate for teachers and creators.",
+    104: "Foundation renewed — structure and discipline begin a fresh cycle; build carefully and stay flexible.",
+    105: "Change & mastery — adaptability crowned with authority; a fortunate number for leaders in times of change.",
+    106: "Harmony & completion — love, beauty and achievement reach fulfilment; a warm, fortunate closing.",
+    107: "Wisdom & renewal — deep insight opens new beginnings; trust inner guidance and step forward.",
+    108: "The Full Circle — the sacred number of completion (108 beads of the mala); karmic wholeness, protection and the blessing of a full cycle."
+  },
+
+  /* ---- Master numbers (name / business totals) ----
+     In Chaldean practice master numbers apply to NAME and BUSINESS totals
+     (not to birth-date reduction, which always yields Driver/Conductor 1–9). */
+  masterNumbers: {
+    11: { name: "Master Number 11 — The Illuminator", meaning: "The higher octave of 2: intuitive vision, inspiration and spiritual illumination. It carries great sensitivity — channel it through service, art or teaching, and guard against nervous strain and self-doubt." },
+    22: { name: "Master Number 22 — The Master Builder", meaning: "The higher octave of 4 — the most powerful of the master numbers, turning grand vision into concrete reality. It demands discipline and patience; without them its energy stays as unrealised potential." },
+    33: { name: "Master Number 33 — The Master Teacher", meaning: "The higher octave of 6: compassionate guidance and selfless service. The rarest and most giving vibration — its blessing is fulfilled by lifting others." }
+  },
 
   /* ---- Name-number verdicts ---- */
   nameAdvice: {

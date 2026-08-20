@@ -37,27 +37,69 @@
     return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
   }
 
-  /* ---- sun-sign (zodiac) from day & month ---- */
+  // Compound-number meaning for a Chaldean total (1–108); null if out of range.
+  const compoundMeaning = (n) => (n >= 1 && n <= 108 ? DB.compound[n] : null);
+  // Master numbers (11 / 22 / 33) — applied to name & business totals only.
+  const masterNumber = (n) => DB.masterNumbers[n] || null;
+
+  /* ---- sun-sign (zodiac) from day & month ----
+     Two zodiacs are computed:
+     • Sayana (tropical) — the fixed-date Western zodiac (kept for reference).
+     • Nirayana (sidereal) — the Vedic zodiac, which the report uses. Because
+       of precession the fixed sidereal sky sits ~24° behind the tropical one
+       (Lahiri ayanamsa), so a sidereal sign is usually the sign BEFORE the
+       tropical one. Boundaries below are the standard Lahiri table for the
+       Sun (accurate to ~1 day over recent decades).
+     NOTE: this is the SUN sign. The true Vedic Rashi (Chandra Rashi / Moon
+     sign) additionally requires birth time, place and a panchang — out of
+     scope for a date-only intake. */
   const ZRANGES = [
     ["Aries", [3, 21], [4, 19]], ["Taurus", [4, 20], [5, 20]], ["Gemini", [5, 21], [6, 20]],
     ["Cancer", [6, 21], [7, 22]], ["Leo", [7, 23], [8, 22]], ["Virgo", [8, 23], [9, 22]],
     ["Libra", [9, 23], [10, 22]], ["Scorpio", [10, 23], [11, 21]], ["Sagittarius", [11, 22], [12, 21]],
     ["Capricorn", [12, 22], [1, 19]], ["Aquarius", [1, 20], [2, 18]], ["Pisces", [2, 19], [3, 20]]
   ];
-  function zodiacSign(d, m) {
+  const SRANGES = [
+    ["Aries", [4, 14], [5, 14]], ["Taurus", [5, 15], [6, 14]], ["Gemini", [6, 15], [7, 15]],
+    ["Cancer", [7, 16], [8, 16]], ["Leo", [8, 17], [9, 16]], ["Virgo", [9, 17], [10, 17]],
+    ["Libra", [10, 18], [11, 16]], ["Scorpio", [11, 17], [12, 15]], ["Sagittarius", [12, 16], [1, 14]],
+    ["Capricorn", [1, 15], [2, 12]], ["Aquarius", [2, 13], [3, 14]], ["Pisces", [3, 15], [4, 13]]
+  ];
+  function zodiacFromRanges(d, m, ranges) {
     const v = m * 100 + d;
-    for (const [name, s, e] of ZRANGES) {
+    for (const [name, s, e] of ranges) {
       const sv = s[0] * 100 + s[1], ev = e[0] * 100 + e[1];
       if (sv <= ev ? (v >= sv && v <= ev) : (v >= sv || v <= ev)) return name;
     }
-    return "Capricorn";
+    return ranges[ranges.length - 1][0];
+  }
+  const zodiacSign = (d, m) => zodiacFromRanges(d, m, ZRANGES);           // Sayana (tropical)
+  const zodiacSignSidereal = (d, m) => zodiacFromRanges(d, m, SRANGES);   // Nirayana (Vedic)
+
+  /* ---- Kua number (Feng Shui personal-direction number) ----
+     NOTE: a Chinese system, NOT classical Vastu Shastra (labelled as such in
+     the report). Formula — reduce the last two digits of the birth year to a
+     single digit n, then:
+       male:   10 − n (pre-2000) or 9 − n (2000+)
+       female: n + 5 (pre-2000) or n + 6 (2000+)
+     Reduce the result to a single digit; a result of 5 becomes 2 (male) /
+     8 (female). Returns null when gender is not given. */
+  function kuaNumber(gender, year) {
+    if (!gender || !year) return null;
+    const yy = year % 100;
+    const n = yy === 0 ? 0 : reduce(yy);
+    const post2000 = year >= 2000;
+    let k = gender === "male" ? (post2000 ? 9 - n : 10 - n) : (post2000 ? n + 6 : n + 5);
+    k = reduce(k);
+    if (k === 5) k = gender === "male" ? 2 : 8;
+    return k;
   }
 
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
 
   /* ---------------- intake setup ---------------- */
-  const roomSelects = ["entrance", "kitchen", "bedroom", "toilet"];
+  const roomSelects = ["entrance", "kitchen", "bedroom", "toilet", "study", "staircase"];
   roomSelects.forEach((id) => {
     const sel = $("#" + id);
     const opts = ['<option value="unsure">Not sure</option>']
@@ -114,6 +156,7 @@
     [...digitsOf(dd), ...digitsOf(mm), ...digitsOf(yyyy), driver, conductor].forEach((n) => counts[n]++);
     const missing = Object.keys(counts).filter((k) => counts[k] === 0).map(Number);
     const repeated = Object.keys(counts).filter((k) => counts[k] >= 3).map(Number);
+    const weak = Object.keys(counts).filter((k) => counts[k] === 1).map(Number);
 
     // Name (Chaldean)
     const nameCompound = chaldeanValue(input.name);
@@ -121,19 +164,84 @@
     const nameRelD = relation(driver, nameNum);
     const nameRelC = relation(conductor, nameNum);
 
+    // Name-based Loshu grid (Chaldean letter values 1–8; no 9 in Chaldean),
+    // and the combined grid (birth digits + name values).
+    const nameCounts = {};
+    for (let i = 1; i <= 9; i++) nameCounts[i] = 0;
+    input.name.toUpperCase().split("").forEach((ch) => { const v = DB.chaldean[ch]; if (v) nameCounts[v]++; });
+    const combinedCounts = {};
+    for (let i = 1; i <= 9; i++) combinedCounts[i] = counts[i] + nameCounts[i];
+
     // Mobile
     const mobCompound = digitSum(input.mobile);
     const mobNum = reduce(mobCompound);
     const mobRelD = relation(driver, mobNum);
     const mobRelC = relation(conductor, mobNum);
 
+    // Severity tiers for missing numbers: a number missing from the grid but
+    // echoed by the name or mobile vibration is "partially supported"; one
+    // missing everywhere is "critical".
+    const missingSeverity = missing.map((n) => {
+      const echoedBy = [];
+      if (nameNum === n) echoedBy.push("name number");
+      if (mobNum === n) echoedBy.push("mobile number");
+      return { n, critical: echoedBy.length === 0, echoedBy };
+    });
+    const kua = kuaNumber(input.gender, y);
+
     return {
       ...input, day: d, month: m, year: y,
-      driver, conductor, counts, missing, repeated,
+      driver, conductor, counts, missing, repeated, weak,
       nameCompound, nameNum, nameRelD, nameRelC,
+      nameCounts, combinedCounts,
       mobCompound, mobNum, mobRelD, mobRelC,
-      zodiac: zodiacSign(d, m)
+      missingSeverity, kua,
+      zodiac: zodiacSignSidereal(d, m),
+      zodiacTropical: zodiacSign(d, m)
     };
+  }
+
+  /* -------- sound-preserving spelling transforms (shared) --------
+     Generates candidate respellings of a name that preserve pronunciation:
+       double a letter (Tripti -> Triptii), swap a homophone (Sunil -> Suniel),
+       or insert a vowel (Suniel style). Never drops letters.
+     Returns [{ text, change, compound, reduced, kind, delta }]. */
+  function spellingCandidates(name, baseCompound) {
+    const up = name.toUpperCase();
+    const S = DB.spelling;
+    const candidates = [];
+    const seen = new Set([up.replace(/\s+/g, " ")]);
+    const keepCase = (i, str) => str.split("").map((c, j) => {
+      const orig = name[i + j];
+      if (orig && orig === orig.toLowerCase()) return c.toLowerCase();
+      return c;
+    }).join("");
+    const addCand = (text, change, kind, deltaV) => {
+      const key = text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const compound = chaldeanValue(text);
+      candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - baseCompound) + (deltaV || 0) });
+    };
+    up.split("").forEach((ch, i) => {
+      const v = DB.chaldean[ch];
+      if (!v) return; // skip spaces / non-letters
+      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
+        const t = name.slice(0, i) + name[i] + name.slice(i);
+        addCand(t, `double "${name[i]}"`, "double", 0);
+      }
+      (S.homophones[ch] || []).forEach((rep) => {
+        const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
+        addCand(t, `${name[i]} → ${rep}`, "swap", 1);
+      });
+      if (i > 0 && up[i - 1] !== " ") {
+        S.insertVowels.forEach((vowel) => {
+          const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
+          addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
+        });
+      }
+    });
+    return candidates;
   }
 
   /* -------- name spelling suggestions --------
@@ -171,47 +279,7 @@
     if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
 
     // ---- candidate transforms (sound-preserving only) ----
-    const name = p.name;
-    const up = name.toUpperCase();
-    const S = DB.spelling;
-    const candidates = []; // {text, change, compound, kind}
-    const seen = new Set([up.replace(/\s+/g, " ")]);
-    const keepCase = (i, str) => { // match original letter case at position
-      return str.split("").map((c, j) => {
-        const orig = name[i + j];
-        if (orig && orig === orig.toLowerCase()) return c.toLowerCase();
-        return c;
-      }).join("");
-    };
-    const addCand = (text, change, kind, deltaV) => {
-      const key = text.toUpperCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      const compound = chaldeanValue(text);
-      candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - p.nameCompound) + (deltaV || 0) });
-    };
-
-    up.split("").forEach((ch, i) => {
-      const v = DB.chaldean[ch];
-      if (!v) return; // skip spaces / non-letters
-      // 1) double a letter (vowel or consonant) — Triptii, Kumarr
-      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
-        const t = name.slice(0, i) + name[i] + name.slice(i);
-        addCand(t, `double "${name[i]}"`, "double", 0);
-      }
-      // 2) homophone swap — same sound, different value (C<->K, S->SH, I->Y...)
-      (S.homophones[ch] || []).forEach((rep) => {
-        const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
-        addCand(t, `${name[i]} → ${rep}`, "swap", 1);
-      });
-      // 3) vowel insertion after this letter — Suniel style (only inside words)
-      if (i > 0 && up[i - 1] !== " ") {
-        S.insertVowels.forEach((vowel) => {
-          const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
-          addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
-        });
-      }
-    });
+    const candidates = spellingCandidates(p.name, p.nameCompound);
 
     // ---- pick best candidates per target ----
     const kindRank = { double: 0, swap: 1, insert: 2 };
@@ -233,6 +301,42 @@
     return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((t) => t.n) };
   }
 
+  /* -------- business / brand name analysis --------
+     Same Chaldean engine, framed for business success. Computes the brand's
+     compound number, reduced root, relationship to the owner's Driver &
+     Conductor, and (when conflicting) sound-preserving spelling corrections. */
+  function brandAnalysis(brand, p) {
+    const total = chaldeanValue(brand);
+    const root = reduce(total);
+    const relD = relation(p.driver, root);
+    const relC = relation(p.conductor, root);
+    const conflicting = relD === "enemy" || relC === "enemy";
+
+    // auspicious business roots: not-enemy to both Driver & Conductor
+    const auspicious = [];
+    for (let n = 1; n <= 9; n++) {
+      if (relation(p.driver, n) !== "enemy" && relation(p.conductor, n) !== "enemy") auspicious.push(n);
+    }
+
+    let suggestions = [];
+    if (conflicting) {
+      const candidates = spellingCandidates(brand, total);
+      const kindRank = { double: 0, swap: 1, insert: 2 };
+      suggestions = candidates
+        .filter((c) => auspicious.includes(c.reduced))
+        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta)
+        .slice(0, 6)
+        .map((c) => ({ ...c, why: `brand number ${c.reduced} is friendly to your Driver ${p.driver} and Conductor ${p.conductor}` }));
+    }
+
+    return {
+      brand, total, root, relD, relC, conflicting, auspicious,
+      suggestions,
+      master: masterNumber(total),
+      compound: compoundMeaning(total)
+    };
+  }
+
   /* -------- mobile number suggestion -------- */
   function mobileSuggestion(p) {
     const bad = p.mobRelD === "enemy" || p.mobRelC === "enemy";
@@ -243,6 +347,24 @@
       if (relation(p.driver, r) === "friendly" && relation(p.conductor, r) === "friendly") good.push(t);
     }
     return { needed: true, goodTotals: good.slice(0, 6) };
+  }
+
+  /* -------- compatibility (two-person Driver/Conductor match) --------
+     Compares all four Driver/Conductor cross-pairs using the friendship table.
+     Score: friendly = 2, neutral = 1, enemy = 0 (max 8). */
+  function compatibility(a, b) {
+    const pairs = [
+      { a: `Your Driver ${a.driver}`, b: `their Driver ${b.driver}`, r: relation(a.driver, b.driver) },
+      { a: `Your Driver ${a.driver}`, b: `their Conductor ${b.conductor}`, r: relation(a.driver, b.conductor) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Driver ${b.driver}`, r: relation(a.conductor, b.driver) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Conductor ${b.conductor}`, r: relation(a.conductor, b.conductor) }
+    ];
+    const score = pairs.reduce((s, p) => s + (p.r === "friendly" ? 2 : p.r === "neutral" ? 1 : 0), 0);
+    const friendly = pairs.filter((p) => p.r === "friendly").length;
+    const neutral = pairs.filter((p) => p.r === "neutral").length;
+    const enemy = pairs.filter((p) => p.r === "enemy").length;
+    const verdict = score >= 7 ? "Strong" : score >= 5 ? "Good" : score >= 3 ? "Workable" : "Challenging";
+    return { pairs, score, max: 8, verdict, friendly, neutral, enemy };
   }
 
   /* -------- vehicle number analysis -------- */
@@ -363,7 +485,7 @@
         label: e.score, note: e.note
       });
     }
-    const roomMap = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet" };
+    const roomMap = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet", study: "Study Room", staircase: "Staircase" };
     Object.entries(roomMap).forEach(([key, roomName]) => {
       const dir = p[key];
       if (!dir || dir === "unsure") return;
@@ -377,6 +499,16 @@
         note: status === "dosh" ? rule.doshText.replace("{dir}", dirLabel(dir)) + " " + rule.fix : status === "ok" ? "Acceptable placement. " + rule.fix : "Well placed — supports balanced energy."
       });
     });
+    // Plot shape (missing corners / extensions)
+    if (p.plotShape && p.plotShape !== "unsure" && DB.vastu.plotShapes[p.plotShape]) {
+      const ps = DB.vastu.plotShapes[p.plotShape];
+      findings.push({
+        item: `Plot shape — ${p.plotShape.replace(/-/g, " ")}`,
+        tone: ps.tone,
+        label: ps.tone === "good" ? "Balanced" : ps.tone === "warn" ? "Caution" : "Dosh",
+        note: ps.note
+      });
+    }
     return findings;
   }
 
@@ -426,9 +558,9 @@
     </div>`;
   };
 
-  function renderLoshu(p) {
-    const cells = DB.loshuLayout.flat().map((n) => {
-      const c = p.counts[n];
+  function renderGridCells(counts) {
+    return DB.loshuLayout.flat().map((n) => {
+      const c = counts[n] || 0;
       const cls = c === 0 ? "missing" : c >= 3 ? "present multi" : "present";
       const digits = c > 0 ? Array(c).fill(n).map((x) => `<span>${x}</span>`).join("") : `<span>${n}</span>`;
       return `<div class="loshu-cell ${cls}" title="${n} — ${esc(DB.numbers[n].planet)}: ${c} occurrence(s)">
@@ -436,6 +568,10 @@
         ${c > 0 ? `<div class="cnt">${DB.numbers[n].planet.split(" ")[0]}</div>` : ""}
       </div>`;
     }).join("");
+  }
+
+  function renderLoshu(p) {
+    const cells = renderGridCells(p.counts);
 
     /* 8 fully-analysed plane cards */
     const planeCards = DB.planes.map((pl) => {
@@ -474,14 +610,41 @@
       </div>`;
     }).join("");
 
-    const missingFixes = p.missing.map((n) => `
+    const sevOf = {};
+    (p.missingSeverity || []).forEach((s) => { sevOf[s.n] = s; });
+    const missingFixes = p.missing.map((n) => {
+      const sev = sevOf[n];
+      const badge = sev
+        ? (sev.critical ? '<span class="badge bad">Critical</span>' : `<span class="badge warn">Echoed by ${sev.echoedBy.join(", ")}</span>`)
+        : "";
+      return `
       <div class="kit-row">
         <div class="kit-ico"><strong>${n}</strong></div>
         <div class="kit-body">
-          <div class="kit-label">${esc(DB.numbers[n].planet)} — weak / missing</div>
+          <div class="kit-label">${esc(DB.numbers[n].planet)} — weak / missing ${badge}</div>
           <div class="kit-value">${esc(DB.missingFix[n])}</div>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
+
+    const arrowCards = DB.arrows.map((ar) => {
+      const present = ar.line.filter((n) => p.counts[n] > 0).length;
+      const state = present === 3 ? "strong" : present === 0 ? "missing" : "partial";
+      const badge = state === "strong" ? '<span class="badge good">Strong</span>'
+        : state === "partial" ? '<span class="badge warn">Partial</span>'
+        : '<span class="badge bad">Frustrated</span>';
+      const chips = ar.line.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const reading = state === "strong" ? ar.present : (state === "partial" ? `Only partially present — the full line is not formed. ${ar.missing}` : ar.missing);
+      return `<div class="card arrow-card">
+        <div class="goal-head">
+          <div class="card-title">${esc(ar.name)}</div>
+          ${badge}
+        </div>
+        <div class="card-sub">${esc(ar.axis)}</div>
+        <div class="plane-chips">${chips}</div>
+        <div class="kit-value">${esc(reading)}</div>
+      </div>`;
+    }).join("");
 
     return `
     <section class="rsection">
@@ -502,11 +665,29 @@
         <div class="card">
           <div class="card-title">Your Numbers at a Glance</div>
           <div class="kit-value"><span class="badge good">Present</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
+          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">Weak</span> ${p.weak.join(", ")} <span class="card-sub">— appears only once, so it needs light support.</span></div>` : ""}
           <div class="kit-value"><span class="badge bad">Missing</span> ${p.missing.length ? p.missing.join(", ") : "none — complete grid"}</div>
           <div class="card-sub">Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
         </div>
       </div>
       <div class="plane-cards">${planeCards}</div>
+      <div class="card">
+        <div class="card-title">The 8 Arrows of Your Loshu Grid</div>
+        <div class="card-sub">The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.</div>
+      </div>
+      <div class="plane-cards">${arrowCards}</div>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">Name Grid</div>
+          <div class="loshu-grid" role="img" aria-label="Name-based Loshu grid">${renderGridCells(p.nameCounts)}</div>
+          <div class="card-sub">The Chaldean values of your name's letters, plotted the same way. Note: the Chaldean system has no value 9, so that cell stays empty in the name grid.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Combined Grid (DOB + Name)</div>
+          <div class="loshu-grid" role="img" aria-label="Combined Loshu grid">${renderGridCells(p.combinedCounts)}</div>
+          <div class="card-sub">Birth digits and name values together — the blended energy you project into the world.</div>
+        </div>
+      </div>
       ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
       ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
     </section>`;
@@ -529,6 +710,7 @@
         <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow.</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Crystal</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">Rudraksha</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🔱</div><div class="kit-body"><div class="kit-label">Yantra</div><div class="kit-value">${esc(DB.yantra[n])}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">Colour / Day / Metal</div><div class="kit-value">${esc(i.color)} · ${esc(i.day)} · ${esc(i.metal)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎁</div><div class="kit-body"><div class="kit-label">Charity</div><div class="kit-value">${esc(i.charity)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🌿</div><div class="kit-body"><div class="kit-label">Lifestyle</div><div class="kit-value">${esc(i.lifestyle)}</div></div></div>
@@ -540,6 +722,7 @@
   function renderReport(p) {
     const nameSug = nameSuggestions(p);
     const mobSug = mobileSuggestion(p);
+    const brand = p.brand ? brandAnalysis(p.brand, p) : null;
     const vehicle = vehicleAnalysis(p);
     const timing = timingAnalysis(p);
     const vastu = vastuReport(p);
@@ -606,8 +789,8 @@
     /* Section 4: zodiac power kit */
     const z = DB.zodiac[p.zodiac];
     const zodiacSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">5</span>Your Zodiac Power Kit — ${esc(p.zodiac)}</h2>
-      <p class="rsection-desc">Your sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
+      <h2 class="rsection-title"><span class="idx">5</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <p class="rsection-desc">Your Vedic (sidereal / Nirayana) Sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you. ${p.zodiac !== p.zodiacTropical ? `Sidereal sign ${esc(p.zodiac)} vs. the Western tropical ${esc(p.zodiacTropical)} — we follow the Vedic (Lahiri ayanamsa) position.` : ""} This is a Sun sign; the deeper Moon Rashi needs your birth time and place.</p>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(DB.numbers[z.ruler].planet)}</div>
@@ -623,18 +806,20 @@
 
     /* Section 5: name */
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
+    const nameMaster = masterNumber(p.nameCompound);
     const nameSection = `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">6</span>Name Analysis &amp; Spelling Correction</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
-          <span class="badge info">Chaldean total ${p.nameCompound} → Name Number ${p.nameNum}</span>
+          <span class="badge info">Chaldean total ${p.nameCompound}${nameMaster ? " (Master Number)" : ""} → Name Number ${p.nameNum}</span>
           ${relBadge(p.nameRelD === "enemy" || p.nameRelC === "enemy" ? "enemy" : p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly")}
         </div>
         <table class="rtable">
           <tr><th>Name number vs Driver ${p.driver}</th><td>${relBadge(p.nameRelD)} ${p.nameRelD === "enemy" ? "— clashes with your core mind/self energy" : ""}</td></tr>
           <tr><th>Name number vs Conductor ${p.conductor}</th><td>${relBadge(p.nameRelC)} ${p.nameRelC === "enemy" ? "— works against your destiny path" : ""}</td></tr>
         </table>
+        ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
             ? `<div class="card-sub"><strong>Recommended spellings</strong> — pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:</div>
@@ -646,6 +831,22 @@
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
           : `<div class="kit-value">${esc(DB.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
       </div>
+      ${brand ? `<div class="card">
+        <div class="card-title">Business / Brand Name — Chaldean Success Reading</div>
+        <div class="goal-head">
+          <div class="card-title">${esc(brand.brand)}</div>
+          <span class="badge info">Chaldean total ${brand.total}${brand.master ? " (Master Number)" : ""} → Number ${brand.root}</span>
+          ${relBadge(brand.conflicting ? "enemy" : (brand.relD === "neutral" && brand.relC === "neutral" ? "neutral" : "friendly"))}
+        </div>
+        <table class="rtable">
+          <tr><th>vs Driver ${p.driver}</th><td>${relBadge(brand.relD)}</td></tr>
+          <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(brand.relC)}</td></tr>
+        </table>
+        ${brand.master ? `<div class="judge-note"><strong>${esc(brand.master.name)}:</strong> ${esc(brand.master.meaning)}</div>` : (brand.compound ? `<div class="judge-note"><strong>Compound Number ${brand.total}:</strong> ${esc(brand.compound)}</div>` : "")}
+        ${brand.conflicting
+          ? `<div class="kit-value">This brand name works against your birth numbers. <strong>Auspicious business roots for you: ${brand.auspicious.join(", ")}.</strong></div>${brand.suggestions.length ? `<div class="card-sub"><strong>Sound-preserving corrections</strong> (pronunciation stays the same):</div><div class="table-scroll"><table class="rtable"><tr><th>Suggested</th><th>Change</th><th>New total</th><th>Number</th><th>Why</th></tr>${brand.suggestions.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}</table></div>` : `<div class="card-sub">No pronunciation-preserving correction reaches an auspicious root — consult a numerologist for a custom brand name.</div>`}`
+          : `<div class="kit-value">This brand name vibrates harmoniously with your birth numbers — an auspicious choice for your venture.</div>`}
+      </div>` : ""}
     </section>`;
 
     /* Section 6: mobile */
@@ -661,6 +862,7 @@
           <tr><th>vs Driver ${p.driver}</th><td>${relBadge(p.mobRelD)}</td></tr>
           <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(p.mobRelC)}</td></tr>
         </table>
+        ${compoundMeaning(p.mobCompound) ? `<div class="judge-note"><strong>Compound Number ${p.mobCompound}:</strong> ${esc(compoundMeaning(p.mobCompound))}</div>` : ""}
         ${mobSug.needed
           ? `<div class="kit-value">Your mobile number works against your birth numbers — since your phone is your most-used device, this is a high-impact change. When choosing a new number, pick one whose digits total <strong>${mobSug.goodTotals.join(", ")}</strong>. Activate the new SIM on a ${DAY_OF[p.driver]} or ${DAY_OF[p.conductor]} morning.</div>`
           : `<div class="kit-value">Your mobile number vibrates acceptably with your birth numbers — no change required.</div>`}
@@ -709,14 +911,35 @@
     /* Section 9: crystal companion guide */
     function crystalGuide(p) {
       const zz = DB.zodiac[p.zodiac];
-      const poolText = [
+      // Chart-relevant sources, in priority order: zodiac sign → Driver →
+      // Conductor → missing planets. Each source string lists one or more
+      // crystals (with alternates/substitutes), matched by full crystal name.
+      const sources = [
         ...zz.crystals,
-        DB.numbers[p.driver].crystal, DB.numbers[p.conductor].crystal,
+        DB.numbers[p.driver].crystal,
+        DB.numbers[p.conductor].crystal,
         ...p.missing.map((n) => DB.numbers[n].crystal)
-      ].join(" | ").toLowerCase();
-      const matched = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha" && poolText.includes(k.toLowerCase()));
-      const rudrakshaNote = poolText.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
-      return { picks: matched.slice(0, 5), rudrakshaNote };
+      ];
+      const keys = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha");
+      const seen = new Set();
+      const picks = [];
+      for (const src of sources) {
+        const s = src.toLowerCase();
+        for (const k of keys) {
+          if (!seen.has(k) && s.includes(k.toLowerCase())) { seen.add(k); picks.push(k); }
+        }
+      }
+
+      // 5 Mukhi Rudraksha note: check the actual rudraksha fields (not the
+      // crystal text) — it is prescribed for number 3 (Jupiter).
+      const rudrakshaPool = [
+        DB.numbers[p.driver].rudraksha,
+        DB.numbers[p.conductor].rudraksha,
+        ...p.missing.map((n) => DB.numbers[n].rudraksha)
+      ].join(" ").toLowerCase();
+      const rudrakshaNote = rudrakshaPool.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
+
+      return { picks: picks.slice(0, 5), rudrakshaNote };
     }
     const cg = crystalGuide(p);
     const crystalSection = `<section class="rsection">
@@ -839,9 +1062,54 @@
           <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
         </section>`;
 
-    /* Section 15+: goal plans */
+    /* Section 15: personal lucky directions (Kua — Feng Shui, clearly labelled) */
+    const kuaInfo = p.kua ? DB.kua[p.kua] : null;
+    const kuaSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">15</span>Personal Lucky Directions — Kua Number</h2>
+      <p class="rsection-desc">Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".</p>
+      ${kuaInfo ? `<div class="card">
+        <div class="goal-head">
+          <div class="card-title">Your Kua number is ${p.kua} — ${esc(kuaInfo.group)} group, ${esc(kuaInfo.element)} element</div>
+          <span class="badge info">Feng Shui</span>
+        </div>
+        <div class="kit-value">Your best direction (Sheng Chi — wealth &amp; success) is <strong>${esc(kuaInfo.shengChi)}</strong>. Face this direction when working or sleeping for maximum support.</div>
+        <div class="kit-value">Your four auspicious directions: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. Orient your desk, bed head and main door towards these wherever practical.</div>
+      </div>` : `<div class="card"><div class="kit-value">Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.</div></div>`}
+    </section>`;
+
+    /* Section 16: compatibility */
+    const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
+    const compat = partnerValid
+      ? compatibility(p, computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }))
+      : null;
+    const compatSection = `<section class="rsection">
+      <h2 class="rsection-title"><span class="idx">16</span>Compatibility &amp; Matchmaking</h2>
+      ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
+        <div class="card">
+          <div class="goal-head">
+            <div class="card-title">Overall verdict: ${compat.verdict}</div>
+            <span class="badge ${compat.verdict === "Strong" || compat.verdict === "Good" ? "good" : compat.verdict === "Workable" ? "warn" : "bad"}">${compat.friendly} harmonious · ${compat.neutral} neutral · ${compat.enemy} conflicting</span>
+          </div>
+          <div class="table-scroll"><table class="rtable">
+            <tr><th>Pairing</th><th>Relation</th></tr>
+            ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
+          </table></div>
+          <div class="kit-value">${compat.verdict === "Strong" ? "A naturally cooperative pairing — your numbers reinforce each other." : compat.verdict === "Good" ? "A supportive pairing with a couple of neutral links — manageable and mostly aligned." : compat.verdict === "Workable" ? "Workable, but needs conscious effort — the conflicting links are the areas to manage." : "Challenging pairing — the conflicting numbers need remedies and clear communication to bridge."}</div>
+        </div>`
+      : `<div class="card">
+          <div class="card-title">Who are you compatible with?</div>
+          <div class="kit-value">Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:</div>
+          <div class="table-scroll"><table class="rtable">
+            <tr><th>Other person's Driver</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(DB.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
+          </table></div>
+        </div>`}
+    </section>`;
+
+    /* Section 17+: goal plans */
+    const goalsStart = 17;
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${15 + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — Remedy Plan</h2>
       <p class="rsection-desc">${g.weak.length
         ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
         : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
@@ -850,7 +1118,7 @@
 
     /* final section: priority plan */
     const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${15 + goals.length}</span>Your 40-Day Priority Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
@@ -870,7 +1138,7 @@
           ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — your most-used vibration`)}
           <div class="card num-card">
             <div class="num-value" style="font-size:26px">${esc(p.zodiac)}</div>
-            <div class="num-label">Zodiac (Sun Sign)</div>
+            <div class="num-label">Vedic Sun Sign (Sidereal)</div>
             <div class="num-planet">${esc(DB.zodiac[p.zodiac].element)} · Ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}</div>
             <div class="num-traits">Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
           </div>
@@ -893,6 +1161,8 @@
       ${careerSection}
       ${timingSection}
       ${vastuSection}
+      ${kuaSection}
+      ${compatSection}
       ${goalSections}
       ${prioritySection}
     `;
@@ -932,7 +1202,14 @@
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
       toilet: $("#toilet").value,
-      watchType: $("#watchType").value
+      study: $("#study").value,
+      staircase: $("#staircase").value,
+      plotShape: $("#plotShape").value,
+      watchType: $("#watchType").value,
+      gender: $("#gender").value,
+      brand: $("#brand").value.trim(),
+      partnerName: $("#partnerName").value.trim(),
+      partnerDob: $("#partnerDob").value
     };
     lastProfile = computeProfile(input);
     showReport(lastProfile);
@@ -942,5 +1219,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue };
 })();

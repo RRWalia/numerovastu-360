@@ -108,6 +108,15 @@
         </div>
 
         <div class="field">
+          <label class="field-label" for="gender">Gender <span class="optional">(optional — for your Kua number)</span></label>
+          <select class="input select" id="gender" name="gender">
+            <option value="">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label class="field-label" for="vehicle">Vehicle Number <span class="optional">(optional — car / bike)</span></label>
           <input class="input" id="vehicle" name="vehicle" type="text" placeholder="e.g. HR51AB1234" autocomplete="off" />
           <p class="field-hint">Letters carry Chaldean values and digits carry face value — we check how your vehicle's vibration sits with your chart.</p>
@@ -151,6 +160,32 @@
             <select class="input select" id="toilet" name="toilet"></select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="study">Study Room In</label>
+            <select class="input select" id="study" name="study"></select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="staircase">Staircase Located In</label>
+            <select class="input select" id="staircase" name="staircase"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="plotShape">Plot Shape <span class="optional">(optional)</span></label>
+          <select class="input select" id="plotShape" name="plotShape">
+            <option value="unsure">Not sure</option>
+            <option value="rectangular">Rectangular (standard)</option>
+            <option value="square">Square</option>
+            <option value="gomukhi">Gomukhi (narrow front, wide back)</option>
+            <option value="shermukhi">Shermukhi (wide front, narrow back)</option>
+            <option value="missing-northeast">Missing / cut Northeast corner</option>
+            <option value="missing-southwest">Missing / cut Southwest corner</option>
+            <option value="missing-southeast">Missing / cut Southeast corner</option>
+            <option value="missing-northwest">Missing / cut Northwest corner</option>
+            <option value="extended-northeast">Extension in Northeast</option>
+            <option value="extended-southwest">Extension in Southwest</option>
+          </select>
+        </div>
         <div class="field">
           <label class="field-label" for="watchType">Watch You Currently Wear <span class="optional">(optional)</span></label>
           <select class="input select" id="watchType" name="watchType">
@@ -160,6 +195,33 @@
             <option value="digital">Digital watch</option>
             <option value="smart">Smartwatch</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Business / Brand (optional) -->
+      <div class="form-block">
+        <h2 class="form-block-title">Business / Brand Name <span class="optional">(optional)</span></h2>
+        <p class="form-block-desc">Enter your business, brand, shop or venture name for a Chaldean success reading — its compound number, auspiciousness and sound-preserving spelling corrections.</p>
+        <div class="field">
+          <label class="field-label" for="brand">Business / Brand Name</label>
+          <input class="input" id="brand" name="brand" type="text" placeholder="e.g. Shree Balaji Textiles" autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Compatibility (optional) -->
+      <div class="form-block">
+        <h2 class="form-block-title">Compatibility <span class="optional">(optional — partner / spouse / business partner)</span></h2>
+        <p class="form-block-desc">Add a second person to compare Driver &amp; Conductor compatibility for marriage or partnership.</p>
+
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="partnerName">Partner's Full Name</label>
+            <input class="input" id="partnerName" name="partnerName" type="text" placeholder="e.g. Anjali Verma" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="partnerDob">Partner's Date of Birth</label>
+            <input class="input" id="partnerDob" name="partnerDob" type="date" />
+          </div>
         </div>
       </div>
 
