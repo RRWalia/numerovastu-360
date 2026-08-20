@@ -10,7 +10,8 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 | Area | What's analysed / generated |
 | --- | --- |
-| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic (sidereal) Sun sign |
+| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic Sun Sign (Surya Rashi) |
+| **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (prepare now):** optional exact birth time + birth city/place saved on-device, with progressive disclosure wording that prepares Chandra Rashi (Moon Sign), Nakshatra and transit precision for a future update. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Lo Shu numbers. |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
 | **Name analysis** | Chaldean total, **compound number (1–108) meaning**, **master numbers (11/22/33)**, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
 | **Name & combined grids** | Loshu grids plotted from your **name's Chaldean letter values** and a **combined DOB + name** grid, alongside the birth grid |
@@ -28,7 +29,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 ## Privacy
 
-All calculations run **entirely in the visitor's browser** — no name, DOB, phone or Vastu data is ever sent to a server. There is no backend.
+All calculations run **entirely in the visitor's browser** — no name, DOB, phone, birth time, birth place or Vastu data is ever sent to a server. There is no backend. The optional Vedic-precision fields (exact birth time, birth city/place) are stored only in the browser's local storage and are excluded from the anonymous contribution payload.
 
 The new **Knowledge Pack** updater does **not** change that promise: the pack is public content, not personal data. The app ships with a bundled pack for instant offline use, then can optionally fetch a newer public pack and cache it locally.
 

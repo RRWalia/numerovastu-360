@@ -91,6 +91,18 @@
       return String(input || "");
     }
   }
+  /* Format an HH:MM (24h) birth time as 12h clock, e.g. "14:05" -> "2:05 PM".
+     Empty or malformed input returns "" (no birth time given). */
+  function formatBirthTime(t) {
+    if (!t) return "";
+    const m = String(t).trim().match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return String(t).trim();
+    let h = parseInt(m[1], 10);
+    const min = m[2];
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${min} ${ampm}`;
+  }
   function profileKeyOf(input) {
     return `${String(input.name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}|${input.dob || ""}`;
   }
@@ -355,6 +367,8 @@
     $("#plotShape").value = snapshot.input.plotShape || "unsure";
     $("#watchType").value = snapshot.input.watchType || "none";
     $("#gender").value = snapshot.input.gender || "";
+    $("#birthTime").value = snapshot.input.birthTime || "";
+    $("#birthPlace").value = snapshot.input.birthPlace || "";
     $("#brand").value = snapshot.input.brand || "";
     $("#partnerName").value = snapshot.input.partnerName || "";
     $("#partnerDob").value = snapshot.input.partnerDob || "";
@@ -433,6 +447,16 @@
     });
     const kua = kuaNumber(input.gender, y);
 
+    // Vedic precision tiers (numerology stays the primary engine):
+    //   Tier 1 = date-of-birth only — Vedic Sun Sign (Surya Rashi), sidereal/Lahiri.
+    //   Tier 2 = birth time + place — prepares Chandra Rashi, Nakshatra & transit
+    //            precision for a future update (stored on-device only).
+    const birthTimeRaw = String(input.birthTime || "").trim();
+    const birthPlaceRaw = String(input.birthPlace || "").trim();
+    const hasBirthTime = !!birthTimeRaw;
+    const hasBirthPlace = !!birthPlaceRaw;
+    const vedicTier = hasBirthTime && hasBirthPlace ? 2 : (hasBirthTime || hasBirthPlace) ? "partial" : 1;
+
     return {
       ...input, day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak,
@@ -441,7 +465,11 @@
       mobCompound, mobNum, mobRelD, mobRelC,
       missingSeverity, kua,
       zodiac: zodiacSignSidereal(d, m),
-      zodiacTropical: zodiacSign(d, m)
+      zodiacTropical: zodiacSign(d, m),
+      birthTime: birthTimeRaw,
+      birthPlace: birthPlaceRaw,
+      birthTimeDisplay: formatBirthTime(birthTimeRaw),
+      vedicTier
     };
   }
 
@@ -911,6 +939,65 @@
     </div>`;
   };
 
+  /* ---- Cross-system harmony note (zodiac ruler vs Lo Shu grid) ----
+     The Vedic Sun sign's ruling number is compared with the birth Lo Shu
+     grid: a ruler missing from the grid is an important overlap (both
+     systems flag the same gap), while a ruler that is the Driver/
+     Conductor or repeated in the grid is a reinforcing overlap. */
+  function zodiacHarmonyNote(p, z) {
+    const ruler = z.ruler;
+    const num = DB.numbers[ruler];
+    const planetName = num.planet;
+    const crystal = z.crystals && z.crystals[0] ? z.crystals[0] : "sign crystal";
+    const missingIt = p.missing.includes(ruler);
+    const repeatedIt = p.repeated.includes(ruler);
+    const isDriver = p.driver === ruler;
+    const isConductor = p.conductor === ruler;
+
+    if (missingIt && !isDriver && !isConductor) {
+      return `<div class="harmony-note">
+        <strong>Cross-system harmony — an important overlap:</strong> your Vedic Sun sign ${esc(p.zodiac)} is ruled by <strong>${esc(planetName)} (number ${ruler})</strong> — and number ${ruler} is <strong>missing from your Lo Shu grid</strong>. Two independent systems are pointing at the same gap, which makes this the highest-leverage remedy of your chart. The sign kit below doubles as a targeted balancer: wear <strong>${esc(crystal)}</strong> and chant <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) to consciously strengthen number-${ruler} energy — it is reinforced nowhere else in your grid.
+      </div>`;
+    }
+    if (isDriver || isConductor || repeatedIt) {
+      return `<div class="harmony-note">
+        <strong>Cross-system harmony — a reinforcing overlap:</strong> the planet ruling your Vedic Sun sign — <strong>${esc(planetName)} (number ${ruler})</strong> — is ${isDriver ? "your <strong>Driver (Moolank)</strong>" : isConductor ? "your <strong>Conductor (Bhagyank)</strong>" : "a <strong>repeated number in your Lo Shu grid</strong>"}. The zodiac layer and your grid reinforce each other, so sign-based remedies will amplify a number that already works hard in your chart.
+      </div>`;
+    }
+    return `<div class="harmony-note">
+      <strong>Cross-system harmony check:</strong> your Vedic Sun sign's ruler — <strong>${esc(planetName)} (number ${ruler})</strong> — is present in your Lo Shu grid, so the zodiac and grid layers align comfortably. Treat the sign kit below as a supportive layer rather than a corrective one.
+    </div>`;
+  }
+
+  /* ---- Tier 2 progressive-disclosure card (Chandra Rashi / Nakshatra / transit) ---- */
+  function vedicTierDisclosure(p) {
+    let stateLine;
+    if (p.vedicTier === 2) {
+      stateLine = `Your birth time (<strong>${esc(p.birthTimeDisplay)}</strong>)${p.birthPlace ? ` and birthplace (<strong>${esc(p.birthPlace)}</strong>)` : ""} are saved on this device, so your chart is <strong>prepared</strong> for these layers the moment they ship.`;
+    } else if (p.vedicTier === "partial") {
+      stateLine = `Almost there — add the missing <strong>${p.birthTime && !p.birthPlace ? "birth city / place" : "exact birth time"}</strong> (Edit Details) to fully prepare your chart.`;
+    } else {
+      stateLine = "Add your <strong>exact birth time</strong> and <strong>birth city / place</strong> (Edit Details) to prepare your chart — nothing is calculated from them until these layers ship, and they stay on your device.";
+    }
+    return `<div class="card vedic-tier-card">
+      <div class="card-title">Deepen your Vedic chart — progressive precision</div>
+      <div class="tier-list">
+        <div class="tier tier-ready">
+          <span class="tier-badge tier-badge-ready">Tier 1 · Ready now</span>
+          <div class="tier-body">
+            <strong>Vedic Sun Sign (Surya Rashi)</strong> — sidereal / Nirayana, Lahiri ayanamsa (~24° behind the Western tropical zodiac). Computed instantly from your date of birth; this is the layer this report uses today.
+          </div>
+        </div>
+        <div class="tier ${p.vedicTier === 2 ? "tier-ready" : "tier-upcoming"}">
+          <span class="tier-badge ${p.vedicTier === 2 ? "tier-badge-ready" : "tier-badge-upcoming"}">${p.vedicTier === 2 ? "Tier 2 · Prepared" : "Tier 2 · Prepare now"}</span>
+          <div class="tier-body">
+            <strong>Moon Sign (Chandra Rashi) · Nakshatra · Transit precision</strong> — ${stateLine}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   function renderGridCells(counts) {
     return DB.loshuLayout.flat().map((n) => {
       const c = counts[n] || 0;
@@ -1140,11 +1227,12 @@
           ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.loshu}.</p>` : ""}
         </section>` : "";
 
-    /* Section 4: zodiac power kit */
+    /* Section 4: zodiac power kit (Tier 1 — Vedic Sun Sign, sidereal/Lahiri,
+       with Western tropical reference + cross-system harmony + Tier 2 disclosure) */
     const z = DB.zodiac[p.zodiac];
-    const zodiacSection = `<section class="rsection">
+    const zodiacSection = `<section class="rsection" id="vedic-section">
       <h2 class="rsection-title"><span class="idx">${SECTION.zodiac}</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
-      <p class="rsection-desc">Your Vedic (sidereal / Nirayana) Sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you. ${p.zodiac !== p.zodiacTropical ? `Sidereal sign ${esc(p.zodiac)} vs. the Western tropical ${esc(p.zodiacTropical)} — we follow the Vedic (Lahiri ayanamsa) position.` : ""} This is a Sun sign; the deeper Moon Rashi needs your birth time and place.</p>
+      <p class="rsection-desc">This is your <strong>Vedic Sun Sign (Surya Rashi)</strong> — the sidereal / Nirayana position using the <strong>Lahiri ayanamsa</strong> (the fixed sky sits ~24° behind the Western tropical zodiac due to precession). Your date of birth alone is enough to compute it, and it stays the primary Vedic reference in this report. Western tropical reference: <strong>${esc(p.zodiacTropical)}</strong> ${p.zodiac !== p.zodiacTropical ? `(your tropical Sun would fall in ${esc(p.zodiacTropical)} — the sidereal sign is usually the one before it; we always follow the Vedic / Lahiri position).` : "(in this case the two systems agree)."} Numerology (Driver, Conductor, Lo Shu Grid) remains the engine of this report — the sign layer tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(DB.numbers[z.ruler].planet)}</div>
@@ -1156,6 +1244,8 @@
           <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(z.affirmation)}”</div></div></div>
         </div>
       </div>
+      ${zodiacHarmonyNote(p, z)}
+      ${vedicTierDisclosure(p)}
     </section>`;
 
     /* Section 5: name */
@@ -1532,19 +1622,28 @@
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
     </section>`;
 
+    const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");
+    const vedicPill = p.vedicTier === 2
+      ? `<span class="status-pill status-vedic">Vedic Tier 2 prepared — Chandra Rashi upcoming</span>`
+      : p.vedicTier === "partial"
+        ? `<span class="status-pill status-vedic">Vedic Tier 2 partially prepared</span>`
+        : `<span class="status-pill status-vedic">Vedic Sun Sign · Sidereal (Lahiri)</span>`;
+
     return `
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>Remedy Report — ${esc(p.name)}</h1>
-        <p>DOB ${dobStr} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
+        <p>DOB ${dobStr}${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
         <div class="report-meta">
           <span class="status-pill status-private">Private report · browser only</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
           <span class="status-pill status-memory">${evolving.snapshots.length} local snapshot${evolving.snapshots.length === 1 ? "" : "s"}</span>
+          ${vedicPill}
         </div>
         <nav class="report-nav" aria-label="Quick report navigation">
           <a href="#core-profile">Profile</a>
           <a href="#loshu-section">Loshu Grid</a>
+          <a href="#vedic-section">Vedic Sign</a>
           <a href="#timing-section">Timing</a>
           <a href="#memory-section">Evolving Chart</a>
           <a href="#vastu-section">Vastu</a>
@@ -1559,9 +1658,10 @@
           ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — your most-used vibration`)}
           <div class="card num-card">
             <div class="num-value" style="font-size:26px">${esc(p.zodiac)}</div>
-            <div class="num-label">Vedic Sun Sign (Sidereal)</div>
+            <div class="num-label">Vedic Sun Sign · Surya Rashi</div>
             <div class="num-planet">${esc(DB.zodiac[p.zodiac].element)} · Ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}</div>
-            <div class="num-traits">Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
+            <div class="num-traits">Sidereal / Lahiri ayanamsa · Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
+            <div class="num-traits vedic-western-ref">Western tropical reference: ${esc(p.zodiacTropical)}</div>
           </div>
         </div>
         <div class="card">
@@ -1681,6 +1781,8 @@
       plotShape: $("#plotShape").value,
       watchType: $("#watchType").value,
       gender: $("#gender").value,
+      birthTime: $("#birthTime").value,
+      birthPlace: $("#birthPlace").value.trim(),
       brand: $("#brand").value.trim(),
       partnerName: $("#partnerName").value.trim(),
       partnerDob: $("#partnerDob").value
@@ -1698,5 +1800,5 @@
   refreshKnowledgePack({ silent: true });
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue, validatePack, normalizePack, contributionPayload };
+  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue, validatePack, normalizePack, contributionPayload, formatBirthTime };
 })();
