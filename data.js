@@ -482,7 +482,7 @@ const DB = {
                      dev: "ॐ शुक्राय नमः", pron: "Om Shukraya Namah", meaning: "Salutations to Venus.",
                      affirmation: "I cultivate harmony, beauty, and deep, meaningful relationships in my life." },
     "Scorpio":     { ruler: 9, element: "Water", crystals: ["Black Tourmaline", "Obsidian", "Malachite"],        intentions: "Protection, debt clearing, deep transformation",
-                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the transformer.",
+                     dev: "ॐ मंगलाय नमः", pron: "Om Mangalaya Namah", meaning: "Salutations to Mars, the divine warrior and protector.",
                      affirmation: "I embrace transformation, release what no longer serves me, and rise stronger." },
     "Sagittarius": { ruler: 3, element: "Fire",  crystals: ["Turquoise", "Lapis Lazuli", "Amethyst"],            intentions: "Study success, travel protection, wisdom",
                      dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
@@ -491,21 +491,62 @@ const DB = {
                      dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn.",
                      affirmation: "My hard work builds lasting success. I am grounded, patient, and unstoppable." },
     "Aquarius":    { ruler: 8, element: "Air",   crystals: ["Amethyst", "Aquamarine", "Clear Quartz"],           intentions: "Inner peace, innovation, spiritual growth",
-                     dev: "ॐ नमः शिवाय", pron: "Om Namah Shivaya", meaning: "I bow to Shiva, the universal consciousness.",
+                     dev: "ॐ शनैश्चराय नमः", pron: "Om Shanaischaraya Namah", meaning: "Salutations to Saturn, the lord of karma, discipline and justice.",
                      affirmation: "I embrace my uniqueness, break boundaries, and contribute positively to the world." },
     "Pisces":      { ruler: 3, element: "Water", crystals: ["Amethyst", "Aquamarine", "Moonstone"],              intentions: "Rebuild relationships, intuition, inner peace",
                      dev: "ॐ गुरवे नमः", pron: "Om Gurave Namah", meaning: "Salutations to the Teacher.",
                      affirmation: "I am deeply connected to my intuition and the universal flow of love and grace." }
   },
 
-  /* ---- Crystal companion guide (Owner-provided table) ---- */
+  /* ---- Crystal companion guide ----
+     Every crystal/gem named in DB.numbers[].crystal and DB.zodiac[].crystals
+     has an entry here, so crystalGuide() can surface a full card for each one
+     actually relevant to a chart. Names must match verbatim (case-insensitive)
+     the names used in those fields. */
   crystals: {
-    "Amethyst":         { chakra: "Third Eye / Crown", benefits: "Calms the mind, reduces stress, enhances intuition, and promotes spiritual peace.", pair: "Clear Quartz (to amplify) or Selenite (to cleanse)" },
-    "Rose Quartz":      { chakra: "Heart", benefits: "Unconditional love, emotional healing, self-care, and attracting romance.", pair: "Moonstone (for emotional balance)" },
-    "Citrine":          { chakra: "Solar Plexus", benefits: "Wealth generation, abundance, joy, and personal power. Known as the \"Merchant's Stone\".", pair: "Pyrite or Green Aventurine (the Dhan Yog combo)" },
-    "Black Tourmaline": { chakra: "Root", benefits: "Ultimate protection against negative energy, EMF smog, and the Evil Eye (Nazar). Grounding.", pair: "Smoky Quartz (for deep grounding and debt clearing)" },
-    "Tiger's Eye":      { chakra: "Solar Plexus / Sacral", benefits: "Courage, confidence, focus, and protection from ill-wishing. Great for decision-making.", pair: "Carnelian (for action and motivation)" },
-    "Selenite":         { chakra: "Crown / Ether", benefits: "Liquid light. Cleanses, charges, and recharges other crystals. Promotes deep peace and clarity.", pair: "Use as a base — place your bracelets and crystals on Selenite weekly" },
+    /* --- Navagraha gemstones (primary + accessible substitutes) --- */
+    "Ruby":              { chakra: "Root / Heart", benefits: "Sun's gem of vitality, authority and courage; strengthens the heart, confidence and leadership.", pair: "Red Coral or Gold (Sun energy)" },
+    "Red Coral":         { chakra: "Root", benefits: "Mars's gem of courage, protection and blood vitality; energises and defends.", pair: "Carnelian (for accessible action energy)" },
+    "Pearl":             { chakra: "Crown / Sacral", benefits: "Moon's gem of the mind — soothes emotions, cools the temper, and supports intuition and calm sleep.", pair: "Moonstone (deepens emotional balance)" },
+    "Yellow Sapphire":   { chakra: "Crown / Throat", benefits: "Jupiter's gem of wisdom, wealth and dharma; attracts mentors, growth and prosperity.", pair: "Citrine (its accessible substitute)" },
+    "Emerald":           { chakra: "Heart", benefits: "Mercury's gem of intellect and speech; sharpens communication, memory and business acumen.", pair: "Green Aventurine (its accessible substitute)" },
+    "Diamond":           { chakra: "Crown", benefits: "Venus's gem of purity and light; amplifies love, clarity and self-worth.", pair: "Clear Quartz (its accessible stand-in)" },
+    "Blue Sapphire":     { chakra: "Throat / Third Eye", benefits: "Saturn's gem of discipline, structure and rapid karmic reward; powerful — wear only after an expert check.", pair: "Amethyst or Lapis Lazuli (gentler substitutes)" },
+    "Hessonite":         { chakra: "Root", benefits: "Rahu's gem (Gomed) — clears confusion, breaks illusions and stabilises sudden change; wear only on expert advice.", pair: "Smoky Quartz (for gentle grounding)" },
+    "Cat's Eye":         { chakra: "Root / Third Eye", benefits: "Ketu's gem (Lehsunia) — sharpens intuition, protects from the unseen and steadies karmic shifts; wear on expert advice.", pair: "Tiger's Eye (for a gentler version)" },
+
+    /* --- Quartz family & substitutes --- */
+    "Amethyst":          { chakra: "Third Eye / Crown", benefits: "Calms the mind, reduces stress, enhances intuition, and promotes spiritual peace.", pair: "Clear Quartz (to amplify) or Selenite (to cleanse)" },
+    "Clear Quartz":      { chakra: "Crown", benefits: "The master healer; amplifies intention, cleanses the aura and programmes easily for any goal.", pair: "Amethyst (to amplify) or Selenite (to cleanse)" },
+    "Rose Quartz":       { chakra: "Heart", benefits: "Unconditional love, emotional healing, self-care, and attracting romance.", pair: "Moonstone (for emotional balance)" },
+    "Smoky Quartz":      { chakra: "Root", benefits: "Deeply grounding; absorbs negativity, dissolves debt-mindset and anchors scattered energy.", pair: "Black Tourmaline (for protection)" },
+    "Citrine":           { chakra: "Solar Plexus", benefits: "Wealth generation, abundance, joy, and personal power. Known as the \"Merchant's Stone\".", pair: "Pyrite or Green Aventurine (the Dhan Yog combo)" },
+    "Black Tourmaline":  { chakra: "Root", benefits: "Ultimate protection against negative energy, EMF smog, and the Evil Eye (Nazar). Grounding.", pair: "Smoky Quartz (for deep grounding and debt clearing)" },
+    "Obsidian":          { chakra: "Root", benefits: "Protective truth-mirror; grounds, shields and surfaces what needs releasing — no sugar-coating.", pair: "Black Tourmaline" },
+    "Black Onyx":        { chakra: "Root", benefits: "Strength, self-mastery and protection; supports discipline and steady Saturnian grounding.", pair: "Smoky Quartz" },
+    "White Opal":        { chakra: "Crown", benefits: "Amplifies emotional clarity and inspiration; the Moon's substitute for pearl when the real gem is unavailable.", pair: "Moonstone" },
+    "White Zircon":      { chakra: "Crown", benefits: "Venus's substitute for diamond; brings clarity, brilliance and refined charm.", pair: "Clear Quartz" },
+    "Moonstone":         { chakra: "Sacral / Crown", benefits: "Enhances intuition, balances hormones and cycles, and invites gentle emotional flow.", pair: "Pearl (for pure calming Moon energy)" },
+    "Red Jasper":        { chakra: "Root", benefits: "Steadies the emotions, builds endurance and gently grounds fiery energy; a protective, nurturing stone.", pair: "Carnelian (for action)" },
+    "Carnelian":         { chakra: "Sacral", benefits: "Ignites courage, motivation and creative drive; Mars's warm, accessible stone of action.", pair: "Red Jasper (for grounding)" },
+    "Tiger's Eye":       { chakra: "Solar Plexus / Sacral", benefits: "Courage, confidence, focus, and protection from ill-wishing. Great for decision-making.", pair: "Carnelian (for action and motivation)" },
+    "Green Aventurine":  { chakra: "Heart", benefits: "The merchant's good-luck stone; attracts opportunity, soothes nerves and supports steady growth.", pair: "Citrine (the Dhan Yog combo)" },
+    "Red Aventurine":    { chakra: "Root", benefits: "Grounding and energising; boosts drive, stamina and courage, and clears creative blocks.", pair: "Red Jasper (for stability)" },
+    "Yellow Aventurine": { chakra: "Solar Plexus", benefits: "Lightens pessimism, attracts opportunity and supports confident decisions — Jupiter's accessible stone.", pair: "Citrine" },
+    "Peridot":           { chakra: "Heart / Solar Plexus", benefits: "Clears jealousy and resentment, opens the heart and refreshes confidence; Mercury's warm-green ally.", pair: "Citrine" },
+    "Lapis Lazuli":      { chakra: "Throat / Third Eye", benefits: "Stone of truth and wisdom; supports honest speech, memory and Saturn's steady discipline.", pair: "Clear Quartz (to amplify)" },
+
+    /* --- Zodiac-supporting stones --- */
+    "Sunstone":          { chakra: "Sacral / Solar Plexus", benefits: "Carries Sun confidence, joy and personal power; lifts mood and banishes self-doubt.", pair: "Citrine (for abundance)" },
+    "Aquamarine":        { chakra: "Throat", benefits: "Cooling and courageous; calms the mind, eases communication and soothes emotional storms.", pair: "Clear Quartz" },
+    "Amazonite":         { chakra: "Heart / Throat", benefits: "The truth-teller; balances emotion with speech, soothes anxiety and supports healthy boundaries.", pair: "Amethyst" },
+    "Blue Lace Agate":   { chakra: "Throat", benefits: "Gentlest communicator; dissolves tension, encourages calm expression and eases overthinking.", pair: "Aquamarine" },
+    "Malachite":         { chakra: "Heart", benefits: "Powerful heart-transformer; clears old emotional patterns and invites deep healing and growth.", pair: "Rose Quartz (to soften its intensity)" },
+    "Turquoise":         { chakra: "Throat / Heart", benefits: "The sky stone; protects, aligns speech with truth, and balances giving and receiving.", pair: "Lapis Lazuli" },
+    "Garnet":            { chakra: "Root", benefits: "Devotion, stamina and grounded passion; anchors energy and supports commitment.", pair: "Smoky Quartz (for grounding)" },
+
+    /* --- Ritual / special --- */
+    "Selenite":          { chakra: "Crown / Ether", benefits: "Liquid light. Cleanses, charges, and recharges other crystals. Promotes deep peace and clarity.", pair: "Use as a base — place your bracelets and crystals on Selenite weekly" },
     "5 Mukhi Rudraksha": { chakra: "Throat / Heart", benefits: "Ruled by Lord Kalagni (Shiva). Balances the 5 elements, lowers blood pressure, and calms the mind.", pair: "Crystal beads (combines spiritual grounding with mineral energy)" }
   },
   seleniteRitual: "Weekly cleansing ritual: every Saturday night, place all your crystals and bracelets on a Selenite plate or slab. By morning they are cleansed and recharged — never let crystals go more than a month without cleansing.",

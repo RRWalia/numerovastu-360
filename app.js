@@ -37,21 +37,39 @@
     return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
   }
 
-  /* ---- sun-sign (zodiac) from day & month ---- */
+  /* ---- sun-sign (zodiac) from day & month ----
+     Two zodiacs are computed:
+     • Sayana (tropical) — the fixed-date Western zodiac (kept for reference).
+     • Nirayana (sidereal) — the Vedic zodiac, which the report uses. Because
+       of precession the fixed sidereal sky sits ~24° behind the tropical one
+       (Lahiri ayanamsa), so a sidereal sign is usually the sign BEFORE the
+       tropical one. Boundaries below are the standard Lahiri table for the
+       Sun (accurate to ~1 day over recent decades).
+     NOTE: this is the SUN sign. The true Vedic Rashi (Chandra Rashi / Moon
+     sign) additionally requires birth time, place and a panchang — out of
+     scope for a date-only intake. */
   const ZRANGES = [
     ["Aries", [3, 21], [4, 19]], ["Taurus", [4, 20], [5, 20]], ["Gemini", [5, 21], [6, 20]],
     ["Cancer", [6, 21], [7, 22]], ["Leo", [7, 23], [8, 22]], ["Virgo", [8, 23], [9, 22]],
     ["Libra", [9, 23], [10, 22]], ["Scorpio", [10, 23], [11, 21]], ["Sagittarius", [11, 22], [12, 21]],
     ["Capricorn", [12, 22], [1, 19]], ["Aquarius", [1, 20], [2, 18]], ["Pisces", [2, 19], [3, 20]]
   ];
-  function zodiacSign(d, m) {
+  const SRANGES = [
+    ["Aries", [4, 14], [5, 14]], ["Taurus", [5, 15], [6, 14]], ["Gemini", [6, 15], [7, 15]],
+    ["Cancer", [7, 16], [8, 16]], ["Leo", [8, 17], [9, 16]], ["Virgo", [9, 17], [10, 17]],
+    ["Libra", [10, 18], [11, 16]], ["Scorpio", [11, 17], [12, 15]], ["Sagittarius", [12, 16], [1, 14]],
+    ["Capricorn", [1, 15], [2, 12]], ["Aquarius", [2, 13], [3, 14]], ["Pisces", [3, 15], [4, 13]]
+  ];
+  function zodiacFromRanges(d, m, ranges) {
     const v = m * 100 + d;
-    for (const [name, s, e] of ZRANGES) {
+    for (const [name, s, e] of ranges) {
       const sv = s[0] * 100 + s[1], ev = e[0] * 100 + e[1];
       if (sv <= ev ? (v >= sv && v <= ev) : (v >= sv || v <= ev)) return name;
     }
-    return "Capricorn";
+    return ranges[ranges.length - 1][0];
   }
+  const zodiacSign = (d, m) => zodiacFromRanges(d, m, ZRANGES);           // Sayana (tropical)
+  const zodiacSignSidereal = (d, m) => zodiacFromRanges(d, m, SRANGES);   // Nirayana (Vedic)
 
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
   const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
@@ -132,7 +150,8 @@
       driver, conductor, counts, missing, repeated,
       nameCompound, nameNum, nameRelD, nameRelC,
       mobCompound, mobNum, mobRelD, mobRelC,
-      zodiac: zodiacSign(d, m)
+      zodiac: zodiacSignSidereal(d, m),
+      zodiacTropical: zodiacSign(d, m)
     };
   }
 
@@ -606,8 +625,8 @@
     /* Section 4: zodiac power kit */
     const z = DB.zodiac[p.zodiac];
     const zodiacSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">5</span>Your Zodiac Power Kit — ${esc(p.zodiac)}</h2>
-      <p class="rsection-desc">Your sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
+      <h2 class="rsection-title"><span class="idx">5</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <p class="rsection-desc">Your Vedic (sidereal / Nirayana) Sun sign adds the finishing layer to your chart — it tunes which crystals, intentions and affirmations resonate most strongly with you. ${p.zodiac !== p.zodiacTropical ? `Sidereal sign ${esc(p.zodiac)} vs. the Western tropical ${esc(p.zodiacTropical)} — we follow the Vedic (Lahiri ayanamsa) position.` : ""} This is a Sun sign; the deeper Moon Rashi needs your birth time and place.</p>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(DB.numbers[z.ruler].planet)}</div>
@@ -709,14 +728,35 @@
     /* Section 9: crystal companion guide */
     function crystalGuide(p) {
       const zz = DB.zodiac[p.zodiac];
-      const poolText = [
+      // Chart-relevant sources, in priority order: zodiac sign → Driver →
+      // Conductor → missing planets. Each source string lists one or more
+      // crystals (with alternates/substitutes), matched by full crystal name.
+      const sources = [
         ...zz.crystals,
-        DB.numbers[p.driver].crystal, DB.numbers[p.conductor].crystal,
+        DB.numbers[p.driver].crystal,
+        DB.numbers[p.conductor].crystal,
         ...p.missing.map((n) => DB.numbers[n].crystal)
-      ].join(" | ").toLowerCase();
-      const matched = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha" && poolText.includes(k.toLowerCase()));
-      const rudrakshaNote = poolText.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
-      return { picks: matched.slice(0, 5), rudrakshaNote };
+      ];
+      const keys = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha");
+      const seen = new Set();
+      const picks = [];
+      for (const src of sources) {
+        const s = src.toLowerCase();
+        for (const k of keys) {
+          if (!seen.has(k) && s.includes(k.toLowerCase())) { seen.add(k); picks.push(k); }
+        }
+      }
+
+      // 5 Mukhi Rudraksha note: check the actual rudraksha fields (not the
+      // crystal text) — it is prescribed for number 3 (Jupiter).
+      const rudrakshaPool = [
+        DB.numbers[p.driver].rudraksha,
+        DB.numbers[p.conductor].rudraksha,
+        ...p.missing.map((n) => DB.numbers[n].rudraksha)
+      ].join(" ").toLowerCase();
+      const rudrakshaNote = rudrakshaPool.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
+
+      return { picks: picks.slice(0, 5), rudrakshaNote };
     }
     const cg = crystalGuide(p);
     const crystalSection = `<section class="rsection">
@@ -870,7 +910,7 @@
           ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — your most-used vibration`)}
           <div class="card num-card">
             <div class="num-value" style="font-size:26px">${esc(p.zodiac)}</div>
-            <div class="num-label">Zodiac (Sun Sign)</div>
+            <div class="num-label">Vedic Sun Sign (Sidereal)</div>
             <div class="num-planet">${esc(DB.zodiac[p.zodiac].element)} · Ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}</div>
             <div class="num-traits">Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
           </div>
@@ -942,5 +982,5 @@
   $("#printBtn").addEventListener("click", () => window.print());
 
   /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, reduce, relation, chaldeanValue };
+  window.__NV = { computeProfile, nameSuggestions, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, reduce, relation, chaldeanValue };
 })();

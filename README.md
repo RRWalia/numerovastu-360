@@ -10,7 +10,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 | Area | What's analysed / generated |
 | --- | --- |
-| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Zodiac sun sign |
+| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic (sidereal) Sun sign |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga), missing & repeated numbers |
 | **Name analysis** | Chaldean total, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
 | **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
