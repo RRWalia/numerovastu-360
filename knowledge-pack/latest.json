@@ -1,0 +1,6 @@
+{
+  "manifestVersion": 1,
+  "latestVersion": "2.1.0",
+  "packUrl": "knowledge-pack/packs/2.1.0.json",
+  "notes": "Introduces the Knowledge Pack self-update system, on-device evolving chart memory, and privacy-first anonymous contribution scaffolding."
+}

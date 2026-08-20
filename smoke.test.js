@@ -40,6 +40,8 @@ $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }))
 const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
+  ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["green wording", report.includes("Green cells are present")],
   ["driver = 2", report.includes('num-value">2<')],
@@ -61,6 +63,8 @@ const checks = [
   ["colors section", report.includes("Lucky Colours") && report.includes("Day-wise Dressing")],
   ["career section", report.includes("Best Fields")],
   ["timing section", report.includes("Favourable Years") && report.includes("Personal Year")],
+  ["evolving chart section", report.includes("Your Evolving Chart") && report.includes("Lucky-year timing vs what you actually did")],
+  ["anonymous scaffold shown", report.includes("Anonymous contribution scaffold")],
   ["zodiac section (Leo for 20/08)", report.includes("Zodiac Power Kit") && report.includes("Leo")],
   ["zodiac card in core profile", report.includes("Sun Sign")],
   ["crystal companion section", report.includes("Crystal Companion Guide")],
@@ -147,6 +151,14 @@ const compChecks = [
   ["compatibility tallies sum to 4", comp.friendly + comp.neutral + comp.enemy === 4],
 ];
 compChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+const anonPayload = NV.contributionPayload(pa, NV.timingAnalysis(pa));
+const anonChecks = [
+  ["anonymous payload has packVersion", typeof anonPayload.packVersion === "string" && anonPayload.packVersion.length > 0],
+  ["anonymous payload excludes personal strings", !("name" in anonPayload) && !("dob" in anonPayload) && !("mobile" in anonPayload)],
+  ["anonymous payload includes missingCounts", anonPayload.missingCounts && typeof anonPayload.missingCounts === "object"],
+];
+anonChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // fifth block: render of new features (gender + partner)
 $("#editBtn").click();

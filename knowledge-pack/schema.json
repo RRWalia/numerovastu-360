@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NumeroVastu 360 Knowledge Pack",
+  "type": "object",
+  "required": ["schemaVersion", "packVersion", "db"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "packVersion": { "type": "string" },
+    "generatedAt": { "type": ["string", "null"] },
+    "manifestPath": { "type": "string" },
+    "contribution": {
+      "type": "object",
+      "properties": {
+        "mode": { "type": "string" },
+        "endpoint": { "type": ["string", "null"] },
+        "description": { "type": "string" }
+      },
+      "required": ["mode"]
+    },
+    "db": {
+      "type": "object",
+      "required": [
+        "chaldean",
+        "friendship",
+        "numbers",
+        "watch",
+        "loshuLayout",
+        "planes",
+        "traits",
+        "missingFix",
+        "yantra",
+        "arrows",
+        "kua",
+        "goals",
+        "vastu",
+        "careers",
+        "dayWear",
+        "personalYear",
+        "spelling",
+        "mantraShort",
+        "zodiac",
+        "crystals",
+        "compound",
+        "masterNumbers",
+        "nameAdvice"
+      ]
+    }
+  }
+}
