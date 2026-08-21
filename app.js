@@ -333,6 +333,16 @@
     sel.innerHTML = opts.join("");
   });
 
+  /* Birthplace suggestions from the built-in offline atlas (astro.js) */
+  if (window.NVAstro && $("#birthPlaceList")) {
+    const list = $("#birthPlaceList");
+    window.NVAstro.cityNames().forEach((n) => {
+      const opt = document.createElement("option");
+      opt.value = n;
+      list.appendChild(opt);
+    });
+  }
+
   const selectedGoals = new Set();
   function syncGoalChips(goals) {
     selectedGoals.clear();
@@ -457,6 +467,13 @@
     const hasBirthPlace = !!birthPlaceRaw;
     const vedicTier = hasBirthTime && hasBirthPlace ? 2 : (hasBirthTime || hasBirthPlace) ? "partial" : 1;
 
+    // Astro-Identity Snapshot (Tier 2): in-browser Vedic ephemeris via the
+    // vendored astronomy-engine. Full chart when time + place resolve;
+    // otherwise the date-only Sun (Surya Rashi) + unlock prompt.
+    const astro = (typeof window !== "undefined" && window.NVAstro)
+      ? window.NVAstro.compute({ dob: input.dob, time: birthTimeRaw, place: birthPlaceRaw })
+      : { ok: false, reason: "engine-missing" };
+
     return {
       ...input, day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak,
@@ -469,7 +486,8 @@
       birthTime: birthTimeRaw,
       birthPlace: birthPlaceRaw,
       birthTimeDisplay: formatBirthTime(birthTimeRaw),
-      vedicTier
+      vedicTier,
+      astro
     };
   }
 
@@ -969,15 +987,109 @@
     </div>`;
   }
 
-  /* ---- Tier 2 progressive-disclosure card (Chandra Rashi / Nakshatra / transit) ---- */
-  function vedicTierDisclosure(p) {
-    let stateLine;
-    if (p.vedicTier === 2) {
-      stateLine = `Your birth time (<strong>${esc(p.birthTimeDisplay)}</strong>)${p.birthPlace ? ` and birthplace (<strong>${esc(p.birthPlace)}</strong>)` : ""} are saved on this device, so your chart is <strong>prepared</strong> for these layers the moment they ship.`;
-    } else if (p.vedicTier === "partial") {
-      stateLine = `Almost there — add the missing <strong>${p.birthTime && !p.birthPlace ? "birth city / place" : "exact birth time"}</strong> (Edit Details) to fully prepare your chart.`;
+  /* ---- Astro-Identity Snapshot card (in-browser Vedic ephemeris) ----
+     Tier 2 (birth time + recognised birthplace) → full chart: sidereal Sun,
+     Moon + Nakshatra/pada, Lagna and Midheaven. Date-only → sidereal Sun
+     with the unlock prompt. All values are computed locally. */
+  const pad2n = (n) => String(n).padStart(2, "0");
+  function fmtAy(deg) {
+    const d = Math.floor(deg), m = Math.round((deg - d) * 60);
+    return `${d}°${pad2n(m)}′`;
+  }
+  function fmtTz(tz) {
+    const sign = tz < 0 ? "-" : "+";
+    const abs = Math.abs(tz);
+    return `UTC${sign}${Math.floor(abs)}:${pad2n(Math.round((abs % 1) * 60))}`;
+  }
+  function astroCell(cls, glyph, label, degLine, sub, ref) {
+    return `<div class="astro-cell ${cls}">
+      <div class="astro-glyph">${glyph}</div>
+      <div class="astro-name">${label}</div>
+      <div class="astro-deg">${degLine}</div>
+      <div class="astro-sub">${sub}</div>
+      <div class="astro-ref">${ref}</div>
+    </div>`;
+  }
+  function vedicSnapshotCard(p) {
+    const a = p.astro;
+    if (!a || !a.ok) return "";
+    const boundaryNote = a.boundary
+      ? `<p class="astro-note astro-boundary">Your Sun sits on the <strong>${esc(a.daySpan[0])} / ${esc(a.daySpan[1])}</strong> boundary on your birth date — the exact hour can tip the final sign. Add your birth time to pin it precisely.</p>`
+      : "";
+    if (a.tier === "full") {
+      const pl = a.place, nak = a.moon.nakshatra;
+      const placeLine = pl.fromCoords
+        ? `${esc(pl.displayName)}`
+        : `${esc(pl.name)}${pl.state ? ", " + esc(pl.state) : ""}, ${esc(pl.country)}`;
+      const caveat = pl.dst
+        ? ` · standard-time offset (${fmtTz(pl.tz)}) — if daylight saving applied on the birth date, shift the time accordingly`
+        : ` · ${fmtTz(pl.tz)}`;
+      return `<div class="card astro-snapshot-card" id="vedic-snapshot">
+      <div class="goal-head">
+        <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
+        <span class="badge info">Computed on this device · ${esc(a.engine)}</span>
+      </div>
+      <div class="astro-grid">
+        ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
+        ${astroCell("astro-moon", esc(a.moon.glyph), "Moon · Chandra Rashi", `${esc(a.moon.sign)} ${esc(a.moon.degStr)}`, `${esc(a.moon.element)} · ruled by ${esc(a.moon.lord)}`, `<span class="astro-nak-badge">${esc(nak.glyph)} ${esc(nak.name)} · Pada ${nak.pada} · lord ${esc(nak.lord)}</span>`)}
+        ${astroCell("astro-lagna", esc(a.lagna.glyph), "Lagna (Ascendant)", `${esc(a.lagna.sign)} ${esc(a.lagna.degStr)}`, `${esc(a.lagna.element)} · ruled by ${esc(a.lagna.lord)}`, "The sign rising on the eastern horizon at your birth minute")}
+        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "Highest point of the ecliptic — career &amp; public life")}
+      </div>
+      <div class="astro-nak-strip">
+        <div class="astro-nak-head">Nakshatra of the Moon — <strong>${esc(nak.name)}</strong> ${esc(nak.glyph)} · <strong>Pada ${nak.pada} of 4</strong> · ${esc(nak.spanStr)} of the sidereal zodiac</div>
+        <div class="astro-nak-body">Vimshottari lord <strong>${esc(nak.lord)}</strong> · Deity <strong>${esc(nak.deity)}</strong> — ${esc(nak.trait)}.</div>
+      </div>
+      <div class="astro-foot">
+        Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Birth moment <strong>${esc(a.moment.localIso)}</strong> local, ${placeLine} (${esc(pl.lat.toFixed(2))}°N, ${esc(Math.abs(pl.lon).toFixed(2))}°${pl.lon >= 0 ? "E" : "W"})${caveat} · Positions are sidereal (Nirayana). Everything is computed locally in your browser — nothing is sent anywhere.
+      </div>
+    </div>`;
+    }
+    // reduced card: date-only Sun + unlock prompt
+    const need = [];
+    if (!p.birthTime) need.push("<strong>exact birth time</strong>");
+    if (!p.birthPlace) need.push("<strong>birth city / place</strong>");
+    let unlockText;
+    if (a.placeUnmatched) {
+      unlockText = `We couldn't match <strong>“${esc(p.birthPlace)}”</strong> to the built-in atlas (${(window.NVAstro && window.NVAstro.cityNames().length) || 400}+ cities, fully offline). Try “City, State” — e.g. <strong>Faridabad, India</strong> — or enter coordinates like <strong>“28.41, 77.32”</strong> (add a third number to override the time zone, e.g. “40.71, -74.01, -5”).`;
+    } else if (need.length === 1) {
+      unlockText = `Almost unlocked — add your ${need[0]} (Edit Details → Vedic Precision) to reveal your <strong>Moon Sign (Chandra Rashi)</strong>, <strong>Nakshatra</strong> with its pada, <strong>Lagna</strong> and <strong>Midheaven</strong>, computed instantly on this device.`;
     } else {
-      stateLine = "Add your <strong>exact birth time</strong> and <strong>birth city / place</strong> (Edit Details) to prepare your chart — nothing is calculated from them until these layers ship, and they stay on your device.";
+      unlockText = `Add your <strong>exact birth time</strong> and <strong>birth city / place</strong> (Edit Details → Vedic Precision) to unlock your <strong>Moon Sign (Chandra Rashi)</strong>, <strong>Nakshatra</strong> with its pada, <strong>Lagna</strong> and <strong>Midheaven</strong> — computed instantly on your device, never sent anywhere.`;
+    }
+    return `<div class="card astro-snapshot-card astro-snapshot-reduced" id="vedic-snapshot">
+      <div class="goal-head">
+        <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic Sun</div>
+        <span class="badge info">Tier 1 · from your date of birth</span>
+      </div>
+      <div class="astro-grid">
+        ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
+        <div class="astro-unlock">
+          <div class="astro-unlock-title">🔓 Unlock the full snapshot</div>
+          <p>${unlockText}</p>
+          ${boundaryNote}
+        </div>
+      </div>
+      <div class="astro-foot">
+        Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Sun position computed for your birth date (sidereal / Nirayana) · ${esc(a.engine)} · Everything runs locally in your browser — nothing is sent anywhere.
+      </div>
+    </div>`;
+  }
+
+  /* ---- Tier 2 progressive-disclosure card (Chandra Rashi / Nakshatra / Lagna) ---- */
+  function vedicTierDisclosure(p) {
+    let stateLine, badge;
+    if (p.vedicTier === 2) {
+      const full = p.astro && p.astro.tier === "full";
+      badge = full ? "Tier 2 · Unlocked" : "Tier 2 · Add a recognised birthplace";
+      stateLine = full
+        ? `Your birth time (<strong>${esc(p.birthTimeDisplay)}</strong>) and birthplace (<strong>${esc(p.birthPlace)}</strong>) unlock the full snapshot above — Moon Sign (Chandra Rashi), Nakshatra, Lagna and Midheaven are computed on this device and never leave your browser.`
+        : `Your birth time (<strong>${esc(p.birthTimeDisplay)}</strong>) and birthplace (<strong>${esc(p.birthPlace)}</strong>) are saved — enter your place as “City, State” (e.g. Faridabad, India) or coordinates (“28.41, 77.32”) to complete the snapshot.`;
+    } else if (p.vedicTier === "partial") {
+      badge = "Tier 2 · Almost unlocked";
+      stateLine = `Almost there — add the missing <strong>${p.birthTime && !p.birthPlace ? "birth city / place" : "exact birth time"}</strong> (Edit Details) to complete your Astro-Identity Snapshot.`;
+    } else {
+      badge = "Tier 2 · Unlock now";
+      stateLine = "Add your <strong>exact birth time</strong> and <strong>birth city / place</strong> (Edit Details) to unlock Moon Sign (Chandra Rashi), Nakshatra, Lagna and Midheaven — computed on this device, never sent anywhere.";
     }
     return `<div class="card vedic-tier-card">
       <div class="card-title">Deepen your Vedic chart — progressive precision</div>
@@ -989,9 +1101,9 @@
           </div>
         </div>
         <div class="tier ${p.vedicTier === 2 ? "tier-ready" : "tier-upcoming"}">
-          <span class="tier-badge ${p.vedicTier === 2 ? "tier-badge-ready" : "tier-badge-upcoming"}">${p.vedicTier === 2 ? "Tier 2 · Prepared" : "Tier 2 · Prepare now"}</span>
+          <span class="tier-badge ${p.vedicTier === 2 ? "tier-badge-ready" : "tier-badge-upcoming"}">${badge}</span>
           <div class="tier-body">
-            <strong>Moon Sign (Chandra Rashi) · Nakshatra · Transit precision</strong> — ${stateLine}
+            <strong>Moon Sign (Chandra Rashi) · Nakshatra · Lagna · Midheaven</strong> — ${stateLine}
           </div>
         </div>
       </div>
@@ -1245,6 +1357,7 @@
         </div>
       </div>
       ${zodiacHarmonyNote(p, z)}
+      ${vedicSnapshotCard(p)}
       ${vedicTierDisclosure(p)}
     </section>`;
 
@@ -1623,11 +1736,17 @@
     </section>`;
 
     const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");
-    const vedicPill = p.vedicTier === 2
-      ? `<span class="status-pill status-vedic">Vedic Tier 2 prepared — Chandra Rashi upcoming</span>`
-      : p.vedicTier === "partial"
-        ? `<span class="status-pill status-vedic">Vedic Tier 2 partially prepared</span>`
-        : `<span class="status-pill status-vedic">Vedic Sun Sign · Sidereal (Lahiri)</span>`;
+    let vedicPill;
+    if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
+      const m = p.astro.moon, l = p.astro.lagna;
+      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${m.glyph} ${m.nakshatra.name} · Lagna ${l.glyph}</span>`;
+    } else if (p.vedicTier === 2) {
+      vedicPill = `<span class="status-pill status-vedic">Vedic Tier 2 — add a recognised birthplace</span>`;
+    } else if (p.vedicTier === "partial") {
+      vedicPill = `<span class="status-pill status-vedic">Vedic Tier 2 partially unlocked</span>`;
+    } else {
+      vedicPill = `<span class="status-pill status-vedic">Vedic Sun Sign · Sidereal (Lahiri)</span>`;
+    }
 
     return `
       <div class="report-hero">
