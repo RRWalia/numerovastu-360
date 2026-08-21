@@ -1026,6 +1026,9 @@
       const caveat = pl.dst
         ? ` · standard-time offset (${fmtTz(pl.tz)}) — if daylight saving applied on the birth date, shift the time accordingly`
         : ` · ${fmtTz(pl.tz)}`;
+      const nakDriverLink = DB.numbers[p.driver].planet.startsWith(nak.lord)
+        ? `<div class="astro-nak-driver">⭐ Star–Driver link: <strong>${esc(nak.name)}</strong> is ruled by <strong>${esc(DB.numbers[p.driver].planet)}</strong> — the same planet behind your Driver <strong>${p.driver}</strong>, so birth star and root number run on one current.</div>`
+        : "";
       return `<div class="card astro-snapshot-card" id="vedic-snapshot">
       <div class="goal-head">
         <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
@@ -1035,11 +1038,12 @@
         ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
         ${astroCell("astro-moon", esc(a.moon.glyph), "Moon · Chandra Rashi", `${esc(a.moon.sign)} ${esc(a.moon.degStr)}`, `${esc(a.moon.element)} · ruled by ${esc(a.moon.lord)}`, `<span class="astro-nak-badge">${esc(nak.glyph)} ${esc(nak.name)} · Pada ${nak.pada} · lord ${esc(nak.lord)}</span>`)}
         ${astroCell("astro-lagna", esc(a.lagna.glyph), "Lagna (Ascendant)", `${esc(a.lagna.sign)} ${esc(a.lagna.degStr)}`, `${esc(a.lagna.element)} · ruled by ${esc(a.lagna.lord)}`, "The sign rising on the eastern horizon at your birth minute")}
-        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "Highest point of the ecliptic — career &amp; public life")}
+        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven / 10th House Cusp (Dasham Bhava)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "The 10th-house cusp (Dasham Bhava) — career, status &amp; public life")}
       </div>
       <div class="astro-nak-strip">
         <div class="astro-nak-head">Nakshatra of the Moon — <strong>${esc(nak.name)}</strong> ${esc(nak.glyph)} · <strong>Pada ${nak.pada} of 4</strong> · ${esc(nak.spanStr)} of the sidereal zodiac</div>
         <div class="astro-nak-body">Vimshottari lord <strong>${esc(nak.lord)}</strong> · Deity <strong>${esc(nak.deity)}</strong> — ${esc(nak.trait)}.</div>
+        ${nakDriverLink}
       </div>
       <div class="astro-foot">
         Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Birth moment <strong>${esc(a.moment.localIso)}</strong> local, ${placeLine} (${esc(pl.lat.toFixed(2))}°N, ${esc(Math.abs(pl.lon).toFixed(2))}°${pl.lon >= 0 ? "E" : "W"})${caveat} · Positions are sidereal (Nirayana). Everything is computed locally in your browser — nothing is sent anywhere.
@@ -1741,7 +1745,7 @@
     let vedicPill;
     if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
       const m = p.astro.moon, l = p.astro.lagna;
-      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${m.glyph} ${m.nakshatra.name} · Lagna ${l.glyph}</span>`;
+      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${l.glyph} ${esc(l.sign)} Lagna · ${m.glyph} ${esc(m.nakshatra.name)} Star</span>`;
     } else if (p.vedicTier === 2) {
       vedicPill = `<span class="status-pill status-vedic">Vedic Tier 2 — add a recognised birthplace</span>`;
     } else if (p.vedicTier === "partial") {

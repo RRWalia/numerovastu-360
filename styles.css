@@ -623,6 +623,16 @@ body {
 }
 .astro-nak-head { font-size: 13px; color: var(--label-primary); }
 .astro-nak-body { font-size: 13px; color: var(--label-secondary); margin-top: 4px; }
+.astro-nak-driver {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(22, 196, 86, 0.3);
+  border-radius: var(--r-md);
+  background: rgba(22, 196, 86, 0.08);
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--label-primary);
+}
 .astro-unlock {
   border: 1px dashed rgba(255, 149, 0, 0.55);
   border-radius: var(--r-md);
