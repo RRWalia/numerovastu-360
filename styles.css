@@ -513,6 +513,11 @@ body {
   display: flex; align-items: center; justify-content: center;
   margin-top: 1px;
 }
+.priority-copy {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 /* Footer */
 .app-footer {

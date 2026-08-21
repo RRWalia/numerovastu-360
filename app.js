@@ -1734,7 +1734,7 @@
     const prioritySection = `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
-      <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
+      <div class="priority-list">${priorities.map((t) => `<div class="priority-item"><div class="priority-copy">${t}</div></div>`).join("")}</div>
     </section>`;
 
     const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");

@@ -100,6 +100,10 @@ const checks = [
   ["kitchen NE dosh detected", report.includes("Kitchen (fire)")],
   ["goal plans", report.includes("Money — Remedy Plan") && report.includes("Career — Remedy Plan")],
   ["priority plan", report.includes("40-Day Priority Plan")],
+  ["priority items wrapped in copy container", (() => {
+    const items = [...window.document.querySelectorAll(".priority-item")];
+    return items.length > 0 && items.every((el) => el.firstElementChild && el.firstElementChild.classList.contains("priority-copy"));
+  })()],
   ["smartwatch caution", report.includes("Rahu (4) energy")],
   ["no undefined leaks", !report.includes("undefined")],
   ["no NaN leaks", !report.includes("NaN")],
