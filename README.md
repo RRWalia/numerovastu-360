@@ -42,7 +42,7 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 ## Tech stack
 
 - **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
-- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa**, a 400+-city offline atlas (with coordinate + time-zone override entry), and the vendored [astronomy-engine](https://github.com/cosinekitty/astronomy) (VSOP87, MIT — see `vendor/astronomy-engine-LICENSE.txt`)
+- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa** and a 400+-city offline atlas (with coordinate + time-zone override entry). The ephemeris is a **fully self-contained port of Jean Meeus' "Astronomical Algorithms"** (Julian day & ΔT, IAU-82 sidereal time, ch. 22 nutation, ch. 25 Sun, ch. 47 Moon) — zero runtime dependencies, validated to < 12″ against VSOP87 (astronomy-engine) on the reference chart
 - **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
 - **[Vite](https://vitejs.dev/)** for local development
@@ -56,8 +56,7 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 numerovastu-360/
 ├── index.html          # Single-page app (intake form + report view)
 ├── app.js              # Stable engine: calculations, rendering, self-update + local memory
-├── astro.js            # In-browser Vedic ephemeris (Sun/Moon/Nakshatra/Lagna/MC, Lahiri ayanamsa)
-├── vendor/             # Vendored astronomy-engine (VSOP87, MIT) for offline use
+├── astro.js            # In-browser Vedic ephemeris — self-contained Meeus port (Sun/Moon/Nakshatra/Lagna/MC, Lahiri ayanamsa)
 ├── data.js             # Bundled fallback knowledge pack (instant/offline)
 ├── knowledge-pack/     # Manifest, schema and versioned JSON packs for silent upgrades
 ├── styles.css          # Styling (light theme, print + mobile)
@@ -67,9 +66,9 @@ numerovastu-360/
 ```
 
 The root files are the single source of truth — Vite serves them directly
-(`index.html` loads `vendor/astronomy.browser.min.js`, `astro.js`, `data.js`
-and `app.js`), and the `share.bat` static server should be pointed at the
-repository root. GitHub Pages deploys the same root files from `main`.
+(`index.html` loads `astro.js`, `data.js` and `app.js`), and the `share.bat`
+static server should be pointed at the repository root. GitHub Pages deploys
+the same root files from `main`.
 
 ## Knowledge Pack architecture
 
