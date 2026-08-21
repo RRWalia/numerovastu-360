@@ -1026,6 +1026,9 @@
       const caveat = pl.dst
         ? ` · standard-time offset (${fmtTz(pl.tz)}) — if daylight saving applied on the birth date, shift the time accordingly`
         : ` · ${fmtTz(pl.tz)}`;
+      const nakDriverLink = DB.numbers[p.driver].planet.startsWith(nak.lord)
+        ? `<div class="astro-nak-driver">⭐ Star–Driver link: <strong>${esc(nak.name)}</strong> is ruled by <strong>${esc(DB.numbers[p.driver].planet)}</strong> — the same planet behind your Driver <strong>${p.driver}</strong>, so birth star and root number run on one current.</div>`
+        : "";
       return `<div class="card astro-snapshot-card" id="vedic-snapshot">
       <div class="goal-head">
         <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
@@ -1035,11 +1038,12 @@
         ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
         ${astroCell("astro-moon", esc(a.moon.glyph), "Moon · Chandra Rashi", `${esc(a.moon.sign)} ${esc(a.moon.degStr)}`, `${esc(a.moon.element)} · ruled by ${esc(a.moon.lord)}`, `<span class="astro-nak-badge">${esc(nak.glyph)} ${esc(nak.name)} · Pada ${nak.pada} · lord ${esc(nak.lord)}</span>`)}
         ${astroCell("astro-lagna", esc(a.lagna.glyph), "Lagna (Ascendant)", `${esc(a.lagna.sign)} ${esc(a.lagna.degStr)}`, `${esc(a.lagna.element)} · ruled by ${esc(a.lagna.lord)}`, "The sign rising on the eastern horizon at your birth minute")}
-        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "Highest point of the ecliptic — career &amp; public life")}
+        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven / 10th House Cusp (Dasham Bhava)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "The 10th-house cusp (Dasham Bhava) — career, status &amp; public life")}
       </div>
       <div class="astro-nak-strip">
         <div class="astro-nak-head">Nakshatra of the Moon — <strong>${esc(nak.name)}</strong> ${esc(nak.glyph)} · <strong>Pada ${nak.pada} of 4</strong> · ${esc(nak.spanStr)} of the sidereal zodiac</div>
         <div class="astro-nak-body">Vimshottari lord <strong>${esc(nak.lord)}</strong> · Deity <strong>${esc(nak.deity)}</strong> — ${esc(nak.trait)}.</div>
+        ${nakDriverLink}
       </div>
       <div class="astro-foot">
         Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Birth moment <strong>${esc(a.moment.localIso)}</strong> local, ${placeLine} (${esc(pl.lat.toFixed(2))}°N, ${esc(Math.abs(pl.lon).toFixed(2))}°${pl.lon >= 0 ? "E" : "W"})${caveat} · Positions are sidereal (Nirayana). Everything is computed locally in your browser — nothing is sent anywhere.
@@ -1284,7 +1288,9 @@
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
     const watch = watchSpec(p);
     const evolving = evolvingChartData(p, timing);
-    const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dobDisplay = `${p.day} ${MONTHS[p.month - 1]} ${p.year}`; // unambiguous international format
+    const generatedOn = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
     /* Section 2: core nature — traits, strengths & shadows */
     const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
@@ -1734,14 +1740,88 @@
     const prioritySection = `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Priority Plan</h2>
       <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
-      <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
+      <div class="priority-list">${priorities.map((t) => `<div class="priority-item"><div class="priority-copy">${t}</div></div>`).join("")}</div>
     </section>`;
+
+    /* Executive summary — the whole chart in one glance: identity, gains,
+       work-areas and the exact way forward. Built strictly from the same
+       computed data as the full sections below (no separate claims). */
+    const stripHtml = (s) => String(s).replace(/<[^>]*>/g, "");
+    const clip = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+    const firstName = String(p.name || "Friend").trim().split(/\s+/)[0];
+    const relTxt = relation(p.driver, p.conductor) === "friendly"
+      ? "a naturally cooperative pairing — your two core numbers reinforce each other"
+      : relation(p.driver, p.conductor) === "neutral"
+      ? "a workable pairing — targeted remedies will sharpen the flow"
+      : "a demanding pairing — the remedies below are chosen to bridge the two energies";
+    const strengthPlanets = (p.repeated.length ? p.repeated : p.weak).map((n) => DB.numbers[n].planet);
+    const missingPlanets = p.missing.map((n) => DB.numbers[n].planet);
+    const criticalPlanets = p.missingSeverity.filter((m) => m.critical).map((m) => DB.numbers[m.n].planet);
+    const gainsLead = strengthPlanets.length
+      ? `your ${p.repeated.length ? "strongest" : "active"} energies are ${strengthPlanets.map(esc).join(", ")}`
+      : "your grid is evenly spread — its own form of balance";
+    const workLead = missingPlanets.length
+      ? `the work lies in ${missingPlanets.map(esc).join(", ")}`
+      : "the work lies in keeping your weekly rhythm alive";
+    const mustWork = [];
+    if (missingPlanets.length) {
+      mustWork.push(`Missing energies: <strong>${missingPlanets.map(esc).join(", ")}</strong> — full remedy kits in Section ${SECTION.weak}${criticalPlanets.length ? `, with ${criticalPlanets.map(esc).join(", ")} unsupported everywhere and needing first attention` : ""}.`);
+    } else {
+      mustWork.push("Nothing is missing from your grid — protect the balance with the weekly rhythm below.");
+    }
+    if (nameSug.needed) mustWork.push(`Your name vibration needs a sound-preserving spelling correction (Section ${SECTION.name}).`);
+    if (mobSug.needed) mustWork.push(`Your mobile vibration needs a number change to a friendlier total (Section ${SECTION.mobile}).`);
+    const vastuBad = vastu.filter((f) => f.tone === "bad");
+    if (vastuBad.length) mustWork.push(`Apply the Vastu fix for ${esc(vastuBad[0].item)}${vastuBad.length > 1 ? ` and ${vastuBad.length - 1} more` : ""} (Section ${SECTION.vastu}).`);
+    const topActions = priorities.slice(0, 3).map((t) => clip(stripHtml(t), 110)).filter(Boolean);
+    const wayForward = `Start with the <strong>40-Day Priority Plan</strong> (Section ${goalsStart + goals.length}) — in order: ${topActions.join(" · ")}. Then keep the weekly rhythm — <strong>${DAY_OF[p.driver]}</strong> for Driver ${p.driver}, <strong>${DAY_OF[p.conductor]}</strong> for Conductor ${p.conductor}.`;
+    let vedicTxt;
+    if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
+      const nak = p.astro.moon.nakshatra;
+      const link = DB.numbers[p.driver].planet.startsWith(nak.lord)
+        ? ` Your star's lord <strong>${esc(nak.lord)}</strong> also rules your Driver — birth star and root number run on one current.`
+        : "";
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> · birth star <strong>${esc(nak.name)}</strong> (${esc(nak.lord)}-ruled) · Lagna <strong>${esc(p.astro.lagna.sign)}</strong>.${link}`;
+    } else if (p.vedicTier === 2) {
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> — add a recognised birthplace (Edit Details) to reveal your Moon sign, Nakshatra and Lagna.`;
+    } else {
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> (${esc(DB.zodiac[p.zodiac].element)}, ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}) — add your birth time and city to unlock Moon sign, Nakshatra and Lagna.`;
+    }
+    const summarySection = `<div class="card summary-card" id="summary">
+      <div class="goal-head">
+        <div class="card-title">📋 Summary — Your Chart in One Glance</div>
+        <span class="badge info">Key takeaways</span>
+      </div>
+      <p class="summary-lead"><strong>${esc(firstName)}</strong>, your chart blends clear strengths with a few areas that need attention — ${gainsLead}, and ${workLead}.</p>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Your numbers</div>
+          <div class="summary-text">Driver <strong>${p.driver}</strong> · ${esc(DB.numbers[p.driver].planet)} — ${esc(DB.numbers[p.driver].traits.split(",")[0].toLowerCase())}; Conductor <strong>${p.conductor}</strong> · ${esc(DB.numbers[p.conductor].planet)} — ${esc(DB.numbers[p.conductor].traits.split(",")[0].toLowerCase())}. ${relTxt}.</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Your Vedic sky</div>
+          <div class="summary-text">${vedicTxt}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Where you gain</div>
+          <div class="summary-text">${gainsLead[0].toUpperCase()}${gainsLead.slice(1)}${strengthPlanets.length ? ` — nurture these energies with the kit practices in Section ${SECTION.loshu}` : "."}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Where you must work</div>
+          <div class="summary-text">${mustWork.join(" ")}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">The way forward</div>
+          <div class="summary-text">${wayForward}</div>
+        </div>
+      </div>
+    </div>`;
 
     const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");
     let vedicPill;
     if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
       const m = p.astro.moon, l = p.astro.lagna;
-      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${m.glyph} ${m.nakshatra.name} · Lagna ${l.glyph}</span>`;
+      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${l.glyph} ${esc(l.sign)} Lagna · ${m.glyph} ${esc(m.nakshatra.name)} Star</span>`;
     } else if (p.vedicTier === 2) {
       vedicPill = `<span class="status-pill status-vedic">Vedic Tier 2 — add a recognised birthplace</span>`;
     } else if (p.vedicTier === "partial") {
@@ -1754,7 +1834,8 @@
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>Remedy Report — ${esc(p.name)}</h1>
-        <p>DOB ${dobStr}${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
+        <p>DOB <strong>${esc(dobDisplay)}</strong>${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")}</p>
+        <p class="gen-line">Report generated ${esc(generatedOn)} · computed locally on your device — nothing leaves your browser</p>
         <div class="report-meta">
           <span class="status-pill status-private">Private report · browser only</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
@@ -1762,6 +1843,7 @@
           ${vedicPill}
         </div>
         <nav class="report-nav" aria-label="Quick report navigation">
+          <a href="#summary">Summary</a>
           <a href="#core-profile">Profile</a>
           <a href="#loshu-section">Loshu Grid</a>
           <a href="#vedic-section">Vedic Sign</a>
@@ -1769,6 +1851,15 @@
           <a href="#memory-section">Evolving Chart</a>
           <a href="#vastu-section">Vastu</a>
         </nav>
+      </div>
+      ${summarySection}
+      <div class="card reading-guide">
+        <div class="card-title">How to read this report</div>
+        <div class="reading-guide-grid">
+          <div class="reading-guide-item"><strong>Driver (Moolank)</strong> — your mind, personality and day-to-day energy; <strong>Conductor (Bhagyank)</strong> — your destiny path. Both derive from your birth date.</div>
+          <div class="reading-guide-item"><strong>Lo Shu grid</strong> — which of the eight planet energies are present, repeated or missing in your name and birth date. Each missing number gets its own remedy kit inside.</div>
+          <div class="reading-guide-item">Numbered sections build from identity → remedies → timing → Vastu. The <strong>40-Day Priority Plan</strong> at the end is your starting point — practise it consistently for 40 days.</div>
+        </div>
       </div>
       <section class="rsection" id="core-profile">
         <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
@@ -1808,6 +1899,11 @@
       ${compatSection}
       ${goalSections}
       ${prioritySection}
+      <div class="report-closing">
+        <div class="report-closing-brand">NumeroVastu 360 — Private Report</div>
+        <div class="report-closing-line">Report generated ${esc(generatedOn)} · Computed locally on your device — nothing leaves your browser.</div>
+        <div class="report-closing-line">Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.</div>
+      </div>
     `;
   }
 
