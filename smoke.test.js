@@ -1,12 +1,17 @@
 /* Smoke test: load the app in jsdom, submit the intake form (PDF example
-   DOB 20/08/2005), and verify the report renders all sections. */
+   DOB 20/08/2005), and verify the report renders all sections.
+
+   The Vedic ephemeris (astro.js) is a self-contained Meeus port — no
+   vendor bundle, no window.Astronomy. Its reference-chart values are
+   validated below against independently computed VSOP87/astronomy-engine
+   constants (recorded to 7 decimals) and against a brute-force
+   horizon/meridian search. */
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
 const root = __dirname;
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-const vendorJs = fs.readFileSync(path.join(root, "vendor", "astronomy.browser.min.js"), "utf8");
 const astroJs = fs.readFileSync(path.join(root, "astro.js"), "utf8");
 const dataJs = fs.readFileSync(path.join(root, "data.js"), "utf8");
 const appJs = fs.readFileSync(path.join(root, "app.js"), "utf8");
@@ -19,9 +24,9 @@ window.scrollTo = () => {};
 window.print = () => {};
 
 // eval the scripts in the same order index.html loads them, so the
-// top-level lexical bindings (Astronomy, NVAstro, DB) are visible to
-// app.js (mirrors <script> scoping)
-window.eval(vendorJs + "\n;\n" + astroJs + "\n;\n" + dataJs + "\n;\n" + appJs);
+// top-level lexical bindings (NVAstro, DB) are visible to app.js
+// (mirrors <script> scoping)
+window.eval(astroJs + "\n;\n" + dataJs + "\n;\n" + appJs);
 
 const $ = (s) => window.document.querySelector(s);
 
@@ -238,16 +243,23 @@ const refChecks = [
   ["ref Midheaven degree 20°39′", ref.mc.degStr === "20°39′"],
   ["ref ayanamsa ≈ 23.5±0.1°", Math.abs(ref.ayanamsa - 23.526) < 0.1],
   ["ref place resolved", ref.place.name === "Faridabad" && ref.place.tz === 5.5],
-  ["ref engine label", ref.engine.includes("astronomy-engine")],
+  ["ref engine label (self-contained Meeus)", ref.engine.includes("Meeus")],
+  // Meeus port vs the independently computed VSOP87 (astronomy-engine)
+  // reference values for this exact moment
+  ["ref Sun ≈ VSOP87 133.2882° (< 0.02°)", Math.abs(ref.sun.lonTropical - 133.2881954) < 0.02],
+  ["ref Moon ≈ VSOP87 258.4002° (< 0.02°)", Math.abs(ref.moon.lonTropical - 258.4002444) < 0.02],
+  ["ref ΔT(1976) ≈ 47 s", Math.abs((NA.astroMoment(1976, 8, 5, 14.75).jdTt - NA.astroMoment(1976, 8, 5, 14.75).jdUtc) * 86400 - 47.095) < 2],
+  ["vendored engine removed (no window.Astronomy)", typeof window.Astronomy === "undefined"],
 ];
 refChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // Cross-validate the ascendant & MC formulas against an independent
-// brute-force horizon/meridian search (different maths path).
-const refT = window.Astronomy.MakeTime(new window.Date(Date.UTC(1976, 7, 5, 14, 45, 0)));
-function bruteAsc(latDeg, lonDeg, time) {
-  const eps = NA.meanObliquity(time.tt) / NA.DEG;
-  const lstDeg = NA.clamp360(window.Astronomy.SiderealTime(time) * 15 + lonDeg);
+// brute-force horizon/meridian search (different maths path), using the
+// Meeus port's own sidereal time + true obliquity.
+const refMom = NA.astroMoment(1976, 8, 5, 14.75);
+function bruteAsc(latDeg, lonDeg, mom) {
+  const eps = NA.trueObliquity(mom.tt) / NA.DEG;
+  const lstDeg = NA.clamp360(NA.gmstDeg(mom.jdUtc) + lonDeg);
   const altAt = (L) => {
     const l = L / NA.DEG;
     const dec = Math.asin(Math.sin(l) * Math.sin(eps));
@@ -268,9 +280,9 @@ function bruteAsc(latDeg, lonDeg, time) {
   }
   return null;
 }
-function bruteMc(lonDeg, time) {
-  const eps = NA.meanObliquity(time.tt) / NA.DEG;
-  const lstDeg = NA.clamp360(window.Astronomy.SiderealTime(time) * 15 + lonDeg);
+function bruteMc(lonDeg, mom) {
+  const eps = NA.trueObliquity(mom.tt) / NA.DEG;
+  const lstDeg = NA.clamp360(NA.gmstDeg(mom.jdUtc) + lonDeg);
   let prevH = null;
   for (let L = 0.25; L <= 360; L += 0.25) {
     const l = L / NA.DEG;
@@ -281,15 +293,15 @@ function bruteMc(lonDeg, time) {
   }
   return null;
 }
-const ascFormula = NA.ascendantDeg(28.4089, 77.3178, refT);
-const ascBrute = bruteAsc(28.4089, 77.3178, refT);
-const mcFormula = NA.mcDeg(77.3178, refT);
-const mcBrute = bruteMc(77.3178, refT);
+const ascFormula = NA.ascendantDeg(28.4089, 77.3178, refMom);
+const ascBrute = bruteAsc(28.4089, 77.3178, refMom);
+const mcFormula = NA.mcDeg(77.3178, refMom);
+const mcBrute = bruteMc(77.3178, refMom);
 const crossChecks = [
   ["lagna formula vs brute-force < 0.25°", ascBrute !== null && Math.abs(ascFormula - ascBrute) < 0.25],
-  ["lagna tropical ≈ 335.97°", Math.abs(ascFormula - 335.967) < 0.15],
+  ["lagna tropical ≈ VSOP87 335.97° (< 0.15°)", Math.abs(ascFormula - 335.9671041) < 0.15],
   ["mc formula vs brute-force < 0.5°", mcBrute !== null && Math.abs(mcFormula - mcBrute) < 0.5],
-  ["mc tropical ≈ 254.19°", Math.abs(mcFormula - 254.187) < 0.15],
+  ["mc tropical ≈ VSOP87 254.19° (< 0.15°)", Math.abs(mcFormula - 254.1873123) < 0.15],
 ];
 crossChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 

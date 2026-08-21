@@ -468,8 +468,9 @@
     const vedicTier = hasBirthTime && hasBirthPlace ? 2 : (hasBirthTime || hasBirthPlace) ? "partial" : 1;
 
     // Astro-Identity Snapshot (Tier 2): in-browser Vedic ephemeris via the
-    // vendored astronomy-engine. Full chart when time + place resolve;
-    // otherwise the date-only Sun (Surya Rashi) + unlock prompt.
+    // self-contained Meeus port in astro.js (no external libraries).
+    // Full chart when time + place resolve; otherwise the date-only Sun
+    // (Surya Rashi) + unlock prompt.
     const astro = (typeof window !== "undefined" && window.NVAstro)
       ? window.NVAstro.compute({ dob: input.dob, time: birthTimeRaw, place: birthPlaceRaw })
       : { ok: false, reason: "engine-missing" };
