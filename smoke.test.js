@@ -51,6 +51,7 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
+  ["app version badge", $("#appBadge").textContent === "App v2.3.1 · Meeus engine"],
   ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["green wording", report.includes("Green cells are present")],
