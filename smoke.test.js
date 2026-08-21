@@ -48,6 +48,7 @@ $("#watchType").value = "smart";
 $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
 
 const report = $("#reportRoot").innerHTML;
+const priyaNak = window.NVAstro.compute({ dob: "2005-08-20", time: "14:05", place: "New Delhi, India" }).moon.nakshatra.name;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
@@ -86,6 +87,14 @@ const checks = [
   ["report generation date stamped", /Report generated \d{1,2} \w{3} \d{4}/.test(report)],
   ["reading guide present", report.includes("How to read this report")],
   ["reading guide explains Driver & Conductor", report.includes("Driver (Moolank)") && report.includes("Conductor (Bhagyank)") && report.includes("40-Day Priority Plan")],
+  ["executive summary present", report.includes("Summary — Your Chart in One Glance")],
+  ["summary personalised greeting", report.includes("<strong>Priya</strong>, your chart blends")],
+  ["summary states core numbers", report.includes("Driver <strong>2</strong> · Moon (Chandra)") && report.includes("Conductor <strong>8</strong> · Saturn (Shani)")],
+  ["summary Vedic sky uses computed birth star", report.includes(`birth star <strong>${priyaNak}</strong>`) && report.includes("· Lagna <strong>")],
+  ["summary missing energies point to remedy kits", report.includes("Missing energies: <strong>") && report.includes(`full remedy kits in Section ${4}`)],
+  ["summary way forward lists top actions", report.includes("The way forward") && report.includes("40-Day Priority Plan</strong> (Section") && report.includes("Then keep the weekly rhythm")],
+  ["summary uses plain (stripped) priority text", /The way forward[\s\S]{0,400}Strengthen/.test(report)],
+  ["no fabricated divisional-chart claims", !report.includes("(D1)") && !report.includes("(D4)") && !report.includes("house 4")],
   ["vedic tier 2 unlocked badge", report.includes("Tier 2 · Unlocked")],
   ["chandra rashi + nakshatra + lagna disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Lagna")],
   ["astro-identity snapshot card", report.includes("Astro-Identity Snapshot")],
@@ -135,6 +144,7 @@ const checks2 = [
   ["harmony note present (aligns comfortably branch)", r2.includes("Cross-system harmony") && r2.includes("align comfortably")],
   ["tier 2 unlock-now wording (no birth details)", r2.includes("Tier 2 · Unlock now")],
   ["reduced snapshot card with unlock prompt", r2.includes("Astro-Identity Snapshot") && r2.includes("Unlock the full snapshot") && (r2.match(/astro-cell/g) || []).length === 1],
+  ["summary works without birth details", r2.includes("Summary — Your Chart in One Glance") && r2.includes("add your birth time and city to unlock Moon sign, Nakshatra and Lagna")],
   ["no undefined leaks", !r2.includes("undefined")],
 ];
 checks2.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -334,6 +344,7 @@ const refRenderChecks = [
   ["ref sun ♌/♋ rendered", rRef.includes("♌") && rRef.includes("♋")],
   ["ref moon ♏ + Jyeshtha rendered", rRef.includes("♏") && rRef.includes("Jyeshtha")],
   ["star-lord → Driver link note (Jyeshtha → Mercury → Driver 5)", rRef.includes("Star–Driver link") && rRef.includes("Mercury (Budha)") && rRef.includes("your Driver <strong>5</strong>")],
+  ["summary repeats star-driver link", rRef.includes("Summary — Your Chart in One Glance") && rRef.includes("birth star and root number run on one current")],
   ["ref pada 3 rendered", rRef.includes("Pada 3")],
   ["ref lagna ♒ Aquarius rendered", rRef.includes("♒") && rRef.includes("Aquarius")],
   ["ref degrees rendered", rRef.includes("24°52′") && rRef.includes("12°26′")],
@@ -470,8 +481,8 @@ const layoutChecks = [
   ["astro-grid extra margins removed", stylesCss.includes(".astro-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n  gap: 12px;\n  margin: 0;\n}")],
   ["print: sections may flow across pages", /\.rsection \{ animation: none; break-inside: auto; \}/.test(stylesCss)],
   ["print: cards may fragment at row boundaries", /\.card \{ break-inside: auto; \}/.test(stylesCss)],
-  ["print: headings never orphaned at page bottom", stylesCss.includes(".rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label { break-after: avoid; }")],
-  ["print: small atomic units kept intact", stylesCss.includes(".report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item { break-inside: avoid; }")],
+  ["print: headings never orphaned at page bottom", stylesCss.includes(".rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label, .summary-label { break-after: avoid; }")],
+  ["print: small atomic units kept intact", stylesCss.includes(".report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item, .summary-item { break-inside: avoid; }")],
   ["print: page margins defined", stylesCss.includes("@page { margin: 14mm 11mm; }")],
   ["report closing block: brand + disclaimer", report.includes("NumeroVastu 360 — Private Report") && report.includes("not a substitute for professional medical, legal or financial advice")],
   ["print: closing block kept together", stylesCss.includes(".report-closing { break-inside: avoid; }")],

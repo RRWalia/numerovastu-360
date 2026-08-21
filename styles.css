@@ -277,6 +277,29 @@ body {
 .reading-guide-item { font-size: 13px; line-height: 20px; color: var(--label-secondary); }
 .reading-guide-item strong { color: var(--label-primary); font-weight: 600; }
 
+/* Executive summary (key takeaways) */
+.summary-card {
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.07), rgba(234, 179, 8, 0.02) 40%, var(--bg-primary) 100%);
+}
+.summary-lead { font-size: 14px; line-height: 22px; color: var(--label-secondary); }
+.summary-lead strong { color: var(--label-primary); }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.summary-item {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--separator);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+.summary-label {
+  font-size: 11px; font-weight: 600; line-height: 16px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--label-tertiary);
+  margin-bottom: 4px;
+}
+.summary-text { font-size: 13px; line-height: 20px; color: var(--label-secondary); }
+.summary-text strong { color: var(--label-primary); }
+
 /* Ganesh invocation — Vitality & Wisdom (yellow / gold / orange) */
 .invocation {
   text-align: center;
@@ -694,8 +717,8 @@ body {
      big cards (remedy kits, snapshot) fragment at their row boundaries. */
   .rsection { animation: none; break-inside: auto; }
   .card { break-inside: auto; }
-  .rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label { break-after: avoid; }
-  .report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item { break-inside: avoid; }
+  .rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label, .summary-label { break-after: avoid; }
+  .report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item, .summary-item { break-inside: avoid; }
   .card, .priority-item, .table-scroll, .loshu-cell { border: 1px solid #ddd; }
   .btn { display: none; }
 }

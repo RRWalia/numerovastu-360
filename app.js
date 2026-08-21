@@ -1743,6 +1743,80 @@
       <div class="priority-list">${priorities.map((t) => `<div class="priority-item"><div class="priority-copy">${t}</div></div>`).join("")}</div>
     </section>`;
 
+    /* Executive summary — the whole chart in one glance: identity, gains,
+       work-areas and the exact way forward. Built strictly from the same
+       computed data as the full sections below (no separate claims). */
+    const stripHtml = (s) => String(s).replace(/<[^>]*>/g, "");
+    const clip = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
+    const firstName = String(p.name || "Friend").trim().split(/\s+/)[0];
+    const relTxt = relation(p.driver, p.conductor) === "friendly"
+      ? "a naturally cooperative pairing — your two core numbers reinforce each other"
+      : relation(p.driver, p.conductor) === "neutral"
+      ? "a workable pairing — targeted remedies will sharpen the flow"
+      : "a demanding pairing — the remedies below are chosen to bridge the two energies";
+    const strengthPlanets = (p.repeated.length ? p.repeated : p.weak).map((n) => DB.numbers[n].planet);
+    const missingPlanets = p.missing.map((n) => DB.numbers[n].planet);
+    const criticalPlanets = p.missingSeverity.filter((m) => m.critical).map((m) => DB.numbers[m.n].planet);
+    const gainsLead = strengthPlanets.length
+      ? `your ${p.repeated.length ? "strongest" : "active"} energies are ${strengthPlanets.map(esc).join(", ")}`
+      : "your grid is evenly spread — its own form of balance";
+    const workLead = missingPlanets.length
+      ? `the work lies in ${missingPlanets.map(esc).join(", ")}`
+      : "the work lies in keeping your weekly rhythm alive";
+    const mustWork = [];
+    if (missingPlanets.length) {
+      mustWork.push(`Missing energies: <strong>${missingPlanets.map(esc).join(", ")}</strong> — full remedy kits in Section ${SECTION.weak}${criticalPlanets.length ? `, with ${criticalPlanets.map(esc).join(", ")} unsupported everywhere and needing first attention` : ""}.`);
+    } else {
+      mustWork.push("Nothing is missing from your grid — protect the balance with the weekly rhythm below.");
+    }
+    if (nameSug.needed) mustWork.push(`Your name vibration needs a sound-preserving spelling correction (Section ${SECTION.name}).`);
+    if (mobSug.needed) mustWork.push(`Your mobile vibration needs a number change to a friendlier total (Section ${SECTION.mobile}).`);
+    const vastuBad = vastu.filter((f) => f.tone === "bad");
+    if (vastuBad.length) mustWork.push(`Apply the Vastu fix for ${esc(vastuBad[0].item)}${vastuBad.length > 1 ? ` and ${vastuBad.length - 1} more` : ""} (Section ${SECTION.vastu}).`);
+    const topActions = priorities.slice(0, 3).map((t) => clip(stripHtml(t), 110)).filter(Boolean);
+    const wayForward = `Start with the <strong>40-Day Priority Plan</strong> (Section ${goalsStart + goals.length}) — in order: ${topActions.join(" · ")}. Then keep the weekly rhythm — <strong>${DAY_OF[p.driver]}</strong> for Driver ${p.driver}, <strong>${DAY_OF[p.conductor]}</strong> for Conductor ${p.conductor}.`;
+    let vedicTxt;
+    if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
+      const nak = p.astro.moon.nakshatra;
+      const link = DB.numbers[p.driver].planet.startsWith(nak.lord)
+        ? ` Your star's lord <strong>${esc(nak.lord)}</strong> also rules your Driver — birth star and root number run on one current.`
+        : "";
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> · birth star <strong>${esc(nak.name)}</strong> (${esc(nak.lord)}-ruled) · Lagna <strong>${esc(p.astro.lagna.sign)}</strong>.${link}`;
+    } else if (p.vedicTier === 2) {
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> — add a recognised birthplace (Edit Details) to reveal your Moon sign, Nakshatra and Lagna.`;
+    } else {
+      vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> (${esc(DB.zodiac[p.zodiac].element)}, ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}) — add your birth time and city to unlock Moon sign, Nakshatra and Lagna.`;
+    }
+    const summarySection = `<div class="card summary-card">
+      <div class="goal-head">
+        <div class="card-title">📋 Summary — Your Chart in One Glance</div>
+        <span class="badge info">Key takeaways</span>
+      </div>
+      <p class="summary-lead"><strong>${esc(firstName)}</strong>, your chart blends clear strengths with a few areas that need attention — ${gainsLead}, and ${workLead}.</p>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">Your numbers</div>
+          <div class="summary-text">Driver <strong>${p.driver}</strong> · ${esc(DB.numbers[p.driver].planet)} — ${esc(DB.numbers[p.driver].traits.split(",")[0].toLowerCase())}; Conductor <strong>${p.conductor}</strong> · ${esc(DB.numbers[p.conductor].planet)} — ${esc(DB.numbers[p.conductor].traits.split(",")[0].toLowerCase())}. ${relTxt}.</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Your Vedic sky</div>
+          <div class="summary-text">${vedicTxt}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Where you gain</div>
+          <div class="summary-text">${gainsLead[0].toUpperCase()}${gainsLead.slice(1)}${strengthPlanets.length ? ` — nurture these energies with the kit practices in Section ${SECTION.loshu}` : "."}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Where you must work</div>
+          <div class="summary-text">${mustWork.join(" ")}</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">The way forward</div>
+          <div class="summary-text">${wayForward}</div>
+        </div>
+      </div>
+    </div>`;
+
     const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");
     let vedicPill;
     if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
@@ -1785,6 +1859,7 @@
           <div class="reading-guide-item">Numbered sections build from identity → remedies → timing → Vastu. The <strong>40-Day Priority Plan</strong> at the end is your starting point — practise it consistently for 40 days.</div>
         </div>
       </div>
+      ${summarySection}
       <section class="rsection" id="core-profile">
         <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
         <div class="card-grid">
