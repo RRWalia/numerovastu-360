@@ -455,5 +455,22 @@ const checks6 = [
 ];
 checks6.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// eighth block: report layout rhythm (section spacing + print pagination).
+// Sections must be direct children of #reportRoot so the flex gap applies,
+// and the stylesheet must keep the rhythm + print-break rules.
+const stylesCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const sectionsInRoot = [...window.document.querySelectorAll("#reportRoot > .rsection")].length;
+const layoutChecks = [
+  ["report sections are direct children of #reportRoot", sectionsInRoot >= 15 && sectionsInRoot === window.document.querySelectorAll(".rsection").length],
+  ["section rhythm rule present", stylesCss.includes("#reportRoot { display: flex; flex-direction: column; gap: 32px; }")],
+  ["astro-grid extra margins removed", stylesCss.includes(".astro-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n  gap: 12px;\n  margin: 0;\n}")],
+  ["print: sections may flow across pages", /\.rsection \{ animation: none; break-inside: auto; \}/.test(stylesCss)],
+  ["print: cards may fragment at row boundaries", /\.card \{ break-inside: auto; \}/.test(stylesCss)],
+  ["print: headings never orphaned at page bottom", stylesCss.includes(".rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label { break-after: avoid; }")],
+  ["print: small atomic units kept intact", stylesCss.includes(".report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item { break-inside: avoid; }")],
+  ["print: page margins defined", stylesCss.includes("@page { margin: 14mm 11mm; }")],
+];
+layoutChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

@@ -103,6 +103,7 @@ body {
 /* ---------- Layout ---------- */
 .page { max-width: 880px; margin: 0 auto; padding: 32px 16px 48px; }
 .view { display: flex; flex-direction: column; gap: 32px; }
+#reportRoot { display: flex; flex-direction: column; gap: 32px; }
 
 /* ---------- Intro ---------- */
 .intro { display: flex; flex-direction: column; gap: 8px; }
@@ -588,7 +589,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
-  margin: 12px 0 4px;
+  margin: 0;
 }
 .astro-cell {
   border: 1px solid var(--separator);
@@ -659,10 +660,18 @@ body {
 
 /* ---------- Print (Save/Print Report) ---------- */
 @media print {
+  @page { margin: 14mm 11mm; }
   .app-header, .app-footer, .form-note, .toast-viewport, .report-nav { display: none !important; }
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
-  .rsection { animation: none; break-inside: avoid-page; }
+  #reportRoot { gap: 24px; }
+  /* Let the report flow across pages. Protect only small atomic units so
+     headings/labels are never orphaned and rows/cells are not torn in half;
+     big cards (remedy kits, snapshot) fragment at their row boundaries. */
+  .rsection { animation: none; break-inside: auto; }
+  .card { break-inside: auto; }
+  .rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label { break-after: avoid; }
+  .report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item { break-inside: avoid; }
   .card, .priority-item, .table-scroll, .loshu-cell { border: 1px solid #ddd; }
   .btn { display: none; }
 }
