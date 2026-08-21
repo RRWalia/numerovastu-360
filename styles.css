@@ -573,6 +573,74 @@ body {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
+/* ---------- Astro-Identity Snapshot (Vedic ephemeris card) ---------- */
+.astro-snapshot-card {
+  border: 1px solid rgba(152, 95, 251, 0.35);
+  background: linear-gradient(180deg, rgba(152, 95, 251, 0.06), rgba(152, 95, 251, 0.02) 40%, var(--bg-primary) 100%);
+}
+.astro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 12px 0 4px;
+}
+.astro-cell {
+  border: 1px solid var(--separator);
+  border-radius: var(--r-md);
+  background: var(--bg-primary);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.astro-glyph { font-size: 34px; line-height: 40px; }
+.astro-name { font-size: 12px; color: var(--label-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+.astro-deg { font-size: 16px; font-weight: 600; color: var(--label-primary); margin-top: 4px; }
+.astro-sub { font-size: 12px; color: var(--label-secondary); }
+.astro-ref { font-size: 12px; color: var(--label-tertiary); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--separator); }
+.astro-nak-badge {
+  display: inline-block;
+  background: rgba(152, 95, 251, 0.12);
+  color: #6d33d9;
+  border: 1px solid rgba(152, 95, 251, 0.3);
+  border-radius: var(--r-full);
+  padding: 2px 8px;
+  font-weight: 500;
+}
+.astro-nak-strip {
+  border: 1px solid rgba(152, 95, 251, 0.3);
+  border-radius: var(--r-md);
+  background: rgba(152, 95, 251, 0.07);
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+.astro-nak-head { font-size: 13px; color: var(--label-primary); }
+.astro-nak-body { font-size: 13px; color: var(--label-secondary); margin-top: 4px; }
+.astro-unlock {
+  border: 1px dashed rgba(255, 149, 0, 0.55);
+  border-radius: var(--r-md);
+  background: var(--light-orange-bg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.astro-unlock-title { font-size: 14px; font-weight: 600; color: var(--label-primary); }
+.astro-unlock p { font-size: 13px; color: var(--label-secondary); line-height: 19px; }
+.astro-note { font-size: 12px; color: var(--label-tertiary); margin-top: 6px; }
+.astro-boundary { color: #a05c00; }
+.astro-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--separator);
+  font-size: 12px;
+  color: var(--label-tertiary);
+  line-height: 18px;
+}
+.astro-foot strong { color: var(--label-secondary); }
+
 /* ---------- Print (Save/Print Report) ---------- */
 @media print {
   .app-header, .app-footer, .form-note, .toast-viewport, .report-nav { display: none !important; }

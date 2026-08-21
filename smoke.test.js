@@ -6,6 +6,8 @@ const { JSDOM } = require("jsdom");
 
 const root = __dirname;
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const vendorJs = fs.readFileSync(path.join(root, "vendor", "astronomy.browser.min.js"), "utf8");
+const astroJs = fs.readFileSync(path.join(root, "astro.js"), "utf8");
 const dataJs = fs.readFileSync(path.join(root, "data.js"), "utf8");
 const appJs = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
@@ -16,9 +18,10 @@ const { window } = dom;
 window.scrollTo = () => {};
 window.print = () => {};
 
-// eval both scripts together so the top-level `const DB` lexical
-// binding from data.js is visible to app.js (mirrors <script> scoping)
-window.eval(dataJs + "\n;\n" + appJs);
+// eval the scripts in the same order index.html loads them, so the
+// top-level lexical bindings (Astronomy, NVAstro, DB) are visible to
+// app.js (mirrors <script> scoping)
+window.eval(vendorJs + "\n;\n" + astroJs + "\n;\n" + dataJs + "\n;\n" + appJs);
 
 const $ = (s) => window.document.querySelector(s);
 
@@ -73,8 +76,14 @@ const checks = [
   ["sidereal / lahiri wording", report.includes("Sidereal") && report.includes("Lahiri")],
   ["western tropical reference shown", report.includes("Western tropical reference") && report.includes("Leo")],
   ["birth time shown in hero", report.includes("Born 2:05 PM, New Delhi, India")],
-  ["vedic tier 2 prepared badge", report.includes("Tier 2 · Prepared")],
-  ["chandra rashi + nakshatra disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Transit precision")],
+  ["vedic tier 2 unlocked badge", report.includes("Tier 2 · Unlocked")],
+  ["chandra rashi + nakshatra + lagna disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Lagna")],
+  ["astro-identity snapshot card", report.includes("Astro-Identity Snapshot")],
+  ["snapshot full chart cells", (report.match(/astro-cell/g) || []).length === 4],
+  ["snapshot nakshatra strip", report.includes("Nakshatra of the Moon")],
+  ["snapshot moon + lagna + midheaven labels", report.includes("Moon · Chandra Rashi") && report.includes("Lagna (Ascendant)") && report.includes("Midheaven (MC)")],
+  ["snapshot ayanamsa footnote", report.includes("Lahiri (Chitrapaksha) ayanamsa")],
+  ["hero pill unlocked", report.includes("Vedic chart unlocked")],
   ["cross-system harmony note (ruler missing)", report.includes("Cross-system harmony") && report.includes("number 1 is")],
   ["crystal companion section", report.includes("Crystal Companion Guide")],
   ["selenite ritual", report.includes("Selenite")],
@@ -110,7 +119,8 @@ const checks2 = [
   ["spelling suggestions rendered", r2.includes("Recommended spellings") || r2.includes("no spelling change needed") || r2.includes("vibrates in harmony") || r2.includes("Consult a numerologist")],
   ["vastu empty state", r2.includes("No direction details")],
   ["harmony note present (aligns comfortably branch)", r2.includes("Cross-system harmony") && r2.includes("align comfortably")],
-  ["tier 2 prepare-now wording (no birth details)", r2.includes("Tier 2 · Prepare now")],
+  ["tier 2 unlock-now wording (no birth details)", r2.includes("Tier 2 · Unlock now")],
+  ["reduced snapshot card with unlock prompt", r2.includes("Astro-Identity Snapshot") && r2.includes("Unlock the full snapshot") && (r2.match(/astro-cell/g) || []).length === 1],
   ["no undefined leaks", !r2.includes("undefined")],
 ];
 checks2.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -178,8 +188,152 @@ const vedicChecks = [
   ["tier 1 with no birth details", pTier1.vedicTier === 1],
   ["birthTimeDisplay on profile", pTier2.birthTimeDisplay === "2:05 PM"],
   ["birthPlace flows into profile", pTier2.birthPlace === "New Delhi, India"],
+  ["astro full chart when time + place", pTier2.astro && pTier2.astro.tier === "full"],
+  ["astro sun-only when no birth details", pTier1.astro && pTier1.astro.tier === "sun"],
+  ["astro sun-only when partial (time only)", pTierPartial.astro && pTierPartial.astro.tier === "sun"],
 ];
 vedicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+/* ---- Vedic ephemeris engine (astro.js): tables, matching, reference chart ---- */
+const NA = window.NVAstro;
+const nakUnitChecks = [
+  ["sign 0° = Aries", NA.signOf(0).name === "Aries" && NA.signOf(0).glyph === "♈"],
+  ["sign 29.99° stays Aries", NA.signOf(29.99).name === "Aries"],
+  ["sign 30.01° = Taurus", NA.signOf(30.01).name === "Taurus" && NA.signOf(30.01).glyph === "♉"],
+  ["sign 359.9° = Pisces", NA.signOf(359.9).name === "Pisces"],
+  ["nakshatra 0° = Ashwini pada 1", NA.nakshatraOf(0).name === "Ashwini" && NA.nakshatraOf(0).pada === 1],
+  ["nakshatra 226.7° = Jyeshtha pada 1", NA.nakshatraOf(226.7).name === "Jyeshtha" && NA.nakshatraOf(226.7).pada === 1],
+  ["nakshatra 233.5° = Jyeshtha pada 3", NA.nakshatraOf(233.5).name === "Jyeshtha" && NA.nakshatraOf(233.5).pada === 3],
+  ["nakshatra 239.9° = Jyeshtha pada 4", NA.nakshatraOf(239.9).name === "Jyeshtha" && NA.nakshatraOf(239.9).pada === 4],
+  ["nakshatra 359.9° = Revati pada 4", NA.nakshatraOf(359.9).name === "Revati" && NA.nakshatraOf(359.9).pada === 4],
+  ["nakshatra lords (vimshottari)", NA.nakshatraOf(226.7).lord === "Mercury" && NA.nakshatraOf(0).lord === "Ketu"],
+  ["ayanamsa 1976 ≈ 23.5°", NA.ayanamsaForDate("1976-08-05") > 23.4 && NA.ayanamsaForDate("1976-08-05") < 23.6],
+  ["ayanamsa 2026 ≈ 24.2°", NA.ayanamsaForDate("2026-08-05") > 24.1 && NA.ayanamsaForDate("2026-08-05") < 24.3],
+  ["city match Faridabad, India", NA.matchPlace("Faridabad, India") && NA.matchPlace("Faridabad, India").name === "Faridabad" && NA.matchPlace("Faridabad, India").tz === 5.5],
+  ["city alias Bombay -> Mumbai", NA.matchPlace("Bombay, MH").name === "Mumbai"],
+  ["unknown place -> null", NA.matchPlace("Atlantis, Somewhere") === null],
+  ["coordinates parsed", NA.matchPlace("28.39, 77.31") && NA.matchPlace("28.39, 77.31").fromCoords === true],
+  ["coordinates + tz override", NA.matchPlace("40.71, -74.01, -5") && NA.matchPlace("40.71, -74.01, -5").tz === -5],
+  ["atlas has 300+ cities", NA.cityNames().length >= 300],
+];
+nakUnitChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Reference chart: Randeep Walia, 05/08/1976 (dd/mm), 20:15 IST, Faridabad.
+// Independently verified expectations: Sun tropical Leo 13°17′ / sidereal
+// Cancer 19°45′, Moon sidereal Scorpio 24°52′ = Jyeshtha pada 3, Lagna
+// sidereal Aquarius 12°26′, Midheaven sidereal Scorpio 20°39′.
+const ref = NA.compute({ dob: "1976-08-05", time: "20:15", place: "Faridabad, India" });
+const refChecks = [
+  ["reference chart computes (full tier)", ref.ok && ref.tier === "full"],
+  ["ref Sun sidereal Cancer ♋", ref.sun.sign === "Cancer" && ref.sun.glyph === "♋"],
+  ["ref Sun tropical Leo ♌", ref.sun.tropicalSign === "Leo" && ref.sun.tropicalGlyph === "♌"],
+  ["ref Sun degree 19°45′", ref.sun.degStr === "19°45′"],
+  ["ref Moon sidereal Scorpio ♏", ref.moon.sign === "Scorpio" && ref.moon.glyph === "♏"],
+  ["ref Moon degree 24°52′", ref.moon.degStr === "24°52′"],
+  ["ref nakshatra Jyeshtha pada 3", ref.moon.nakshatra.name === "Jyeshtha" && ref.moon.nakshatra.pada === 3],
+  ["ref nakshatra span 226°40′–240°00′", ref.moon.nakshatra.spanStr === "226°40′–240°00′"],
+  ["ref Lagna sidereal Aquarius ♒", ref.lagna.sign === "Aquarius" && ref.lagna.glyph === "♒"],
+  ["ref Lagna degree 12°26′", ref.lagna.degStr === "12°26′"],
+  ["ref Midheaven sidereal Scorpio ♏", ref.mc.sign === "Scorpio" && ref.mc.glyph === "♏"],
+  ["ref Midheaven degree 20°39′", ref.mc.degStr === "20°39′"],
+  ["ref ayanamsa ≈ 23.5±0.1°", Math.abs(ref.ayanamsa - 23.526) < 0.1],
+  ["ref place resolved", ref.place.name === "Faridabad" && ref.place.tz === 5.5],
+  ["ref engine label", ref.engine.includes("astronomy-engine")],
+];
+refChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Cross-validate the ascendant & MC formulas against an independent
+// brute-force horizon/meridian search (different maths path).
+const refT = window.Astronomy.MakeTime(new window.Date(Date.UTC(1976, 7, 5, 14, 45, 0)));
+function bruteAsc(latDeg, lonDeg, time) {
+  const eps = NA.meanObliquity(time.tt) / NA.DEG;
+  const lstDeg = NA.clamp360(window.Astronomy.SiderealTime(time) * 15 + lonDeg);
+  const altAt = (L) => {
+    const l = L / NA.DEG;
+    const dec = Math.asin(Math.sin(l) * Math.sin(eps));
+    const ra = Math.atan2(Math.sin(l) * Math.cos(eps), Math.cos(l));
+    const H = (lstDeg / NA.DEG) - ra;
+    return Math.asin(Math.sin(latDeg / NA.DEG) * Math.sin(dec) + Math.cos(latDeg / NA.DEG) * Math.cos(dec) * Math.cos(H));
+  };
+  let prev = altAt(0);
+  for (let L = 0.05; L <= 360; L += 0.05) {
+    const cur = altAt(L);
+    if (Math.sin(prev) >= 0 && Math.sin(cur) < 0) {
+      const l = L / NA.DEG;
+      const ra = Math.atan2(Math.sin(l) * Math.cos(eps), Math.cos(l));
+      const H = (lstDeg / NA.DEG) - ra;
+      if (Math.sin(H) < 0) return L; // east side -> rising point
+    }
+    prev = cur;
+  }
+  return null;
+}
+function bruteMc(lonDeg, time) {
+  const eps = NA.meanObliquity(time.tt) / NA.DEG;
+  const lstDeg = NA.clamp360(window.Astronomy.SiderealTime(time) * 15 + lonDeg);
+  let prevH = null;
+  for (let L = 0.25; L <= 360; L += 0.25) {
+    const l = L / NA.DEG;
+    const ra = Math.atan2(Math.sin(l) * Math.cos(eps), Math.cos(l));
+    const H = NA.clamp360((lstDeg / NA.DEG - ra) * NA.DEG);
+    if (prevH !== null && Math.sin(prevH / NA.DEG) >= 0 && Math.sin(H / NA.DEG) < 0) return L - 0.125; // upper culmination
+    prevH = H;
+  }
+  return null;
+}
+const ascFormula = NA.ascendantDeg(28.4089, 77.3178, refT);
+const ascBrute = bruteAsc(28.4089, 77.3178, refT);
+const mcFormula = NA.mcDeg(77.3178, refT);
+const mcBrute = bruteMc(77.3178, refT);
+const crossChecks = [
+  ["lagna formula vs brute-force < 0.25°", ascBrute !== null && Math.abs(ascFormula - ascBrute) < 0.25],
+  ["lagna tropical ≈ 335.97°", Math.abs(ascFormula - 335.967) < 0.15],
+  ["mc formula vs brute-force < 0.5°", mcBrute !== null && Math.abs(mcFormula - mcBrute) < 0.5],
+  ["mc tropical ≈ 254.19°", Math.abs(mcFormula - 254.187) < 0.15],
+];
+crossChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Reference chart rendered end-to-end through the form
+$("#editBtn").click();
+$("#fullName").value = "Randeep Walia";
+$("#dob").value = "1976-08-05";
+$("#mobile").value = "9810012345";
+$("#vehicle").value = "";
+$("#birthTime").value = "20:15";
+$("#birthPlace").value = "Faridabad, India";
+$("#goalChips .chip[data-goal='Career']").click();
+$("#entrance").value = "unsure";
+$("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure";
+$("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const rRef = $("#reportRoot").innerHTML;
+const refRenderChecks = [
+  ["ref card rendered", rRef.includes("Astro-Identity Snapshot") && rRef.includes("your Vedic sky at birth")],
+  ["ref sun ♌/♋ rendered", rRef.includes("♌") && rRef.includes("♋")],
+  ["ref moon ♏ + Jyeshtha rendered", rRef.includes("♏") && rRef.includes("Jyeshtha")],
+  ["ref pada 3 rendered", rRef.includes("Pada 3")],
+  ["ref lagna ♒ Aquarius rendered", rRef.includes("♒") && rRef.includes("Aquarius")],
+  ["ref degrees rendered", rRef.includes("24°52′") && rRef.includes("12°26′")],
+  ["ref place in footnote", rRef.includes("Faridabad, Haryana, India")],
+  ["ref hero pill", rRef.includes("Vedic chart unlocked") && rRef.includes("Jyeshtha")],
+  ["ref no undefined leaks", !rRef.includes("undefined")],
+  ["ref no NaN leaks", !rRef.includes("NaN")],
+];
+refRenderChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Unmatched-place path: tier-2 fields given but the atlas can't resolve them
+$("#editBtn").click();
+$("#birthPlace").value = "Atlantis, Somewhere";
+$("#goalChips .chip[data-goal='Career']").click();
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const rAtlantis = $("#reportRoot").innerHTML;
+const atlantisChecks = [
+  ["unmatched place handled gracefully", rAtlantis.includes("built-in atlas") && rAtlantis.includes("Atlantis, Somewhere")],
+  ["unmatched place keeps sun card", rAtlantis.includes("your Vedic Sun") && !rAtlantis.includes("Nakshatra of the Moon")],
+];
+atlantisChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 const anonPayload = NV.contributionPayload(pa, NV.timingAnalysis(pa));
 const anonChecks = [

@@ -11,7 +11,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | Area | What's analysed / generated |
 | --- | --- |
 | **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic Sun Sign (Surya Rashi) |
-| **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (prepare now):** optional exact birth time + birth city/place saved on-device, with progressive disclosure wording that prepares Chandra Rashi (Moon Sign), Nakshatra and transit precision for a future update. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Lo Shu numbers. |
+| **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (unlocked):** add your exact birth time + birth city and the **Astro-Identity Snapshot** computes your Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna (ascendant) and Midheaven — a real in-browser Vedic ephemeris (see below), never sent anywhere. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Lo Shu numbers. |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
 | **Name analysis** | Chaldean total, **compound number (1–108) meaning**, **master numbers (11/22/33)**, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
 | **Name & combined grids** | Loshu grids plotted from your **name's Chaldean letter values** and a **combined DOB + name** grid, alongside the birth grid |
@@ -42,10 +42,11 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 ## Tech stack
 
 - **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
+- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa**, a 400+-city offline atlas (with coordinate + time-zone override entry), and the vendored [astronomy-engine](https://github.com/cosinekitty/astronomy) (VSOP87, MIT — see `vendor/astronomy-engine-LICENSE.txt`)
 - **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
 - **[Vite](https://vitejs.dev/)** for local development
-- **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test
+- **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test (170+ checks, including an independently cross-validated reference chart)
 
 ---
 
@@ -55,18 +56,20 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 numerovastu-360/
 ├── index.html          # Single-page app (intake form + report view)
 ├── app.js              # Stable engine: calculations, rendering, self-update + local memory
+├── astro.js            # In-browser Vedic ephemeris (Sun/Moon/Nakshatra/Lagna/MC, Lahiri ayanamsa)
+├── vendor/             # Vendored astronomy-engine (VSOP87, MIT) for offline use
 ├── data.js             # Bundled fallback knowledge pack (instant/offline)
 ├── knowledge-pack/     # Manifest, schema and versioned JSON packs for silent upgrades
 ├── styles.css          # Styling (light theme, print + mobile)
 ├── smoke.test.js       # Headless end-to-end smoke test (jsdom)
 ├── share.bat           # Windows script to share over HTTPS (see below)
-├── reference/          # Source tables (table-A/B xlsx) used to curate data.js
-└── .github/workflows/  # CI (runs the smoke test on push/PR)
+└── reference/          # Source tables (table-A/B xlsx) used to curate data.js
 ```
 
 The root files are the single source of truth — Vite serves them directly
-(`index.html` loads `data.js` and `app.js`), and the `share.bat` static server
-should be pointed at the repository root.
+(`index.html` loads `vendor/astronomy.browser.min.js`, `astro.js`, `data.js`
+and `app.js`), and the `share.bat` static server should be pointed at the
+repository root. GitHub Pages deploys the same root files from `main`.
 
 ## Knowledge Pack architecture
 
