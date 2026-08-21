@@ -1787,7 +1787,7 @@
     } else {
       vedicTxt = `Sun sign <strong>${esc(p.zodiac)}</strong> (${esc(DB.zodiac[p.zodiac].element)}, ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}) — add your birth time and city to unlock Moon sign, Nakshatra and Lagna.`;
     }
-    const summarySection = `<div class="card summary-card">
+    const summarySection = `<div class="card summary-card" id="summary">
       <div class="goal-head">
         <div class="card-title">📋 Summary — Your Chart in One Glance</div>
         <span class="badge info">Key takeaways</span>
@@ -1843,6 +1843,7 @@
           ${vedicPill}
         </div>
         <nav class="report-nav" aria-label="Quick report navigation">
+          <a href="#summary">Summary</a>
           <a href="#core-profile">Profile</a>
           <a href="#loshu-section">Loshu Grid</a>
           <a href="#vedic-section">Vedic Sign</a>

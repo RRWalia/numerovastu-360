@@ -88,6 +88,7 @@ const checks = [
   ["reading guide present", report.includes("How to read this report")],
   ["reading guide explains Driver & Conductor", report.includes("Driver (Moolank)") && report.includes("Conductor (Bhagyank)") && report.includes("40-Day Priority Plan")],
   ["executive summary present", report.includes("Summary — Your Chart in One Glance")],
+  ["summary anchored and linked from quick-nav", report.includes('id="summary"') && report.includes('href="#summary"') && report.includes(">Summary</a>")],
   ["summary personalised greeting", report.includes("<strong>Priya</strong>, your chart blends")],
   ["summary states core numbers", report.includes("Driver <strong>2</strong> · Moon (Chandra)") && report.includes("Conductor <strong>8</strong> · Saturn (Shani)")],
   ["summary Vedic sky uses computed birth star", report.includes(`birth star <strong>${priyaNak}</strong>`) && report.includes("· Lagna <strong>")],
