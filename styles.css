@@ -9,8 +9,8 @@
 :root {
   /* color.tokens (light) */
   --label-primary: rgba(0, 0, 0, 0.9);
-  --label-secondary: rgba(0, 0, 0, 0.6);
-  --label-tertiary: rgba(0, 0, 0, 0.45);
+  --label-secondary: rgba(0, 0, 0, 0.64);
+  --label-tertiary: rgba(0, 0, 0, 0.55);
   --label-quaternary: rgba(0, 0, 0, 0.3);
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
@@ -42,7 +42,7 @@
   --dur-fast: 150ms;
   --dur-med: 250ms;
 
-  --font: "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", sans-serif;
 
   --z-header: 500;
 }
@@ -238,9 +238,23 @@ body {
 
 /* ---------- Report sections ---------- */
 .report-hero { display: flex; flex-direction: column; gap: 8px; }
-.report-hero h1 { font-size: 20px; font-weight: 600; line-height: 30px; }
+.report-hero h1 { font-size: 22px; font-weight: 600; line-height: 30px; }
 .report-hero p { font-size: 14px; color: var(--label-secondary); }
+.report-hero .gen-line { font-size: 12px; line-height: 18px; color: var(--label-tertiary); }
 .report-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Report closing block (brand + privacy note + disclaimer) */
+.report-closing {
+  border-top: 0.5px solid var(--separator);
+  padding-top: 16px;
+  margin-top: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.report-closing-brand { font-size: 13px; font-weight: 600; color: var(--label-primary); }
+.report-closing-line { font-size: 12px; line-height: 18px; color: var(--label-tertiary); }
 .report-nav {
   display: flex; flex-wrap: wrap; gap: 8px;
   margin-top: 4px;
@@ -256,6 +270,12 @@ body {
   font-size: 13px; font-weight: 500;
 }
 .report-nav a:hover { background: var(--fill-f1); }
+
+/* Reading guide (report orientation card) */
+.reading-guide { background: var(--fill-f1); }
+.reading-guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.reading-guide-item { font-size: 13px; line-height: 20px; color: var(--label-secondary); }
+.reading-guide-item strong { color: var(--label-primary); font-weight: 600; }
 
 /* Ganesh invocation — Vitality & Wisdom (yellow / gold / orange) */
 .invocation {
@@ -274,7 +294,7 @@ body {
 .rsection { display: flex; flex-direction: column; gap: 16px; animation: rise 300ms var(--ease-out) both; }
 .rsection:nth-child(2) { animation-delay: 50ms; }
 .rsection:nth-child(3) { animation-delay: 100ms; }
-.rsection-title { font-size: 16px; font-weight: 500; line-height: 24px; display: flex; align-items: center; gap: 8px; }
+.rsection-title { font-size: 18px; font-weight: 600; line-height: 26px; display: flex; align-items: center; gap: 8px; }
 .rsection-title .idx {
   width: 24px; height: 24px; border-radius: var(--r-full); flex: none;
   background: var(--fill-f2); color: var(--label-secondary);
@@ -665,6 +685,10 @@ body {
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   #reportRoot { gap: 24px; }
+  /* Professional print conventions: no orphan/widow lines; the closing
+     block (brand + privacy note + disclaimer) prints together. */
+  p, li { orphans: 2; widows: 2; }
+  .report-closing { break-inside: avoid; }
   /* Let the report flow across pages. Protect only small atomic units so
      headings/labels are never orphaned and rows/cells are not torn in half;
      big cards (remedy kits, snapshot) fragment at their row boundaries. */

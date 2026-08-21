@@ -82,6 +82,10 @@ const checks = [
   ["sidereal / lahiri wording", report.includes("Sidereal") && report.includes("Lahiri")],
   ["western tropical reference shown", report.includes("Western tropical reference") && report.includes("Leo")],
   ["birth time shown in hero", report.includes("Born 2:05 PM, New Delhi, India")],
+  ["unambiguous international DOB format", report.includes("DOB <strong>20 Aug 2005</strong>")],
+  ["report generation date stamped", /Report generated \d{1,2} \w{3} \d{4}/.test(report)],
+  ["reading guide present", report.includes("How to read this report")],
+  ["reading guide explains Driver & Conductor", report.includes("Driver (Moolank)") && report.includes("Conductor (Bhagyank)") && report.includes("40-Day Priority Plan")],
   ["vedic tier 2 unlocked badge", report.includes("Tier 2 · Unlocked")],
   ["chandra rashi + nakshatra + lagna disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Lagna")],
   ["astro-identity snapshot card", report.includes("Astro-Identity Snapshot")],
@@ -469,6 +473,11 @@ const layoutChecks = [
   ["print: headings never orphaned at page bottom", stylesCss.includes(".rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label { break-after: avoid; }")],
   ["print: small atomic units kept intact", stylesCss.includes(".report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item { break-inside: avoid; }")],
   ["print: page margins defined", stylesCss.includes("@page { margin: 14mm 11mm; }")],
+  ["report closing block: brand + disclaimer", report.includes("NumeroVastu 360 — Private Report") && report.includes("not a substitute for professional medical, legal or financial advice")],
+  ["print: closing block kept together", stylesCss.includes(".report-closing { break-inside: avoid; }")],
+  ["print: no orphan/widow lines", stylesCss.includes("p, li { orphans: 2; widows: 2; }")],
+  ["WCAG AA label contrast tokens", stylesCss.includes("--label-secondary: rgba(0, 0, 0, 0.64);") && stylesCss.includes("--label-tertiary: rgba(0, 0, 0, 0.55);")],
+  ["international system font stack", stylesCss.includes("--font: system-ui, -apple-system,")],
 ];
 layoutChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 

@@ -1288,7 +1288,9 @@
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
     const watch = watchSpec(p);
     const evolving = evolvingChartData(p, timing);
-    const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
+    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dobDisplay = `${p.day} ${MONTHS[p.month - 1]} ${p.year}`; // unambiguous international format
+    const generatedOn = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
     /* Section 2: core nature — traits, strengths & shadows */
     const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
@@ -1758,7 +1760,8 @@
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>Remedy Report — ${esc(p.name)}</h1>
-        <p>DOB ${dobStr}${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
+        <p>DOB <strong>${esc(dobDisplay)}</strong>${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")}</p>
+        <p class="gen-line">Report generated ${esc(generatedOn)} · computed locally on your device — nothing leaves your browser</p>
         <div class="report-meta">
           <span class="status-pill status-private">Private report · browser only</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
@@ -1773,6 +1776,14 @@
           <a href="#memory-section">Evolving Chart</a>
           <a href="#vastu-section">Vastu</a>
         </nav>
+      </div>
+      <div class="card reading-guide">
+        <div class="card-title">How to read this report</div>
+        <div class="reading-guide-grid">
+          <div class="reading-guide-item"><strong>Driver (Moolank)</strong> — your mind, personality and day-to-day energy; <strong>Conductor (Bhagyank)</strong> — your destiny path. Both derive from your birth date.</div>
+          <div class="reading-guide-item"><strong>Lo Shu grid</strong> — which of the eight planet energies are present, repeated or missing in your name and birth date. Each missing number gets its own remedy kit inside.</div>
+          <div class="reading-guide-item">Numbered sections build from identity → remedies → timing → Vastu. The <strong>40-Day Priority Plan</strong> at the end is your starting point — practise it consistently for 40 days.</div>
+        </div>
       </div>
       <section class="rsection" id="core-profile">
         <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
@@ -1812,6 +1823,11 @@
       ${compatSection}
       ${goalSections}
       ${prioritySection}
+      <div class="report-closing">
+        <div class="report-closing-brand">NumeroVastu 360 — Private Report</div>
+        <div class="report-closing-line">Report generated ${esc(generatedOn)} · Computed locally on your device — nothing leaves your browser.</div>
+        <div class="report-closing-line">Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.</div>
+      </div>
     `;
   }
 
