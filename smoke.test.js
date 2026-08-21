@@ -52,7 +52,7 @@ const priyaNak = window.NVAstro.compute({ dob: "2005-08-20", time: "14:05", plac
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.3.1 · Meeus engine"],
+  ["app version badge", $("#appBadge").textContent === "App v2.4.0 · Meeus engine"],
   ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["green wording", report.includes("Green cells are present")],
@@ -89,6 +89,11 @@ const checks = [
   ["reading guide explains Driver & Conductor", report.includes("Driver (Moolank)") && report.includes("Conductor (Bhagyank)") && report.includes("40-Day Priority Plan")],
   ["executive summary present", report.includes("Summary — Your Chart in One Glance")],
   ["summary anchored and linked from quick-nav", report.includes('id="summary"') && report.includes('href="#summary"') && report.includes(">Summary</a>")],
+  ["summary is the first card after the hero", (() => {
+    const kids = [...$("#reportRoot").children];
+    return kids[0].classList.contains("report-hero") && kids[1].classList.contains("summary-card") && kids[2].classList.contains("reading-guide");
+  })()],
+  ["exactly one summary card", (report.match(/summary-card/g) || []).length === 1],
   ["summary personalised greeting", report.includes("<strong>Priya</strong>, your chart blends")],
   ["summary states core numbers", report.includes("Driver <strong>2</strong> · Moon (Chandra)") && report.includes("Conductor <strong>8</strong> · Saturn (Shani)")],
   ["summary Vedic sky uses computed birth star", report.includes(`birth star <strong>${priyaNak}</strong>`) && report.includes("· Lagna <strong>")],

@@ -1852,6 +1852,7 @@
           <a href="#vastu-section">Vastu</a>
         </nav>
       </div>
+      ${summarySection}
       <div class="card reading-guide">
         <div class="card-title">How to read this report</div>
         <div class="reading-guide-grid">
@@ -1860,7 +1861,6 @@
           <div class="reading-guide-item">Numbered sections build from identity → remedies → timing → Vastu. The <strong>40-Day Priority Plan</strong> at the end is your starting point — practise it consistently for 40 days.</div>
         </div>
       </div>
-      ${summarySection}
       <section class="rsection" id="core-profile">
         <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
         <div class="card-grid">
