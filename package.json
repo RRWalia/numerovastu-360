@@ -1,14 +1,25 @@
 {
   "name": "numerovastu-360",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.3.1",
   "description": "Numerology & Vastu Remedy Engine — Loshu Grid, name/mobile analysis, remedies",
   "scripts": {
-    "dev": "vite --host",
-    "test": "node smoke.test.js"
+    "dev": "vite --host 0.0.0.0",
+    "start": "npm run dev",
+    "build": "node scripts/build-static.cjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node smoke.test.js",
+    "test:visual": "playwright test --update-snapshots=missing",
+    "test:visual:ci": "playwright test --update-snapshots=none",
+    "test:visual:update": "playwright test --update-snapshots=all",
+    "audit": "npm audit --audit-level=moderate",
+    "check": "npm run test && npm run audit && npm run build",
+    "check:full": "npm run check && npm run test:visual:ci",
+    "browsers:install": "playwright install chromium"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1",
-    "vite": "^5.4.0"
+    "@playwright/test": "^1.62.1",
+    "jsdom": "^30.0.1",
+    "vite": "^8.2.2"
   }
 }

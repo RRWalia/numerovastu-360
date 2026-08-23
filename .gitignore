@@ -1,4 +1,14 @@
 node_modules/
-tools/
-*.log
 dist/
+coverage/
+playwright-report/
+test-results/
+.cache/
+.vite/
+.DS_Store
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+tools/

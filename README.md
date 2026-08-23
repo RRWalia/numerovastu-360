@@ -10,6 +10,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 | Area | What's analysed / generated |
 | --- | --- |
+| **Northstar summary** | Plain-language executive summary with key action points, way forward and the 40-day priority rhythm before the detailed report |
 | **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic Sun Sign (Surya Rashi) |
 | **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (unlocked):** add your exact birth time + birth city and the **Astro-Identity Snapshot** computes your Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna (ascendant) and Midheaven — a real in-browser Vedic ephemeris (see below), never sent anywhere. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Lo Shu numbers. |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
@@ -42,6 +43,7 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 ## Tech stack
 
 - **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
+- **Visible release metadata** — app version, build label and Knowledge Pack version are surfaced as badges on the intake screen
 - **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa** and a 400+-city offline atlas (with coordinate + time-zone override entry). The ephemeris is a **fully self-contained port of Jean Meeus' "Astronomical Algorithms"** (Julian day & ΔT, IAU-82 sidereal time, ch. 22 nutation, ch. 25 Sun, ch. 47 Moon) — zero runtime dependencies, validated to < 12″ against VSOP87 (astronomy-engine) on the reference chart
 - **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
@@ -61,6 +63,10 @@ numerovastu-360/
 ├── knowledge-pack/     # Manifest, schema and versioned JSON packs for silent upgrades
 ├── styles.css          # Styling (light theme, print + mobile)
 ├── smoke.test.js       # Headless end-to-end smoke test (jsdom)
+├── playwright.config.mjs # Visual regression config (report + print screenshots)
+├── tests/              # Playwright visual regression specs and baselines
+├── vite.config.mjs     # Local dev / preview server config
+├── scripts/            # Repository maintenance scripts (static build)
 ├── share.bat           # Windows script to share over HTTPS (see below)
 └── reference/          # Source tables (table-A/B xlsx) used to curate data.js
 ```
@@ -101,21 +107,40 @@ npm install
 npm run dev
 ```
 
-`npm run dev` runs `vite --host`, which serves the app and prints a local URL
+`npm run dev` runs `vite --host 0.0.0.0`, which serves the app and prints a local URL
 (usually `http://localhost:5173`). Open it in a browser.
 
-### Run the tests
+### Run quality checks
 
 ```bash
 npm test
+npm run audit
+npm run build
+# or all together:
+npm run check
+
+# optional screenshot regression suite:
+npm run browsers:install
+npm run test:visual
 ```
 
-(runs `node smoke.test.js`)
+`npm test` runs `node smoke.test.js`.
 
 The smoke test loads the app in jsdom, submits several profiles (including a
 practitioner example and a name-correction case), and asserts every report
 section renders with no `undefined`/`NaN` leaks. It exits `0` on success,
 `1` on any failure.
+
+`npm run audit` fails on moderate-or-higher dependency advisories. `npm run build`
+creates a deployable static `dist/` by copying the browser-first app files and the
+full `knowledge-pack/` directory exactly as the app expects them at runtime.
+
+The visual regression suite uses Playwright/Chromium to compare the desktop report
+viewport and the first print-styled page. Use `npm run test:visual` locally; it
+creates any missing baselines and then compares existing ones. Commit the generated
+`tests/visual/**-snapshots/*.png` files after reviewing them. Use
+`npm run test:visual:update` only when intentionally accepting layout changes, and
+`npm run test:visual:ci` for strict CI runs once baselines are committed.
 
 ---
 
@@ -144,11 +169,13 @@ visitor data still stays in the visitor's browser.
 
 ## Deployment
 
-The app is a set of static files with **no build step required** — `index.html`
-loads `data.js` and `app.js` directly.
+The app is a set of static files — `index.html` loads `astro.js`, `data.js` and
+`app.js` directly.
 
-When deploying, publish the `knowledge-pack/` directory too so the self-update
-manifest and versioned JSON packs remain reachable.
+For root-file hosting, publish the root files plus the `knowledge-pack/` directory.
+For hosts that expect a build output, run `npm run build` and publish `dist/`; the
+build script copies every runtime asset, including `knowledge-pack/`, without
+changing the browser-only architecture.
 
 ### GitHub Pages (simplest)
 
@@ -157,13 +184,12 @@ manifest and versioned JSON packs remain reachable.
    the root files (e.g. `main` / `/ (root)`).
 3. The app is served as-is at `https://<user>.github.io/numerovastu-360/`.
 
-> If you prefer a production Vite build, add a `build` script
-> (`"build": "vite build"`), run `npm run build`, and publish the generated
-> `dist/` folder instead.
+> If you prefer a build-output workflow, run `npm run build` and publish the
+> generated `dist/` folder.
 
 ### Any static host
 
-Upload `index.html`, `app.js`, `data.js`, `styles.css` and the full
+Upload `index.html`, `astro.js`, `app.js`, `data.js`, `styles.css` and the full
 `knowledge-pack/` directory to any static host (Netlify, Vercel, S3, nginx,
 etc.). No server-side runtime is needed.
 
