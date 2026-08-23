@@ -13,7 +13,7 @@ Last reviewed: 2026-08-23
 | Vedic precision | Strong | Self-contained Meeus engine with reference-chart and brute-force cross-checks in tests. |
 | Content architecture | Strong | Versioned Knowledge Pack with schema, manifest and bundled fallback. |
 | Accessibility baseline | Improved | Added keyboard skip link; form labels and aria-live regions already present. |
-| Visual regression | Added | Playwright specs cover desktop report and print-media first-page layouts. |
+| Visual regression | Added | Playwright specs cover desktop report and print-media first-page layouts, plus a print-pagination guard that keeps the Northstar Summary breakable across pages. |
 | SEO/share metadata | Improved | Added robots, theme colour, Open Graph and Twitter summary metadata. |
 | Security headers | Improved | Added conservative CSP meta tag for same-origin scripts/styles/connects and data images. |
 

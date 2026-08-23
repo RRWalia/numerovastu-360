@@ -883,7 +883,17 @@ body {
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   .rsection { animation: none; break-inside: avoid-page; }
-  .summary-shell { background: #fff; color: #111; border: 1px solid #ddd; box-shadow: none; }
+  /* The Northstar Summary is taller than the space left on page 1 (below the
+     header) but shorter than a full page. The blanket avoid-page rule above
+     made Chrome push the whole section onto page 2, printing page 1 almost
+     entirely blank. Let the summary flow across the page break instead, and
+     keep only its small inner blocks atomic so breaks land between cards. */
+  .summary-section { break-inside: auto; }
+  .summary-kicker, .summary-title { break-after: avoid-page; }
+  .summary-card, .summary-actions li, .summary-way-forward, .summary-cta { break-inside: avoid-page; }
+  /* The decorative overlay is off in print, so the shell no longer needs to
+     clip; overflow: hidden can make some engines treat it as unbreakable. */
+  .summary-shell { overflow: visible; background: #fff; color: #111; border: 1px solid #ddd; box-shadow: none; }
   .summary-shell::after { display: none; }
   .summary-kicker, .summary-next h3 { color: #8a5a00; }
   .summary-story, .summary-card p, .summary-actions li, .summary-way-forward p { color: #333; }

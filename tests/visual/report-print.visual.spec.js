@@ -68,7 +68,7 @@ async function generateCompleteReport(page) {
 
   await expect(page.locator('#reportView')).toBeVisible();
   await expect(page.locator('#reportRoot')).toContainText('Northstar Summary');
-  await expect(page.locator('#reportRoot')).toContainText('Key action points');
+  await expect(page.locator('#reportRoot')).toContainText('Your first three moves');
   await expect(page.locator('#reportRoot')).toContainText('Core Numerology Profile');
   await expect(page.locator('#reportRoot')).toContainText('Astro-Identity Snapshot');
   await expect(page.locator('#reportRoot')).toContainText('Vastu Dosh Scan');
@@ -95,5 +95,30 @@ test.describe('visual regression: report and print layouts', () => {
       fullPage: false,
       mask: [page.locator('.toast-viewport')],
     });
+  });
+
+  // Regression guard: the Northstar Summary is taller than the space left on
+  // page 1 but shorter than a full page. The blanket `.rsection {
+  // break-inside: avoid-page }` print rule made Chrome push the whole section
+  // to page 2, printing page 1 blank below the header. The summary must stay
+  // allowed to fragment, with only its small inner blocks kept atomic.
+  test('print pagination keeps summary breakable across pages', async ({ page }) => {
+    await generateCompleteReport(page);
+    await page.emulateMedia({ media: 'print' });
+
+    const styles = await page.evaluate(() => {
+      const summary = document.querySelector('#summary-section');
+      const card = document.querySelector('.summary-card');
+      const move = document.querySelector('.summary-actions li');
+      return {
+        summary: getComputedStyle(summary).breakInside,
+        card: card && getComputedStyle(card).breakInside,
+        move: move && getComputedStyle(move).breakInside,
+      };
+    });
+
+    expect(styles.summary).toBe('auto');
+    expect(styles.card).toBe('avoid-page');
+    expect(styles.move).toBe('avoid-page');
   });
 });
