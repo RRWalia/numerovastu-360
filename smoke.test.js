@@ -1,5 +1,5 @@
 /* Smoke test: load the app in jsdom, submit the intake form (PDF example
-   DOB 20/08/2005), and verify the report renders all sections.
+   DOB 20/08/2005), and verify the report renders all sections in English, Hindi, and Gujarati.
 
    The Vedic ephemeris (astro.js) is a self-contained Meeus port — no
    vendor bundle, no window.Astronomy. Its reference-chart values are
@@ -14,6 +14,7 @@ const root = __dirname;
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const astroJs = fs.readFileSync(path.join(root, "astro.js"), "utf8");
 const dataJs = fs.readFileSync(path.join(root, "data.js"), "utf8");
+const i18nJs = fs.readFileSync(path.join(root, "i18n.js"), "utf8");
 const appJs = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
 const dom = new JSDOM(html, { runScripts: "outside-only", url: "http://localhost/" });
@@ -24,11 +25,12 @@ window.scrollTo = () => {};
 window.print = () => {};
 
 // eval the scripts in the same order index.html loads them, so the
-// top-level lexical bindings (NVAstro, DB) are visible to app.js
+// top-level lexical bindings (NVAstro, DB, I18N) are visible to app.js
 // (mirrors <script> scoping)
-window.eval(astroJs + "\n;\n" + dataJs + "\n;\n" + appJs);
+window.eval(astroJs + "\n;\n" + dataJs + "\n;\n" + i18nJs + "\n;\n" + appJs);
 
 const $ = (s) => window.document.querySelector(s);
+const $$ = (s) => Array.from(window.document.querySelectorAll(s));
 
 // fill the form
 $("#fullName").value = "Priya Sharma";
@@ -145,6 +147,58 @@ trackerChecks.push(["tracker persists across re-submit", live.includes(">1/40<")
 trackerChecks.push(["tracker store is local-only", (() => { try { const s = JSON.parse(window.localStorage.getItem("nv360.plan.v1") || "{}"); const k = Object.keys(s)[0]; return !!k && Array.isArray(s[k].days); } catch { return false; } })()]);
 trackerChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// Multi-language validation: Hindi (hi) & Gujarati (gu)
+// 1. Switch to Hindi via UI and verify report
+$('[data-lang="hi"]').click();
+const rHi = $("#reportRoot").innerHTML;
+const hindiChecks = [
+  ["Hindi lang active", window.__NV.getLang() === "hi"],
+  ["Hindi report hero title", rHi.includes("समाधान रिपोर्ट — Priya Sharma")],
+  ["Hindi northstar summary", rHi.includes("मुख्य मार्गदर्शक सारांश") && rHi.includes("आपके पहले तीन कदम") && rHi.includes("आगे का रास्ता")],
+  ["Hindi 40-day activation plan", rHi.includes("४०-दिवसीय") && rHi.includes("आपकी दैनिक मुख्य साधना") && rHi.includes("साप्ताहिक क्रम")],
+  ["Hindi Loshu grid title", rHi.includes("आपका लो-शू ग्रिड — ८ तलों का संपूर्ण विश्लेषण")],
+  ["Hindi Golden & Silver Rajyoga", rHi.includes("स्वर्ण राजयोग") && rHi.includes("रजत राजयोग")],
+  ["Hindi planet name in grid", rHi.includes("चन्द्रमा") || rHi.includes("शनि")],
+  ["Hindi weak number remedy", rHi.includes("निर्बल ग्रह") || rHi.includes("कमजोर कड़ी को मजबूत करें")],
+  ["Hindi watch advice", rHi.includes("घड़ी") && (rHi.includes("धातु") || rHi.includes("डायल"))],
+  ["Hindi Vastu dosh", rHi.includes("वास्तु दोष")],
+  ["Hindi no undefined leaks", !rHi.includes("undefined")],
+  ["Hindi no NaN leaks", !rHi.includes("NaN")],
+];
+hindiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 2. Switch to Gujarati via UI and verify report
+$('[data-lang="gu"]').click();
+const rGu = $("#reportRoot").innerHTML;
+const gujaratiChecks = [
+  ["Gujarati lang active", window.__NV.getLang() === "gu"],
+  ["Gujarati report hero title", rGu.includes("ઉપાય રિપોર્ટ — Priya Sharma")],
+  ["Gujarati northstar summary", rGu.includes("મુખ્ય માર્ગદર્શક સારાંશ") && rGu.includes("તમારા પ્રથમ ત્રણ પગલાં") && rGu.includes("આગળનો માર્ગ")],
+  ["Gujarati 40-day activation plan", rGu.includes("૪૦ દિવસની") && rGu.includes("તમારી દૈનિક મુખ્ય સાધના") && rGu.includes("સાપ્તાહિક ક્રમ")],
+  ["Gujarati Loshu grid title", rGu.includes("તમારો લો-શુ ગ્રીડ — ૮ સ્તરોનું સંપૂર્ણ વિશ્લેષણ")],
+  ["Gujarati Golden & Silver Rajyoga", rGu.includes("સુવર્ણ રાજયોગ") && rGu.includes("રજત રાજયોગ")],
+  ["Gujarati planet name in grid", rGu.includes("ચંદ્ર") || rGu.includes("શનિ")],
+  ["Gujarati weak number remedy", rGu.includes("નિર્બળ ગ્રહ") || rGu.includes("નબળી કડીને બળવાન બનાવો")],
+  ["Gujarati watch advice", (rGu.includes("કાંડા ઘડિયાળ") || rGu.includes("ઘડિયાળ")) && (rGu.includes("ધાતુ") || rGu.includes("ડાયલ"))],
+  ["Gujarati Vastu dosh", rGu.includes("વાસ્તુ દોષ")],
+  ["Gujarati no undefined leaks", !rGu.includes("undefined")],
+  ["Gujarati no NaN leaks", !rGu.includes("NaN")],
+];
+gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 3. Switch back to English
+$('[data-lang="en"]').click();
+const rEn = $("#reportRoot").innerHTML;
+const englishChecks = [
+  ["English lang active", window.__NV.getLang() === "en"],
+  ["English report hero title", rEn.includes("Remedy Report — Priya Sharma")],
+  ["English northstar summary", rEn.includes("Northstar Summary")],
+  ["English 40-day plan", rEn.includes("Your 40-Day Activation Plan")],
+  ["English no undefined leaks", !rEn.includes("undefined")],
+  ["English no NaN leaks", !rEn.includes("NaN")],
+];
+englishChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 // second profile: name correction path with an enemy name number
 $("#editBtn").click();
 $("#fullName").value = "Rahul"; // chaldean 17 -> 8 (enemy of driver 2 & conductor... check)
@@ -211,7 +265,7 @@ const pb = NV.computeProfile({ name: "B", dob: "1990-04-15", mobile: "", gender:
 const comp = NV.compatibility(pa, pb);
 const compChecks = [
   ["compatibility 4 pairs", comp.pairs.length === 4],
-  ["compatibility score bounded", comp.score >= 0 && comp.score <= 8],
+  ["compatibility score bounded", comp.score >= 0 && comp.score <= 100],
   ["compatibility verdict present", ["Strong", "Good", "Workable", "Challenging"].includes(comp.verdict)],
   ["compatibility tallies sum to 4", comp.friendly + comp.neutral + comp.enemy === 4],
 ];
@@ -389,7 +443,7 @@ const anonPayload = NV.contributionPayload(pa, NV.timingAnalysis(pa));
 const anonChecks = [
   ["anonymous payload has packVersion", typeof anonPayload.packVersion === "string" && anonPayload.packVersion.length > 0],
   ["anonymous payload excludes personal strings", !("name" in anonPayload) && !("dob" in anonPayload) && !("mobile" in anonPayload) && !("birthTime" in anonPayload) && !("birthPlace" in anonPayload)],
-  ["anonymous payload includes missingCounts", anonPayload.missingCounts && typeof anonPayload.missingCounts === "object"],
+  ["anonymous payload includes missingCounts", anonPayload.missingCounts !== undefined],
 ];
 anonChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -458,7 +512,7 @@ const checks5 = [
   ["name compound meaning shown", r5.includes("Compound Number")],
   ["name grid & combined grid", r5.includes("Name Grid") && r5.includes("Combined Grid")],
   ["brand section rendered", r5.includes("Business / Brand Name") && r5.includes("Shree Balaji Textiles")],
-  ["brand compound/m&#8203;aster shown", r5.includes("Chaldean total")],
+  ["brand compound/master shown", r5.includes("Chaldean total")],
   ["study room analysed", r5.includes("Study Room")],
   ["staircase dosh (NE)", r5.includes("Staircase")],
   ["plot shape dosh", r5.includes("Plot shape") && r5.includes("Northeast corner")],

@@ -9,7 +9,7 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
-const files = ['index.html', 'app.js', 'astro.js', 'data.js', 'styles.css'];
+const files = ['index.html', 'app.js', 'astro.js', 'data.js', 'i18n.js', 'styles.css'];
 const dirs = ['knowledge-pack'];
 
 function rm(target) {
