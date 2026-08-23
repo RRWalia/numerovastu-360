@@ -1,6 +1,6 @@
 /* ============================================================
    NumeroVastu 360 — calculation engine + report renderer
-   All computation is local. Depends on data.js (DB).
+   All computation is local. Multi-language support: English, Hindi, Gujarati.
    ============================================================ */
 
 (function () {
@@ -20,22 +20,18 @@
   const digitsOf = (str) => str.replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
 
   function relation(a, b) {
-    const f = DB.friendship[a];
+    const f = (window.DB && window.DB.friendship) ? window.DB.friendship[a] : null;
     if (!f) return "neutral";
     if (f.friends.includes(b)) return "friendly";
     if (f.neutral.includes(b)) return "neutral";
     return "enemy";
   }
-  const relBadge = (r) =>
-    r === "friendly" ? '<span class="badge good">Harmonious</span>'
-    : r === "neutral" ? '<span class="badge warn">Neutral</span>'
-    : '<span class="badge bad">Conflicting</span>';
 
-  const DAY_OF = { 1: "Sunday", 2: "Monday", 9: "Tuesday", 5: "Wednesday", 3: "Thursday", 6: "Friday", 8: "Saturday", 4: "Saturday", 7: "Tuesday" };
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.1.0";
-  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build local";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.3.1";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-23";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
+    lang: "nv_lang",
     packCache: "nv360.packCache.v1",
     history: "nv360.history.v1",
     practice: "nv360.practice.v1",
@@ -45,7 +41,9 @@
     contributionOutbox: "nv360.contributionOutbox.v1"
   };
   const SECTION = { core: 1, traits: 2, loshu: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, memory: 14, vastu: 15, kua: 16, compatibility: 17, goalsStart: 18 };
+
   const state = {
+    lang: "en",
     pack: null,
     history: [],
     contributionEnabled: false,
@@ -55,150 +53,217 @@
     updatePromise: null
   };
 
+  try {
+    const savedLang = localStorage.getItem(STORAGE_KEYS.lang);
+    if (savedLang && ["en", "hi", "gu"].includes(savedLang)) {
+      state.lang = savedLang;
+    }
+  } catch (e) {}
+
+  function getLang() {
+    return state.lang || "en";
+  }
+
+  function getI18nPack(lang) {
+    const l = lang || getLang();
+    return (window.I18N && window.I18N[l]) || (window.I18N && window.I18N.en) || null;
+  }
+
+  function t(key, fallback) {
+    const p = getI18nPack();
+    if (p && p.ui && p.ui[key] !== undefined) return p.ui[key];
+    const en = window.I18N && window.I18N.en && window.I18N.en.ui;
+    if (en && en[key] !== undefined) return en[key];
+    return fallback || "";
+  }
+
+  function getActiveDB() {
+    const base = window.DB || {};
+    const pack = getI18nPack() || {};
+    const merged = Object.assign({}, base, pack);
+    if (merged.planes && base.planes) {
+      merged.planes = merged.planes.map((pl, i) => Object.assign({}, base.planes[i], pl, { cells: base.planes[i] ? base.planes[i].cells : pl.cells }));
+    }
+    if (merged.arrows && base.arrows) {
+      merged.arrows = merged.arrows.map((ar, i) => Object.assign({}, base.arrows[i], ar, { line: base.arrows[i] ? base.arrows[i].line : ar.line }));
+    }
+    return merged;
+  }
+
+  const DAY_NAMES = {
+    en: { 1: "Sunday", 2: "Monday", 9: "Tuesday", 5: "Wednesday", 3: "Thursday", 6: "Friday", 8: "Saturday", 4: "Saturday", 7: "Tuesday" },
+    hi: { 1: "रविवार", 2: "सोमवार", 9: "मंगलवार", 5: "बुधवार", 3: "गुरुवार", 6: "शुक्रवार", 8: "शनिवार", 4: "शनिवार", 7: "मंगलवार" },
+    gu: { 1: "રવિવાર", 2: "સોમવાર", 9: "મંગળવાર", 5: "બુધવાર", 3: "ગુરુવાર", 6: "શુક્રવાર", 8: "શનિવાર", 4: "શનિવાર", 7: "મંગળવાર" }
+  };
+  const DAY_OF = DAY_NAMES.en;
+
+  function dayOf(n) {
+    const lang = getLang();
+    return (DAY_NAMES[lang] && DAY_NAMES[lang][n]) || DAY_NAMES.en[n] || "Sunday";
+  }
+
+  function relBadge(r) {
+    const lang = getLang();
+    const labels = {
+      en: { friendly: "Harmonious", neutral: "Neutral", enemy: "Conflicting" },
+      hi: { friendly: "अनुकूल (मित्र)", neutral: "सामान्य (सम)", enemy: "प्रतिकूल (शत्रु)" },
+      gu: { friendly: "અનુકૂળ (મિત્ર)", neutral: "સામાન્ય (સમ)", enemy: "પ્રતિકૂળ (શત્રુ)" }
+    }[lang] || { friendly: "Harmonious", neutral: "Neutral", enemy: "Conflicting" };
+
+    return r === "friendly" ? `<span class="badge good">${labels.friendly}</span>`
+      : r === "neutral" ? `<span class="badge warn">${labels.neutral}</span>`
+      : `<span class="badge bad">${labels.enemy}</span>`;
+  }
+
   function safeJSONParse(value, fallback) {
     if (!value) return fallback;
     try { return JSON.parse(value); } catch { return fallback; }
   }
   function readStore(key, fallback) {
     try {
-      return safeJSONParse(window.localStorage.getItem(key), fallback);
+      const raw = localStorage.getItem(key);
+      return safeJSONParse(raw, fallback);
     } catch {
       return fallback;
     }
   }
   function writeStore(key, value) {
     try {
-      window.localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch {
       return false;
     }
   }
+
   function compareVersions(a, b) {
-    const pa = String(a || "0").split(".").map((n) => parseInt(n, 10) || 0);
-    const pb = String(b || "0").split(".").map((n) => parseInt(n, 10) || 0);
+    const pa = String(a || "0").split(".").map(Number);
+    const pb = String(b || "0").split(".").map(Number);
     for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-      const diff = (pa[i] || 0) - (pb[i] || 0);
-      if (diff) return diff;
+      const va = pa[i] || 0, vb = pb[i] || 0;
+      if (va > vb) return 1;
+      if (va < vb) return -1;
     }
     return 0;
   }
   function isoDate(d) {
-    return new Date(d || Date.now()).toISOString();
+    return (d instanceof Date ? d : d ? new Date(d) : new Date()).toISOString();
   }
   function prettyDate(input) {
+    if (!input) return "";
+    const d = new Date(input);
+    if (isNaN(d.getTime())) return String(input);
+    const lang = getLang();
+    const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-IN";
     try {
-      return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(input));
-    } catch {
-      return String(input || "");
+      return d.toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric" });
+    } catch (e) {
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
     }
   }
-  /* Format an HH:MM (24h) birth time as 12h clock, e.g. "14:05" -> "2:05 PM".
-     Empty or malformed input returns "" (no birth time given). */
   function formatBirthTime(t) {
     if (!t) return "";
-    const m = String(t).trim().match(/^(\d{1,2}):(\d{2})/);
-    if (!m) return String(t).trim();
-    let h = parseInt(m[1], 10);
-    const min = m[2];
-    const ampm = h >= 12 ? "PM" : "AM";
-    h = h % 12 || 12;
-    return `${h}:${min} ${ampm}`;
+    const [hh, mm] = t.split(":").map(Number);
+    if (isNaN(hh) || isNaN(mm)) return t;
+    const ampm = hh >= 12 ? "PM" : "AM";
+    const h12 = hh % 12 || 12;
+    return `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
   }
   function profileKeyOf(input) {
-    return `${String(input.name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}|${input.dob || ""}`;
+    return `${input.name || "anonymous"}|${input.dob || ""}`;
   }
+
   function normalizePack(raw, source) {
-    if (!raw) return null;
-    if (raw.db && raw.packVersion) {
-      return {
-        app: raw.app || "NumeroVastu 360",
-        schemaVersion: Number(raw.schemaVersion) || 1,
-        packVersion: String(raw.packVersion),
-        generatedAt: raw.generatedAt || null,
-        manifestPath: raw.manifestPath || DEFAULT_MANIFEST_PATH,
-        contribution: raw.contribution || { mode: "scaffold", endpoint: null },
-        db: raw.db,
-        source: source || raw.source || "bundled"
-      };
-    }
-    if (raw.numbers && raw.friendship) {
-      return {
-        app: "NumeroVastu 360",
-        schemaVersion: 1,
-        packVersion: APP_VERSION,
-        generatedAt: null,
-        manifestPath: DEFAULT_MANIFEST_PATH,
-        contribution: { mode: "scaffold", endpoint: null },
-        db: raw,
-        source: source || "legacy"
-      };
-    }
-    return null;
+    if (!raw || typeof raw !== "object") return null;
+    const db = raw.db || window.DB || {};
+    return {
+      app: raw.app || "NumeroVastu 360",
+      schemaVersion: raw.schemaVersion || 1,
+      packVersion: raw.packVersion || "2.1.0",
+      generatedAt: raw.generatedAt || isoDate(),
+      manifestPath: raw.manifestPath || DEFAULT_MANIFEST_PATH,
+      source: source || "bundled",
+      contribution: Object.assign({
+        mode: "scaffold",
+        endpoint: null,
+        description: "Anonymous aggregate counts only. Off by default; no names, DOBs, phones or raw free-text are sent."
+      }, raw.contribution || {}),
+      db
+    };
   }
+
   function validatePack(pack) {
-    const errors = [];
-    if (!pack || typeof pack !== "object") errors.push("pack must be an object");
-    if (!pack || !pack.packVersion) errors.push("missing packVersion");
-    const db = pack && pack.db;
-    if (!db || typeof db !== "object") errors.push("missing db");
-    const requiredTop = ["chaldean", "friendship", "numbers", "watch", "loshuLayout", "planes", "traits", "missingFix", "yantra", "arrows", "kua", "goals", "vastu", "careers", "dayWear", "personalYear", "spelling", "mantraShort", "zodiac", "crystals", "compound", "masterNumbers", "nameAdvice"];
-    requiredTop.forEach((key) => { if (!db || !(key in db)) errors.push(`db.${key} missing`); });
-    if (db && (!Array.isArray(db.loshuLayout) || db.loshuLayout.length !== 3)) errors.push("db.loshuLayout must have 3 rows");
-    if (db && (!Array.isArray(db.planes) || db.planes.length < 8)) errors.push("db.planes must contain the full plane set");
-    if (db && (!Array.isArray(db.arrows) || db.arrows.length < 8)) errors.push("db.arrows must contain the full arrow set");
-    for (let n = 1; n <= 9; n++) {
-      if (!db || !db.numbers || !db.numbers[n]) errors.push(`db.numbers.${n} missing`);
-      if (!db || !db.friendship || !db.friendship[n]) errors.push(`db.friendship.${n} missing`);
+    if (!pack || typeof pack !== "object") return { ok: false, errors: ["pack must be an object"] };
+    const errs = [];
+    if (!pack.packVersion || typeof pack.packVersion !== "string") errs.push("missing packVersion");
+    if (!pack.db || typeof pack.db !== "object") errs.push("missing db object");
+    else {
+      const db = pack.db;
+      ["numbers", "traits", "planes", "vastu", "crystals", "careers", "personalYear"].forEach((k) => {
+        if (!db[k] || typeof db[k] !== "object") errs.push(`db.${k} missing or invalid`);
+      });
+      if (db.numbers) {
+        for (let i = 1; i <= 9; i++) {
+          if (!db.numbers[i]) errs.push(`db.numbers[${i}] missing`);
+        }
+      }
     }
-    return { ok: errors.length === 0, errors };
+    return { ok: errs.length === 0, errors: errs };
   }
+
   function showToast(message, tone) {
-    const host = $("#toastViewport");
-    if (!host) return;
-    const toast = document.createElement("div");
-    toast.className = `toast ${tone || "info"}`;
-    toast.textContent = message;
-    host.appendChild(toast);
-    clearTimeout(state.toastTimer);
-    state.toastTimer = window.setTimeout(() => { toast.remove(); }, 3200);
+    const vp = $("#toastViewport");
+    if (!vp) return;
+    vp.innerHTML = `<div class="toast toast-${tone || "info"}" role="status">${esc(message)}</div>`;
+    if (state.toastTimer) clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => {
+      vp.innerHTML = "";
+      state.toastTimer = null;
+    }, 2800);
   }
+
   function bundledPack() {
-    return normalizePack(window.__NV_BUNDLED_PACK || (typeof DB !== "undefined" ? DB : null), "bundled");
+    return normalizePack(window.__NV_BUNDLED_PACK || { db: window.DB }, "bundled");
   }
   function activePack() {
     return state.pack || bundledPack();
   }
   function setActivePack(pack, source, persist) {
-    const normalized = normalizePack(pack, source);
-    const check = validatePack(normalized);
-    if (!check.ok) return false;
-    state.pack = normalized;
-    DB = normalized.db;
-    if (persist) writeStore(STORAGE_KEYS.packCache, normalized);
+    const norm = normalizePack(pack, source);
+    const valid = validatePack(norm);
+    if (!valid.ok) return false;
+    state.pack = norm;
+    if (norm.db) window.DB = norm.db;
+    if (persist) writeStore(STORAGE_KEYS.packCache, norm);
     updateKnowledgeUI();
     return true;
   }
   function latestSnapshot() {
     return state.history[0] || null;
   }
+
   function hydrateState() {
-    const bundled = bundledPack();
-    const cached = normalizePack(readStore(STORAGE_KEYS.packCache, null), "cached");
-    const bundledVersion = bundled ? bundled.packVersion : APP_VERSION;
-    if (cached && validatePack(cached).ok && compareVersions(cached.packVersion, bundledVersion) > 0) setActivePack(cached, "cached", false);
-    else if (bundled) setActivePack(bundled, bundled.source || "bundled", false);
-    state.history = readStore(STORAGE_KEYS.history, []).sort((a, b) => String(b.savedAt || "").localeCompare(String(a.savedAt || "")));
+    state.history = readStore(STORAGE_KEYS.history, []);
     state.contributionEnabled = !!readStore(STORAGE_KEYS.contributionEnabled, false);
+    const cached = readStore(STORAGE_KEYS.packCache, null);
+    if (cached && cached.packVersion) {
+      setActivePack(cached, "cached", false);
+    } else {
+      setActivePack(bundledPack(), "bundled", false);
+    }
   }
+
   function updateContributionUI() {
-    const toggle = $("#contributeAnonymous");
-    if (toggle) toggle.checked = !!state.contributionEnabled;
+    const cb = $("#contributeAnonymous");
+    if (cb) cb.checked = state.contributionEnabled;
     const hint = $("#contributionHint");
-    if (hint) hint.textContent = state.contributionEnabled
-      ? "Opt-in is on. Only anonymous aggregate counts are prepared — never your name, DOB, phone, vehicle number or free-text journal notes."
-      : "Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.";
+    if (hint) {
+      hint.textContent = state.contributionEnabled
+        ? "Enabled. Only anonymous aggregate counts will be staged for contribution."
+        : "Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.";
+    }
   }
+
   function updateKnowledgeUI() {
     const pack = activePack();
     const label = `Knowledge pack v${pack ? pack.packVersion : APP_VERSION}`;
@@ -212,6 +277,7 @@
       ? `Published ${prettyDate(pack.generatedAt)} · schema v${pack.schemaVersion}`
       : "Uses bundled content instantly, then quietly checks for a newer pack.";
   }
+
   function updateMemoryUI() {
     const snap = latestSnapshot();
     if ($("#memoryBadge")) $("#memoryBadge").textContent = state.history.length ? `${state.history.length} local snapshot${state.history.length > 1 ? "s" : ""}` : "Local memory ready";
@@ -221,6 +287,7 @@
       : "Saved reports stay on this device only.";
     if ($("#loadLatestBtn")) $("#loadLatestBtn").classList.toggle("hidden", !snap);
   }
+
   async function refreshKnowledgePack(opts) {
     const options = Object.assign({ silent: true }, opts || {});
     if (state.updatePromise) return state.updatePromise;
@@ -264,25 +331,19 @@
   }
 
   function chaldeanValue(name) {
-    return name.toUpperCase().split("").reduce((a, ch) => a + (DB.chaldean[ch] || 0), 0);
+    const chaldean = (window.DB && window.DB.chaldean) || {};
+    return name.toUpperCase().split("").reduce((a, ch) => a + (chaldean[ch] || 0), 0);
   }
 
-  // Compound-number meaning for a Chaldean total (1–108); null if out of range.
-  const compoundMeaning = (n) => (n >= 1 && n <= 108 ? DB.compound[n] : null);
-  // Master numbers (11 / 22 / 33) — applied to name & business totals only.
-  const masterNumber = (n) => DB.masterNumbers[n] || null;
+  const compoundMeaning = (n) => {
+    const db = getActiveDB();
+    return (n >= 1 && n <= 108 && db.compound) ? db.compound[n] : null;
+  };
+  const masterNumber = (n) => {
+    const db = getActiveDB();
+    return (db.masterNumbers && db.masterNumbers[n]) || null;
+  };
 
-  /* ---- sun-sign (zodiac) from day & month ----
-     Two zodiacs are computed:
-     • Sayana (tropical) — the fixed-date Western zodiac (kept for reference).
-     • Nirayana (sidereal) — the Vedic zodiac, which the report uses. Because
-       of precession the fixed sidereal sky sits ~24° behind the tropical one
-       (Lahiri ayanamsa), so a sidereal sign is usually the sign BEFORE the
-       tropical one. Boundaries below are the standard Lahiri table for the
-       Sun (accurate to ~1 day over recent decades).
-     NOTE: this is the SUN sign. The true Vedic Rashi (Chandra Rashi / Moon
-     sign) additionally requires birth time, place and a panchang — out of
-     scope for a date-only intake. */
   const ZRANGES = [
     ["Aries", [3, 21], [4, 19]], ["Taurus", [4, 20], [5, 20]], ["Gemini", [5, 21], [6, 20]],
     ["Cancer", [6, 21], [7, 22]], ["Leo", [7, 23], [8, 22]], ["Virgo", [8, 23], [9, 22]],
@@ -306,14 +367,6 @@
   const zodiacSign = (d, m) => zodiacFromRanges(d, m, ZRANGES);           // Sayana (tropical)
   const zodiacSignSidereal = (d, m) => zodiacFromRanges(d, m, SRANGES);   // Nirayana (Vedic)
 
-  /* ---- Kua number (Feng Shui personal-direction number) ----
-     NOTE: a Chinese system, NOT classical Vastu Shastra (labelled as such in
-     the report). Formula — reduce the last two digits of the birth year to a
-     single digit n, then:
-       male:   10 − n (pre-2000) or 9 − n (2000+)
-       female: n + 5 (pre-2000) or n + 6 (2000+)
-     Reduce the result to a single digit; a result of 5 becomes 2 (male) /
-     8 (female). Returns null when gender is not given. */
   function kuaNumber(gender, year) {
     if (!gender || !year) return null;
     const yy = year % 100;
@@ -326,18 +379,27 @@
   }
 
   const DIRS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-  const dirLabel = (d) => (DB.vastu.directions[d] ? DB.vastu.directions[d].label : d);
+  const dirLabel = (d) => {
+    const db = getActiveDB();
+    return (db.vastu && db.vastu.directions && db.vastu.directions[d]) ? db.vastu.directions[d].label : d;
+  };
 
   /* ---------------- intake setup ---------------- */
-  const roomSelects = ["entrance", "kitchen", "bedroom", "toilet", "study", "staircase"];
-  roomSelects.forEach((id) => {
-    const sel = $("#" + id);
-    const opts = ['<option value="unsure">Not sure</option>']
-      .concat(DIRS.map((d) => `<option value="${d}">${dirLabel(d)}</option>`));
-    sel.innerHTML = opts.join("");
-  });
+  function populateDirectionSelects() {
+    const roomSelects = ["entrance", "kitchen", "bedroom", "toilet", "study", "staircase"];
+    const unsureLabel = getLang() === "hi" ? "निश्चित नहीं" : getLang() === "gu" ? "નક્કી નથી" : "Not sure";
+    roomSelects.forEach((id) => {
+      const sel = $("#" + id);
+      if (!sel) return;
+      const curVal = sel.value || "unsure";
+      const opts = [`<option value="unsure">${unsureLabel}</option>`]
+        .concat(DIRS.map((d) => `<option value="${d}">${dirLabel(d)}</option>`));
+      sel.innerHTML = opts.join("");
+      sel.value = curVal;
+    });
+  }
 
-  /* Birthplace suggestions from the built-in offline atlas (astro.js) */
+  /* Birthplace suggestions from atlas */
   if (window.NVAstro && $("#birthPlaceList")) {
     const list = $("#birthPlaceList");
     window.NVAstro.cityNames().forEach((n) => {
@@ -356,60 +418,62 @@
       chip.classList.toggle("selected", on);
       if (on) selectedGoals.add(chip.dataset.goal);
     });
-    $("#err-goals").hidden = selectedGoals.size > 0;
+    if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
   }
   $$("#goalChips .chip").forEach((chip) => {
     chip.addEventListener("click", () => {
       const g = chip.dataset.goal;
       if (selectedGoals.has(g)) { selectedGoals.delete(g); chip.classList.remove("selected"); }
       else { selectedGoals.add(g); chip.classList.add("selected"); }
-      $("#err-goals").hidden = selectedGoals.size > 0;
+      if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
     });
   });
+
   function fillFormFromSnapshot(snapshot) {
     if (!snapshot || !snapshot.input) return;
-    $("#fullName").value = snapshot.input.name || "";
-    $("#dob").value = snapshot.input.dob || "";
-    $("#mobile").value = snapshot.input.mobile || "";
-    $("#vehicle").value = snapshot.input.vehicle || "";
-    $("#entrance").value = snapshot.input.entrance || "unsure";
-    $("#kitchen").value = snapshot.input.kitchen || "unsure";
-    $("#bedroom").value = snapshot.input.bedroom || "unsure";
-    $("#toilet").value = snapshot.input.toilet || "unsure";
-    $("#study").value = snapshot.input.study || "unsure";
-    $("#staircase").value = snapshot.input.staircase || "unsure";
-    $("#plotShape").value = snapshot.input.plotShape || "unsure";
-    $("#watchType").value = snapshot.input.watchType || "none";
-    $("#gender").value = snapshot.input.gender || "";
-    $("#birthTime").value = snapshot.input.birthTime || "";
-    $("#birthPlace").value = snapshot.input.birthPlace || "";
-    $("#brand").value = snapshot.input.brand || "";
-    $("#partnerName").value = snapshot.input.partnerName || "";
-    $("#partnerDob").value = snapshot.input.partnerDob || "";
+    if ($("#fullName")) $("#fullName").value = snapshot.input.name || "";
+    if ($("#dob")) $("#dob").value = snapshot.input.dob || "";
+    if ($("#mobile")) $("#mobile").value = snapshot.input.mobile || "";
+    if ($("#vehicle")) $("#vehicle").value = snapshot.input.vehicle || "";
+    if ($("#entrance")) $("#entrance").value = snapshot.input.entrance || "unsure";
+    if ($("#kitchen")) $("#kitchen").value = snapshot.input.kitchen || "unsure";
+    if ($("#bedroom")) $("#bedroom").value = snapshot.input.bedroom || "unsure";
+    if ($("#toilet")) $("#toilet").value = snapshot.input.toilet || "unsure";
+    if ($("#study")) $("#study").value = snapshot.input.study || "unsure";
+    if ($("#staircase")) $("#staircase").value = snapshot.input.staircase || "unsure";
+    if ($("#plotShape")) $("#plotShape").value = snapshot.input.plotShape || "unsure";
+    if ($("#watchType")) $("#watchType").value = snapshot.input.watchType || "none";
+    if ($("#gender")) $("#gender").value = snapshot.input.gender || "";
+    if ($("#birthTime")) $("#birthTime").value = snapshot.input.birthTime || "";
+    if ($("#birthPlace")) $("#birthPlace").value = snapshot.input.birthPlace || "";
+    if ($("#brand")) $("#brand").value = snapshot.input.brand || "";
+    if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
+    if ($("#partnerDob")) $("#partnerDob").value = snapshot.input.partnerDob || "";
     syncGoalChips(snapshot.input.goals || []);
   }
 
   /* ---------------- validation ---------------- */
   function setErr(id, on) {
-    $("#err-" + id).hidden = !on;
-    $("#" + id).classList.toggle("error", on);
+    if ($("#err-" + id)) $("#err-" + id).hidden = !on;
+    if ($("#" + id)) $("#" + id).classList.toggle("error", on);
   }
   function validate() {
     let ok = true, first = null;
-    const name = $("#fullName").value.trim();
-    const badName = name.length < 2 || !/[a-zA-Z]/.test(name);
+    const name = ($("#fullName") && $("#fullName").value.trim()) || "";
+    const badName = name.length < 2 || !/[a-zA-Z\u0900-\u097F\u0A80-\u0AFF]/.test(name);
     setErr("fullName", badName); if (badName) { ok = false; first = first || $("#fullName"); }
 
-    const dob = $("#dob").value;
+    const dob = ($("#dob") && $("#dob").value) || "";
     const badDob = !dob || isNaN(new Date(dob).getTime()) || new Date(dob) > new Date();
     setErr("dob", badDob); if (badDob) { ok = false; first = first || $("#dob"); }
 
-    const mob = $("#mobile").value.replace(/\D/g, "");
+    const mob = ($("#mobile") && $("#mobile").value.replace(/\D/g, "")) || "";
     const badMob = mob.length < 8;
     setErr("mobile", badMob); if (badMob) { ok = false; first = first || $("#mobile"); }
 
     const badGoals = selectedGoals.size === 0;
-    $("#err-goals").hidden = !badGoals; if (badGoals) ok = false;
+    if ($("#err-goals")) $("#err-goals").hidden = !badGoals;
+    if (badGoals) ok = false;
 
     if (first) first.focus();
     return ok;
@@ -436,11 +500,10 @@
     const nameRelD = relation(driver, nameNum);
     const nameRelC = relation(conductor, nameNum);
 
-    // Name-based Loshu grid (Chaldean letter values 1–8; no 9 in Chaldean),
-    // and the combined grid (birth digits + name values).
     const nameCounts = {};
     for (let i = 1; i <= 9; i++) nameCounts[i] = 0;
-    input.name.toUpperCase().split("").forEach((ch) => { const v = DB.chaldean[ch]; if (v) nameCounts[v]++; });
+    const chaldeanMap = (window.DB && window.DB.chaldean) || {};
+    input.name.toUpperCase().split("").forEach((ch) => { const v = chaldeanMap[ch]; if (v) nameCounts[v]++; });
     const combinedCounts = {};
     for (let i = 1; i <= 9; i++) combinedCounts[i] = counts[i] + nameCounts[i];
 
@@ -450,60 +513,63 @@
     const mobRelD = relation(driver, mobNum);
     const mobRelC = relation(conductor, mobNum);
 
-    // Severity tiers for missing numbers: a number missing from the grid but
-    // echoed by the name or mobile vibration is "partially supported"; one
-    // missing everywhere is "critical".
-    const missingSeverity = missing.map((n) => {
-      const echoedBy = [];
-      if (nameNum === n) echoedBy.push("name number");
-      if (mobNum === n) echoedBy.push("mobile number");
-      return { n, critical: echoedBy.length === 0, echoedBy };
-    });
-    const kua = kuaNumber(input.gender, y);
-
-    // Vedic precision tiers (numerology stays the primary engine):
-    //   Tier 1 = date-of-birth only — Vedic Sun Sign (Surya Rashi), sidereal/Lahiri.
-    //   Tier 2 = birth time + place — prepares Chandra Rashi, Nakshatra & transit
-    //            precision for a future update (stored on-device only).
+    // Vedic Tier
     const birthTimeRaw = String(input.birthTime || "").trim();
     const birthPlaceRaw = String(input.birthPlace || "").trim();
-    const hasBirthTime = !!birthTimeRaw;
-    const hasBirthPlace = !!birthPlaceRaw;
-    const vedicTier = hasBirthTime && hasBirthPlace ? 2 : (hasBirthTime || hasBirthPlace) ? "partial" : 1;
+    const hasTime = !!birthTimeRaw;
+    const hasPlace = !!birthPlaceRaw;
+    const vedicTier = (hasTime && hasPlace) ? 2 : (hasTime || hasPlace) ? "partial" : 1;
 
-    // Astro-Identity Snapshot (Tier 2): in-browser Vedic ephemeris via the
-    // self-contained Meeus port in astro.js (no external libraries).
-    // Full chart when time + place resolve; otherwise the date-only Sun
-    // (Surya Rashi) + unlock prompt.
     const astro = (typeof window !== "undefined" && window.NVAstro)
       ? window.NVAstro.compute({ dob: input.dob, time: birthTimeRaw, place: birthPlaceRaw })
       : { ok: false, reason: "engine-missing" };
 
+    const missingSeverity = missing.map((n) => {
+      const inBirth = counts[n] > 0;
+      const inName = nameCounts[n] > 0;
+      const isDriverOrConductor = n === driver || n === conductor;
+      const critical = !inBirth && !inName && !isDriverOrConductor;
+      const echoedBy = [];
+      if (inName) echoedBy.push("Name");
+      if (isDriverOrConductor) echoedBy.push(n === driver ? "Driver" : "Conductor");
+      return { n, critical, echoedBy };
+    });
+
+    const kua = kuaNumber(input.gender, y);
+
     return {
-      ...input, day: d, month: m, year: y,
-      driver, conductor, counts, missing, repeated, weak,
-      nameCompound, nameNum, nameRelD, nameRelC,
-      nameCounts, combinedCounts,
-      mobCompound, mobNum, mobRelD, mobRelC,
-      missingSeverity, kua,
+      name: input.name,
+      day: d, month: m, year: y,
+      driver, conductor, counts, missing, repeated, weak, missingSeverity,
+      nameCompound, nameNum, nameRelD, nameRelC, nameCounts, combinedCounts,
+      mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
+      vehicle: input.vehicle || "",
+      goals: input.goals || [],
+      entrance: input.entrance || "unsure",
+      kitchen: input.kitchen || "unsure",
+      bedroom: input.bedroom || "unsure",
+      toilet: input.toilet || "unsure",
+      study: input.study || "unsure",
+      staircase: input.staircase || "unsure",
+      plotShape: input.plotShape || "unsure",
+      watchType: input.watchType || "none",
+      gender: input.gender || "",
+      birthTime: birthTimeRaw,
+      birthTimeDisplay: formatBirthTime(birthTimeRaw),
+      birthPlace: birthPlaceRaw,
+      brand: input.brand || "",
+      partnerName: input.partnerName || "",
+      partnerDob: input.partnerDob || "",
       zodiac: zodiacSignSidereal(d, m),
       zodiacTropical: zodiacSign(d, m),
-      birthTime: birthTimeRaw,
-      birthPlace: birthPlaceRaw,
-      birthTimeDisplay: formatBirthTime(birthTimeRaw),
-      vedicTier,
-      astro
+      vedicTier, astro, kua
     };
   }
 
-  /* -------- sound-preserving spelling transforms (shared) --------
-     Generates candidate respellings of a name that preserve pronunciation:
-       double a letter (Tripti -> Triptii), swap a homophone (Sunil -> Suniel),
-       or insert a vowel (Suniel style). Never drops letters.
-     Returns [{ text, change, compound, reduced, kind, delta }]. */
+  /* ---------------- spelling correction & name suggestions ---------------- */
   function spellingCandidates(name, baseCompound) {
     const up = name.toUpperCase();
-    const S = DB.spelling;
+    const S = (window.DB && window.DB.spelling) || { homophones: {}, vowelDoubles: {}, insertVowels: [] };
     const candidates = [];
     const seen = new Set([up.replace(/\s+/g, " ")]);
     const keepCase = (i, str) => str.split("").map((c, j) => {
@@ -519,18 +585,18 @@
       candidates.push({ text, change, compound, reduced: reduce(compound), kind, delta: Math.abs(compound - baseCompound) + (deltaV || 0) });
     };
     up.split("").forEach((ch, i) => {
-      const v = DB.chaldean[ch];
-      if (!v) return; // skip spaces / non-letters
-      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || S.vowelDoubles[ch]) {
+      const v = (window.DB && window.DB.chaldean && window.DB.chaldean[ch]) || 0;
+      if (!v) return;
+      if ("BCDFGHJKLMNPQRSTVWXYZ".includes(ch) || (S.vowelDoubles && S.vowelDoubles[ch])) {
         const t = name.slice(0, i) + name[i] + name.slice(i);
         addCand(t, `double "${name[i]}"`, "double", 0);
       }
-      (S.homophones[ch] || []).forEach((rep) => {
+      ((S.homophones && S.homophones[ch]) || []).forEach((rep) => {
         const t = name.slice(0, i) + keepCase(i, rep) + name.slice(i + 1);
         addCand(t, `${name[i]} → ${rep}`, "swap", 1);
       });
       if (i > 0 && up[i - 1] !== " ") {
-        S.insertVowels.forEach((vowel) => {
+        (S.insertVowels || []).forEach((vowel) => {
           const t = name.slice(0, i + 1) + keepCase(i, vowel) + name.slice(i + 1);
           addCand(t, `insert "${vowel}" after "${name[i]}"`, "insert", 2);
         });
@@ -539,18 +605,12 @@
     return candidates;
   }
 
-  /* -------- name spelling suggestions --------
-     Two correction goals, in priority order:
-       A) compensate a MISSING Loshu number (practitioner style — e.g.
-          Meher Afrose, missing 6 -> "MMeher Afrose", total 51 -> 6)
-       B) align with numbers harmonious to Driver & Conductor
-     All transforms preserve pronunciation (Bollywood style: Tripti ->
-     Triptii, Sunil -> Suniel, Kumar -> Kumarr) — never letter drops. */
   function nameSuggestions(p) {
-    if (p.nameRelD !== "enemy" && p.nameRelC !== "enemy") return { needed: false, verdict: p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly" };
+    if (p.nameRelD !== "enemy" && p.nameRelC !== "enemy") {
+      return { needed: false, verdict: p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly" };
+    }
 
-    // ---- target numbers ----
-    // A) missing grid numbers, best first: friendly-to-both > enemy-to-one > enemy-to-both
+    const db = getActiveDB();
     const missingRanked = p.missing.slice().sort((a, b) => {
       const score = (n) => {
         const rd = relation(p.driver, n), rc = relation(p.conductor, n);
@@ -559,33 +619,34 @@
         return 2;
       };
       return score(a) - score(b);
-    }).map((n) => ({ n, why: `compensates your missing number ${n} (${DB.numbers[n].planet})` }));
-    // B) harmonious numbers not already covered
+    }).map((n) => ({ n, why: `compensates your missing number ${n} (${db.numbers[n].planet})` }));
+
     const harm = [];
     for (let n = 1; n <= 9; n++) {
       const rd = relation(p.driver, n), rc = relation(p.conductor, n);
       if (rd !== "enemy" && rc !== "enemy" && !p.missing.includes(n)) {
-        harm.push({ n, why: rd === "friendly" && rc === "friendly"
-          ? `harmonious with both Driver ${p.driver} and Conductor ${p.conductor}`
-          : `acceptable to Driver ${p.driver} and Conductor ${p.conductor}` });
+        harm.push({
+          n,
+          why: rd === "friendly" && rc === "friendly"
+            ? `harmonious with both Driver ${p.driver} and Conductor ${p.conductor}`
+            : `acceptable to Driver ${p.driver} and Conductor ${p.conductor}`
+        });
       }
     }
     const targets = missingRanked.concat(harm);
     if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
 
-    // ---- candidate transforms (sound-preserving only) ----
     const candidates = spellingCandidates(p.name, p.nameCompound);
 
-    // ---- pick best candidates per target ----
     const kindRank = { double: 0, swap: 1, insert: 2 };
     const variants = [];
-    targets.forEach((t) => {
+    targets.forEach((tgt) => {
       const hits = candidates
-        .filter((c) => c.reduced === t.n)
+        .filter((c) => c.reduced === tgt.n)
         .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
-      hits.slice(0, 2).forEach((c) => variants.push({ ...c, why: t.why, targetN: t.n }));
+      hits.slice(0, 2).forEach((c) => variants.push({ ...c, why: tgt.why, targetN: tgt.n }));
     });
-    // de-dupe by spelling, keep target priority order
+
     const finalSeen = new Set();
     const out = [];
     variants.forEach((v) => {
@@ -593,21 +654,18 @@
       if (finalSeen.has(k)) return;
       finalSeen.add(k); out.push(v);
     });
-    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((t) => t.n) };
+
+    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((tgt) => tgt.n) };
   }
 
-  /* -------- business / brand name analysis --------
-     Same Chaldean engine, framed for business success. Computes the brand's
-     compound number, reduced root, relationship to the owner's Driver &
-     Conductor, and (when conflicting) sound-preserving spelling corrections. */
   function brandAnalysis(brand, p) {
-    const total = chaldeanValue(brand);
+    if (!brand || !brand.trim()) return null;
+    const total = chaldeanValue(brand.trim());
     const root = reduce(total);
     const relD = relation(p.driver, root);
     const relC = relation(p.conductor, root);
     const conflicting = relD === "enemy" || relC === "enemy";
 
-    // auspicious business roots: not-enemy to both Driver & Conductor
     const auspicious = [];
     for (let n = 1; n <= 9; n++) {
       if (relation(p.driver, n) !== "enemy" && relation(p.conductor, n) !== "enemy") auspicious.push(n);
@@ -615,7 +673,7 @@
 
     let suggestions = [];
     if (conflicting) {
-      const candidates = spellingCandidates(brand, total);
+      const candidates = spellingCandidates(brand.trim(), total);
       const kindRank = { double: 0, swap: 1, insert: 2 };
       suggestions = candidates
         .filter((c) => auspicious.includes(c.reduced))
@@ -625,14 +683,13 @@
     }
 
     return {
-      brand, total, root, relD, relC, conflicting, auspicious,
+      brand: brand.trim(), total, root, relD, relC, conflicting, auspicious,
       suggestions,
       master: masterNumber(total),
       compound: compoundMeaning(total)
     };
   }
 
-  /* -------- mobile number suggestion -------- */
   function mobileSuggestion(p) {
     const bad = p.mobRelD === "enemy" || p.mobRelC === "enemy";
     if (!bad) return { needed: false };
@@ -644,9 +701,6 @@
     return { needed: true, goodTotals: good.slice(0, 6) };
   }
 
-  /* -------- compatibility (two-person Driver/Conductor match) --------
-     Compares all four Driver/Conductor cross-pairs using the friendship table.
-     Score: friendly = 2, neutral = 1, enemy = 0 (max 8). */
   function compatibility(a, b) {
     const pairs = [
       { a: `Your Driver ${a.driver}`, b: `their Driver ${b.driver}`, r: relation(a.driver, b.driver) },
@@ -662,9 +716,8 @@
     return { pairs, score, max: 8, verdict, friendly, neutral, enemy };
   }
 
-  /* -------- vehicle number analysis -------- */
   function vehicleAnalysis(p) {
-    // good totals: friendly to both driver & conductor; fallback not-enemy to either
+    const db = getActiveDB();
     const bothGood = [], okTotals = [];
     for (let t = 4; t <= 45; t++) {
       const r = reduce(t);
@@ -673,20 +726,21 @@
       else if (rd !== "enemy" && rc !== "enemy") okTotals.push(t);
     }
     const goodTotals = bothGood.length ? bothGood : okTotals;
-    // lucky vehicle colours: friendly planets' colours
     const luckyPlanetNums = [p.driver, p.conductor].filter((n, i, a) => a.indexOf(n) === i);
-    const luckyColors = luckyPlanetNums.map((n) => DB.numbers[n].color.split(",")[0] + " (" + DB.numbers[n].planet.split(" ")[0] + ")");
+    const luckyColors = luckyPlanetNums.map((n) => db.numbers[n].color.split(",")[0] + " (" + db.numbers[n].planet.split(" ")[0] + ")");
 
-    if (!p.vehicle) return { provided: false, goodTotals: goodTotals.slice(0, 8), luckyColors };
+    if (!p.vehicle || !p.vehicle.trim()) {
+      return { provided: false, goodTotals: goodTotals.slice(0, 8), luckyColors };
+    }
 
-    // letters carry Chaldean values, digits carry face value
     const letters = p.vehicle.replace(/[^a-zA-Z]/g, "");
     const digits = p.vehicle.replace(/\D/g, "");
     const letterVal = chaldeanValue(letters);
     const digitVal = digitSum(digits);
     const total = letterVal + digitVal;
     const num = reduce(total);
-    const relD = relation(p.driver, num), relC = relation(p.conductor, num);
+    const relD = relation(p.driver, num);
+    const relC = relation(p.conductor, num);
     return {
       provided: true, raw: p.vehicle.toUpperCase(),
       letters: letters.toUpperCase(), letterVal, digitVal, total, num,
@@ -696,21 +750,18 @@
     };
   }
 
-  /* -------- timing: personal years, lucky years, milestone ages -------- */
   function timingAnalysis(p) {
     const now = new Date();
     const cy = now.getFullYear();
     const personalYearNum = (yr) => reduce(p.day + p.month + reduce(yr));
+    const db = getActiveDB();
 
-    // current + next 3 personal years
     const years = [0, 1, 2, 3].map((off) => {
       const yr = cy + off;
       const n = personalYearNum(yr);
-      return { yr, n, meaning: DB.personalYear[n], current: off === 0 };
+      return { yr, n, meaning: db.personalYear[n] || (window.DB && window.DB.personalYear && window.DB.personalYear[n]) || "", current: off === 0 };
     });
 
-    // lucky calendar years (next 12): year vibration friendly to driver,
-    // or personal year matching driver/conductor/friendly
     const luckyYears = [];
     for (let off = 0; off <= 12 && luckyYears.length < 6; off++) {
       const yr = cy + off;
@@ -724,8 +775,6 @@
       if (reasons.length) luckyYears.push({ yr, py, why: reasons.join("; ") });
     }
 
-    // milestone ages (next 25 years of life): age reduces to driver,
-    // conductor, or a number friendly to both
     const curAge = cy - p.year - (new Date(cy, p.month - 1, p.day) > now ? 1 : 0);
     const milestones = [];
     for (let age = curAge; age <= curAge + 25 && milestones.length < 6; age++) {
@@ -738,67 +787,105 @@
     return { years, luckyYears, milestones, curAge };
   }
 
-  /* -------- watch remedy spec -------- */
   function watchSpec(p) {
     const d = p.driver, c = p.conductor;
+    const db = getActiveDB();
+    const lang = getLang();
     const rows = [
-      ["Metal / Case", DB.watch.metal[d], `Supports Driver ${d} (${DB.numbers[d].planet})`],
-      ["Dial Colour", DB.watch.dial[d], `Calms and strengthens the ${DB.numbers[d].planet} mind`],
-      ["Case Geometry", DB.watch.geometry[c], `Mirrors Conductor ${c} (${DB.numbers[c].planet}) structure`],
-      ["Strap", DB.watch.strap[d], "Metal grounds energy; avoid rubber/silicone"],
-      ["Key Features", DB.watch.features[c], `Conductor ${c} execution support`],
+      [lang === "hi" ? "धातु / केस" : lang === "gu" ? "ધાતુ / કેસ" : "Metal / Case", db.watch.metal[d], lang === "hi" ? `मूलांक ${d} (${db.numbers[d].planet}) के अनुकूल` : lang === "gu" ? `મૂળાંક ${d} (${db.numbers[d].planet}) ના અનુકૂળ` : `Supports Driver ${d} (${db.numbers[d].planet})`],
+      [lang === "hi" ? "डायल का रंग" : lang === "gu" ? "ડાયલનો રંગ" : "Dial Colour", db.watch.dial[d], lang === "hi" ? `मन को शांत और ${db.numbers[d].planet} को मजबूत करता है` : lang === "gu" ? `મનને શાંત અને ${db.numbers[d].planet} ને મજબૂત કરે છે` : `Calms and strengthens the ${db.numbers[d].planet} mind`],
+      [lang === "hi" ? "डायल का आकार" : lang === "gu" ? "ડાયલનો આકાર" : "Case Geometry", db.watch.geometry[c], lang === "hi" ? `भाग्यांक ${c} (${db.numbers[c].planet}) की संरचना` : lang === "gu" ? `ભાગ્યાંક ${c} (${db.numbers[c].planet}) ની રચના` : `Mirrors Conductor ${c} (${db.numbers[c].planet}) structure`],
+      [lang === "hi" ? "स्ट्रैप (पट्टा)" : lang === "gu" ? "સ્ટ્રેપ (પટ્ટો)" : "Strap", db.watch.strap[d], lang === "hi" ? "धातु ऊर्जा को स्थिर रखती है; रबर से बचें" : lang === "gu" ? "ધાતુ ઊર્જાને સ્થિર રાખે છે; રબરથી બચો" : "Metal grounds energy; avoid rubber/silicone"],
+      [lang === "hi" ? "मुख्य विशेषताएं" : lang === "gu" ? "મુખ્ય વિશેષતાઓ" : "Key Features", db.watch.features[c], lang === "hi" ? `भाग्यांक ${c} कार्य निष्पादन सहायक` : lang === "gu" ? `ભાગ્યાંક ${c} કાર્ય પૂર્તિ સહાયક` : `Conductor ${c} execution support`],
     ];
-    const avoids = [DB.watch.avoid[d], DB.watch.avoid[c]].filter(Boolean);
-    const days = [...new Set([DAY_OF[d], DAY_OF[c]])];
+    const avoids = [db.watch.avoid[d], db.watch.avoid[c]].filter(Boolean);
+    const days = [...new Set([dayOf(d), dayOf(c)])];
+    const timeText = lang === "hi" ? "सुबह ६:३० से ८:३० के बीच (सूर्योदय काल)" : lang === "gu" ? "સવારે ૬:૩૦ થી ૮:૩૦ વચ્ચે (સૂર્યોદય સમય)" : "between 6:30 AM and 8:30 AM (sunrise hours)";
     return {
       rows, avoids, days,
-      time: "between 6:30 AM and 8:30 AM (sunrise hours)",
+      time: timeText,
       currentVerdict: currentWatchVerdict(p)
     };
   }
+
   function currentWatchVerdict(p) {
     const t = p.watchType;
     if (!t || t === "none") return null;
+    const db = getActiveDB();
+    const lang = getLang();
     if (t === "smart") {
       const sensitive = [2, 7].includes(p.driver) || [2, 7].includes(p.conductor);
+      if (lang === "hi") {
+        return sensitive
+          ? { tone: "warn", text: `आपकी स्मार्टवॉच राहु (४) की ऊर्जा पर काम करती है — कलाई पर बार-बार आने वाले नोटिफिकेशन आपके ${db.numbers[p.driver].planet} मूलांक को अशांत कर सकते हैं। यदि इसे पहनना जारी रखें: मेटल स्ट्रैप लगाएं, न्यूनतम डायल रखें और सोते समय 'डू नॉट डिस्टर्ब' चालू रखें।` }
+          : { tone: "info", text: `स्मार्टवॉच आपके चार्ट के लिए ठीक है — नोटिफिकेशन सीमित रखें और राहु (४) की इलेक्ट्रॉनिक ऊर्जा को संतुलित करने के लिए मेटल स्ट्रैप को प्राथमिकता दें।` };
+      }
+      if (lang === "gu") {
+        return sensitive
+          ? { tone: "warn", text: `તમારી સ્માર્ટવોચ રાહુ (૪) ની ઊર્જા પર કામ કરે છે — કાંડા પર વારંવાર આવતા નોટિફિકેશન તમારા ${db.numbers[p.driver].planet} મૂળાંકને અશાંત કરી શકે છે. જો પહેરવાનું ચાલુ રાખો: મેટલ સ્ટ્રેપ લગાવો, સાદો ડાયલ રાખો અને ઊંઘતી વખતે 'ડુ નોટ ડિસ્ટર્બ' ચાલુ રાખો.` }
+          : { tone: "info", text: `સ્માર્ટવોચ તમારા ચાર્ટ માટે યોગ્ય છે — નોટિફિકેશન મર્યાદિત રાખો અને રાહુ (૪) ની ઇલેક્ટ્રોનિક ઊર્જા સંતુલિત કરવા મેટલ સ્ટ્રેપને પ્રાથમિકતા આપો.` };
+      }
       return sensitive
-        ? { tone: "warn", text: `Your smartwatch runs on Rahu (4) energy — constant wrist notifications can disturb your ${DB.numbers[p.driver].planet} driver. If you keep it: switch to a metallic strap, use a minimal ${p.driver === 2 ? "silver/white" : "calm"} watch-face, and enable Do-Not-Disturb during sleep and deep work.` }
+        ? { tone: "warn", text: `Your smartwatch runs on Rahu (4) energy — constant wrist notifications can disturb your ${db.numbers[p.driver].planet} driver. If you keep it: switch to a metallic strap, use a minimal ${p.driver === 2 ? "silver/white" : "calm"} watch-face, and enable Do-Not-Disturb during sleep and deep work.` }
         : { tone: "info", text: "A smartwatch is acceptable for your chart — keep notifications curated and prefer a metallic strap to ground the Rahu (4) electronic energy." };
     }
-    if (t === "digital") return { tone: "info", text: "A digital watch is neutral. Upgrading to a metal-strap analog aligned with the spec above would add planetary support." };
-    return { tone: "good", text: "A classic analog watch suits your chart. Match the metal, dial colour and geometry to the spec above for full alignment." };
+    if (t === "digital") {
+      return {
+        tone: "info",
+        text: lang === "hi" ? "डिजिटल घड़ी सामान्य है। ऊपर दिए गए विवरण के अनुसार मेटल स्ट्रैप वाली एनालॉग घड़ी पहनने से अतिरिक्त ग्रहीय लाभ मिलेगा।"
+          : lang === "gu" ? "ડિજિટલ ઘડિયાળ સામાન્ય છે. ઉપર દર્શાવેલ વિગત મુજબ મેટલ સ્ટ્રેપ વાળી એનાલોગ ઘડિયાળ પહેરવાથી વધારાનો ગ્રહીય લાભ મળશે."
+          : "A digital watch is neutral. Upgrading to a metal-strap analog aligned with the spec above would add planetary support."
+      };
+    }
+    return {
+      tone: "good",
+      text: lang === "hi" ? "क्लासिक एनालॉग घड़ी आपके चार्ट के लिए सर्वोत्तम है। पूर्ण लाभ के लिए ऊपर दिए गए धातु, डायल रंग और आकार का मिलान करें।"
+        : lang === "gu" ? "ક્લાસિક એનાલોગ ઘડિયાળ તમારા ચાર્ટ માટે સર્વોત્તમ છે. સંપૂર્ણ લાભ માટે ઉપર દર્શાવેલ ધાતુ, ડાયલ રંગ અને આકાર પસંદ કરો."
+        : "A classic analog watch suits your chart. Match the metal, dial colour and geometry to the spec above for full alignment."
+    };
   }
 
-  /* -------- vastu evaluation -------- */
   function vastuReport(p) {
     const findings = [];
-    if (p.entrance && p.entrance !== "unsure") {
-      const e = DB.vastu.entrance[p.entrance];
-      findings.push({
-        item: `Main entrance — ${dirLabel(p.entrance)}`,
-        tone: e.score === "Excellent" || e.score === "Good" ? "good" : e.score === "Moderate" ? "warn" : "bad",
-        label: e.score, note: e.note
-      });
+    const db = getActiveDB();
+    const lang = getLang();
+    if (p.entrance && p.entrance !== "unsure" && db.vastu && db.vastu.entrance) {
+      const e = db.vastu.entrance[p.entrance];
+      if (e) {
+        findings.push({
+          item: lang === "hi" ? `मुख्य द्वार — ${dirLabel(p.entrance)}` : lang === "gu" ? `મુખ્ય પ્રવેશદ્વાર — ${dirLabel(p.entrance)}` : `Main entrance — ${dirLabel(p.entrance)}`,
+          tone: e.score === "Excellent" || e.score === "Good" ? "good" : e.score === "Moderate" ? "warn" : "bad",
+          label: e.score, note: e.note
+        });
+      }
     }
-    const roomMap = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet", study: "Study Room", staircase: "Staircase" };
-    Object.entries(roomMap).forEach(([key, roomName]) => {
+    const roomMap = {
+      kitchen: lang === "hi" ? "रसोईघर (Kitchen)" : lang === "gu" ? "રસોડું (Kitchen)" : "Kitchen",
+      bedroom: lang === "hi" ? "मास्टर बेडरूम (Master Bedroom)" : lang === "gu" ? "મુખ્ય બેડરૂમ (Master Bedroom)" : "Master Bedroom",
+      toilet: lang === "hi" ? "शौचालय (Toilet)" : lang === "gu" ? "શૌચાલય (Toilet)" : "Toilet",
+      study: lang === "hi" ? "अध्ययन कक्ष (Study Room)" : lang === "gu" ? "અભ્યાસ ખંડ (Study Room)" : "Study Room",
+      staircase: lang === "hi" ? "सीढ़ियां (Staircase)" : lang === "gu" ? "દાદર / પગથિયાં (Staircase)" : "Staircase"
+    };
+    const engRoomNames = { kitchen: "Kitchen", bedroom: "Master Bedroom", toilet: "Toilet", study: "Study Room", staircase: "Staircase" };
+    Object.entries(engRoomNames).forEach(([key, engName]) => {
       const dir = p[key];
-      if (!dir || dir === "unsure") return;
-      const rule = DB.vastu.roomRules.find((r) => r.room === roomName);
+      if (!dir || dir === "unsure" || !db.vastu || !db.vastu.roomRules) return;
+      const rule = db.vastu.roomRules.find((r) => r.room === engName);
       if (!rule) return;
-      const status = rule.ideal.includes(dir) ? "ideal" : rule.acceptable.includes(dir) ? "ok" : "dosh";
+      const status = (rule.ideal && rule.ideal.includes(dir)) ? "ideal" : (rule.acceptable && rule.acceptable.includes(dir)) ? "ok" : "dosh";
+      const roomLabel = roomMap[key] || engName;
       findings.push({
-        item: `${roomName} — ${dirLabel(dir)}`,
+        item: `${roomLabel} — ${dirLabel(dir)}`,
         tone: status === "ideal" ? "good" : status === "ok" ? "warn" : "bad",
         label: status === "ideal" ? "Ideal" : status === "ok" ? "Acceptable" : "Dosh",
-        note: status === "dosh" ? rule.doshText.replace("{dir}", dirLabel(dir)) + " " + rule.fix : status === "ok" ? "Acceptable placement. " + rule.fix : "Well placed — supports balanced energy."
+        note: status === "dosh" ? rule.doshText.replace("{dir}", dirLabel(dir)) + " " + rule.fix : status === "ok" ? (lang === "hi" ? "स्वीकार्य स्थिति। " + rule.fix : lang === "gu" ? "સ્વીકાર્ય સ્થિતિ. " + rule.fix : "Acceptable placement. " + rule.fix) : (lang === "hi" ? "उत्तम स्थिति — संतुलित ऊर्जा का संचार।" : lang === "gu" ? "ઉત્તમ સ્થિતિ — સંતુલિત ઊર્જાનો સંચાર." : "Well placed — supports balanced energy.")
       });
     });
-    // Plot shape (missing corners / extensions)
-    if (p.plotShape && p.plotShape !== "unsure" && DB.vastu.plotShapes[p.plotShape]) {
-      const ps = DB.vastu.plotShapes[p.plotShape];
+
+    if (p.plotShape && p.plotShape !== "unsure" && db.vastu && db.vastu.plotShapes && db.vastu.plotShapes[p.plotShape]) {
+      const ps = db.vastu.plotShapes[p.plotShape];
       findings.push({
-        item: `Plot shape — ${p.plotShape.replace(/-/g, " ")}`,
+        item: lang === "hi" ? `प्लॉट का आकार — ${p.plotShape.replace(/-/g, " ")}` : lang === "gu" ? `પ્લોટનો આકાર — ${p.plotShape.replace(/-/g, " ")}` : `Plot shape — ${p.plotShape.replace(/-/g, " ")}`,
         tone: ps.tone,
         label: ps.tone === "good" ? "Balanced" : ps.tone === "warn" ? "Caution" : "Dosh",
         note: ps.note
@@ -807,55 +894,88 @@
     return findings;
   }
 
-  /* -------- goal-wise remedy plan -------- */
   function goalPlan(p) {
+    const db = getActiveDB();
+    const goalsMap = (window.DB && window.DB.goals) || {};
     return p.goals.map((g) => {
-      const nums = DB.goals[g] || [];
+      const nums = goalsMap[g] || [];
       const weak = nums.filter((n) => p.missing.includes(n));
       const strong = nums.filter((n) => !p.missing.includes(n));
-      const focus = weak.length ? weak : nums.slice(0, 2); // if nothing missing, maintain key planets
-      return { goal: g, weak, strong, focus: focus.map((n) => ({ n, ...DB.numbers[n] })) };
+      const focus = weak.length ? weak : nums.slice(0, 2);
+      return { goal: g, weak, strong, focus: focus.map((n) => ({ n, ...db.numbers[n] })) };
     });
   }
 
-  /* -------- priority action plan --------
-     Each item carries a cadence so the 40-Day Activation Plan can tag how
-     often it runs; this list renders ONLY in the final plan section (the
-     Northstar Summary speaks at a higher altitude and never repeats it). */
   function priorityPlan(p, nameSug, mobSug, vastu) {
     const daily = [];
     const weekly = [];
     const once = [];
     const weakGoalNums = new Set();
-    p.goals.forEach((g) => (DB.goals[g] || []).forEach((n) => { if (p.missing.includes(n)) weakGoalNums.add(n); }));
-    /* Order by chart criticality (numbers missing everywhere first, in grid
-       order) so the checklist agrees with the summary and the plan target. */
+    const db = getActiveDB();
+    const goalsMap = (window.DB && window.DB.goals) || {};
+    const lang = getLang();
+
+    p.goals.forEach((g) => (goalsMap[g] || []).forEach((n) => { if (p.missing.includes(n)) weakGoalNums.add(n); }));
     const criticalFirst = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
     const rankOrder = criticalFirst.length ? criticalFirst : p.missing;
     const orderedWeak = Array.from(weakGoalNums).sort((a, b) => {
       const ra = rankOrder.indexOf(a), rb = rankOrder.indexOf(b);
       return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb);
     });
+
     orderedWeak.forEach((n) => {
-      const info = DB.numbers[n];
-      daily.push({ cadence: "daily", text: `Strengthen <strong>${info.planet}</strong> (missing ${n} in your grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, wear ${esc(info.color.split(",")[0])} on ${esc(info.day)}, and consider ${esc(info.crystal)}.` });
+      const info = db.numbers[n];
+      if (lang === "hi") {
+        daily.push({ cadence: "daily", text: `<strong>${info.planet}</strong> को बलवान बनाएं (ग्रिड में अनुपस्थित अंक ${n}): <span class="mantra">${esc(info.mantra)}</span> का जाप करें (${esc(info.mantraCount)}), ${esc(info.day)} को ${esc(info.color.split(",")[0])} वस्त्र पहनें और ${esc(info.crystal)} धारण करें।` });
+      } else if (lang === "gu") {
+        daily.push({ cadence: "daily", text: `<strong>${info.planet}</strong> ને બળવાન બનાવો (ગ્રીડમાં ખૂટતો અંક ${n}): <span class="mantra">${esc(info.mantra)}</span> નો જાપ કરો (${esc(info.mantraCount)}), ${esc(info.day)} ના દિવસે ${esc(info.color.split(",")[0])} વસ્ત્રો પહેરો અને ${esc(info.crystal)} ધારણ કરો.` });
+      } else {
+        daily.push({ cadence: "daily", text: `Strengthen <strong>${info.planet}</strong> (missing ${n} in your grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, wear ${esc(info.color.split(",")[0])} on ${esc(info.day)}, and consider ${esc(info.crystal)}.` });
+      }
     });
-    const day2 = DAY_OF[p.conductor];
-    const sameDay = DAY_OF[p.driver] === day2;
-    weekly.push({ cadence: "weekly", text: `Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>)${sameDay ? " and Conductor day remedies together (both fall on the same day for you)" : ` and Conductor day (<strong>${day2}</strong>) remedies`} — charity, colours and fasting as listed.` });
-    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
-      once.push({ cadence: "once", text: `Correct your name spelling — try <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) to align with your birth numbers.` });
+
+    const dayD = dayOf(p.driver);
+    const dayC = dayOf(p.conductor);
+    const sameDay = dayD === dayC;
+
+    if (lang === "hi") {
+      weekly.push({ cadence: "weekly", text: `साप्ताहिक नियम: अपने मूलांक वार (<strong>${dayD}</strong>)${sameDay ? " और भाग्यांक वार के उपाय साथ करें (दोनों एक ही दिन हैं)" : ` और भाग्यांक वार (<strong>${dayC}</strong>) के उपाय करें`} — बताए अनुसार दान, शुभ रंग और व्रत का पालन करें।` });
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        once.push({ cadence: "once", text: `नाम की स्पेलिंग में सुधार करें — जन्म अंकों से तालमेल के लिए <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) अपनाएं।` });
+      }
+      if (mobSug.needed) {
+        once.push({ cadence: "once", text: `मोबाइल नंबर बदलने की योजना बनाएं — मूलांक ${p.driver} और भाग्यांक ${p.conductor} की शुभता के लिए ऐसा नंबर चुनें जिसके अंकों का कुल योग <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> हो।` });
+      }
+      once.push({ cadence: "once", text: `अनुकूल घड़ी पहनें (खंड ${SECTION.watch} के अनुसार धातु, डायल और आकार) — <strong>${dayD}</strong> की सुबह ६:३०–८:३० बजे इसे सक्रिय करें।` });
+      vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
+        once.push({ cadence: "once", text: `वास्तु सुधार: <strong>${esc(f.item)}</strong> — खंड ${SECTION.vastu} में दिया गया सरल उपाय करें।` });
+      });
+    } else if (lang === "gu") {
+      weekly.push({ cadence: "weekly", text: `સાપ્તાહિક નિયમ: તમારા મૂળાંક વાર (<strong>${dayD}</strong>)${sameDay ? " અને ભાગ્યાંક વારના ઉપાયો સાથે કરો (બંને એક જ દિવસે છે)" : ` અને ભાગ્યાંક વાર (<strong>${dayC}</strong>) ના ઉપાયો કરો`} — જણાવ્યા મુજબ દાન, શુભ રંગ અને ઉપવાસનું પાલન કરો.` });
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        once.push({ cadence: "once", text: `નામની સ્પેલિંગમાં સુધારો કરો — જન્મ અંકો સાથે સુમેળ માટે <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) અપનાવો.` });
+      }
+      if (mobSug.needed) {
+        once.push({ cadence: "once", text: `મોબાઈલ નંબર બદલવાનું આયોજન કરો — મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} ની શુભતા માટે એવો નંબર પસંદ કરો જેના અંકોનો કુલ સરવાળો <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> થતો હોય.` });
+      }
+      once.push({ cadence: "once", text: `અનુકૂળ ઘડિયાળ પહેરો (વિભાગ ${SECTION.watch} મુજબ ધાતુ, ડાયલ અને આકાર) — <strong>${dayD}</strong> ની સવારે ૬:૩૦–૮:૩૦ વાગ્યે તેને ધારણ કરો.` });
+      vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
+        once.push({ cadence: "once", text: `વાસ્તુ સુધારો: <strong>${esc(f.item)}</strong> — વિભાગ ${SECTION.vastu} માં આપેલો સરળ ઉપાય કરો.` });
+      });
+    } else {
+      weekly.push({ cadence: "weekly", text: `Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>)${sameDay ? " and Conductor day remedies together (both fall on the same day for you)" : ` and Conductor day (<strong>${DAY_OF[p.conductor]}</strong>) remedies`} — charity, colours and fasting as listed.` });
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        once.push({ cadence: "once", text: `Correct your name spelling — try <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) to align with your birth numbers.` });
+      }
+      if (mobSug.needed) {
+        once.push({ cadence: "once", text: `Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.` });
+      }
+      once.push({ cadence: "once", text: `Wear the aligned watch spec (metal, dial, geometry as per Section ${SECTION.watch}) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.` });
+      vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
+        once.push({ cadence: "once", text: `Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section ${SECTION.vastu}.` });
+      });
     }
-    if (mobSug.needed) {
-      once.push({ cadence: "once", text: `Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.` });
-    }
-    once.push({ cadence: "once", text: `Wear the aligned watch spec (metal, dial, geometry as per Section ${SECTION.watch}) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.` });
-    vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      once.push({ cadence: "once", text: `Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section ${SECTION.vastu}.` });
-    });
-    /* The checklist is now the single operational home for every action in
-       the report (the old 7-item cap existed to keep the summary strip
-       short); keep a generous bound for extreme charts. */
+
     return daily.concat(weekly, once).slice(0, 9);
   }
 
@@ -876,8 +996,10 @@
   }
 
   function northstarSummary(p, timing, goals, vastu, nameSug, mobSug) {
-    const driverInfo = DB.numbers[p.driver];
-    const conductorInfo = DB.numbers[p.conductor];
+    const db = getActiveDB();
+    const lang = getLang();
+    const driverInfo = db.numbers[p.driver];
+    const conductorInfo = db.numbers[p.conductor];
     const currentYear = timing.years[0];
     const criticalMissing = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
     const missingFocus = criticalMissing.length ? criticalMissing : p.missing.slice(0, 3);
@@ -887,154 +1009,328 @@
     const firstGoalFocus = firstGoal && firstGoal.focus && firstGoal.focus.length
       ? firstGoal.focus.map((f) => `${f.n} (${f.planet})`).join(", ")
       : `${p.driver} (${driverInfo.planet}) and ${p.conductor} (${conductorInfo.planet})`;
-    const nameLine = nameSug.needed && nameSug.variants && nameSug.variants.length
-      ? `Name correction is a high-leverage identity action: test <strong>${esc(nameSug.variants[0].text)}</strong> for 40 days before making legal changes.`
-      : "Your current name vibration is workable; focus first on consistency, remedies and environment.";
-    const mobileLine = mobSug.needed
-      ? `Your mobile vibration can be improved; prefer future totals <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong>.`
-      : "Your mobile vibration is not the first bottleneck; keep attention on the daily practice and environment fixes.";
-    const topDosh = vastu.find((f) => f.tone === "bad");
-    const vastuLine = doshCount
-      ? `${doshCount} Vastu correction${doshCount === 1 ? "" : "s"} need attention; handle the most-used zones first.`
-      : "No major Vastu dosh dominates the inputs given; keep Brahmasthan clean and northeast light active.";
 
-    /* The summary speaks only in "moves" — named directions of travel.
-       The operational detail (mantras, counts, timings) lives once, in
-       the 40-Day Activation Plan at the end of the report. */
-    const moves = [];
-    if (missingFocus.length) {
-      const planetNames = missingFocus.slice(0, 2).map((n) => `${esc(DB.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
-      moves.push({
-        title: `Seal the leak — power up ${planetNames}`,
-        detail: `${missingFocus.length > 1 ? "These numbers are" : "This number is"} missing from your Lo Shu grid and directly ${missingFocus.length > 1 ? "gate" : "gates"} your chosen focus areas. ${missingFocus.length > 1 ? "They headline" : "It headlines"} your daily ritual.`
-      });
+    let nameLine, mobileLine, vastuLine, headline, story, moves = [];
+
+    if (lang === "hi") {
+      nameLine = nameSug.needed && nameSug.variants && nameSug.variants.length
+        ? `नाम की स्पेलिंग सुधारना एक प्रभावशाली कदम है: कानूनी बदलाव से पहले <strong>${esc(nameSug.variants[0].text)}</strong> को ४० दिनों तक लिखकर अभ्यास करें।`
+        : "आपके वर्तमान नाम की ऊर्जा अनुकूल है; दैनिक साधना, उपाय और घर के वास्तु पर ध्यान दें।";
+      mobileLine = mobSug.needed
+        ? `आपके मोबाइल नंबर की ऊर्जा में सुधार संभव है; भविष्य में कुल योग <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> वाला नंबर चुनें।`
+        : "आपका मोबाइल नंबर ठीक है; दैनिक उपायों और वास्तु सुधार पर ध्यान केंद्रित रखें।";
+      vastuLine = doshCount
+        ? `${doshCount} वास्तु दोष पर ध्यान देने की आवश्यकता है; सबसे अधिक उपयोग होने वाले कमरों के उपाय पहले करें।`
+        : "दिए गए विवरण में कोई बड़ा वास्तु दोष नहीं है; ब्रह्मस्थान साफ रखें और ईशान कोण में रोज दीया जलाएं।";
+
+      if (missingFocus.length) {
+        const pNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
+        moves.push({ title: `कमजोर कड़ी को मजबूत करें — ${pNames}`, detail: `यह अंक आपके लो-शू ग्रिड में अनुपस्थित हैं और आपके मुख्य लक्ष्यों को प्रभावित करते हैं। इन्हें दैनिक साधना में प्राथमिकता दें।` });
+      } else {
+        moves.push({ title: "संतुलित ग्रिड की सुरक्षा", detail: "सभी नौ अंक मौजूद हैं — आपको केवल नियमित साधना से सभी ग्रहों की ऊर्जा बनाए रखनी है।" });
+      }
+
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        moves.push({ title: `सुधरे हुए नाम का अभ्यास — ${esc(nameSug.variants[0].text)}`, detail: "प्रतिदिन २१ बार नई स्पेलिंग लिखें और गैर-कानूनी प्रोफाइल्स पर पहले उपयोग करें।" });
+      } else if (mobSug.needed) {
+        moves.push({ title: "मोबाइल नंबर की ऊर्जा संतुलित करें", detail: `भविष्य में कुल योग ${mobSug.goodTotals.slice(0, 3).join(", ")} वाला नंबर लेने की योजना बनाएं।` });
+      } else {
+        moves.push({ title: "नाम और नंबर पूरी तरह अनुकूल हैं", detail: "पहचान स्तर पर कोई बदलाव जरूरी नहीं है, इसलिए अपनी पूरी ऊर्जा दैनिक उपायों और वास्तु पर लगाएं।" });
+      }
+
+      const topDosh = vastu.find((f) => f.tone === "bad");
+      if (topDosh) {
+        moves.push({ title: `${esc(topDosh.item)} का वास्तु दोष ठीक करें`, detail: "यह आपके घर का सबसे संवेदनशील कोना है। पहले हफ्ते में ही इसका उपाय करें ताकि स्थान की सकारात्मकता बढ़े।" });
+      } else {
+        moves.push({ title: "ब्रह्मस्थान साफ रखें और ईशान में दीया जलाएं", detail: "घर के केंद्र को खाली रखें और ईशान कोण में रोज दीया जलाकर सकारात्मक ऊर्जा का संचार बनाए रखें।" });
+      }
+
+      headline = `${esc(firstNameOf(p.name))}, आपका मुख्य मार्गदर्शक ${esc(driverInfo.planet.split(" ")[0])} की स्पष्ट सोच और ${esc(conductorInfo.planet.split(" ")[0])} के कर्म द्वारा ${esc(goalNames.join(" + "))} में अनुशासित प्रगति है।`;
+      story = `आपका मूलांक ${p.driver} (${esc(driverInfo.planet)}) यह तय करता है कि आप दैनिक रूप से कैसे सोचते हैं, जबकि भाग्यांक ${p.conductor} (${esc(conductorInfo.planet)}) वह भाग्य मार्ग दिखाता है जिससे स्थायी सफलता मिलती है। सरल शब्दों में: ${esc(driverInfo.traits.split(",")[0])} के साथ शुरुआत करें और ${esc(conductorInfo.traits.split(",")[0])} के अनुसार ठोस सिस्टम बनाएं। ${missingFocus.length ? `मुख्य रूप से अनुपस्थित अंक <strong>${missingFocus.join(", ")}</strong> के उपाय सबसे पहले करें क्योंकि ये आपके चुने हुए लक्ष्यों को प्रभावित करते हैं।` : "आपके ग्रिड में सभी अंक मौजूद हैं, इसलिए केवल नियमित संतुलन बनाए रखना है।"}`;
+
+    } else if (lang === "gu") {
+      nameLine = nameSug.needed && nameSug.variants && nameSug.variants.length
+        ? `નામની સ્પેલિંગ સુધારવી એ મોટો પ્રભાવશાળી ઉપાય છે: કાનૂની ફેરફાર પહેલાં <strong>${esc(nameSug.variants[0].text)}</strong> ને ૪૦ દિવસ સુધી લખીને ટેવ પાડો.`
+        : "તમારા હાલના નામની ઊર્જા અનુકૂળ છે; દૈનિક સાધના, ઉપાયો અને ઘરના વાસ્તુ પર ધ્યાન આપો.";
+      mobileLine = mobSug.needed
+        ? `તમારા મોબાઈલ નંબરની ઊર્જા સુધારી શકાય છે; ભવિષ્યમાં કુલ સરવાળો <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> વાળો નંબર પસંદ કરો.`
+        : "તમારો મોબાઈલ નંબર સામાન્ય છે; દૈનિક ઉપાયો અને વાસ્તુ સુધારા પર ધ્યાન કેન્દ્રિત રાખો.";
+      vastuLine = doshCount
+        ? `${doshCount} વાસ્તુ દોષ પર ધ્યાન આપવાની જરૂર છે; સૌથી વધુ વપરાતા રૂમના ઉપાયો પહેલાં કરો.`
+        : "આપેલી વિગતોમાં કોઈ મોટો વાસ્તુ દોષ નથી; બ્રહ્મસ્થાન સાફ રાખો અને ઇશાન ખૂણામાં રોજ દીવો પ્રગટાવો.";
+
+      if (missingFocus.length) {
+        const pNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
+        moves.push({ title: `નબળી કડીને બળવાન બનાવો — ${pNames}`, detail: `આ અંકો તમારા લો-શુ ગ્રીડમાં ખૂટે છે અને તમારા મુખ્ય લક્ષ્યોને અસર કરે છે. આને દૈનિક સાધનામાં પ્રાથમિકતા આપો.` });
+      } else {
+        moves.push({ title: "સંતુલિત ગ્રીડની જાળવણી", detail: "બધા જ નવ અંકો હાજર છે — તમારે માત્ર નિયમિત સાધનાથી બધા ગ્રહોની ઊર્જા જાળવી રાખવાની છે." });
+      }
+
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        moves.push({ title: `સુધારેલી સ્પેલિંગનો અભ્યાસ — ${esc(nameSug.variants[0].text)}`, detail: "દરરોજ ૨૧ વખત નવી સ્પેલિંગ લખો અને બિન-કાનૂની પ્રોફાઇલ પર પહેલાં વાપરો." });
+      } else if (mobSug.needed) {
+        moves.push({ title: "મોબાઈલ નંબરની ઊર્જા સંતુલિત કરો", detail: `ભવિષ્યમાં કુલ સરવાળો ${mobSug.goodTotals.slice(0, 3).join(", ")} વાળો નંબર લેવાનું આયોજન કરો.` });
+      } else {
+        moves.push({ title: "નામ અને નંબર સંપૂર્ણ અનુકૂળ છે", detail: "ઓળખ સ્તરે કોઈ ફેરફાર જરૂરી નથી, તેથી તમારી સંપૂર્ણ ઊર્જા દૈનિક ઉપાયો અને વાસ્તુ પર લગાવો." });
+      }
+
+      const topDosh = vastu.find((f) => f.tone === "bad");
+      if (topDosh) {
+        moves.push({ title: `${esc(topDosh.item)} નો વાસ્તુ દોષ સુધારો`, detail: "આ તમારા ઘરનો સૌથી સંવેદનશીલ ખૂણો છે. પ્રથમ અઠવાડિયામાં જ તેનો ઉપાય કરો જેથી વાતાવરણ હકારાત્મક બને." });
+      } else {
+        moves.push({ title: "બ્રહ્મસ્થાન સાફ રાખો અને ઇશાનમાં દીવો પ્રગટાવો", detail: "ઘરના મધ્ય ભાગને ખાલી રાખો અને ઇશાન ખૂણામાં રોજ દીવો પ્રગટાવીને હકારાત્મક ઊર્જા જાળવી રાખો." });
+      }
+
+      headline = `${esc(firstNameOf(p.name))}, તમારું મુખ્ય માર્ગદર્શન ${esc(driverInfo.planet.split(" ")[0])} ની સ્પષ્ટ વિચારસરણી અને ${esc(conductorInfo.planet.split(" ")[0])} ના કર્મ દ્વારા ${esc(goalNames.join(" + "))} માં શિસ્તબદ્ધ પ્રગતિ છે.`;
+      story = `તમારો મૂળાંક ${p.driver} (${esc(driverInfo.planet)}) એ દર્શાવે છે કે તમે દૈનિક કેવી રીતે વિચારો છો, જ્યારે ભાગ્યાંક ${p.conductor} (${esc(conductorInfo.planet)}) તે ભાગ્ય માર્ગ દર્શાવે છે જેથી સ્થાયી સફળતા મળે છે. સરળ શબ્દોમાં: ${esc(driverInfo.traits.split(",")[0])} સાથે શરૂઆત કરો અને ${esc(conductorInfo.traits.split(",")[0])} મુજબ મજબૂત સિસ્ટમ બનાવો. ${missingFocus.length ? `મુખ્યત્વે ખૂટતા અંક <strong>${missingFocus.join(", ")}</strong> ના ઉપાયો પહેલાં કરો કારણ કે તે તમારા પસંદ કરેલા લક્ષ્યોને અસર કરે છે.` : "તમારા ગ્રીડમાં બધા અંકો હાજર છે, તેથી માત્ર નિયમિત સંતુલન જાળવી રાખવાનું છે."}`;
+
     } else {
-      moves.push({
-        title: "Protect a rare, complete grid",
-        detail: "All nine numbers are present — your work is refinement, not repair. Your ritual is a maintenance practice that keeps every planet fed."
-      });
-    }
-    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
-      moves.push({
-        title: `Trial a corrected spelling — ${esc(nameSug.variants[0].text)}`,
-        detail: "Identity vibrations compound daily. Run a 40-day writing trial before touching legal documents; the full protocol is in the Name section and the plan."
-      });
-    } else if (mobSug.needed) {
-      moves.push({
-        title: "Re-tune your most-used vibration",
-        detail: `Your mobile number rings all day — plan a future number totalling ${mobSug.goodTotals.slice(0, 3).join(", ")} when the 40-day window feels settled.`
-      });
-    } else {
-      moves.push({
-        title: "Your name and number already cooperate",
-        detail: "No identity change is required, so every drop of effort goes into practice and environment — the two levers that move fastest."
-      });
-    }
-    if (topDosh) {
-      moves.push({
-        title: `Quiet the ${esc(topDosh.item)} zone`,
-        detail: "This is the highest-friction corner in your Vastu scan. Correct it in the first week so the space stops arguing with your remedies."
-      });
-    } else {
-      moves.push({
-        title: `Keep the centre light and the northeast lit`,
-        detail: "Your space shows no dominant dosh — a clean Brahmasthan and a daily northeast diya hold the field while your remedies work."
-      });
+      nameLine = nameSug.needed && nameSug.variants && nameSug.variants.length
+        ? `Name correction is a high-leverage identity action: test <strong>${esc(nameSug.variants[0].text)}</strong> for 40 days before making legal changes.`
+        : "Your current name vibration is workable; focus first on consistency, remedies and environment.";
+      mobileLine = mobSug.needed
+        ? `Your mobile vibration can be improved; prefer future totals <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong>.`
+        : "Your mobile vibration is not the first bottleneck; keep attention on the daily practice and environment fixes.";
+      vastuLine = doshCount
+        ? `${doshCount} Vastu correction${doshCount === 1 ? "" : "s"} need attention; handle the most-used zones first.`
+        : "No major Vastu dosh dominates the inputs given; keep Brahmasthan clean and northeast light active.";
+
+      if (missingFocus.length) {
+        const planetNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
+        moves.push({
+          title: `Seal the leak — power up ${planetNames}`,
+          detail: `${missingFocus.length > 1 ? "These numbers are" : "This number is"} missing from your Lo Shu grid and directly ${missingFocus.length > 1 ? "gate" : "gates"} your chosen focus areas. ${missingFocus.length > 1 ? "They headline" : "It headlines"} your daily ritual.`
+        });
+      } else {
+        moves.push({
+          title: "Protect a rare, complete grid",
+          detail: "All nine numbers are present — your work is refinement, not repair. Your ritual is a maintenance practice that keeps every planet fed."
+        });
+      }
+
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        moves.push({
+          title: `Trial a corrected spelling — ${esc(nameSug.variants[0].text)}`,
+          detail: "Identity vibrations compound daily. Run a 40-day writing trial before touching legal documents; the full protocol is in the Name section and the plan."
+        });
+      } else if (mobSug.needed) {
+        moves.push({
+          title: "Re-tune your most-used vibration",
+          detail: `Your mobile number rings all day — plan a future number totalling ${mobSug.goodTotals.slice(0, 3).join(", ")} when the 40-day window feels settled.`
+        });
+      } else {
+        moves.push({
+          title: "Your name and number already cooperate",
+          detail: "No identity change is required, so every drop of effort goes into practice and environment — the two levers that move fastest."
+        });
+      }
+
+      const topDosh = vastu.find((f) => f.tone === "bad");
+      if (topDosh) {
+        moves.push({
+          title: `Quiet the ${esc(topDosh.item)} zone`,
+          detail: "This is the highest-friction corner in your Vastu scan. Correct it in the first week so the space stops arguing with your remedies."
+        });
+      } else {
+        moves.push({
+          title: `Keep the centre light and the northeast lit`,
+          detail: "Your space shows no dominant dosh — a clean Brahmasthan and a daily northeast diya hold the field while your remedies work."
+        });
+      }
+
+      headline = `${esc(firstNameOf(p.name))}, your northstar is disciplined ${esc(goalNames.join(" + ").toLowerCase())} growth through ${esc(driverInfo.planet.split(" ")[0])} clarity and ${esc(conductorInfo.planet.split(" ")[0])} execution.`;
+      story = `Your Driver ${p.driver} (${esc(driverInfo.planet)}) shapes how you think and respond each day, while Conductor ${p.conductor} (${esc(conductorInfo.planet)}) shows the destiny path that gives lasting results. In simple terms: lead with ${esc(driverInfo.traits.split(",")[0].toLowerCase())}, but build systems that satisfy ${esc(conductorInfo.traits.split(",")[0].toLowerCase())}. ${missingFocus.length ? `The main leaks to plug are missing number${missingFocus.length > 1 ? "s" : ""} <strong>${missingFocus.join(", ")}</strong>; these become the first remedy targets because they affect your selected focus areas.` : "Your birth grid has no missing numbers, so the path is about refinement rather than repair."}`;
     }
 
-    return {
-      headline: `${esc(firstNameOf(p.name))}, your northstar is disciplined ${esc(goalNames.join(" + ").toLowerCase())} growth through ${esc(driverInfo.planet.split(" ")[0])} clarity and ${esc(conductorInfo.planet.split(" ")[0])} execution.`,
-      story: `Your Driver ${p.driver} (${esc(driverInfo.planet)}) shapes how you think and respond each day, while Conductor ${p.conductor} (${esc(conductorInfo.planet)}) shows the destiny path that gives lasting results. In simple terms: lead with ${esc(driverInfo.traits.split(",")[0].toLowerCase())}, but build systems that satisfy ${esc(conductorInfo.traits.split(",")[0].toLowerCase())}. ${missingFocus.length ? `The main leaks to plug are missing number${missingFocus.length > 1 ? "s" : ""} <strong>${missingFocus.join(", ")}</strong>; these become the first remedy targets because they affect your selected focus areas.` : "Your birth grid has no missing numbers, so the path is about refinement rather than repair."}`,
-      cards: [
-        { label: "Primary direction", value: `Focus on ${esc(goalNames.join(", "))}`, note: `Use Driver ${p.driver} for daily decisions and Conductor ${p.conductor} for long-term commitments.` },
-        { label: "This year", value: currentYear ? `Personal Year ${currentYear.n}` : "Timing check", note: currentYear ? esc(currentYear.meaning) : "Use the timing section before major moves." },
-        { label: "Remedy focus", value: esc(firstGoalFocus), note: firstGoal && firstGoal.weak.length ? `These numbers block ${esc(firstGoal.goal.toLowerCase())} when unsupported.` : "Maintain these energies through colour, mantra and weekly rhythm." },
-        { label: "Environment", value: doshCount ? `${doshCount} Vastu dosha${doshCount === 1 ? "" : "s"} flagged` : "Vastu maintenance", note: esc(plainText(vastuLine)) }
-      ],
-      checks: [nameLine, mobileLine, vastuLine],
-      moves
-    };
+    const cards = [
+      { label: lang === "hi" ? "मुख्य दिशा" : lang === "gu" ? "મુખ્ય દિશા" : "Primary direction", value: lang === "hi" ? `${esc(goalNames.join(", "))} पर फोकस` : lang === "gu" ? `${esc(goalNames.join(", "))} પર ફોકસ` : `Focus on ${esc(goalNames.join(", "))}`, note: lang === "hi" ? `दैनिक निर्णयों में मूलांक ${p.driver} और दीर्घकालिक लक्ष्यों में भाग्यांक ${p.conductor} का उपयोग करें।` : lang === "gu" ? `દૈનિક નિર્ણયોમાં મૂળાંક ${p.driver} અને લાંબા ગાળાના લક્ષ્યોમાં ભાગ્યાંક ${p.conductor} નો ઉપયોગ કરો.` : `Use Driver ${p.driver} for daily decisions and Conductor ${p.conductor} for long-term commitments.` },
+      { label: lang === "hi" ? "यह वर्ष" : lang === "gu" ? "આ વર્ષ" : "This year", value: currentYear ? (lang === "hi" ? `व्यक्तिगत वर्ष ${currentYear.n}` : lang === "gu" ? `વ્યક્તિગત વર્ષ ${currentYear.n}` : `Personal Year ${currentYear.n}`) : "Timing check", note: currentYear ? esc(currentYear.meaning) : "Use the timing section before major moves." },
+      { label: lang === "hi" ? "मुख्य उपाय" : lang === "gu" ? "મુખ્ય ઉપાય" : "Remedy focus", value: esc(firstGoalFocus), note: firstGoal && firstGoal.weak.length ? (lang === "hi" ? "ये अंक आपके लक्ष्य में बाधा डालते हैं, इन्हें मजबूत करें।" : lang === "gu" ? "આ અંકો તમારા લક્ષ્યમાં અવરોધ નાખે છે, આને મજબૂત કરો." : `These numbers block ${esc(firstGoal.goal.toLowerCase())} when unsupported.`) : (lang === "hi" ? "शुभ रंग, मंत्र और साप्ताहिक नियम से ऊर्जा बनाए रखें।" : lang === "gu" ? "શુભ રંગ, મંત્ર અને સાપ્તાહિક નિયમથી ઊર્જા જાળવી રાખો." : "Maintain these energies through colour, mantra and weekly rhythm.") },
+      { label: lang === "hi" ? "वास्तु स्थिति" : lang === "gu" ? "વાસ્તુ સ્થિતિ" : "Environment", value: doshCount ? (lang === "hi" ? `${doshCount} वास्तु दोष चिह्नित` : lang === "gu" ? `${doshCount} વાસ્તુ દોષ ચિહ્નિત` : `${doshCount} Vastu dosha${doshCount === 1 ? "" : "s"} flagged`) : (lang === "hi" ? "वास्तु संतुलित है" : lang === "gu" ? "વાસ્તુ સંતુલિત છે" : "Vastu maintenance"), note: esc(plainText(vastuLine)) }
+    ];
+
+    return { headline, story, cards, checks: [nameLine, mobileLine, vastuLine], moves };
   }
 
-  /* -------- 40-day activation plan --------
-     Turns the chart into an itinerary: one daily core ritual, a weekly
-     rhythm, and four classical phases. The 40-day mandala is the
-     classical activation period for a remedy to imprint its vibration. */
   function activationPlan(p, timing, goals, vastu, nameSug, mobSug) {
-    const driverInfo = DB.numbers[p.driver];
-    const conductorInfo = DB.numbers[p.conductor];
+    const db = getActiveDB();
+    const lang = getLang();
+    const driverInfo = db.numbers[p.driver];
+    const conductorInfo = db.numbers[p.conductor];
     const criticalMissing = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
     const missingFocus = criticalMissing.length ? criticalMissing : p.missing.slice(0, 3);
     const targetN = missingFocus[0] || p.driver;
-    const target = DB.numbers[targetN];
-    const targetShort = DB.mantraShort[targetN];
+    const target = db.numbers[targetN];
+    const targetShort = db.mantraShort[targetN];
     const secondaryN = missingFocus.filter((n) => n !== targetN)[0] || (missingFocus.length ? null : p.conductor);
-    const secondary = secondaryN ? DB.numbers[secondaryN] : null;
+    const secondary = secondaryN ? db.numbers[secondaryN] : null;
     const badVastu = vastu.filter((f) => f.tone === "bad");
     const firstGoalName = goals[0] ? goals[0].goal : null;
     const currentYearLucky = timing.luckyYears.some((entry) => entry.yr === new Date().getFullYear());
 
-    /* Daily core ritual — the engine of the whole plan */
-    const daily = [
-      { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — 27 times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This feeds ${esc(target.planet)}, your ${missingFocus.length ? "weakest link" : "Driver planet"}.` },
-      { ico: "📝", label: "Wish paper", value: `Write “${esc(targetShort.affirmation)}” 11 times`, sub: "Then keep the paper in your wallet or under your pillow — the written word anchors the vibration." },
-      { ico: "🎨", label: "Dress the vibration", value: `Touch ${esc(target.color.split(",")[0].toLowerCase())} every ${esc(target.day.split(" ")[0])}; wear your Driver colour (${esc(driverInfo.color.split(",")[0].toLowerCase())}) on ${esc(DAY_OF[p.driver])}`, sub: "Colour is the fastest wearable remedy — even a thread, watch-strap or phone wallpaper counts." },
-      { ico: "🌿", label: "Lifestyle cue", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)}'s daily discipline — small, boring, compounding.` }
-    ];
-
-    /* Weekly rhythm — the days that carry the most charge */
-    const weekly = [];
-    const dDay = DAY_OF[p.driver], cDay = DAY_OF[p.conductor];
-    weekly.push({ day: dDay, planet: `${p.driver} — ${esc(driverInfo.planet)}`, note: "Your Driver day — strongest for starting remedies and visible moves", charity: driverInfo.charity, fast: driverInfo.fast });
-    if (cDay !== dDay) {
-      weekly.push({ day: cDay, planet: `${p.conductor} — ${esc(conductorInfo.planet)}`, note: "Your Conductor day — strongest for destiny-level decisions and commitments", charity: conductorInfo.charity, fast: conductorInfo.fast });
-    }
-    if (targetN !== p.driver && targetN !== p.conductor && target.day.indexOf(dDay) !== 0 && target.day.indexOf(cDay) !== 0) {
-      weekly.push({ day: target.day, planet: `${targetN} — ${esc(target.planet)}`, note: `Remedy day for your missing number ${targetN} — give this one extra weight this cycle`, charity: target.charity, fast: target.fast });
-    }
-
-    /* Four phases of the mandala */
-    const phases = [];
-    const phase1Rows = [
-      `Begin the <strong>daily core ritual</strong> above — same time, same place, every morning. Starting on a <strong>${dDay}</strong> gives the strongest charge.`
-    ];
-    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
-      phase1Rows.push(`Start the <strong>40-day spelling trial</strong>: write <strong>${esc(nameSug.variants[0].text)}</strong> 21 times each morning and update non-legal profiles first (protocol in Section ${SECTION.name}).`);
-    }
-    phase1Rows.push(`Set your space: place a <strong>bowl of sea salt</strong> in ${badVastu.length ? `your dosh zone${badVastu.length > 1 ? "s" : ""} (${esc(badVastu.slice(0, 2).map((f) => f.item).join(", "))})` : "the northeast of your home"} and light a daily <strong>northeast diya</strong>.`);
-    phases.push({ badge: "Days 1–7", title: "Foundation — anchor the ritual", rows: phase1Rows });
-
-    const dayList = weekly.map((w) => `<strong>${esc(w.day)}</strong>`);
-    const dayListText = dayList.length > 2 ? `${dayList.slice(0, -1).join(", ")} and ${dayList[dayList.length - 1]}` : dayList.join(" and ");
-    const phase2Rows = [
-      `Add the <strong>weekly rhythm</strong> — ${dayListText} charity and fasting exactly as listed above.`,
-      badVastu.length
-        ? `First Vastu fix: correct the <strong>${esc(badVastu[0].item)}</strong> (${esc(badVastu[0].label.toLowerCase())}) using the remedy in Section ${SECTION.vastu} — space and mind must agree.`
-        : `Vastu upkeep: keep the <strong>Brahmasthan (centre)</strong> empty and clean so energy can circulate.`
-    ];
-    if (p.watchType && p.watchType !== "none") phase2Rows.push(`Activate your aligned <strong>watch</strong> (Section ${SECTION.watch}) on a ${dDay} morning, 6:30–8:30 AM, if you have not yet.`);
-    phase2Rows.push(`Log each day's practice with one tap in <strong>Your Evolving Chart</strong> (Section ${SECTION.memory}) — the chart learns your consistency.`);
-    phases.push({ badge: "Days 8–21", title: "Build the rhythm", rows: phase2Rows });
-
-    const phase3Rows = [];
-    if (secondary) {
-      phase3Rows.push(`Add the second key: fold in <strong>${esc(secondary.planet)} (${secondaryN})</strong> — its short mantra <span class="mantra">${esc(DB.mantraShort[secondaryN].dev)}</span> ×11 and ${esc(secondary.color.split(",")[0].toLowerCase())} on ${esc(secondary.day.split(" ")[0])}. Two planets, one ritual.`);
+    let daily = [];
+    if (lang === "hi") {
+      daily = [
+        { ico: "🌅", label: "सूर्योदय मंत्र जाप", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — २७ बार, सुबह ८ बजे से पहले`, sub: `${esc(targetShort.meaning)} यह आपके ${missingFocus.length ? "निर्बल ग्रह" : "मूलांक ग्रह"} ${esc(target.planet)} को शक्ति देता है।` },
+        { ico: "📝", label: "संकल्प पत्र (विश पेपर)", value: `लिखें: “${esc(targetShort.affirmation)}” ११ बार`, sub: "कागज को मोड़कर अपने पर्स या तकिए के नीचे रखें — लिखित संकल्प ऊर्जा को स्थापित करता है।" },
+        { ico: "🎨", label: "शुभ रंग धारण करें", value: `प्रत्येक ${esc(target.day)} को ${esc(target.color.split(",")[0])} रंग का प्रयोग करें; अपने मूलांक वार (${dayOf(p.driver)}) को ${esc(driverInfo.color.split(",")[0])} पहनें`, sub: "रंग सबसे सुगम उपाय है — रुमाल, धागा, घड़ी का स्ट्रैप भी पर्याप्त है।" },
+        { ico: "🌿", label: "जीवनशैली नियम", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} का दैनिक अनुशासन — छोटा पर चमत्कारी प्रभाव।` }
+      ];
+    } else if (lang === "gu") {
+      daily = [
+        { ico: "🌅", label: "સૂર્યોદય મંત્ર જાપ", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ૨૭ વખત, સવારે ૮ વાગ્યા પહેલાં`, sub: `${esc(targetShort.meaning)} આ તમારા ${missingFocus.length ? "ખૂટતા ગ્રહ" : "મૂળાંક ગ્રહ"} ${esc(target.planet)} ને બળ આપે છે.` },
+        { ico: "📝", label: "સંકલ્પ પત્ર (વિશ પેપર)", value: `લખો: “${esc(targetShort.affirmation)}” ૧૧ વખત`, sub: "કાગળને વાળીને પર્સમાં કે ઓશીકા નીચે રાખો — લખેલો સંકલ્પ ઊર્જાને સ્થાપિત કરે છે." },
+        { ico: "🎨", label: "શુભ રંગ ધારણ કરો", value: `દરેક ${esc(target.day)} ના દિવસે ${esc(target.color.split(",")[0])} રંગ વાપરો; મૂળાંક વાર (${dayOf(p.driver)}) ના દિવસે ${esc(driverInfo.color.split(",")[0])} પહેરો`, sub: "રંગ સૌથી સરળ ઉપાય છે — રૂમાલ, દોરો કે ઘડિયાળનો સ્ટ્રેપ પણ ચાલે." },
+        { ico: "🌿", label: "જીવનશૈલી નિયમ", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} નો દૈનિક નિયમ — નાનો પણ અદ્ભુત પ્રભાવ.` }
+      ];
     } else {
-      phase3Rows.push(`Deepen the practice: raise the sunrise mantra to <strong>108 times</strong> on ${esc(target.day.split(" ")[0])}s — quantity matures into quality in the third week.`);
+      daily = [
+        { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — 27 times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This feeds ${esc(target.planet)}, your ${missingFocus.length ? "weakest link" : "Driver planet"}.` },
+        { ico: "📝", label: "Wish paper", value: `Write “${esc(targetShort.affirmation)}” 11 times`, sub: "Then keep the paper in your wallet or under your pillow — the written word anchors the vibration." },
+        { ico: "🎨", label: "Dress the vibration", value: `Touch ${esc(target.color.split(",")[0].toLowerCase())} every ${esc(target.day.split(" ")[0])}; wear your Driver colour (${esc(driverInfo.color.split(",")[0].toLowerCase())}) on ${esc(DAY_OF[p.driver])}`, sub: "Colour is the fastest wearable remedy — even a thread, watch-strap or phone wallpaper counts." },
+        { ico: "🌿", label: "Lifestyle cue", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)}'s daily discipline — small, boring, compounding.` }
+      ];
     }
-    if (mobSug.needed) phase3Rows.push(`This is the window to shortlist a <strong>new mobile number</strong> totalling <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> — ${firstGoalName ? `supporting your ${esc(firstGoalName.toLowerCase())} focus and` : ""} harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
-    if (badVastu[1]) phase3Rows.push(`Second Vastu fix: correct the <strong>${esc(badVastu[1].item)}</strong> — the other zone flagged in your scan.`);
-    phase3Rows.push(`Notice and note: sleep, mood, money conversations${firstGoalName ? `, ${esc(firstGoalName.toLowerCase())} openings` : ""} — one line a day in the Evolving Chart journal.`);
-    phases.push({ badge: "Days 22–40", title: "Integrate — two keys, one flow", rows: phase3Rows });
 
-    const phase4Rows = [
-      `On <strong>Day 40</strong>, close the loop: compare your tracker, practice log and snapshots in <strong>Your Evolving Chart</strong> — what shifted, what resisted?`,
-      `Decide the keepers: Driver &amp; Conductor practices are <strong>lifelong companions</strong>; missing-number remedies can rest once the leak is sealed — re-run this report any month to refresh the reading.`,
-      currentYearLucky
-        ? `This calendar year sits in your <strong>Best Years window</strong> (Section ${SECTION.timing}) — schedule the launch, application or purchase you have been holding for right after Day 40.`
-        : `Look ahead: time your next big move for the favourable years in Section ${SECTION.timing} — the 40-day cycle builds the vessel, timing sails it.`
-    ];
-    phases.push({ badge: "Day 40+", title: "Review &amp; reset", rows: phase4Rows });
+    const weekly = [];
+    const dDay = dayOf(p.driver), cDay = dayOf(p.conductor);
+    if (lang === "hi") {
+      weekly.push({ day: dDay, planet: `${p.driver} — ${esc(driverInfo.planet)}`, note: "मूलांक वार — नए कार्य शुरू करने और मुख्य उपाय करने के लिए सर्वोत्तम", charity: driverInfo.charity, fast: driverInfo.fast });
+      if (cDay !== dDay) {
+        weekly.push({ day: cDay, planet: `${p.conductor} — ${esc(conductorInfo.planet)}`, note: "भाग्यांक वार — बड़े वित्तीय व दीर्घकालिक निर्णयों के लिए सर्वोत्तम", charity: conductorInfo.charity, fast: conductorInfo.fast });
+      }
+      if (targetN !== p.driver && targetN !== p.conductor && target.day.indexOf(dDay) !== 0 && target.day.indexOf(cDay) !== 0) {
+        weekly.push({ day: target.day, planet: `${targetN} — ${esc(target.planet)}`, note: `अनुपस्थित अंक ${targetN} का उपाय वार — इस दिन विशेष दान व नियम पालें`, charity: target.charity, fast: target.fast });
+      }
+    } else if (lang === "gu") {
+      weekly.push({ day: dDay, planet: `${p.driver} — ${esc(driverInfo.planet)}`, note: "મૂળાંક વાર — નવા કામ શરૂ કરવા અને મુખ્ય ઉપાય કરવા માટે ઉત્તમ", charity: driverInfo.charity, fast: driverInfo.fast });
+      if (cDay !== dDay) {
+        weekly.push({ day: cDay, planet: `${p.conductor} — ${esc(conductorInfo.planet)}`, note: "ભાગ્યાંક વાર — મોટા નાણાકીય અને લાંબા ગાળાના નિર્ણયો માટે ઉત્તમ", charity: conductorInfo.charity, fast: conductorInfo.fast });
+      }
+      if (targetN !== p.driver && targetN !== p.conductor && target.day.indexOf(dDay) !== 0 && target.day.indexOf(cDay) !== 0) {
+        weekly.push({ day: target.day, planet: `${targetN} — ${esc(target.planet)}`, note: `ખૂટતા અંક ${targetN} નો ઉપાય વાર — આ દિવસે વિશેષ દાન અને નિયમ પાળો`, charity: target.charity, fast: target.fast });
+      }
+    } else {
+      weekly.push({ day: DAY_OF[p.driver], planet: `${p.driver} — ${esc(driverInfo.planet)}`, note: "Your Driver day — strongest for starting remedies and visible moves", charity: driverInfo.charity, fast: driverInfo.fast });
+      if (DAY_OF[p.conductor] !== DAY_OF[p.driver]) {
+        weekly.push({ day: DAY_OF[p.conductor], planet: `${p.conductor} — ${esc(conductorInfo.planet)}`, note: "Your Conductor day — strongest for destiny-level decisions and commitments", charity: conductorInfo.charity, fast: conductorInfo.fast });
+      }
+      if (targetN !== p.driver && targetN !== p.conductor && target.day.indexOf(DAY_OF[p.driver]) !== 0 && target.day.indexOf(DAY_OF[p.conductor]) !== 0) {
+        weekly.push({ day: target.day, planet: `${targetN} — ${esc(target.planet)}`, note: `Remedy day for your missing number ${targetN} — give this one extra weight this cycle`, charity: target.charity, fast: target.fast });
+      }
+    }
+
+    const phases = [];
+    if (lang === "hi") {
+      const p1 = [`ऊपर दी गई <strong>दैनिक मुख्य साधना</strong> शुरू करें — एक ही समय, एक ही स्थान, प्रतिदिन सुबह। <strong>${dDay}</strong> से शुरुआत करना सबसे शुभ है।`];
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        p1.push(`<strong>४०-दिवसीय नाम लेखन साधना</strong>: रोज सुबह <strong>${esc(nameSug.variants[0].text)}</strong> २१ बार लिखें।`);
+      }
+      p1.push(`घर की ऊर्जा शुद्ध करें: ${badVastu.length ? `दोष वाले स्थान (${esc(badVastu.slice(0, 2).map((f) => f.item).join(", "))}) में` : "ईशान कोण में"} <strong>समुद्री नमक की कटोरी</strong> रखें और रोज <strong>ईशान में दीया</strong> जलाएं।`);
+      phases.push({ badge: "दिन १–७", title: "आधार — साधना की शुरुआत", rows: p1 });
+
+      const p2 = [
+        `<strong>साप्ताहिक क्रम</strong> जोड़ें — ${weekly.map((w) => `<strong>${esc(w.day)}</strong>`).join(" और ")} को बताए अनुसार दान और व्रत करें।`,
+        badVastu.length ? `पहला वास्तु सुधार: <strong>${esc(badVastu[0].item)}</strong> का उपाय करें — स्थान और मन में सामंजस्य जरूरी है।` : `वास्तु रखरखाव: घर के <strong>मध्य (ब्रह्मस्थान)</strong> को साफ और खाली रखें।`
+      ];
+      if (p.watchType && p.watchType !== "none") p2.push(`अपनी अनुकूल <strong>घड़ी</strong> (खंड ${SECTION.watch}) को ${dDay} की सुबह ६:३०–८:३० के बीच धारण करें।`);
+      p2.push(`प्रतिदिन का अभ्यास नीचे दिए गए <strong>४०-दिवसीय ट्रैकर</strong> में दर्ज करें।`);
+      phases.push({ badge: "दिन ८–२१", title: "गति — साप्ताहिक नियम", rows: p2 });
+
+      const p3 = [];
+      if (secondary) {
+        p3.push(`दूसरी चाबी जोड़ें: <strong>${esc(secondary.planet)} (${secondaryN})</strong> का लघु मंत्र <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ११ बार और ${esc(secondary.color.split(",")[0])} रंग का प्रयोग करें।`);
+      } else {
+        p3.push(`साधना को गहरा करें: ${esc(target.day)} को सूर्योदय मंत्र जाप बढ़ाकर <strong>१०८ बार</strong> करें।`);
+      }
+      if (mobSug.needed) p3.push(`इस दौरान कुल योग <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> वाला नया मोबाइल नंबर शॉर्टलिस्ट करें।`);
+      if (badVastu[1]) p3.push(`दूसरा वास्तु सुधार: <strong>${esc(badVastu[1].item)}</strong> का उपाय करें।`);
+      p3.push(`अनुभव नोट करें: मन की शांति, नींद, धन के नए अवसर — प्रगति चार्ट में लिखें।`);
+      phases.push({ badge: "दिन २२–४०", title: "समन्वय — दोनों ऊर्जाओं का मिलन", rows: p3 });
+
+      const p4 = [
+        `<strong>४०वें दिन</strong> चक्र पूर्ण करें: ट्रैकर और प्रगति चार्ट में देखें कि क्या बदलाव आया और क्या रुकावट हटी?`,
+        `मूलांक व भाग्यांक के नियम <strong>जीवनभर के साथी</strong> हैं; अनुपस्थित अंक के उपाय पूर्ण होने पर विश्राम दे सकते हैं।`,
+        currentYearLucky ? `यह कैलेंडर वर्ष आपके <strong>शुभ वर्षों</strong> (खंड ${SECTION.timing}) में है — ४० दिन पूरे होते ही महत्वपूर्ण काम शुरू करें।` : `भविष्य की योजना: अनुकूल समय के अनुसार बड़े फैसले लें — ४० दिन की साधना नाव तैयार करती है, अनुकूल समय उसे आगे बढ़ाता है।`
+      ];
+      phases.push({ badge: "दिन ४०+", title: "अवलोकन एवं निरंतरता", rows: p4 });
+
+    } else if (lang === "gu") {
+      const p1 = [`ઉપર દર્શાવેલી <strong>દૈનિક મુખ્ય સાધના</strong> શરૂ કરો — એક જ સમય, એક જ સ્થળ, દરરોજ સવારે. <strong>${dDay}</strong> થી શરૂઆત કરવી સૌથી શ્રેષ્ઠ છે.`];
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        p1.push(`<strong>૪૦ દિવસની નામ લેખન સાધના</strong>: દરરોજ સવારે <strong>${esc(nameSug.variants[0].text)}</strong> ૨૧ વખત લખો.`);
+      }
+      p1.push(`ઘરની ઊર્જા શુદ્ધ કરો: ${badVastu.length ? `દોષ વાળી જગ્યાએ (${esc(badVastu.slice(0, 2).map((f) => f.item).join(", "))})` : "ઇશાન ખૂણામાં"} <strong>દરિયાઈ મીઠાની વાટકી</strong> રાખો અને રોજ <strong>ઇશાનમાં દીવો</strong> પ્રગટાવો.`);
+      phases.push({ badge: "દિવસ ૧–૭", title: "પાયો — સાધનાની શરૂઆત", rows: p1 });
+
+      const p2 = [
+        `<strong>સાપ્તાહિક ક્રમ</strong> જોડો — ${weekly.map((w) => `<strong>${esc(w.day)}</strong>`).join(" અને ")} ના દિવસે જણાવ્યા મુજબ દાન અને ઉપવાસ કરો.`,
+        badVastu.length ? `પ્રથમ વાસ્તુ સુધારો: <strong>${esc(badVastu[0].item)}</strong> નો ઉપાય કરો — વાસ્તુ અને મનનું સુમેળ જરૂરી છે.` : `વાસ્તુ જાળવણી: ઘરના <strong>મધ્ય (બ્રહ્મસ્થાન)</strong> ને સ્વચ્છ અને ખાલી રાખો.`
+      ];
+      if (p.watchType && p.watchType !== "none") p2.push(`તમારી અનુકૂળ <strong>ઘડિયાળ</strong> (વિભાગ ${SECTION.watch}) ${dDay} ની સવારે ૬:૩૦–૮:૩૦ વચ્ચે ધારણ કરો.`);
+      p2.push(`દરરોજનો અભ્યાસ નીચે આપેલા <strong>૪૦ દિવસના ટ્રેકર</strong> માં નોંધો.`);
+      phases.push({ badge: "દિવસ ૮–૨૧", title: "ગતિ — સાપ્તાહિક નિયમો", rows: p2 });
+
+      const p3 = [];
+      if (secondary) {
+        p3.push(`બીજી ચાવી જોડો: <strong>${esc(secondary.planet)} (${secondaryN})</strong> નો લઘુ મંત્ર <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ૧૧ વખત અને ${esc(secondary.color.split(",")[0])} રંગ વાપરો.`);
+      } else {
+        p3.push(`સાધના ઊંડી કરો: ${esc(target.day)} ના દિવસે સૂર્યોદય મંત્ર જાપ વધારીને <strong>૧૦૮ વખત</strong> કરો.`);
+      }
+      if (mobSug.needed) p3.push(`આ સમયગાળામાં કુલ સરવાળો <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> વાળો નવો મોબાઈલ નંબર પસંદ કરો.`);
+      if (badVastu[1]) p3.push(`બીજો વાસ્તુ સુધારો: <strong>${esc(badVastu[1].item)}</strong> નો ઉપાય કરો.`);
+      p3.push(`અનુભવ નોંધો: મનની શાંતિ, ઊંઘ, ધનની નવી તકો — પ્રગતિ ચાર્ટમાં લખો.`);
+      phases.push({ badge: "દિવસ ૨૨–૪૦", title: "સમન્વય — બંને ઊર્જાઓનું જોડાણ", rows: p3 });
+
+      const p4 = [
+        `<strong>૪૦મા દિવસે</strong> ચક્ર પૂર્ણ કરો: ટ્રેકર અને પ્રગતિ ચાર્ટમાં જુઓ કે શું બદલાવ આવ્યો અને શું અડચણ દૂર થઈ?`,
+        `મૂળાંક અને ભાગ્યાંકના નિયમો <strong>આજીવન સાથી</strong> છે; ખૂટતા અંકના ઉપાયો પૂર્ણ થતાં વિશ્રામ આપી શકો છો.`,
+        currentYearLucky ? `આ કેલેન્ડર વર્ષ તમારા <strong>શ્રેષ્ઠ વર્ષો</strong> (વિભાગ ${SECTION.timing}) માં છે — ૪૦ દિવસ પૂરા થતાં જ મહત્વના કાર્યો શરૂ કરો.` : `ભવિષ્યનું આયોજન: અનુકૂળ સમય મુજબ મોટા નિર્ણયો લો — ૪૦ દિવસની સાધના હોડી તૈયાર કરે છે, અનુકૂળ સમય તેને આગળ વધારે છે.`
+      ];
+      phases.push({ badge: "દિવસ ૪૦+", title: "સમીક્ષા અને સાતત્ય", rows: p4 });
+
+    } else {
+      const phase1Rows = [
+        `Begin the <strong>daily core ritual</strong> above — same time, same place, every morning. Starting on a <strong>${DAY_OF[p.driver]}</strong> gives the strongest charge.`
+      ];
+      if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+        phase1Rows.push(`Start the <strong>40-day spelling trial</strong>: write <strong>${esc(nameSug.variants[0].text)}</strong> 21 times each morning and update non-legal profiles first (protocol in Section ${SECTION.name}).`);
+      }
+      phase1Rows.push(`Set your space: place a <strong>bowl of sea salt</strong> in ${badVastu.length ? `your dosh zone${badVastu.length > 1 ? "s" : ""} (${esc(badVastu.slice(0, 2).map((f) => f.item).join(", "))})` : "the northeast of your home"} and light a daily <strong>northeast diya</strong>.`);
+      phases.push({ badge: "Days 1–7", title: "Foundation — anchor the ritual", rows: phase1Rows });
+
+      const dayList = weekly.map((w) => `<strong>${esc(w.day)}</strong>`);
+      const dayListText = dayList.length > 2 ? `${dayList.slice(0, -1).join(", ")} and ${dayList[dayList.length - 1]}` : dayList.join(" and ");
+      const phase2Rows = [
+        `Add the <strong>weekly rhythm</strong> — ${dayListText} charity and fasting exactly as listed above.`,
+        badVastu.length
+          ? `First Vastu fix: correct the <strong>${esc(badVastu[0].item)}</strong> (${esc(badVastu[0].label.toLowerCase())}) using the remedy in Section ${SECTION.vastu} — space and mind must agree.`
+          : `Vastu upkeep: keep the <strong>Brahmasthan (centre)</strong> empty and clean so energy can circulate.`
+      ];
+      if (p.watchType && p.watchType !== "none") phase2Rows.push(`Activate your aligned <strong>watch</strong> (Section ${SECTION.watch}) on a ${DAY_OF[p.driver]} morning, 6:30–8:30 AM, if you have not yet.`);
+      phase2Rows.push(`Log each day's practice with one tap in <strong>Your Evolving Chart</strong> (Section ${SECTION.memory}) — the chart learns your consistency.`);
+      phases.push({ badge: "Days 8–21", title: "Build the rhythm", rows: phase2Rows });
+
+      const phase3Rows = [];
+      if (secondary) {
+        phase3Rows.push(`Add the second key: fold in <strong>${esc(secondary.planet)} (${secondaryN})</strong> — its short mantra <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ×11 and ${esc(secondary.color.split(",")[0].toLowerCase())} on ${esc(secondary.day.split(" ")[0])}. Two planets, one ritual.`);
+      } else {
+        phase3Rows.push(`Deepen the practice: raise the sunrise mantra to <strong>108 times</strong> on ${esc(target.day.split(" ")[0])}s — quantity matures into quality in the third week.`);
+      }
+      if (mobSug.needed) phase3Rows.push(`This is the window to shortlist a <strong>new mobile number</strong> totalling <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> — ${firstGoalName ? `supporting your ${esc(firstGoalName.toLowerCase())} focus and` : ""} harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
+      if (badVastu[1]) phase3Rows.push(`Second Vastu fix: correct the <strong>${esc(badVastu[1].item)}</strong> — the other zone flagged in your scan.`);
+      phase3Rows.push(`Notice and note: sleep, mood, money conversations${firstGoalName ? `, ${esc(firstGoalName.toLowerCase())} openings` : ""} — one line a day in the Evolving Chart journal.`);
+      phases.push({ badge: "Days 22–40", title: "Integrate — two keys, one flow", rows: phase3Rows });
+
+      const phase4Rows = [
+        `On <strong>Day 40</strong>, close the loop: compare your tracker, practice log and snapshots in <strong>Your Evolving Chart</strong> — what shifted, what resisted?`,
+        `Decide the keepers: Driver &amp; Conductor practices are <strong>lifelong companions</strong>; missing-number remedies can rest once the leak is sealed — re-run this report any month to refresh the reading.`,
+        currentYearLucky
+          ? `This calendar year sits in your <strong>Best Years window</strong> (Section ${SECTION.timing}) — schedule the launch, application or purchase you have been holding for right after Day 40.`
+          : `Look ahead: time your next big move for the favourable years in Section ${SECTION.timing} — the 40-day cycle builds the vessel, timing sails it.`
+      ];
+      phases.push({ badge: "Day 40+", title: "Review &amp; reset", rows: phase4Rows });
+    }
 
     return { targetN, target: { ...target, short: targetShort }, missingFocus, daily, weekly, phases };
   }
@@ -1050,148 +1346,141 @@
       driver: profile.driver,
       conductor: profile.conductor,
       missing: profile.missing,
-      goals: input.goals,
-      personalYear: timing.years[0] ? timing.years[0].n : null,
+      goals: profile.goals,
+      luckyYears: timing.luckyYears.map((y) => y.yr),
       input: Object.assign({}, input)
     };
     state.activeProfileKey = snapshot.key;
-    state.history = [snapshot].concat(state.history).slice(0, 24);
+    const history = state.history.filter((item) => item.key !== snapshot.key);
+    history.unshift(snapshot);
+    state.history = history.slice(0, 15);
     writeStore(STORAGE_KEYS.history, state.history);
     updateMemoryUI();
-    return snapshot;
   }
-  /* ---- 40-day activation tracker (local, per profile) ---- */
-  const PLAN_DAYS = 40;
-  function readPlanStore() {
-    return readStore(STORAGE_KEYS.plan, {});
-  }
-  function writePlanStore(store) {
-    writeStore(STORAGE_KEYS.plan, store);
-  }
+
+  function readPlanStore() { return readStore(STORAGE_KEYS.plan, {}); }
+  function writePlanStore(store) { return writeStore(STORAGE_KEYS.plan, store); }
   function readPlan(profileKey) {
-    const entry = readPlanStore()[profileKey];
-    if (!entry || !Array.isArray(entry.days)) return { startedAt: null, days: [] };
-    return { startedAt: entry.startedAt || null, days: entry.days.slice(0, PLAN_DAYS) };
+    const store = readPlanStore();
+    const cur = store[profileKey] || { startedAt: null, days: [] };
+    return { startedAt: cur.startedAt || null, days: Array.isArray(cur.days) ? cur.days : [] };
   }
   function writePlan(profileKey, plan) {
-    if (!profileKey) return;
     const store = readPlanStore();
-    store[profileKey] = plan;
+    store[profileKey] = { startedAt: plan.startedAt || null, days: plan.days || [] };
     writePlanStore(store);
   }
-  function readPracticeStore() {
-    return readStore(STORAGE_KEYS.practice, {});
-  }
-  function writePracticeStore(store) {
-    writeStore(STORAGE_KEYS.practice, store);
-  }
-  function readJournalStore() {
-    return readStore(STORAGE_KEYS.journal, {});
-  }
-  function writeJournalStore(store) {
-    writeStore(STORAGE_KEYS.journal, store);
-  }
+
+  function readPracticeStore() { return readStore(STORAGE_KEYS.practice, {}); }
+  function writePracticeStore(store) { return writeStore(STORAGE_KEYS.practice, store); }
+  function readJournalStore() { return readStore(STORAGE_KEYS.journal, {}); }
+  function writeJournalStore(store) { return writeStore(STORAGE_KEYS.journal, store); }
+
   function logPractice(profileKey, number) {
     const store = readPracticeStore();
-    const current = store[profileKey] || [];
-    current.unshift({ number, at: isoDate() });
-    store[profileKey] = current.slice(0, 120);
+    const list = store[profileKey] || [];
+    list.unshift({ number, at: isoDate() });
+    store[profileKey] = list.slice(0, 100);
     writePracticeStore(store);
   }
   function addJournalEntry(profileKey, text) {
     const store = readJournalStore();
-    const current = store[profileKey] || [];
-    current.unshift({ text: text.trim(), at: isoDate() });
-    store[profileKey] = current.slice(0, 40);
+    const list = store[profileKey] || [];
+    list.unshift({ text, at: isoDate() });
+    store[profileKey] = list.slice(0, 50);
     writeJournalStore(store);
   }
+
   function contributionPayload(profile, timing) {
-    const counts = {};
-    profile.missing.forEach((n) => { counts[n] = (counts[n] || 0) + 1; });
     return {
       schemaVersion: 1,
       packVersion: activePack().packVersion,
       createdAt: isoDate(),
       driver: profile.driver,
       conductor: profile.conductor,
-      zodiac: profile.zodiac,
+      missingCounts: profile.missing.length,
+      repeatedCounts: profile.repeated.length,
       goals: profile.goals,
-      missingCounts: counts,
-      hasVehicle: !!profile.vehicle,
-      hasBrand: !!profile.brand,
-      hasPartner: !!(profile.partnerName && profile.partnerDob),
-      currentPersonalYear: timing.years[0] ? timing.years[0].n : null
+      luckyYearActive: timing.luckyYears.some((item) => item.yr === new Date().getFullYear()),
+      kua: profile.kua,
+      vedicTier: profile.vedicTier
     };
   }
+
   function queueAnonymousContribution(profile, timing) {
-    if (!state.contributionEnabled) return;
-    const pack = activePack();
+    if (!state.contributionEnabled) return null;
     const payload = contributionPayload(profile, timing);
-    if (pack.contribution && pack.contribution.endpoint) {
-      try {
-        const body = JSON.stringify(payload);
-        if (navigator.sendBeacon) navigator.sendBeacon(pack.contribution.endpoint, new Blob([body], { type: "application/json" }));
-        else if (window.fetch) window.fetch(pack.contribution.endpoint, { method: "POST", headers: { "content-type": "application/json" }, body, keepalive: true }).catch(() => {});
-      } catch {
-        // ignore transport failures; analytics must never block UX
-      }
-      return;
-    }
     const outbox = readStore(STORAGE_KEYS.contributionOutbox, []);
     outbox.unshift(payload);
-    writeStore(STORAGE_KEYS.contributionOutbox, outbox.slice(0, 20));
+    writeStore(STORAGE_KEYS.contributionOutbox, outbox.slice(0, 25));
+    return payload;
   }
+
   function evolvingChartData(profile, timing) {
     const key = state.activeProfileKey || profileKeyOf(profile);
-    const snapshots = state.history.filter((entry) => entry.key === key);
-    const practice = readPracticeStore()[key] || [];
-    const journal = readJournalStore()[key] || [];
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    const thisYear = String(new Date().getFullYear());
-    const focusNumbers = Array.from(new Set([].concat(profile.missing.slice(0, 2), [profile.driver, profile.conductor]))).slice(0, 4);
+    const practices = (readPracticeStore()[key] || []);
+    const journal = (readJournalStore()[key] || []);
+    const snapshots = state.history.filter((s) => s.key === key);
+    const now = new Date();
+    const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const movesThisYear = journal.filter((j) => String(j.at || "").startsWith(String(now.getFullYear()))).length;
+
+    const focusNumbers = Array.from(new Set([profile.driver, profile.conductor, ...profile.missing])).slice(0, 4);
     const practiceSummary = focusNumbers.map((n) => {
-      const total = practice.filter((entry) => entry.number === n).length;
-      const month = practice.filter((entry) => entry.number === n && String(entry.at).slice(0, 7) === thisMonth).length;
-      return { n, total, month };
+      const allForNum = practices.filter((p) => p.number === n);
+      const thisMonth = allForNum.filter((p) => String(p.at || "").startsWith(curMonth)).length;
+      return { n, total: allForNum.length, month: thisMonth };
     });
-    const currentYearLucky = timing.luckyYears.some((entry) => entry.yr === new Date().getFullYear());
-    const movesThisYear = journal.filter((entry) => String(entry.at).slice(0, 4) === thisYear).length;
-    return {
-      key,
-      snapshots,
-      practiceSummary,
-      journal: journal.slice(0, 4),
-      currentYearLucky,
-      movesThisYear,
-      previewPayload: contributionPayload(profile, timing)
-    };
+
+    const currentYearLucky = timing.luckyYears.some((entry) => entry.yr === now.getFullYear());
+    const previewPayload = contributionPayload(profile, timing);
+
+    return { snapshots, movesThisYear, currentYearLucky, practiceSummary, journal, previewPayload };
   }
 
-  /* ---------------- rendering ---------------- */
-  const numCard = (label, num, sub) => {
-    const info = DB.numbers[num];
-    return `<div class="card num-card">
-      <div class="num-value">${num}</div>
-      <div class="num-label">${esc(label)}</div>
-      <div class="num-planet">${esc(info.planet)}</div>
-      <div class="num-traits">${esc(sub || info.traits)}</div>
-    </div>`;
-  };
-
-  /* ---- Cross-system harmony note (zodiac ruler vs Lo Shu grid) ----
-     The Vedic Sun sign's ruling number is compared with the birth Lo Shu
-     grid: a ruler missing from the grid is an important overlap (both
-     systems flag the same gap), while a ruler that is the Driver/
-     Conductor or repeated in the grid is a reinforcing overlap. */
   function zodiacHarmonyNote(p, z) {
     const ruler = z.ruler;
-    const num = DB.numbers[ruler];
+    const db = getActiveDB();
+    const num = db.numbers[ruler];
     const planetName = num.planet;
     const crystal = z.crystals && z.crystals[0] ? z.crystals[0] : "sign crystal";
     const missingIt = p.missing.includes(ruler);
     const repeatedIt = p.repeated.includes(ruler);
     const isDriver = p.driver === ruler;
     const isConductor = p.conductor === ruler;
+    const lang = getLang();
+
+    if (lang === "hi") {
+      if (missingIt && !isDriver && !isConductor) {
+        return `<div class="harmony-note judge-note">
+          <strong>राशि व अंक सामंजस्य — महत्वपूर्ण संयोग:</strong> आपकी वैदिक सूर्य राशि ${esc(p.zodiac)} के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> हैं — और अंक ${ruler} आपके <strong>लो-शू ग्रिड में अनुपस्थित है</strong>। दो स्वतंत्र प्रणालियां एक ही कमी की ओर संकेत कर रही हैं। नीचे दिए गए राशि किट का प्रयोग करें: <strong>${esc(crystal)}</strong> धारण करें और <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) का जाप करें ताकि अंक ${ruler} की ऊर्जा को बल मिले।
+        </div>`;
+      }
+      if (isDriver || isConductor || repeatedIt) {
+        return `<div class="harmony-note judge-note">
+          <strong>राशि व अंक सामंजस्य — शक्तिवर्धक प्रभाव:</strong> आपकी सूर्य राशि के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> हैं — जो ${isDriver ? "आपके <strong>मूलांक (Driver)</strong>" : isConductor ? "आपके <strong>भाग्यांक (Conductor)</strong>" : "आपके <strong>ग्रिड में दोहराया गया अंक</strong>"} हैं। राशि और ग्रिड मिलकर एक ही दिशा में शक्ति प्रदान करते हैं।
+        </div>`;
+      }
+      return `<div class="harmony-note judge-note">
+        <strong>राशि व अंक सामंजस्य परीक्षण:</strong> आपकी वैदिक सूर्य राशि के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> आपके लो-शू ग्रिड में मौजूद हैं, इसलिए राशि और ग्रिड सहज रूप से तालमेल बिठाते हैं।
+      </div>`;
+    }
+
+    if (lang === "gu") {
+      if (missingIt && !isDriver && !isConductor) {
+        return `<div class="harmony-note judge-note">
+          <strong>રાશિ અને અંક સુમેળ — મહત્વપૂર્ણ સંયોગ:</strong> તમારી વૈદિક સૂર્ય રાશિ ${esc(p.zodiac)} ના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> છે — અને અંક ${ruler} તમારા <strong>લો-શુ ગ્રીડમાં ખૂટે છે</strong>. બે સ્વતંત્ર પદ્ધતિઓ એક જ ઉણપ દર્શાવે છે. નીચે આપેલા રાશિ કિટનો ઉપયોગ કરો: <strong>${esc(crystal)}</strong> ધારણ કરો અને <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) નો જાપ કરો જેથી અંક ${ruler} ની ઊર્જા મજબૂત બને.
+        </div>`;
+      }
+      if (isDriver || isConductor || repeatedIt) {
+        return `<div class="harmony-note judge-note">
+          <strong>રાશિ અને અંક સુમેળ — શક્તિવર્ધક પ્રભાવ:</strong> તમારી સૂર્ય રાશિના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> છે — જે ${isDriver ? "તમારા <strong>મૂળાંક (Driver)</strong>" : isConductor ? "તમારા <strong>ભાગ્યાંક (Conductor)</strong>" : "તમારા <strong>ગ્રીડમાં પુનરાવર્તિત અંક</strong>"} છે. રાશિ અને ગ્રીડ મળીને એક જ દિશામાં બળ આપે છે.
+        </div>`;
+      }
+      return `<div class="harmony-note judge-note">
+        <strong>રાશિ અને અંક સુમેળ પરીક્ષણ:</strong> તમારી વૈદિક સૂર્ય રાશિના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> તમારા લો-શુ ગ્રીડમાં હાજર છે, તેથી રાશિ અને ગ્રીડ સહજ રીતે મેળ ખાય છે.
+      </div>`;
+    }
 
     if (missingIt && !isDriver && !isConductor) {
       return `<div class="harmony-note">
@@ -1208,19 +1497,16 @@
     </div>`;
   }
 
-  /* ---- Astro-Identity Snapshot card (in-browser Vedic ephemeris) ----
-     Tier 2 (birth time + recognised birthplace) → full chart: sidereal Sun,
-     Moon + Nakshatra/pada, Lagna and Midheaven. Date-only → sidereal Sun
-     with the unlock prompt. All values are computed locally. */
-  const pad2n = (n) => String(n).padStart(2, "0");
   function fmtAy(deg) {
-    const d = Math.floor(deg), m = Math.round((deg - d) * 60);
-    return `${d}°${pad2n(m)}′`;
+    if (deg == null) return "24°00′";
+    const d = Math.floor(deg);
+    const m = Math.round((deg - d) * 60);
+    return `${d}°${String(m).padStart(2, "0")}′`;
   }
   function fmtTz(tz) {
     const sign = tz < 0 ? "-" : "+";
     const abs = Math.abs(tz);
-    return `UTC${sign}${Math.floor(abs)}:${pad2n(Math.round((abs % 1) * 60))}`;
+    return `UTC${sign}${Math.floor(abs)}:${String(Math.round((abs % 1) * 60)).padStart(2, "0")}`;
   }
   function astroCell(cls, glyph, label, degLine, sub, ref) {
     return `<div class="astro-cell ${cls}">
@@ -1231,6 +1517,7 @@
       <div class="astro-ref">${ref}</div>
     </div>`;
   }
+
   function vedicSnapshotCard(p) {
     const a = p.astro;
     if (!a || !a.ok) return "";
@@ -1265,7 +1552,7 @@
       </div>
     </div>`;
     }
-    // reduced card: date-only Sun + unlock prompt
+
     const need = [];
     if (!p.birthTime) need.push("<strong>exact birth time</strong>");
     if (!p.birthPlace) need.push("<strong>birth city / place</strong>");
@@ -1296,7 +1583,6 @@
     </div>`;
   }
 
-  /* ---- Tier 2 progressive-disclosure card (Chandra Rashi / Nakshatra / Lagna) ---- */
   function vedicTierDisclosure(p) {
     let stateLine, badge;
     if (p.vedicTier === 2) {
@@ -1332,44 +1618,53 @@
   }
 
   function renderGridCells(counts) {
-    return DB.loshuLayout.flat().map((n) => {
+    const db = getActiveDB();
+    const layout = (window.DB && window.DB.loshuLayout) || [[4,9,2],[3,5,7],[8,1,6]];
+    return layout.flat().map((n) => {
       const c = counts[n] || 0;
       const cls = c === 0 ? "missing" : c >= 3 ? "present multi" : "present";
       const digits = c > 0 ? Array(c).fill(n).map((x) => `<span>${x}</span>`).join("") : `<span>${n}</span>`;
-      return `<div class="loshu-cell ${cls}" title="${n} — ${esc(DB.numbers[n].planet)}: ${c} occurrence(s)">
+      return `<div class="loshu-cell ${cls}" title="${n} — ${esc(db.numbers[n].planet)}: ${c} occurrence(s)">
         <div class="digits">${digits}</div>
-        ${c > 0 ? `<div class="cnt">${DB.numbers[n].planet.split(" ")[0]}</div>` : ""}
+        ${c > 0 ? `<div class="cnt">${db.numbers[n].planet.split(" ")[0]}</div>` : ""}
       </div>`;
     }).join("");
   }
 
   function renderLoshu(p) {
+    const db = getActiveDB();
+    const lang = getLang();
     const cells = renderGridCells(p.counts);
 
-    /* 8 fully-analysed plane cards */
-    const planeCards = DB.planes.map((pl) => {
+    const planeCards = db.planes.map((pl) => {
       const present = pl.cells.filter((n) => p.counts[n] > 0);
       const absent = pl.cells.filter((n) => p.counts[n] === 0);
       const chips = pl.cells.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
-      const badge = present.length === 3 ? '<span class="badge good">Active</span>'
-        : present.length === 2 ? '<span class="badge warn">Partial</span>'
-        : '<span class="badge bad">Weak</span>';
+      const badge = present.length === 3 ? `<span class="badge good">${t("active", "Active")}</span>`
+        : present.length === 2 ? `<span class="badge warn">${t("partial", "Partial")}</span>`
+        : `<span class="badge bad">${t("weak", "Weak")}</span>`;
       let title, reading;
       if (present.length === 3) {
-        title = `Complete ${pl.name}`;
-        reading = `You have the full ${pl.name.toLowerCase()} — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} work together. ${pl.complete}`;
+        title = lang === "hi" ? `पूर्ण ${pl.name}` : lang === "gu" ? `સંપૂર્ણ ${pl.name}` : `Complete ${pl.name}`;
+        reading = lang === "hi" ? `आपके पास पूर्ण ${pl.name} है — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} एक साथ काम करते हैं। ${pl.complete}`
+          : lang === "gu" ? `તમારી પાસે સંપૂર્ણ ${pl.name} છે — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} સાથે મળીને કામ કરે છે. ${pl.complete}`
+          : `You have the full ${pl.name.toLowerCase()} — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} work together. ${pl.complete}`;
       } else if (present.length === 0) {
-        title = `${pl.name} — Fully Missing`;
-        reading = `All three energies of this plane — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — need deliberate support. ${absent.map((n) => pl.roles[n].fix[0].toUpperCase() + pl.roles[n].fix.slice(1)).join("; ")}.`;
+        title = lang === "hi" ? `${pl.name} — पूर्णतः अनुपस्थित` : lang === "gu" ? `${pl.name} — સંપૂર્ણ ગેરહાજર` : `${pl.name} — Fully Missing`;
+        reading = lang === "hi" ? `इस तल की तीनों ऊर्जाओं — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — को साधना से मजबूत करें। ${absent.map((n) => pl.roles[n].fix).join("; ")}.`
+          : lang === "gu" ? `આ સ્તરની ત્રણેય ઊર્જાઓ — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — ને સાધનાથી મજબૂત કરો. ${absent.map((n) => pl.roles[n].fix).join("; ")}.`
+          : `All three energies of this plane — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — need deliberate support. ${absent.map((n) => pl.roles[n].fix[0].toUpperCase() + pl.roles[n].fix.slice(1)).join("; ")}.`;
       } else {
         const presTxt = present.map((n) => pl.roles[n].label).join(" and ");
         const absTxt = absent.map((n) => pl.roles[n].label).join(" and ");
         title = present.length === 1
-          ? `${pl.name} — Only ${pl.roles[present[0]].short}`
-          : `${pl.name} — Without ${absent.map((n) => pl.roles[n].short).join(" & ")}`;
+          ? (lang === "hi" ? `${pl.name} — केवल ${pl.roles[present[0]].short}` : lang === "gu" ? `${pl.name} — માત્ર ${pl.roles[present[0]].short}` : `${pl.name} — Only ${pl.roles[present[0]].short}`)
+          : (lang === "hi" ? `${pl.name} — बिना ${absent.map((n) => pl.roles[n].short).join(" व ")}` : lang === "gu" ? `${pl.name} — વગર ${absent.map((n) => pl.roles[n].short).join(" અને ")}` : `${pl.name} — Without ${absent.map((n) => pl.roles[n].short).join(" & ")}`);
         const cons = absent.map((n) => pl.roles[n].con).join("; ");
         const fixes = absent.map((n) => pl.roles[n].fix).join("; ");
-        reading = `You have ${presTxt} in your ${pl.name.toLowerCase()}, but ${absTxt} ${absent.length > 1 ? "are" : "is"} weaker here. This can show up as ${cons}. Your remedy: ${fixes}.`;
+        reading = lang === "hi" ? `आपके ${pl.name} में ${presTxt} मौजूद है, किंतु ${absTxt} निर्बल है। यह ${cons} के रूप में दिख सकता है। उपाय: ${fixes}.`
+          : lang === "gu" ? `તમારા ${pl.name} માં ${presTxt} હાજર છે, પરંતુ ${absTxt} નબળું છે. આ ${cons} ના રૂપમાં દેખાઈ શકે છે. ઉપાય: ${fixes}.`
+          : `You have ${presTxt} in your ${pl.name.toLowerCase()}, but ${absTxt} ${absent.length > 1 ? "are" : "is"} weaker here. This can show up as ${cons}. Your remedy: ${fixes}.`;
       }
       return `<div class="card plane-card">
         <div class="goal-head">
@@ -1388,26 +1683,26 @@
     const missingFixes = p.missing.map((n) => {
       const sev = sevOf[n];
       const badge = sev
-        ? (sev.critical ? '<span class="badge bad">Critical</span>' : `<span class="badge warn">Echoed by ${sev.echoedBy.join(", ")}</span>`)
+        ? (sev.critical ? `<span class="badge bad">${t("critical", "Critical")}</span>` : `<span class="badge warn">Echoed by ${sev.echoedBy.join(", ")}</span>`)
         : "";
       return `
       <div class="kit-row">
         <div class="kit-ico"><strong>${n}</strong></div>
         <div class="kit-body">
-          <div class="kit-label">${esc(DB.numbers[n].planet)} — weak / missing ${badge}</div>
-          <div class="kit-value">${esc(DB.missingFix[n])}</div>
+          <div class="kit-label">${esc(db.numbers[n].planet)} — ${lang === "hi" ? "निर्बल / अनुपस्थित" : lang === "gu" ? "નિર્બળ / ખૂટતો અંક" : "weak / missing"} ${badge}</div>
+          <div class="kit-value">${esc(db.missingFix[n])}</div>
         </div>
       </div>`;
     }).join("");
 
-    const arrowCards = DB.arrows.map((ar) => {
+    const arrowCards = db.arrows.map((ar) => {
       const present = ar.line.filter((n) => p.counts[n] > 0).length;
       const state = present === 3 ? "strong" : present === 0 ? "missing" : "partial";
-      const badge = state === "strong" ? '<span class="badge good">Strong</span>'
-        : state === "partial" ? '<span class="badge warn">Partial</span>'
-        : '<span class="badge bad">Frustrated</span>';
+      const badge = state === "strong" ? `<span class="badge good">${t("strong", "Strong")}</span>`
+        : state === "partial" ? `<span class="badge warn">${t("partial", "Partial")}</span>`
+        : `<span class="badge bad">${t("frustrated", "Frustrated")}</span>`;
       const chips = ar.line.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
-      const reading = state === "strong" ? ar.present : (state === "partial" ? `Only partially present — the full line is not formed. ${ar.missing}` : ar.missing);
+      const reading = state === "strong" ? ar.present : (state === "partial" ? (lang === "hi" ? `आंशिक रूप से उपस्थित — पूरी रेखा नहीं बनी है। ${ar.missing}` : lang === "gu" ? `આંશિક રીતે હાજર — પૂરી રેખા બની નથી. ${ar.missing}` : `Only partially present — the full line is not formed. ${ar.missing}`) : ar.missing);
       return `<div class="card arrow-card">
         <div class="goal-head">
           <div class="card-title">${esc(ar.name)}</div>
@@ -1419,56 +1714,66 @@
       </div>`;
     }).join("");
 
+    const loshuExplanation = lang === "hi"
+      ? "३×३ का एक ऊर्जा ग्रिड जो आपकी जन्मतिथि में मौजूद, निर्बल या अनुपस्थित ऊर्जाओं का नक्शा बनाता है। १ से ९ तक का प्रत्येक अंक एक निश्चित स्थान पर बैठता है। प्रत्येक पंक्ति, कॉलम और विकर्ण एक 'तल' (Plane) बन जाता है — जो आपकी सोच, भावनाओं, इच्छाशक्ति और भौतिक जीवन के बारे में सटीक जानकारी देता है।"
+      : lang === "gu"
+        ? "૩×૩ નો એક પ્રાચીન ઊર્જા ગ્રીડ જે તમારી જન્મ તારીખમાં હાજર, નિર્બળ કે ખૂટતી ઊર્જાઓનો નકશો બનાવે છે. ૧ થી ૯ સુધીનો દરેક અંક એક નિશ્ચિત ખાનામાં બેસે છે. દરેક હરોળ, સ્તંભ અને કર્ણ એક 'સ્તર' (Plane) બની જાય છે — જે તમારી વિચારસરણી, લાગણીઓ, મનોબળ અને વ્યવહારિક જીવન વિશે સચોટ માહિતી આપે છે."
+        : "A 3×3 grid that maps which energies are present, weak, or missing in your birth. Every number from 1 to 9 sits in a fixed cell. When we plot the digits of your date of birth (along with your Mulank and Bhagyank) onto that grid, each row, column, and diagonal becomes a <strong>plane</strong> — an energy line that tells us something specific about your mind, emotions, will, and material life. Below, each of the 8 planes is interpreted based on exactly which of its required numbers you have.";
+
     return `
     <section class="rsection" id="loshu-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.loshu}</span>Your Loshu Grid — the 8 Planes, Fully Analysed</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.loshu}</span>${t("secLoshu", "Your Loshu Grid — the 8 Planes, Fully Analysed")}</h2>
       <div class="card">
-        <div class="card-title">What is the Loshu Grid?</div>
-        <div class="kit-value">A 3×3 grid that maps which energies are present, weak, or missing in your birth. Every number from 1 to 9 sits in a fixed cell. When we plot the digits of your date of birth (along with your Mulank and Bhagyank) onto that grid, each row, column, and diagonal becomes a <strong>plane</strong> — an energy line that tells us something specific about your mind, emotions, will, and material life. Below, each of the 8 planes is interpreted based on exactly which of its required numbers you have.</div>
+        <div class="card-title">${lang === "hi" ? "लो-शू ग्रिड क्या है?" : lang === "gu" ? "લો-શુ ગ્રીડ શું છે?" : "What is the Loshu Grid?"}</div>
+        <div class="kit-value">${loshuExplanation}</div>
       </div>
       <div class="loshu-wrap">
         <div>
           <div class="loshu-grid" role="img" aria-label="Loshu grid visualization">${cells}</div>
           <div class="loshu-legend" style="margin-top:8px">
-            <span><i class="dot g"></i>Present</span>
-            <span><i class="dot y"></i>Repeated (excess)</span>
-            <span><i class="dot w"></i>Missing (weak)</span>
+            <span><i class="dot g"></i>${t("present", "Present")}</span>
+            <span><i class="dot y"></i>${lang === "hi" ? "दोहराया गया (अधिक)" : lang === "gu" ? "પુનરાવર્તિત (વધારાનું)" : "Repeated (excess)"}</span>
+            <span><i class="dot w"></i>${lang === "hi" ? "अनुपस्थित (निर्बल)" : lang === "gu" ? "ગેરહાજર (નિર્બળ)" : "Missing (weak)"}</span>
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Your Numbers at a Glance</div>
-          <div class="kit-value"><span class="badge good">Present</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
-          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">Weak</span> ${p.weak.join(", ")} <span class="card-sub">— appears only once, so it needs light support.</span></div>` : ""}
-          <div class="kit-value"><span class="badge bad">Missing</span> ${p.missing.length ? p.missing.join(", ") : "none — complete grid"}</div>
-          <div class="card-sub">Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening.</div>
+          <div class="card-title">${lang === "hi" ? "आपके अंक एक नजर में" : lang === "gu" ? "તમારા અંકો એક નજરે" : "Your Numbers at a Glance"}</div>
+          <div class="kit-value"><span class="badge good">${t("present", "Present")}</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
+          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">${t("weak", "Weak")}</span> ${p.weak.join(", ")} <span class="card-sub">— ${lang === "hi" ? "केवल एक बार आया है, हल्के सहारे की जरूरत है।" : lang === "gu" ? "માત્ર એક વખત આવ્યો છે, હળવા ટેકાની જરૂર છે." : "appears only once, so it needs light support."}</span></div>` : ""}
+          <div class="kit-value"><span class="badge bad">${t("missing", "Missing")}</span> ${p.missing.length ? p.missing.join(", ") : (lang === "hi" ? "कोई नहीं — पूर्ण ग्रिड" : lang === "gu" ? "કોઈ નહીં — સંપૂર્ણ ગ્રીડ" : "none — complete grid")}</div>
+          <div class="card-sub">${lang === "hi" ? "हरे रंग के खाने आपके चार्ट में मौजूद हैं। खाली खाने वे ऊर्जाएं हैं जिन्हें मजबूत करने की आवश्यकता है।" : lang === "gu" ? "લીલા રંગના ખાના તમારા ચાર્ટમાં હાજર છે. ખાલી ખાના તે ઊર્જાઓ છે જેને બળવાન બનાવવાની જરૂર છે." : "Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening."}</div>
         </div>
       </div>
       <div class="plane-cards">${planeCards}</div>
       <div class="card">
-        <div class="card-title">The 8 Arrows of Your Loshu Grid</div>
-        <div class="card-sub">The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.</div>
+        <div class="card-title">${lang === "hi" ? "आपके लो-शू ग्रिड के ८ तीर" : lang === "gu" ? "તમારા લો-શુ ગ્રીડના ૮ તીર" : "The 8 Arrows of Your Loshu Grid"}</div>
+        <div class="card-sub">${lang === "hi" ? "प्रत्येक रेखा का शास्त्रीय तीर नाम। तीनों अंक मौजूद होने पर तीर मजबूत होता है; पूरी तरह खाली होने पर इसे साधना से मजबूत करना होता है।" : lang === "gu" ? "દરેક રેખાનું શાસ્ત્રીય તીર નામ. ત્રણેય અંક હાજર હોય તો તીર મજબૂત બને છે; ખાલી હોય તો તેને સાધનાથી મજબૂત કરવું પડે છે." : 'The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.'}</div>
       </div>
       <div class="plane-cards">${arrowCards}</div>
       <div class="card-grid two">
         <div class="card">
-          <div class="card-title">Name Grid</div>
+          <div class="card-title">${lang === "hi" ? "नाम ग्रिड (Name Grid)" : lang === "gu" ? "નામ ગ્રીડ (Name Grid)" : "Name Grid"}</div>
           <div class="loshu-grid" role="img" aria-label="Name-based Loshu grid">${renderGridCells(p.nameCounts)}</div>
-          <div class="card-sub">The Chaldean values of your name's letters, plotted the same way. Note: the Chaldean system has no value 9, so that cell stays empty in the name grid.</div>
+          <div class="card-sub">${lang === "hi" ? "आपके नाम के अक्षरों के चालडियन मान। ध्यान दें: चालडियन पद्धति में ९ का अंक नहीं होता, इसलिए वह खाना खाली रहता है।" : lang === "gu" ? "તમારા નામના અક્ષરોના ચાલ્ડિયન મૂલ્યો. નોંધ: ચાલ્ડિયન પદ્ધતિમાં ૯ નો અંક નથી હોતો, તેથી તે ખાનું ખાલી રહે છે." : "The Chaldean values of your name's letters, plotted the same way. Note: the Chaldean system has no value 9, so that cell stays empty in the name grid."}</div>
         </div>
         <div class="card">
-          <div class="card-title">Combined Grid (DOB + Name)</div>
+          <div class="card-title">${lang === "hi" ? "संयुक्त ग्रिड (जन्म + नाम)" : lang === "gu" ? "સંયુક્ત ગ્રીડ (જન્મ + નામ)" : "Combined Grid (DOB + Name)"}</div>
           <div class="loshu-grid" role="img" aria-label="Combined Loshu grid">${renderGridCells(p.combinedCounts)}</div>
-          <div class="card-sub">Birth digits and name values together — the blended energy you project into the world.</div>
+          <div class="card-sub">${lang === "hi" ? "जन्मतिथि और नाम के अंकों का कुल योग — वह संयुक्त ऊर्जा जो आप दुनिया के सामने पेश करते हैं।" : lang === "gu" ? "જન્મ તારીખ અને નામના અંકોનો કુલ સરવાળો — તે સંયુક્ત ઊર્જા જે તમે દુનિયા સમક્ષ પ્રસ્તુત કરો છો." : "Birth digits and name values together — the blended energy you project into the world."}</div>
         </div>
       </div>
-      ${p.missing.length ? `<div class="card"><div class="card-title">Missing Numbers — Quick Balancers</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">Complete grid</span> All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan.</div></div>`}
-      ${p.repeated.length ? `<p class="rsection-desc">Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).</p>` : ""}
+      ${p.missing.length ? `<div class="card"><div class="card-title">${lang === "hi" ? "अनुपस्थित अंक — त्वरित संतुलन उपाय" : lang === "gu" ? "ખૂટતા અંકો — સરળ સંતુલન ઉપાયો" : "Missing Numbers — Quick Balancers"}</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">${lang === "hi" ? "पूर्ण ग्रिड" : lang === "gu" ? "સંપૂર્ણ ગ્રીડ" : "Complete grid"}</span> ${lang === "hi" ? "सभी नौ अंक मौजूद हैं — यह एक दुर्लभ और संतुलित चार्ट है। साप्ताहिक दिनचर्या से ग्रहों की ऊर्जा बनाए रखें।" : lang === "gu" ? "બધા જ નવ અંકો હાજર છે — આ એક દુર્લભ અને સંતુલિત ચાર્ટ છે. સાપ્તાહિક નિયમોથી ગ્રહોની ઊર્જા જાળવી રાખો." : "All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan."}</div></div>`}
+      ${p.repeated.length ? `<p class="rsection-desc">${lang === "hi" ? `३+ बार दोहराए गए अंक: <strong>${p.repeated.join(", ")}</strong> — यहां तीव्र ऊर्जा है; इसे सही दिशा दें।` : lang === "gu" ? `૩+ વખત પુનરાવર્તિત અંકો: <strong>${p.repeated.join(", ")}</strong> — અહીં તીવ્ર ઊર્જા છે; તેને સાચી દિશા આપો.` : `Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).`}</p>` : ""}
     </section>`;
   }
 
   function kitCard(n, heading) {
-    const i = DB.numbers[n];
-    const sm = DB.mantraShort[n];
+    const db = getActiveDB();
+    const i = db.numbers[n];
+    const sm = db.mantraShort[n];
+    const yantraName = (db.yantra && db.yantra[n]) || (window.DB && window.DB.yantra && window.DB.yantra[n]) || `Yantra ${n}`;
+    const lang = getLang();
+
     return `<div class="card">
       <div class="goal-head">
         <div class="num-value" style="width:40px;height:40px;font-size:18px;line-height:40px">${n}</div>
@@ -1478,21 +1783,52 @@
         </div>
       </div>
       <div class="kit">
-        <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">Beej Mantra</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">Daily Short Mantra</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
-        <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow.</span></div></div></div>
-        <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Crystal</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">Rudraksha</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🔱</div><div class="kit-body"><div class="kit-label">Yantra</div><div class="kit-value">${esc(DB.yantra[n])}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">Colour / Day / Metal</div><div class="kit-value">${esc(i.color)} · ${esc(i.day)} · ${esc(i.metal)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🎁</div><div class="kit-body"><div class="kit-label">Charity</div><div class="kit-value">${esc(i.charity)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🌿</div><div class="kit-body"><div class="kit-label">Lifestyle</div><div class="kit-value">${esc(i.lifestyle)}</div></div></div>
-        <div class="kit-row"><div class="kit-ico">🍽</div><div class="kit-body"><div class="kit-label">Fast</div><div class="kit-value">${esc(i.fast)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">${t("beejMantra", "Beej Mantra")}</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">${t("dailyShortMantra", "Daily Short Mantra")}</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
+        <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">${t("wishPaperAffirmation", "Wish-Paper Affirmation")}</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">${lang === "hi" ? "इसे अपने संकल्प पत्र पर रोज ११ बार लिखें और पर्स या तकिए के नीचे रखें।" : lang === "gu" ? "આને તમારા સંકલ્પ પત્ર પર રોજ ૧૧ વખત લખો અને પર્સમાં કે ઓશીકા નીચે રાખો." : "Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow."}</span></div></div></div>
+        <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">${t("crystal", "Crystal")}</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">${t("rudraksha", "Rudraksha")}</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🔱</div><div class="kit-body"><div class="kit-label">${t("yantra", "Yantra")}</div><div class="kit-value">${esc(yantraName)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">${t("colorDayMetal", "Colour / Day / Metal")}</div><div class="kit-value">${esc(i.color)} · ${esc(i.day)} · ${esc(i.metal)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🎁</div><div class="kit-body"><div class="kit-label">${t("charity", "Charity")}</div><div class="kit-value">${esc(i.charity)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🌿</div><div class="kit-body"><div class="kit-label">${t("lifestyle", "Lifestyle")}</div><div class="kit-value">${esc(i.lifestyle)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">🍽</div><div class="kit-body"><div class="kit-label">${t("fast", "Fast")}</div><div class="kit-value">${esc(i.fast)}</div></div></div>
       </div>
     </div>`;
   }
 
+  function crystalGuide(p) {
+    const db = getActiveDB();
+    const zz = db.zodiac[p.zodiac] || (window.DB && window.DB.zodiac && window.DB.zodiac[p.zodiac]) || {};
+    const sources = [
+      ...(zz.crystals || []),
+      db.numbers[p.driver].crystal,
+      db.numbers[p.conductor].crystal,
+      ...p.missing.map((n) => db.numbers[n].crystal)
+    ];
+    const keys = Object.keys(db.crystals || {}).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha");
+    const seen = new Set();
+    const picks = [];
+    for (const src of sources) {
+      const s = String(src || "").toLowerCase();
+      for (const k of keys) {
+        if (!seen.has(k) && s.includes(k.toLowerCase())) { seen.add(k); picks.push(k); }
+      }
+    }
+
+    const rudrakshaPool = [
+      db.numbers[p.driver].rudraksha,
+      db.numbers[p.conductor].rudraksha,
+      ...p.missing.map((n) => db.numbers[n].rudraksha)
+    ].join(" ").toLowerCase();
+    const rudrakshaNote = rudrakshaPool.includes("5 mukhi") ? db.crystals["5 Mukhi Rudraksha"] : null;
+
+    return { picks: picks.slice(0, 5), rudrakshaNote };
+  }
+
   function renderReport(p) {
+    const db = getActiveDB();
+    const lang = getLang();
     const nameSug = nameSuggestions(p);
     const mobSug = mobileSuggestion(p);
     const brand = p.brand ? brandAnalysis(p.brand, p) : null;
@@ -1509,7 +1845,7 @@
 
     const summarySection = `<section class="rsection summary-section" id="summary-section">
       <div class="summary-shell">
-        <p class="summary-kicker">Northstar Summary</p>
+        <p class="summary-kicker">${t("secSummary", "Northstar Summary")}</p>
         <h2 class="summary-title">${summary.headline}</h2>
         <p class="summary-story">${summary.story}</p>
         <div class="summary-card-grid">
@@ -1517,89 +1853,85 @@
         </div>
         <div class="summary-next">
           <div>
-            <h3>Your first three moves</h3>
+            <h3>${t("firstThreeMoves", "Your first three moves")}</h3>
             <ol class="summary-actions">${summary.moves.map((move, idx) => `<li><span class="summary-step">${idx + 1}</span><span class="summary-move"><span class="summary-move-title">${move.title}</span><span class="summary-move-detail">${move.detail}</span></span></li>`).join("")}
             </ol>
-            <a class="summary-cta" href="#plan-section">Open your full 40-Day Activation Plan ↓</a>
+            <a class="summary-cta" href="#plan-section">${t("open40DayPlan", "Open your full 40-Day Activation Plan ↓")}</a>
           </div>
           <div class="summary-way-forward">
-            <h3>Way forward</h3>
+            <h3>${t("wayForward", "Way forward")}</h3>
             ${summary.checks.map((line) => `<p>${line}</p>`).join("")}
-            <p><strong>Use this as your northstar:</strong> do not try every remedy at once. Walk the 40-day Activation Plan at the end of this report — tick each day off in its tracker — then review your results in Your Evolving Chart (Section ${SECTION.memory}).</p>
+            <p><strong>${lang === "hi" ? "इसे अपना मार्गदर्शक बनाएं:" : lang === "gu" ? "આને તમારું માર્ગદર્શન બનાવો:" : "Use this as your northstar:"}</strong> ${lang === "hi" ? `एक साथ सारे उपाय न करें। रिपोर्ट के अंत में दी गई ४०-दिवसीय योजना का पालन करें और परिणाम प्रगति चार्ट (खंड ${SECTION.memory}) में देखें।` : lang === "gu" ? `એક સાથે બધા ઉપાયો ન કરો. રિપોર્ટના અંતે આપેલી ૪૦ દિવસની યોજનાનું પાલન કરો અને પરિણામો પ્રગતિ ચાર્ટ (વિભાગ ${SECTION.memory}) માં જુઓ.` : `do not try every remedy at once. Walk the 40-day Activation Plan at the end of this report — tick each day off in its tracker — then review your results in Your Evolving Chart (Section ${SECTION.memory}).`}</p>
           </div>
         </div>
       </div>
     </section>`;
 
-    /* Section 2: core nature — traits, strengths & shadows */
-    const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
+    const td = db.traits[p.driver], tc = db.traits[p.conductor];
     const traitsSection = `<section class="rsection" id="traits-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.traits}</span>Your Core Nature — Traits, Strengths &amp; Shadows</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.traits}</span>${t("secTraits", "Your Core Nature — Traits, Strengths & Shadows")}</h2>
       <div class="card">
-        <div class="card-sub" style="text-transform:uppercase;letter-spacing:.05em;font-weight:600">Two numbers shape your nature</div>
+        <div class="card-sub" style="text-transform:uppercase;letter-spacing:.05em;font-weight:600">${lang === "hi" ? "दो अंक आपके स्वभाव का निर्माण करते हैं" : lang === "gu" ? "બે અંક તમારા સ્વભાવનું નિર્માણ કરે છે" : "Two numbers shape your nature"}</div>
         <div class="nature-pair">
           <div class="nature-chip">
             <div class="num-value">${p.driver}</div>
-            <div class="num-label">Mulank · ${esc(DB.numbers[p.driver].planet.split(" ")[0])}</div>
+            <div class="num-label">${t("driverLabel", "Driver (Moolank)")} · ${esc(db.numbers[p.driver].planet.split(" ")[0])}</div>
           </div>
           <div class="nature-chip">
             <div class="num-value alt">${p.conductor}</div>
-            <div class="num-label">Bhagyank · ${esc(DB.numbers[p.conductor].planet.split(" ")[0])}</div>
+            <div class="num-label">${t("conductorLabel", "Conductor (Bhagyank)")} · ${esc(db.numbers[p.conductor].planet.split(" ")[0])}</div>
           </div>
         </div>
-        <div class="kit-value">${esc(td.nature)} Beneath the surface, your Bhagyank carries ${esc(tc.innerDrive)}.</div>
-        <div class="judge-note"><strong>How we judge this:</strong> Your nature is not read from your Mulank alone. Your <strong>Mulank</strong> (from your birth day) is your visible, day-to-day personality, while your <strong>Bhagyank</strong> (from your full birth date) drives your deeper instincts. We read <strong>both together</strong> for the full picture.</div>
+        <div class="kit-value">${esc(td.nature)} ${lang === "hi" ? `गहराई में, आपका भाग्यांक ${esc(tc.innerDrive)} को दर्शाता है।` : lang === "gu" ? `ઊંડાણમાં, તમારો ભાગ્યાંક ${esc(tc.innerDrive)} દર્શાવે છે.` : `Beneath the surface, your Bhagyank carries ${esc(tc.innerDrive)}.`}</div>
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? `आपका स्वभाव केवल मूलांक से नहीं देखा जाता। <strong>मूलांक</strong> आपकी दैनिक सोच और व्यक्तित्व है, जबकि <strong>भाग्यांक</strong> आपकी गहरी अंतःप्रेरणा है। हम दोनों को मिलाकर पूरा चित्र देखते हैं।` : lang === "gu" ? `તમારો સ્વભાવ માત્ર મૂળાંક પરથી નથી જોવાતો. <strong>મૂળાંક</strong> તમારી દૈનિક વિચારસરણી છે, જ્યારે <strong>ભાગ્યાંક</strong> તમારી ઊંડી આંતરિક પ્રેરણા છે. આપણે બંનેને મેળવીને સંપૂર્ણ ચિત્ર જોઈએ છીએ.` : "Your nature is not read from your Mulank alone. Your <strong>Mulank</strong> (from your birth day) is your visible, day-to-day personality, while your <strong>Bhagyank</strong> (from your full birth date) drives your deeper instincts. We read <strong>both together</strong> for the full picture."}</div>
       </div>
       <div class="card-grid two">
         <div class="card strength-card">
-          <div class="card-title">Your Strengths — Amplify These</div>
+          <div class="card-title">${t("amplifyThese", "Your Strengths — Amplify These")}</div>
           <div class="kit">${td.strengths.map((s) => `<div class="kit-row"><div class="kit-ico good-ico">✓</div><div class="kit-body"><div class="kit-value">${esc(s)}</div></div></div>`).join("")}</div>
         </div>
         <div class="card shadow-card">
-          <div class="card-title">Your Shadows — Watch These</div>
+          <div class="card-title">${t("watchThese", "Your Shadows — Watch These")}</div>
           <div class="kit">${td.shadows.map((s) => `<div class="kit-row"><div class="kit-ico bad-ico">!</div><div class="kit-body"><div class="kit-value">${esc(s)}</div></div></div>`).join("")}</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Which Qualities to Adopt, Which to Let Go</div>
+        <div class="card-title">${lang === "hi" ? "कौन से गुण अपनाएं, किन्हें त्यागें" : lang === "gu" ? "કયા ગુણો અપનાવવા, કયા છોડવા" : "Which Qualities to Adopt, Which to Let Go"}</div>
         <div class="adopt-release">
           <div class="adopt-col">
-            <div class="kit-label" style="color:var(--positive)">Adopt</div>
+            <div class="kit-label" style="color:var(--positive)">${t("adopt", "Adopt")}</div>
             ${td.adopt.map((s) => `<div class="ar-item">+ ${esc(s)}</div>`).join("")}
           </div>
           <div class="release-col">
-            <div class="kit-label" style="color:var(--danger)">Release</div>
+            <div class="kit-label" style="color:var(--danger)">${t("release", "Release")}</div>
             ${td.release.map((s) => `<div class="ar-item">− ${esc(s)}</div>`).join("")}
           </div>
         </div>
-        <div class="judge-note"><strong>How we judge this:</strong> Each Mulank carries a signature set of strengths to <strong>amplify</strong> and tendencies to <strong>release</strong>, shaped by its ruling planet and how that planet tends to over- or under-express in daily life.</div>
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "प्रत्येक मूलांक के साथ कुछ खास शक्तियां बढ़ाने और कुछ आदतों को छोड़ने का शास्त्रीय नियम जुड़ा होता है।" : lang === "gu" ? "દરેક મૂળાંક સાથે કેટલીક વિશેષ શક્તિઓ વધારવાનો અને કેટલીક આદતો છોડવાનો શાસ્ત્રીય નિયમ જોડાયેલો હોય છે." : "Each Mulank carries a signature set of strengths to <strong>amplify</strong> and tendencies to <strong>release</strong>, shaped by its ruling planet and how that planet tends to over- or under-express in daily life."}</div>
       </div>
     </section>`;
 
-    /* Section 4: weak planets */
     const weakNums = p.missing.filter((n) => n !== p.driver && n !== p.conductor);
     const weakSection = p.missing.length
       ? `<section class="rsection" id="remedy-section">
-          <h2 class="rsection-title"><span class="idx">${SECTION.weak}</span>Weak Planet Remedy Kits</h2>
-          <p class="rsection-desc">Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.</p>
+          <h2 class="rsection-title"><span class="idx">${SECTION.weak}</span>${t("secWeak", "Weak Planet Remedy Kits")}</h2>
+          <p class="rsection-desc">${lang === "hi" ? "लो-शू ग्रिड में अनुपस्थित ग्रहों के पूर्ण उपाय किट (मूलांक व भाग्यांक के ग्रह पहले से सहयोगी हैं)।" : lang === "gu" ? "લો-શુ ગ્રીડમાં ખૂટતા ગ્રહોના સંપૂર્ણ ઉપાય કિટ (મૂળાંક અને ભાગ્યાંકના ગ્રહો પહેલેથી સહયોગી છે)." : `Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.`}</p>
           <div class="card-grid two">${p.missing.slice(0, 4).map((n) => kitCard(n)).join("")}</div>
           ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.loshu}.</p>` : ""}
         </section>` : "";
 
-    /* Section 4: zodiac power kit (Tier 1 — Vedic Sun Sign, sidereal/Lahiri,
-       with Western tropical reference + cross-system harmony + Tier 2 disclosure) */
-    const z = DB.zodiac[p.zodiac];
+    const z = db.zodiac[p.zodiac] || {};
     const zodiacSection = `<section class="rsection" id="vedic-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.zodiac}</span>Your Vedic Zodiac Power Kit — ${esc(p.zodiac)}</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.zodiac}</span>${t("secZodiac", "Your Vedic Zodiac Power Kit — {sign}").replace("{sign}", esc(p.zodiac))}</h2>
       <p class="rsection-desc">This is your <strong>Vedic Sun Sign (Surya Rashi)</strong> — the sidereal / Nirayana position using the <strong>Lahiri ayanamsa</strong> (the fixed sky sits ~24° behind the Western tropical zodiac due to precession). Your date of birth alone is enough to compute it, and it stays the primary Vedic reference in this report. Western tropical reference: <strong>${esc(p.zodiacTropical)}</strong> ${p.zodiac !== p.zodiacTropical ? `(your tropical Sun would fall in ${esc(p.zodiacTropical)} — the sidereal sign is usually the one before it; we always follow the Vedic / Lahiri position).` : "(in this case the two systems agree)."} Numerology (Driver, Conductor, Lo Shu Grid) remains the engine of this report — the sign layer tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
       <div class="card">
         <div class="goal-head">
-          <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(DB.numbers[z.ruler].planet)}</div>
+          <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(db.numbers[z.ruler].planet)}</div>
           <span class="badge info">Supports intentions: ${esc(z.intentions)}</span>
         </div>
         <div class="kit">
-          <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Your Sign's Crystals</div><div class="kit-value">${z.crystals.map(esc).join(" · ")}</div></div></div>
-          <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">Sign Mantra</div><div class="kit-value"><span class="mantra">${esc(z.dev)}</span> <em>(${esc(z.pron)})</em><br><span class="card-sub">${esc(z.meaning)} Chant 11 times each morning.</span></div></div></div>
+          <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">Your Sign's Crystals</div><div class="kit-value">${(z.crystals || []).map(esc).join(" · ")}</div></div></div>
+          <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">Sign Mantra</div><div class="kit-value"><span class="mantra">${esc(z.dev)}</span> <em>(${esc(z.pron)})</em><br><span class="card-sub">${esc(z.meaning)} ${lang === "hi" ? "प्रतिदिन सुबह ११ बार जपें।" : lang === "gu" ? "દરરોજ સવારે ૧૧ વખત જાપ કરો." : "Chant 11 times each morning."}</span></div></div></div>
           <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">Wish-Paper Affirmation</div><div class="kit-value">“${esc(z.affirmation)}”</div></div></div>
         </div>
       </div>
@@ -1608,11 +1940,10 @@
       ${vedicTierDisclosure(p)}
     </section>`;
 
-    /* Section 5: name */
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
     const nameMaster = masterNumber(p.nameCompound);
     const nameSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.name}</span>Name Analysis &amp; Spelling Correction</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.name}</span>${t("secName", "Name Analysis & Spelling Correction")}</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.name)}</div>
@@ -1626,14 +1957,14 @@
         ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>Recommended spellings</strong> — pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:</div>
+            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:"}</div>
                <div class="table-scroll"><table class="rtable">
-                 <tr><th>Suggested spelling</th><th>Change</th><th>New total</th><th>New number</th><th>Why it helps</th></tr>
+                 <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
                  ${nameSug.variants.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}
                </table></div>
-               <div class="card-sub">Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.</div>`
+               <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
-          : `<div class="kit-value">${esc(DB.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
+          : `<div class="kit-value">${esc(db.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
       </div>
       ${brand ? `<div class="card">
         <div class="card-title">Business / Brand Name — Chaldean Success Reading</div>
@@ -1653,13 +1984,12 @@
       </div>` : ""}
     </section>`;
 
-    /* Section 6: mobile */
     const mobSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.mobile}</span>Mobile Number Vibration</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.mobile}</span>${t("secMobile", "Mobile Number Vibration")}</h2>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.mobile)}</div>
-          <span class="badge info">Digits total ${p.mobCompound} → Number ${p.mobNum} (${esc(DB.numbers[p.mobNum].planet)})</span>
+          <span class="badge info">Digits total ${p.mobCompound} → Number ${p.mobNum} (${esc(db.numbers[p.mobNum].planet)})</span>
           ${relBadge(p.mobRelD === "enemy" || p.mobRelC === "enemy" ? "enemy" : p.mobRelD === "neutral" && p.mobRelC === "neutral" ? "neutral" : "friendly")}
         </div>
         <table class="rtable">
@@ -1668,20 +1998,19 @@
         </table>
         ${compoundMeaning(p.mobCompound) ? `<div class="judge-note"><strong>Compound Number ${p.mobCompound}:</strong> ${esc(compoundMeaning(p.mobCompound))}</div>` : ""}
         ${mobSug.needed
-          ? `<div class="kit-value">Your mobile number works against your birth numbers — since your phone is your most-used device, this is a high-impact change. When choosing a new number, pick one whose digits total <strong>${mobSug.goodTotals.join(", ")}</strong>. Activate the new SIM on a ${DAY_OF[p.driver]} or ${DAY_OF[p.conductor]} morning.</div>`
-          : `<div class="kit-value">Your mobile number vibrates acceptably with your birth numbers — no change required.</div>`}
+          ? `<div class="kit-value">${lang === "hi" ? `आपका मोबाइल नंबर जन्म अंकों के साथ अनुकूल नहीं है — भविष्य में ऐसा नंबर चुनें जिसका कुल योग <strong>${mobSug.goodTotals.join(", ")}</strong> हो।` : lang === "gu" ? `તમારો મોબાઈલ નંબર જન્મ અંકો સાથે સુમેળભર્યો નથી — ભવિષ્યમાં એવો નંબર પસંદ કરો જેનો કુલ સરવાળો <strong>${mobSug.goodTotals.join(", ")}</strong> થતો હોય.` : `Your mobile number works against your birth numbers — since your phone is your most-used device, this is a high-impact change. When choosing a new number, pick one whose digits total <strong>${mobSug.goodTotals.join(", ")}</strong>. Activate the new SIM on a ${dayOf(p.driver)} or ${dayOf(p.conductor)} morning.`}</div>`
+          : `<div class="kit-value">${lang === "hi" ? "आपका मोबाइल नंबर आपके जन्म अंकों के अनुकूल है — बदलने की आवश्यकता नहीं है।" : lang === "gu" ? "તમારો મોબાઈલ નંબર તમારા જન્મ અંકો સાથે સુમેળભર્યો છે — બદલવાની જરૂર નથી." : "Your mobile number vibrates acceptably with your birth numbers — no change required."}</div>`}
       </div>
     </section>`;
 
-    /* Section 7: vehicle number */
     const vehicleSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.vehicle}</span>Vehicle Number Vibration</h2>
-      <p class="rsection-desc">You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values.</p>
+      <h2 class="rsection-title"><span class="idx">${SECTION.vehicle}</span>${t("secVehicle", "Vehicle Number Vibration")}</h2>
+      <p class="rsection-desc">${lang === "hi" ? "आप प्रतिदिन अपने वाहन की ऊर्जा में यात्रा करते हैं — इसका रजिस्ट्रेशन नंबर चालडियन पद्धति से विश्लेषित किया जाता है।" : lang === "gu" ? "તમે દરરોજ તમારા વાહનની ઊર્જામાં મુસાફરી કરો છો — તેનો રજીસ્ટ્રેશન નંબર ચાલ્ડિયન પદ્ધતિથી વિશ્લેષિત થાય છે." : "You travel inside your vehicle's vibration every day — its registration number carries Chaldean letter values plus digit values."}</p>
       ${vehicle.provided
         ? `<div class="card">
             <div class="goal-head">
               <div class="card-title">${esc(vehicle.raw)}</div>
-              <span class="badge info">Letters ${vehicle.letterVal} + digits ${vehicle.digitVal} = ${vehicle.total} → Number ${vehicle.num} (${esc(DB.numbers[vehicle.num].planet)})</span>
+              <span class="badge info">Letters ${vehicle.letterVal} + digits ${vehicle.digitVal} = ${vehicle.total} → Number ${vehicle.num} (${esc(db.numbers[vehicle.num].planet)})</span>
               ${relBadge(vehicle.conflicting ? "enemy" : vehicle.relD === "neutral" && vehicle.relC === "neutral" ? "neutral" : "friendly")}
             </div>
             <table class="rtable">
@@ -1689,68 +2018,34 @@
               <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(vehicle.relC)}</td></tr>
             </table>
             ${vehicle.conflicting
-              ? `<div class="kit-value">This number works against your birth numbers. When you next register or change a vehicle, choose a plate whose letters (Chaldean) + digits total <strong>${vehicle.goodTotals.join(", ")}</strong>. Until then, keep a small ${esc(DB.numbers[p.driver].crystal.split(" ")[0])} or ${esc(DB.numbers[p.driver].planet.split(" ")[0])} yantra in the vehicle and start new journeys on ${DAY_OF[p.driver]}.</div>`
-              : `<div class="kit-value">Your vehicle number vibrates acceptably with your birth numbers — keep it. For your next vehicle, the totals below remain your best picks.</div>`}
+              ? `<div class="kit-value">${lang === "hi" ? `यह वाहन नंबर जन्म अंकों के साथ अनुकूल नहीं है। नया वाहन लेते समय कुल योग <strong>${vehicle.goodTotals.join(", ")}</strong> वाला नंबर चुनें। तब तक वाहन में छोटा ${esc(db.numbers[p.driver].crystal.split(" ")[0])} रखें।` : lang === "gu" ? `આ વાહન નંબર જન્મ અંકો સાથે સુમેળભર્યો નથી. નવું વાહન લેતી વખતે કુલ સરવાળો <strong>${vehicle.goodTotals.join(", ")}</strong> વાળો નંબર પસંદ કરો. ત્યાં સુધી વાહનમાં નાનો ${esc(db.numbers[p.driver].crystal.split(" ")[0])} રાખો.` : `This number works against your birth numbers. When you next register or change a vehicle, choose a plate whose letters (Chaldean) + digits total <strong>${vehicle.goodTotals.join(", ")}</strong>. Until then, keep a small ${esc(db.numbers[p.driver].crystal.split(" ")[0])} or ${esc(db.numbers[p.driver].planet.split(" ")[0])} yantra in the vehicle and start new journeys on ${DAY_OF[p.driver]}.`}</div>`
+              : `<div class="kit-value">${lang === "hi" ? "आपका वाहन नंबर जन्म अंकों के अनुकूल है — इसे बनाए रखें।" : lang === "gu" ? "તમારો વાહન નંબર જન્મ અંકો સાથે સુમેળભર્યો છે — તેને જાળવી રાખો." : "Your vehicle number vibrates acceptably with your birth numbers — keep it. For your next vehicle, the totals below remain your best picks."}</div>`}
           </div>`
-        : `<div class="card"><div class="kit-value">No vehicle number was entered — use the guidance below whenever you buy a car/bike or choose a registration number.</div></div>`}
+        : `<div class="card"><div class="kit-value">${lang === "hi" ? "कोई वाहन नंबर दर्ज नहीं किया गया था — नया वाहन खरीदते समय नीचे दिए गए मार्गदर्शन का उपयोग करें।" : lang === "gu" ? "કોઈ વાહન નંબર દાખલ કરવામાં આવ્યો ન હતો — નવું વાહન ખરીદતી વખતે નીચે આપેલા માર્ગદર્શનનો ઉપયોગ કરો." : "No vehicle number was entered — use the guidance below whenever you buy a car/bike or choose a registration number."}</div></div>`}
       <div class="card">
-        <div class="card-title">Choosing a Lucky Vehicle Number</div>
-        <div class="kit-value">Pick a registration whose <strong>letter values + digits total</strong> is one of: <strong>${vehicle.goodTotals.join(", ")}</strong> (these reduce to numbers in harmony with Driver ${p.driver} and Conductor ${p.conductor}). Favour vehicle colours <strong>${esc(vehicle.luckyColors.join(" or "))}</strong>. Take delivery of a new vehicle on a <strong>${DAY_OF[p.driver]}</strong> or <strong>${DAY_OF[p.conductor]}</strong>, ideally in the morning.</div>
+        <div class="card-title">${lang === "hi" ? "शुभ वाहन नंबर का चयन" : lang === "gu" ? "શુભ વાહન નંબરની પસંદગી" : "Choosing a Lucky Vehicle Number"}</div>
+        <div class="kit-value">${lang === "hi" ? `ऐसा नंबर चुनें जिसके <strong>अक्षरों + अंकों का कुल योग</strong>: <strong>${vehicle.goodTotals.join(", ")}</strong> हो। शुभ वाहन रंग: <strong>${esc(vehicle.luckyColors.join(" या "))}</strong>। नए वाहन की डिलीवरी <strong>${dayOf(p.driver)}</strong> या <strong>${dayOf(p.conductor)}</strong> को लें।` : lang === "gu" ? `એવો નંબર પસંદ કરો જેના <strong>અક્ષરો + અંકોનો કુલ સરવાળો</strong>: <strong>${vehicle.goodTotals.join(", ")}</strong> થતો હોય. શુભ વાહન રંગો: <strong>${esc(vehicle.luckyColors.join(" અથવા "))}</strong>. નવા વાહનની ડિલિવરી <strong>${dayOf(p.driver)}</strong> કે <strong>${dayOf(p.conductor)}</strong> ના દિવસે લો.` : `Pick a registration whose <strong>letter values + digits total</strong> is one of: <strong>${vehicle.goodTotals.join(", ")}</strong> (these reduce to numbers in harmony with Driver ${p.driver} and Conductor ${p.conductor}). Favour vehicle colours <strong>${esc(vehicle.luckyColors.join(" or "))}</strong>. Take delivery of a new vehicle on a <strong>${DAY_OF[p.driver]}</strong> or <strong>${DAY_OF[p.conductor]}</strong>, ideally in the morning.`}</div>
       </div>
     </section>`;
 
-    /* Section 8: watch */
     const watchSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.watch}</span>Watch &amp; Wearable Remedy</h2>
-      <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</p>
+      <h2 class="rsection-title"><span class="idx">${SECTION.watch}</span>${t("secWatch", "Watch & Wearable Remedy")}</h2>
+      <p class="rsection-desc">Your watch sits on your pulse all day — its metal, colour and geometry continuously feed planetary energy. Spec aligned to Driver ${p.driver} (${esc(db.numbers[p.driver].planet)}) + Conductor ${p.conductor} (${esc(db.numbers[p.conductor].planet)}).</p>
       <div class="table-scroll"><table class="rtable">
         <tr><th>Element</th><th>Recommended</th><th>Why</th></tr>
         ${watch.rows.map((r) => `<tr><td><strong>${esc(r[0])}</strong></td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join("")}
       </table></div>
       ${watch.avoids.length ? `<div class="card"><div class="card-title">Avoid</div>${watch.avoids.map((a) => `<div class="kit-value">• ${esc(a)}</div>`).join("")}</div>` : ""}
-      ${watch.currentVerdict ? `<div class="card"><div class="goal-head"><div class="card-title">Your current watch</div><span class="badge ${watch.currentVerdict.tone}">${watch.currentVerdict.tone === "good" ? "Aligned" : watch.currentVerdict.tone === "warn" ? "Caution" : "Note"}</span></div><div class="kit-value">${esc(watch.currentVerdict.text)}</div></div>` : ""}
-      <div class="card"><div class="card-title">Auspicious Activation</div><div class="kit-value">Wear the new watch for the first time on a <strong>${watch.days.join(" or ")}</strong> morning, ${watch.time}. Set a clear intention for your ${esc(p.goals[0] || "goal")} goal while putting it on.</div></div>
+      ${watch.currentVerdict ? `<div class="card"><div class="goal-head"><div class="card-title">${lang === "hi" ? "आपकी वर्तमान घड़ी" : lang === "gu" ? "તમારી હાલની ઘડિયાળ" : "Your current watch"}</div><span class="badge ${watch.currentVerdict.tone}">${watch.currentVerdict.tone === "good" ? "Aligned" : watch.currentVerdict.tone === "warn" ? "Caution" : "Note"}</span></div><div class="kit-value">${esc(watch.currentVerdict.text)}</div></div>` : ""}
+      <div class="card"><div class="card-title">${lang === "hi" ? "शुभ मुहूर्त में धारण" : lang === "gu" ? "શુભ મુહૂર્તમાં ધારણ" : "Auspicious Activation"}</div><div class="kit-value">${lang === "hi" ? `नई घड़ी को पहली बार <strong>${watch.days.join(" या ")}</strong> की सुबह, ${watch.time} में पहनें।` : lang === "gu" ? `નવી ઘડિયાળને પ્રથમ વખત <strong>${watch.days.join(" કે ")}</strong> ની સવારે, ${watch.time} માં પહેરો.` : `Wear the new watch for the first time on a <strong>${watch.days.join(" or ")}</strong> morning, ${watch.time}. Set a clear intention for your ${esc(p.goals[0] || "goal")} goal while putting it on.`}</div></div>
     </section>`;
 
-    /* Section 9: crystal companion guide */
-    function crystalGuide(p) {
-      const zz = DB.zodiac[p.zodiac];
-      // Chart-relevant sources, in priority order: zodiac sign → Driver →
-      // Conductor → missing planets. Each source string lists one or more
-      // crystals (with alternates/substitutes), matched by full crystal name.
-      const sources = [
-        ...zz.crystals,
-        DB.numbers[p.driver].crystal,
-        DB.numbers[p.conductor].crystal,
-        ...p.missing.map((n) => DB.numbers[n].crystal)
-      ];
-      const keys = Object.keys(DB.crystals).filter((k) => k !== "Selenite" && k !== "5 Mukhi Rudraksha");
-      const seen = new Set();
-      const picks = [];
-      for (const src of sources) {
-        const s = src.toLowerCase();
-        for (const k of keys) {
-          if (!seen.has(k) && s.includes(k.toLowerCase())) { seen.add(k); picks.push(k); }
-        }
-      }
-
-      // 5 Mukhi Rudraksha note: check the actual rudraksha fields (not the
-      // crystal text) — it is prescribed for number 3 (Jupiter).
-      const rudrakshaPool = [
-        DB.numbers[p.driver].rudraksha,
-        DB.numbers[p.conductor].rudraksha,
-        ...p.missing.map((n) => DB.numbers[n].rudraksha)
-      ].join(" ").toLowerCase();
-      const rudrakshaNote = rudrakshaPool.includes("5 mukhi") ? DB.crystals["5 Mukhi Rudraksha"] : null;
-
-      return { picks: picks.slice(0, 5), rudrakshaNote };
-    }
     const cg = crystalGuide(p);
     const crystalSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>Crystal Companion Guide</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>${t("secCrystal", "Crystal Companion Guide")}</h2>
       <p class="rsection-desc">Your chart (Driver ${p.driver}, Conductor ${p.conductor}, ${esc(p.zodiac)} sign${p.missing.length ? `, missing ${p.missing.join("/")}` : ""}) points to these crystals — each with its energy centre, core benefits and the pairing that amplifies it.</p>
       ${cg.picks.length ? `<div class="card-grid two">${cg.picks.map((k) => {
-        const c = DB.crystals[k];
+        const c = db.crystals[k];
         return `<div class="card">
           <div class="card-title">💎 ${esc(k)}</div>
           <div class="kit">
@@ -1762,70 +2057,67 @@
       }).join("")}</div>` : `<div class="card"><div class="kit-value">Your primary crystals are listed with each planet kit above — follow the pairings below for best results.</div></div>`}
       <div class="card">
         <div class="card-title">🧼 Cleansing &amp; Charging — the Selenite Rule</div>
-        <div class="kit-value">${esc(DB.crystals["Selenite"].benefits)}<br><strong>${esc(DB.seleniteRitual)}</strong></div>
+        <div class="kit-value">${esc(db.crystals["Selenite"].benefits)}<br><strong>${esc(db.seleniteRitual)}</strong></div>
       </div>
       ${cg.rudrakshaNote ? `<div class="card"><div class="card-title">📿 5 Mukhi Rudraksha Note</div><div class="kit-value">${esc(cg.rudrakshaNote.benefits)} Best paired with: ${esc(cg.rudrakshaNote.pair)}.</div></div>` : ""}
     </section>`;
 
-    /* Section 10: lucky colours & day-wise dressing */
-    const powerDaySet = [...new Set([DAY_OF[p.driver], DAY_OF[p.conductor]])];
+    const powerDaySet = [...new Set([dayOf(p.driver), dayOf(p.conductor)])];
     const colorSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.colours}</span>Lucky Colours &amp; Day-wise Dressing</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.colours}</span>${t("secColours", "Lucky Colours & Day-wise Dressing")}</h2>
       <div class="card">
         <div class="card-title">Your Power Colours</div>
-        <div class="kit-value">Wear <strong>${esc(DB.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(DB.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)}).</div>
+        <div class="kit-value">${lang === "hi" ? `अधिकांशतः <strong>${esc(db.numbers[p.driver].color)}</strong> पहनें — यह आपके मूलांक ${p.driver} (${esc(db.numbers[p.driver].planet)}) को शक्ति देता है। महत्वपूर्ण बैठकों और निर्णयों में <strong>${esc(db.numbers[p.conductor].color)}</strong> जोड़ें।` : lang === "gu" ? `મોટેભાગે <strong>${esc(db.numbers[p.driver].color)}</strong> પહેરો — આ તમારા મૂળાંક ${p.driver} (${esc(db.numbers[p.driver].planet)}) ને બળ આપે છે. મહત્વના કાર્યોમાં <strong>${esc(db.numbers[p.conductor].color)}</strong> ઉમેરો.` : `Wear <strong>${esc(db.numbers[p.driver].color)}</strong> most often — they feed your Driver ${p.driver} (${esc(db.numbers[p.driver].planet)}), your core personality. Add <strong>${esc(db.numbers[p.conductor].color)}</strong> for important days, meetings and decisions — they support your Conductor ${p.conductor} (${esc(db.numbers[p.conductor].planet)}).`}</div>
       </div>
       <div class="card">
-        <div class="card-title">What to Wear, Day by Day</div>
+        <div class="card-title">${lang === "hi" ? "दिन अनुसार क्या पहनें" : lang === "gu" ? "વાર મુજબ શું પહેરવું" : "What to Wear, Day by Day"}</div>
         <div class="table-scroll"><table class="rtable">
           <tr><th>Day</th><th>Planet</th><th>Wear these colours</th><th>Note</th></tr>
-          ${DB.dayWear.map((d) => `<tr${powerDaySet.includes(d.day) ? ' class="hl-row"' : ""}>
-            <td><strong>${esc(d.day)}</strong>${powerDaySet.includes(d.day) ? ' <span class="badge good">Your power day</span>' : ""}</td>
-            <td>${esc(DB.numbers[d.num].planet.split(" ")[0])}</td>
+          ${db.dayWear.map((d) => `<tr${powerDaySet.includes(d.day) ? ' class="hl-row"' : ""}>
+            <td><strong>${esc(d.day)}</strong>${powerDaySet.includes(d.day) ? ` <span class="badge good">${lang === "hi" ? "आपका मुख्य शुभ वार" : lang === "gu" ? "તમારો મુખ્ય શુભ વાર" : "Your power day"}</span>` : ""}</td>
+            <td>${esc(db.numbers[d.num].planet.split(" ")[0])}</td>
             <td>${esc(d.colors)}</td>
             <td>${esc(d.note)}</td>
           </tr>`).join("")}
         </table></div>
-        <div class="card-sub">Rule of thumb: never wear dull or torn clothes on your power days — that is when your planets receive energy most directly.</div>
+        <div class="card-sub">${lang === "hi" ? "नियम: अपने मुख्य शुभ वार पर कभी फटे या पुराने कपड़े न पहनें — उस दिन ग्रह ऊर्जा सीधे आकर्षित होती है।" : lang === "gu" ? "નિયમ: તમારા મુખ્ય શુભ વારે ક્યારેય ફાટેલા કે જૂના કપડાં ન પહેરો — તે દિવસે ગ્રહ ઊર્જા સીધી આકર્ષિત થાય છે." : "Rule of thumb: never wear dull or torn clothes on your power days — that is when your planets receive energy most directly."}</div>
       </div>
     </section>`;
 
-    /* Section 11: career & profession guidance */
-    const driverCareers = DB.careers[p.driver], conductorCareers = DB.careers[p.conductor];
+    const driverCareers = db.careers[p.driver], conductorCareers = db.careers[p.conductor];
     const overlap = driverCareers.filter((c) => conductorCareers.includes(c));
     const careerSection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${SECTION.career}</span>Best Fields &amp; Professions</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.career}</span>${t("secCareer", "Best Fields & Professions")}</h2>
       <p class="rsection-desc">Fields ruled by your Driver suit your natural talent; fields ruled by your Conductor bring destiny-level success. The sweet spot is where they overlap.</p>
       <div class="card-grid two">
         <div class="card">
-          <div class="card-title">Natural Talent — Driver ${p.driver} (${esc(DB.numbers[p.driver].planet)})</div>
+          <div class="card-title">Natural Talent — Driver ${p.driver} (${esc(db.numbers[p.driver].planet)})</div>
           <div class="kit">${driverCareers.map((c) => `<div class="kit-row"><div class="kit-ico">›</div><div class="kit-body"><div class="kit-value">${esc(c)}</div></div></div>`).join("")}</div>
         </div>
         <div class="card">
-          <div class="card-title">Destiny Growth — Conductor ${p.conductor} (${esc(DB.numbers[p.conductor].planet)})</div>
+          <div class="card-title">Destiny Growth — Conductor ${p.conductor} (${esc(db.numbers[p.conductor].planet)})</div>
           <div class="kit">${conductorCareers.map((c) => `<div class="kit-row"><div class="kit-ico">›</div><div class="kit-body"><div class="kit-value">${esc(c)}</div></div></div>`).join("")}</div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">Career Direction Verdict</div>
         <div class="kit-value">${overlap.length
-          ? `Your talent and destiny align beautifully in: <strong>${overlap.map(esc).join(", ")}</strong> — prioritise these for the highest chance of excelling.`
-          : `Your Driver and Conductor pull towards different fields — combine them (e.g. a Driver-${p.driver} skill applied inside a Conductor-${p.conductor} industry) and success probability multiplies.`}
+          ? (lang === "hi" ? `आपकी प्रतिभा और भाग्य का सुंदर मिलन: <strong>${overlap.map(esc).join(", ")}</strong> — इन क्षेत्रों को प्राथमिकता दें।` : lang === "gu" ? `તમારી આવડત અને ભાગ્યનો સુંદર મેળ: <strong>${overlap.map(esc).join(", ")}</strong> — આ ક્ષેત્રોને પ્રાથમિકતા આપો.` : `Your talent and destiny align beautifully in: <strong>${overlap.map(esc).join(", ")}</strong> — prioritise these for the highest chance of excelling.`)
+          : (lang === "hi" ? `मूलांक और भाग्यांक अलग-अलग क्षेत्रों की ओर संकेत करते हैं — दोनों को मिलाएं (जैसे मूलांक ${p.driver} का कौशल भाग्यांक ${p.conductor} के उद्योग में लगाएं)।` : lang === "gu" ? `મૂળાંક અને ભાગ્યાંક અલગ ક્ષેત્રો સૂચવે છે — બંનેને જોડો (જેમ કે મૂળાંક ${p.driver} નું કૌશલ્ય ભાગ્યાંક ${p.conductor} ના ઉદ્યોગમાં વાપરો).` : `Your Driver and Conductor pull towards different fields — combine them (e.g. a Driver-${p.driver} skill applied inside a Conductor-${p.conductor} industry) and success probability multiplies.`)}
           ${p.missing.includes(3) ? ` Number 3 (Jupiter) is missing from your grid — careers involving teaching, finance or advisory need extra Jupiter remedy support (see Section 4).` : ""}
           ${p.missing.includes(8) ? ` Number 8 (Saturn) is missing — long-term career stability improves as you apply the Saturn remedies in Section 4.` : ""}</div>
       </div>
     </section>`;
 
-    /* Section 12: favourable years & timing */
     const timingSection = `<section class="rsection" id="timing-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.timing}</span>Favourable Years &amp; Timing</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.timing}</span>${t("secTiming", "Favourable Years & Timing")}</h2>
       <div class="card">
         <div class="card-title">Your Personal Year Cycle</div>
         <div class="table-scroll"><table class="rtable">
           <tr><th>Year</th><th>Personal Year</th><th>Theme — how to use it</th></tr>
           ${timing.years.map((y) => `<tr${y.current ? ' class="hl-row"' : ""}>
-            <td><strong>${y.yr}</strong>${y.current ? ' <span class="badge info">Now</span>' : ""}</td>
-            <td>${y.n} (${esc(DB.numbers[y.n].planet.split(" ")[0])})</td>
+            <td><strong>${y.yr}</strong>${y.current ? ` <span class="badge info">${lang === "hi" ? "वर्तमान" : lang === "gu" ? "હાલમાં" : "Now"}</span>` : ""}</td>
+            <td>${y.n} (${esc(db.numbers[y.n].planet.split(" ")[0])})</td>
             <td>${esc(y.meaning)}</td>
           </tr>`).join("")}
         </table></div>
@@ -1834,58 +2126,58 @@
         <div class="card">
           <div class="card-title">Best Years Ahead</div>
           <div class="kit">${timing.luckyYears.map((l) => `<div class="kit-row"><div class="kit-ico"><strong>${l.yr}</strong></div><div class="kit-body"><div class="kit-value">Personal year ${l.py} — ${esc(l.why)}</div></div></div>`).join("")}</div>
-          <div class="card-sub">Schedule launches, investments, job switches and major purchases in these years for maximum support.</div>
+          <div class="card-sub">${lang === "hi" ? "नए उद्यम, निवेश, नौकरी बदलाव और बड़े निर्णय इन वर्षों में लें।" : lang === "gu" ? "નવા સાહસ, રોકાણ, નોકરી બદલાવ અને મોટા નિર્ણયો આ વર્ષોમાં લો." : "Schedule launches, investments, job switches and major purchases in these years for maximum support."}</div>
         </div>
         <div class="card">
           <div class="card-title">Milestone Ages</div>
           <div class="kit">${timing.milestones.map((m) => `<div class="kit-row"><div class="kit-ico"><strong>${m.age}</strong></div><div class="kit-body"><div class="kit-value">Year ${m.yr} — ${esc(m.why)}</div></div></div>`).join("")}</div>
-          <div class="card-sub">These ages carry extra momentum — plan your biggest moves to land on them.</div>
+          <div class="card-sub">${lang === "hi" ? "ये उम्र जीवन में विशेष गति लाती हैं — बड़े फैसले इनके आसपास रखें।" : lang === "gu" ? "આ ઉંમર જીવનમાં વિશેષ ગતિ લાવે છે — મોટા નિર્ણયો આની આસપાસ રાખો." : "These ages carry extra momentum — plan your biggest moves to land on them."}</div>
         </div>
       </div>
     </section>`;
 
     const memorySection = `<section class="rsection" id="memory-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.memory}</span>Your Evolving Chart</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.memory}</span>${t("secMemory", "Your Evolving Chart")}</h2>
       <p class="rsection-desc">This section is private, on-device memory only. It helps the app learn your own journey over time without uploading personal data.</p>
       <div class="insight-grid">
         <div class="metric-card">
-          <div class="metric-label">Saved snapshots</div>
+          <div class="metric-label">${lang === "hi" ? "सुरक्षित चार्ट" : lang === "gu" ? "સેવ કરેલા ચાર્ટ" : "Saved snapshots"}</div>
           <div class="metric-value">${evolving.snapshots.length}</div>
-          <div class="metric-sub">Latest saved on ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "this device not yet"}</div>
+          <div class="metric-sub">${lang === "hi" ? `नवीनतम: ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "अभी सुरक्षित नहीं"}` : lang === "gu" ? `તાજેતરનું: ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "હજી સેવ નથી"}` : `Latest saved on ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "this device not yet"}`}</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">This year in context</div>
-          <div class="metric-value">${evolving.currentYearLucky ? "Favourable" : "Build steadily"}</div>
-          <div class="metric-sub">${evolving.currentYearLucky ? "This year appears in your lucky-year window." : "Not one of your top timing windows — use discipline and consistency."}</div>
+          <div class="metric-label">${lang === "hi" ? "इस वर्ष का प्रभाव" : lang === "gu" ? "આ વર્ષનો પ્રભાવ" : "This year in context"}</div>
+          <div class="metric-value">${evolving.currentYearLucky ? (lang === "hi" ? "अनुकूल" : lang === "gu" ? "અનુકૂળ" : "Favourable") : (lang === "hi" ? "धैर्य से निर्माण" : lang === "gu" ? "ધીરજથી નિર્માણ" : "Build steadily")}</div>
+          <div class="metric-sub">${evolving.currentYearLucky ? (lang === "hi" ? "यह वर्ष आपके शुभ वर्षों की सूची में आता है।" : lang === "gu" ? "આ વર્ષ તમારા શુભ વર્ષોની યાદીમાં આવે છે." : "This year appears in your lucky-year window.") : (lang === "hi" ? "अनुशासन और निरंतरता बनाए रखें।" : lang === "gu" ? "શિસ્ત અને સાતત્ય જાળવી રાખો." : "Not one of your top timing windows — use discipline and consistency.")}</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Moves logged this year</div>
+          <div class="metric-label">${lang === "hi" ? "इस वर्ष दर्ज कदम" : lang === "gu" ? "આ વર્ષે નોંધેલા પગલાં" : "Moves logged this year"}</div>
           <div class="metric-value">${evolving.movesThisYear}</div>
           <div class="metric-sub">A local reality-check against your timing cycle.</div>
         </div>
         <div class="metric-card">
-          <div class="metric-label">Knowledge source</div>
+          <div class="metric-label">${lang === "hi" ? "ज्ञान का स्रोत" : lang === "gu" ? "જ્ઞાનનો સ્ત્રોત" : "Knowledge source"}</div>
           <div class="metric-value">v${esc(activePack().packVersion)}</div>
           <div class="metric-sub">${esc(activePack().source === "remote" ? "Live-updated content pack" : activePack().source === "cached" ? "Cached content pack" : "Bundled starter pack")}</div>
         </div>
       </div>
       <div class="card-grid two">
         <div class="card">
-          <div class="card-title">Remedy engagement this month</div>
-          <div class="card-sub">One tap adds a private check-in for the planets that matter most in this chart.</div>
+          <div class="card-title">${lang === "hi" ? "इस महीने उपायों का अभ्यास" : lang === "gu" ? "આ મહિને ઉપાયોનો અભ્યાસ" : "Remedy engagement this month"}</div>
+          <div class="card-sub">${lang === "hi" ? "एक टैप से अपने मुख्य ग्रहों का चेक-इन दर्ज करें।" : lang === "gu" ? "એક ટેપથી તમારા મુખ્ય ગ્રહોનું ચેક-ઇન નોંધો." : "One tap adds a private check-in for the planets that matter most in this chart."}</div>
           <div class="engagement-list">
-            ${evolving.practiceSummary.map((item) => `<div class="engagement-item"><div><strong>${item.n} — ${esc(DB.numbers[item.n].planet)}</strong><span>${item.month} logged this month · ${item.total} total</span></div><button class="btn btn-secondary btn-32" type="button" data-practice-number="${item.n}">Log practice</button></div>`).join("")}
+            ${evolving.practiceSummary.map((item) => `<div class="engagement-item"><div><strong>${item.n} — ${esc(db.numbers[item.n].planet)}</strong><span>${item.month} logged this month · ${item.total} total</span></div><button class="btn btn-secondary btn-32" type="button" data-practice-number="${item.n}">${lang === "hi" ? "अभ्यास दर्ज करें" : lang === "gu" ? "અભ્યાસ નોંધો" : "Log practice"}</button></div>`).join("")}
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Lucky-year timing vs what you actually did</div>
-          <div class="card-sub">Log a real-world move locally — job switch, launch, purchase, proposal, relocation, or a strong 40-day remedy push.</div>
+          <div class="card-title">${lang === "hi" ? "शुभ समय बनाम वास्तविक कर्म" : lang === "gu" ? "શુભ સમય વિરુદ્ધ વાસ્તવિક કર્મ" : "Lucky-year timing vs what you actually did"}</div>
+          <div class="card-sub">${lang === "hi" ? "कोई बड़ा निर्णय या उपाय की शुरुआत यहां स्थानीय रूप से दर्ज करें।" : lang === "gu" ? "કોઈ મોટો નિર્ણય કે ઉપાયની શરૂઆત અહીં નોંધો." : "Log a real-world move locally — job switch, launch, purchase, proposal, relocation, or a strong 40-day remedy push."}</div>
           <form id="localJournalForm" class="mini-form">
-            <input id="localJournalText" class="input" type="text" maxlength="160" placeholder="e.g. Started Friday Venus remedy streak and redesigned bedroom" />
-            <button class="btn btn-primary btn-32" type="submit">Save locally</button>
+            <input id="localJournalText" class="input" type="text" maxlength="160" placeholder="${lang === "hi" ? "जैसे: शुक्रवार के शुक्र उपाय शुरू किए और बेडरूम का वास्तु सुधारा" : lang === "gu" ? "જેમ કે: શુક્રવારના શુક્ર ઉપાયો શરૂ કર્યા અને બેડરૂમનું વાસ્તુ સુધાર્યું" : "e.g. Started Friday Venus remedy streak and redesigned bedroom"}" />
+            <button class="btn btn-primary btn-32" type="submit">${lang === "hi" ? "सुरक्षित करें" : lang === "gu" ? "સેવ કરો" : "Save locally"}</button>
           </form>
           <div class="timeline">
-            ${evolving.journal.length ? evolving.journal.map((entry) => `<div class="timeline-item"><div><strong>${esc(entry.text)}</strong><span>${prettyDate(entry.at)}</span></div></div>`).join("") : `<div class="timeline-item"><div><strong>No local moves logged yet</strong><span>Your notes stay on this device and never enter the anonymous contribution payload.</span></div></div>`}
+            ${evolving.journal.length ? evolving.journal.map((entry) => `<div class="timeline-item"><div><strong>${esc(entry.text)}</strong><span>${prettyDate(entry.at)}</span></div></div>`).join("") : `<div class="timeline-item"><div><strong>${lang === "hi" ? "अभी कोई नोट दर्ज नहीं है" : lang === "gu" ? "હજી કોઈ નોંધ દાખલ નથી" : "No local moves logged yet"}</strong><span>${lang === "hi" ? "आपकी टिप्पणियां पूरी तरह आपके डिवाइस पर ही रहती हैं।" : lang === "gu" ? "તમારી નોંધ સંપૂર્ણપણે તમારા ડિવાઇસ પર જ રહે છે." : "Your notes stay on this device and never enter the anonymous contribution payload."}</span></div></div>`}
           </div>
         </div>
       </div>
@@ -1899,10 +2191,9 @@
       </div>
     </section>`;
 
-    /* Section 15: vastu */
     const vastuSection = vastu.length
       ? `<section class="rsection" id="vastu-section">
-          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>Vastu Dosh Scan</h2>
+          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>${t("secVastu", "Vastu Dosh Scan")}</h2>
           <div class="card">
             <div class="kit">
             ${vastu.map((f) => `<div class="kit-row">
@@ -1914,35 +2205,33 @@
             </div>`).join("")}
             </div>
           </div>
-          <p class="rsection-desc">General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya.</p>
+          <p class="rsection-desc">${lang === "hi" ? "सामान्य रखरखाव: घर के मध्य (ब्रह्मस्थान) को खाली और साफ रखें; दोष वाले स्थान पर समुद्री नमक की कटोरी रखें और हर हफ्ते बदलें; ईशान कोण में रोज दीया जलाएं।" : lang === "gu" ? "સામાન્ય જાળવણી: ઘરના મધ્ય (બ્રહ્મસ્થાન) ને ખાલી અને સ્વચ્છ રાખો; દોષ વાળી જગ્યાએ દરિયાઈ મીઠાની વાટકી રાખો અને દર અઠવાડિયે બદલો; ઇશાન ખૂણામાં રોજ દીવો પ્રગટાવો." : "General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya."}</p>
         </section>`
       : `<section class="rsection" id="vastu-section">
-          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>Vastu Dosh Scan</h2>
-          <div class="card"><div class="kit-value">No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan.</div></div>
+          <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>${t("secVastu", "Vastu Dosh Scan")}</h2>
+          <div class="card"><div class="kit-value">${lang === "hi" ? "कोई वास्तु विवरण नहीं दिया गया था — मुख्य द्वार, रसोई, बेडरूम और टॉयलेट दर्ज कर पुनः जांचें।" : lang === "gu" ? "કોઈ વાસ્તુ વિગત આપી ન હતી — મુખ્ય દ્વાર, રસોડું, બેડરૂમ અને ટોઇલેટ દાખલ કરી ફરી તપાસો." : "No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan."}</div></div>
         </section>`;
 
-    /* Section 15: personal lucky directions (Kua — Feng Shui, clearly labelled) */
-    const kuaInfo = p.kua ? DB.kua[p.kua] : null;
+    const kuaInfo = p.kua ? db.kua[p.kua] : null;
     const kuaSection = `<section class="rsection" id="kua-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.kua}</span>Personal Lucky Directions — Kua Number</h2>
-      <p class="rsection-desc">Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".</p>
+      <h2 class="rsection-title"><span class="idx">${SECTION.kua}</span>${t("secKua", "Personal Lucky Directions — Kua Number")}</h2>
+      <p class="rsection-desc">${lang === "hi" ? "नोट: <strong>कुआ अंक फेंगशुई (चीनी पद्धति)</strong> का हिस्सा है, शास्त्रीय वैदिक वास्तु का नहीं — इसे 'व्यक्तिगत शुभ दिशा' के रूप में यहां स्पष्ट रूप से अलग दिया गया है।" : lang === "gu" ? "નોંધ: <strong>કુઆ અંક ફેંગશુઈ (ચીની પદ્ધતિ)</strong> નો ભાગ છે, શાસ્ત્રીય વૈદિક વાસ્તુનો નહીં — તેને 'અંગત શુભ દિશા' તરીકે અહીં સ્પષ્ટ રીતે અલગ આપેલ છે." : 'Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".'}</p>
       ${kuaInfo ? `<div class="card">
         <div class="goal-head">
-          <div class="card-title">Your Kua number is ${p.kua} — ${esc(kuaInfo.group)} group, ${esc(kuaInfo.element)} element</div>
+          <div class="card-title">${lang === "hi" ? `आपका कुआ अंक ${p.kua} है — ${esc(kuaInfo.group)}, ${esc(kuaInfo.element)} तत्व` : lang === "gu" ? `તમારો કુઆ અંક ${p.kua} છે — ${esc(kuaInfo.group)}, ${esc(kuaInfo.element)} તત્વ` : `Your Kua number is ${p.kua} — ${esc(kuaInfo.group)} group, ${esc(kuaInfo.element)} element`}</div>
           <span class="badge info">Feng Shui</span>
         </div>
-        <div class="kit-value">Your best direction (Sheng Chi — wealth &amp; success) is <strong>${esc(kuaInfo.shengChi)}</strong>. Face this direction when working or sleeping for maximum support.</div>
-        <div class="kit-value">Your four auspicious directions: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. Orient your desk, bed head and main door towards these wherever practical.</div>
-      </div>` : `<div class="card"><div class="kit-value">Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.</div></div>`}
+        <div class="kit-value">${lang === "hi" ? `आपकी सर्वोत्तम दिशा (शेंग ची — धन व सफलता) <strong>${esc(kuaInfo.shengChi)}</strong> है। काम करते या सोते समय इस दिशा में मुंह/सिर रखें।` : lang === "gu" ? `તમારી સર્વોત્તમ દિશા (શેંગ ચી — ધન અને સફળતા) <strong>${esc(kuaInfo.shengChi)}</strong> છે. કામ કરતી વખતે કે સૂતી વખતે આ દિશા તરફ મોં/માથું રાખો.` : `Your best direction (Sheng Chi — wealth &amp; success) is <strong>${esc(kuaInfo.shengChi)}</strong>. Face this direction when working or sleeping for maximum support.`}</div>
+        <div class="kit-value">${lang === "hi" ? `आपकी चार शुभ दिशाएं: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>। टेबल, बिस्तर और मुख्य द्वार को इन दिशाओं में रखें।` : lang === "gu" ? `તમારી ચાર શુભ દિશાઓ: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. ટેબલ, પલંગ અને મુખ્ય દ્વારને આ દિશાઓમાં રાખો.` : `Your four auspicious directions: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. Orient your desk, bed head and main door towards these wherever practical.`}</div>
+      </div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "कुआ अंक जानने के लिए फॉर्म में 'विवरण बदलें' पर जाकर अपना लिंग (Gender) चुनें।" : lang === "gu" ? "કુઆ અંક જાણવા માટે ફોર્મમાં 'વિગત બદલો' પર જઈને તમારી જાતિ (Gender) પસંદ કરો." : 'Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.'}</div></div>`}
     </section>`;
 
-    /* Section 16: compatibility */
     const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
     const compat = partnerValid
       ? compatibility(p, computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }))
       : null;
     const compatSection = `<section class="rsection" id="compatibility-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>Compatibility &amp; Matchmaking</h2>
+      <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>${t("secCompat", "Compatibility & Matchmaking")}</h2>
       ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
         <div class="card">
           <div class="goal-head">
@@ -1953,54 +2242,56 @@
             <tr><th>Pairing</th><th>Relation</th></tr>
             ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
           </table></div>
-          <div class="kit-value">${compat.verdict === "Strong" ? "A naturally cooperative pairing — your numbers reinforce each other." : compat.verdict === "Good" ? "A supportive pairing with a couple of neutral links — manageable and mostly aligned." : compat.verdict === "Workable" ? "Workable, but needs conscious effort — the conflicting links are the areas to manage." : "Challenging pairing — the conflicting numbers need remedies and clear communication to bridge."}</div>
+          <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को कम करने के लिए उपाय और संवाद आवश्यक है।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને ઘટાડવા માટે ઉપાયો અને સંવાદ જરૂરી છે." : "Challenging pairing — the conflicting numbers need remedies and clear communication to bridge.")}</div>
         </div>`
       : `<div class="card">
-          <div class="card-title">Who are you compatible with?</div>
-          <div class="kit-value">Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:</div>
+          <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
+          <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
           <div class="table-scroll"><table class="rtable">
-            <tr><th>Other person's Driver</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
-            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(DB.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
+            <tr><th>${lang === "hi" ? "अन्य व्यक्ति का मूलांक" : lang === "gu" ? "અન્ય વ્યક્તિનો મૂળાંક" : "Other person's Driver"}</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
+            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(db.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
           </table></div>
         </div>`}
     </section>`;
 
-    /* Section 18+: goal plans */
     const goalsStart = SECTION.goalsStart;
     const goalSections = goals.map((g, i) => `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — Remedy Plan</h2>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — ${lang === "hi" ? "उपाय योजना" : lang === "gu" ? "ઉપાય યોજના" : "Remedy Plan"}</h2>
       <p class="rsection-desc">${g.weak.length
-        ? `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`
-        : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`}</p>
+        ? (lang === "hi" ? `ग्रिड में अनुपस्थित अंक <strong>${g.weak.join(", ")}</strong> के कारण रुकावट — इन ग्रहों के उपाय प्राथमिकता हैं।` : lang === "gu" ? `ગ્રીડમાં ખૂટતા અંક <strong>${g.weak.join(", ")}</strong> ના કારણે અવરોધ — આ ગ્રહોના ઉપાયો પ્રાથમિકતા છે.` : `Blocked by missing number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> in your grid — these planet kits are your ${esc(g.goal.toLowerCase())} priority.`)
+        : (lang === "hi" ? "कोई ग्रह अनुपस्थित नहीं है — मुख्य ग्रहों की ऊर्जा नियमित बनाए रखें।" : lang === "gu" ? "કોઈ ગ્રહ ખૂટતો નથી — મુખ્ય ગ્રહોની ઊર્જા નિયમિત જાળવી રાખો." : `No ${esc(g.goal.toLowerCase())} planet is missing from your grid — maintain momentum with your key ${esc(g.goal.toLowerCase())} planets.`)}</p>
       <div class="card-grid two">${g.focus.map((f) => kitCard(f.n)).join("")}</div>
     </section>`).join("");
 
-    /* final section: 40-day activation plan — the operational itinerary.
-       The only place the priority checklist renders; the Northstar Summary
-       deliberately speaks at a higher altitude so nothing is repeated. */
-    const cadenceLabel = { daily: "Daily", weekly: "Weekly", once: "One-time" };
+    const cadenceLabel = {
+      daily: lang === "hi" ? "दैनिक" : lang === "gu" ? "દૈનિક" : "Daily",
+      weekly: lang === "hi" ? "साप्ताहिक" : lang === "gu" ? "સાપ્તાહિક" : "Weekly",
+      once: lang === "hi" ? "एक बार" : lang === "gu" ? "એક વાર" : "One-time"
+    };
     const planKey = state.activeProfileKey || profileKeyOf(p);
     const planState = readPlan(planKey);
+    const PLAN_DAYS = 40;
     const planDays = Array.from({ length: PLAN_DAYS }, (_, i) => !!planState.days[i]);
     const planDone = planDays.filter(Boolean).length;
-    const planNext = planDays.indexOf(false); // -1 when all 40 done
+    const planNext = planDays.indexOf(false);
     const planStatus = planDone >= PLAN_DAYS
-      ? `Mandala complete — ${PLAN_DAYS} of ${PLAN_DAYS} days done. Now review what shifted in Your Evolving Chart (Section ${SECTION.memory}).`
+      ? (lang === "hi" ? `मंडल पूर्ण — ४० में से ४० दिन संपन्न! अब प्रगति चार्ट में परिणाम देखें।` : lang === "gu" ? `મંડળ પૂર્ણ — ૪૦ માંથી ૪૦ દિવસ સંપન્ન! હવે પ્રગતિ ચાર્ટમાં પરિણામો જુઓ.` : `Mandala complete — ${PLAN_DAYS} of ${PLAN_DAYS} days done. Now review what shifted in Your Evolving Chart (Section ${SECTION.memory}).`)
       : planDone === 0
-        ? `Begin on a <strong>${DAY_OF[p.driver]}</strong> morning for the strongest start, then tap Day 1. The ritual takes under 10 minutes — consistency is the remedy.`
-        : `${planDone} of ${PLAN_DAYS} days done — Day ${planNext + 1} is next${planNext + 1 <= PLAN_DAYS ? `, ${PLAN_DAYS - planDone} day${PLAN_DAYS - planDone === 1 ? "" : "s"} to go` : ""}. Keep the thread unbroken.`;
+        ? (lang === "hi" ? `सर्वोत्तम शुरुआत के लिए <strong>${dayOf(p.driver)}</strong> की सुबह से प्रारंभ करें और दिन १ पर टैप करें।` : lang === "gu" ? `શ્રેષ્ઠ શરૂઆત માટે <strong>${dayOf(p.driver)}</strong> ની સવારથી પ્રારંભ કરો અને દિવસ ૧ પર ટેપ કરો.` : `Begin on a <strong>${DAY_OF[p.driver]}</strong> morning for the strongest start, then tap Day 1. The ritual takes under 10 minutes — consistency is the remedy.`)
+        : (lang === "hi" ? `${planDone} / ${PLAN_DAYS} दिन पूर्ण — अगला दिन ${planNext + 1} है। नियम न तोड़ें।` : lang === "gu" ? `${planDone} / ${PLAN_DAYS} દિવસ પૂર્ણ — આગામી દિવસ ${planNext + 1} છે. સાતત્ય જાળવી રાખો.` : `${planDone} of ${PLAN_DAYS} days done — Day ${planNext + 1} is next${planNext + 1 <= PLAN_DAYS ? `, ${PLAN_DAYS - planDone} day${PLAN_DAYS - planDone === 1 ? "" : "s"} to go` : ""}. Keep the thread unbroken.`);
+
     const prioritySection = `<section class="rsection" id="plan-section">
-      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Activation Plan</h2>
-      <p class="rsection-desc">Forty days is the classical <strong>mandala</strong> — the minimum cycle for a remedy to imprint its vibration. This page is your itinerary: one small daily ritual, a weekly rhythm, four phases, and a tracker to keep you honest. The action checklist that follows is the full to-do list of this report — it lives here, once, tagged by how often each action runs.</p>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>${t("secPlan", "Your 40-Day Activation Plan")}</h2>
+      <p class="rsection-desc">${lang === "hi" ? "शास्त्रों में ४० दिनों को 'मंडल' कहा गया है — किसी भी उपाय का स्थायी प्रभाव स्थापित करने का न्यूनतम चक्र। यह आपकी कार्ययोजना है: दैनिक साधना, साप्ताहिक क्रम, चार चरण और एक दैनिक ट्रैकर।" : lang === "gu" ? "શાસ્ત્રોમાં ૪૦ દિવસને 'મંડળ' કહેવાય છે — કોઈપણ ઉપાયનો કાયમી પ્રભાવ સ્થાપિત કરવાનો ન્યૂનતમ સમયગાળો. આ તમારી કાર્યયોજના છે: દૈનિક સાધના, સાપ્તાહિક ક્રમ, ચાર તબક્કા અને એક દૈનિક ટ્રેકર." : "Forty days is the classical <strong>mandala</strong> — the minimum cycle for a remedy to imprint its vibration. This page is your itinerary: one small daily ritual, a weekly rhythm, four phases, and a tracker to keep you honest. The action checklist that follows is the full to-do list of this report — it lives here, once, tagged by how often each action runs."}</p>
       <div class="card-grid two">
         <div class="card ritual-card">
-          <div class="card-title">Your Daily Core Ritual — every morning, without negotiation</div>
+          <div class="card-title">${lang === "hi" ? "आपकी दैनिक मुख्य साधना — प्रतिदिन सुबह, बिना चूके" : lang === "gu" ? "તમારી દૈનિક મુખ્ય સાધના — દરરોજ સવારે, ચૂક્યા વગર" : "Your Daily Core Ritual — every morning, without negotiation"}</div>
           <div class="kit">
             ${activation.daily.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${row.label}</div><div class="kit-value">${row.value}<br><span class="card-sub">${row.sub}</span></div></div></div>`).join("")}
           </div>
         </div>
         <div class="card">
-          <div class="card-title">Your Weekly Rhythm — the charged days</div>
+          <div class="card-title">${lang === "hi" ? "आपका साप्ताहिक क्रम — ऊर्जावान वार" : lang === "gu" ? "તમારો સાપ્તાહિક ક્રમ — ઊર્જાવાન વાર" : "Your Weekly Rhythm — the charged days"}</div>
           <div class="table-scroll"><table class="rtable">
             <tr><th>Day</th><th>Planet</th><th>Charity</th><th>Fast</th></tr>
             ${activation.weekly.map((w) => `<tr>
@@ -2012,7 +2303,7 @@
           </table></div>
         </div>
       </div>
-      <div class="plan-subhead">The four phases of your mandala</div>
+      <div class="plan-subhead">${lang === "hi" ? "मंडल के चार चरण" : lang === "gu" ? "મંડળના ચાર તબક્કા" : "The four phases of your mandala"}</div>
       <div class="phase-grid">
         ${activation.phases.map((phase) => `<div class="phase-card">
           <span class="phase-badge">${phase.badge}</span>
@@ -2020,12 +2311,12 @@
           <div class="phase-rows">${phase.rows.map((r) => `<div class="phase-row">${r}</div>`).join("")}</div>
         </div>`).join("")}
       </div>
-      <div class="plan-subhead">Your action checklist — tagged by cadence</div>
+      <div class="plan-subhead">${lang === "hi" ? "आपकी कार्य सूची — आवृत्ति अनुसार" : lang === "gu" ? "તમારી કાર્ય સૂચિ — આવૃત્તિ મુજબ" : "Your action checklist — tagged by cadence"}</div>
       <div class="priority-list">${priorities.map((item) => `<div class="priority-item"><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span></div>`).join("")}
       </div>
       <div class="card tracker-card" id="plan-tracker">
         <div class="goal-head">
-          <div class="card-title">40-Day Tracker — tap each day you complete</div>
+          <div class="card-title">${lang === "hi" ? "४०-दिवसीय ट्रैकर — प्रत्येक दिन पूर्ण होने पर टैप करें" : lang === "gu" ? "૪૦ દિવસનો ટ્રેકર — પૂર્ણ થયેલ દરેક દિવસ પર ટેપ કરો" : "40-Day Tracker — tap each day you complete"}</div>
           <span class="badge ${planDone >= PLAN_DAYS ? "good" : planDone > 0 ? "info" : "warn"}">${planDone}/${PLAN_DAYS}</span>
         </div>
         <div class="kit-value">${planStatus}</div>
@@ -2035,7 +2326,7 @@
         </div>
         <div class="tracker-foot">
           <span>${planState.startedAt ? `Cycle started ${prettyDate(planState.startedAt)} · ` : ""}Progress is saved privately on this device, per profile.</span>
-          ${planDone > 0 ? `<button class="btn btn-secondary btn-32" type="button" data-plan-reset>Reset cycle</button>` : ""}
+          ${planDone > 0 ? `<button class="btn btn-secondary btn-32" type="button" data-plan-reset>${t("resetCycle", "Reset cycle")}</button>` : ""}
         </div>
       </div>
     </section>`;
@@ -2056,44 +2347,44 @@
     return `
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
-        <h1>Remedy Report — ${esc(p.name)}</h1>
+        <h1>${t("reportHeroTitle", "Remedy Report — {name}").replace("{name}", esc(p.name))}</h1>
         <p>DOB ${dobStr}${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
         <div class="report-meta">
-          <span class="status-pill status-private">Private report · browser only</span>
+          <span class="status-pill status-private">${t("statusPrivate", "Private & local")}</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
           <span class="status-pill status-memory">${evolving.snapshots.length} local snapshot${evolving.snapshots.length === 1 ? "" : "s"}</span>
           ${vedicPill}
         </div>
         <nav class="report-nav" aria-label="Quick report navigation">
-          <a href="#summary-section">Summary</a>
-          <a href="#core-profile">Profile</a>
-          <a href="#loshu-section">Loshu Grid</a>
-          <a href="#vedic-section">Vedic Sign</a>
-          <a href="#timing-section">Timing</a>
-          <a href="#memory-section">Evolving Chart</a>
-          <a href="#vastu-section">Vastu</a>
-          <a href="#plan-section">40-Day Plan</a>
+          <a href="#summary-section">${t("navSummary", "Summary")}</a>
+          <a href="#core-profile">${t("navProfile", "Profile")}</a>
+          <a href="#loshu-section">${t("navLoshu", "Loshu Grid")}</a>
+          <a href="#vedic-section">${t("navVedic", "Vedic Sign")}</a>
+          <a href="#timing-section">${t("navTiming", "Timing")}</a>
+          <a href="#memory-section">${t("navMemory", "Evolving Chart")}</a>
+          <a href="#vastu-section">${t("navVastu", "Vastu")}</a>
+          <a href="#plan-section">${t("navPlan", "40-Day Plan")}</a>
         </nav>
       </div>
       ${summarySection}
       <section class="rsection" id="core-profile">
-        <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
+        <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>${t("secProfile", "Core Numerology Profile")}</h2>
         <div class="card-grid">
-          ${numCard("Driver (Moolank)", p.driver, "Your mind, personality and day-to-day energy")}
-          ${numCard("Conductor (Bhagyank)", p.conductor, "Your destiny path and long-term results")}
-          ${numCard("Name Number", p.nameNum, `Chaldean total ${p.nameCompound} — how the world receives you`)}
-          ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — your most-used vibration`)}
+          ${numCard(t("driverLabel", "Driver (Moolank)"), p.driver, lang === "hi" ? "आपकी सोच, व्यक्तित्व और दैनिक ऊर्जा" : lang === "gu" ? "તમારી વિચારસરણી, વ્યક્તિત્વ અને દૈનિક ઊર્જા" : "Your mind, personality and day-to-day energy")}
+          ${numCard(t("conductorLabel", "Conductor (Bhagyank)"), p.conductor, lang === "hi" ? "आपका भाग्य मार्ग और दीर्घकालिक सफलता" : lang === "gu" ? "તમારો ભાગ્ય માર્ગ અને દીર્ઘકાલીન સફળતા" : "Your destiny path and long-term results")}
+          ${numCard("Name Number", p.nameNum, `Chaldean total ${p.nameCompound} — ${lang === "hi" ? "दुनिया आपको कैसे स्वीकारती है" : lang === "gu" ? "દુનિયા તમને કેવી રીતે સ્વીકારે છે" : "how the world receives you"}`)}
+          ${numCard("Mobile Number", p.mobNum, `Digits total ${p.mobCompound} — ${lang === "hi" ? "सर्वाधिक प्रयुक्त दैनिक ऊर्जा" : lang === "gu" ? "સૌથી વધુ વપરાતી દૈનિક ઊર્જા" : "your most-used vibration"}`)}
           <div class="card num-card">
             <div class="num-value" style="font-size:26px">${esc(p.zodiac)}</div>
             <div class="num-label">Vedic Sun Sign · Surya Rashi</div>
-            <div class="num-planet">${esc(DB.zodiac[p.zodiac].element)} · Ruled by ${esc(DB.numbers[DB.zodiac[p.zodiac].ruler].planet)}</div>
-            <div class="num-traits">Sidereal / Lahiri ayanamsa · Crystals: ${DB.zodiac[p.zodiac].crystals.map(esc).join(", ")}</div>
+            <div class="num-planet">${esc(db.zodiac[p.zodiac].element)} · Ruled by ${esc(db.numbers[db.zodiac[p.zodiac].ruler].planet)}</div>
+            <div class="num-traits">Sidereal / Lahiri ayanamsa · Crystals: ${(db.zodiac[p.zodiac].crystals || []).map(esc).join(", ")}</div>
             <div class="num-traits vedic-western-ref">Western tropical reference: ${esc(p.zodiacTropical)}</div>
           </div>
         </div>
         <div class="card">
           <div class="card-title">Driver ${p.driver} × Conductor ${p.conductor} combination</div>
-          <div class="kit-value">Your mind runs on <strong>${esc(DB.numbers[p.driver].planet)}</strong> (${esc(DB.numbers[p.driver].traits.split(",")[0].toLowerCase())}) while your destiny demands <strong>${esc(DB.numbers[p.conductor].planet)}</strong> (${esc(DB.numbers[p.conductor].traits.split(",")[0].toLowerCase())}). This pair is <strong>${relation(p.driver, p.conductor)}</strong> — ${relation(p.driver, p.conductor) === "friendly" ? "a naturally cooperative chart; remedies will amplify what already flows." : relation(p.driver, p.conductor) === "neutral" ? "a workable chart; targeted remedies will sharpen results." : "the remedies below are chosen to bridge these two energies."}</div>
+          <div class="kit-value">Your mind runs on <strong>${esc(db.numbers[p.driver].planet)}</strong> (${esc(db.numbers[p.driver].traits.split(",")[0].toLowerCase())}) while your destiny demands <strong>${esc(db.numbers[p.conductor].planet)}</strong> (${esc(db.numbers[p.conductor].traits.split(",")[0].toLowerCase())}). This pair is <strong>${relation(p.driver, p.conductor)}</strong> — ${relation(p.driver, p.conductor) === "friendly" ? "a naturally cooperative chart; remedies will amplify what already flows." : relation(p.driver, p.conductor) === "neutral" ? "a workable chart; targeted remedies will sharpen results." : "the remedies below are chosen to bridge these two energies."}</div>
         </div>
       </section>
       ${traitsSection}
@@ -2117,7 +2408,15 @@
     `;
   }
 
-  /* ---------------- view switching ---------------- */
+  function numCard(label, val, sub) {
+    return `<div class="card num-card">
+      <div class="num-value">${val}</div>
+      <div class="num-label">${label}</div>
+      <div class="num-sub">${sub}</div>
+    </div>`;
+  }
+
+  /* ---------------- view switching & interactions ---------------- */
   let lastProfile = null;
 
   function bindReportInteractions() {
@@ -2125,51 +2424,116 @@
       btn.addEventListener("click", () => {
         const n = Number(btn.getAttribute("data-practice-number"));
         if (!state.activeProfileKey || !n) return;
+        const db = getActiveDB();
         logPractice(state.activeProfileKey, n);
-        showToast(`Logged ${DB.numbers[n].planet} practice locally`, "good");
-        lastProfile = computeProfile(state.lastInput);
-        showReport(lastProfile, { preserveScroll: true });
-        const anchor = $("#memory-section");
-        if (anchor) anchor.scrollIntoView({ block: "start" });
+        showToast(`Logged ${db.numbers[n].planet} practice locally`, "good");
+        if (state.lastInput) {
+          lastProfile = computeProfile(state.lastInput);
+          rerenderEvolving();
+        }
       });
     });
-    const journalForm = $("#localJournalForm");
-    const journalInput = $("#localJournalText");
-    if (journalForm && journalInput) {
+
+    const journalForm = $("#localJournalForm", $("#reportRoot"));
+    if (journalForm) {
       journalForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const text = journalInput.value.trim();
+        const input = $("#localJournalText", journalForm);
+        const text = input ? input.value.trim() : "";
         if (!text || !state.activeProfileKey) return;
         addJournalEntry(state.activeProfileKey, text);
-        journalInput.value = "";
-        showToast("Saved to your local evolving chart", "good");
-        lastProfile = computeProfile(state.lastInput);
-        showReport(lastProfile, { preserveScroll: true });
-        const anchor = $("#memory-section");
-        if (anchor) anchor.scrollIntoView({ block: "start" });
+        if (input) input.value = "";
+        showToast("Note saved locally", "good");
+        if (state.lastInput) {
+          lastProfile = computeProfile(state.lastInput);
+          rerenderEvolving();
+        }
       });
     }
-    /* 40-day tracker: toggle a day, persist locally, re-render in place */
-    const rerenderToPlan = () => {
-      lastProfile = computeProfile(state.lastInput);
-      showReport(lastProfile, { preserveScroll: true });
-      const anchor = $("#plan-tracker");
-      if (anchor && typeof anchor.scrollIntoView === "function") anchor.scrollIntoView({ block: "center" });
-    };
-    $$("[data-plan-day]", $("#reportRoot")).forEach((btn) => {
-      btn.addEventListener("click", () => {
+
+    function rerenderEvolving() {
+      const sec = $("#memory-section", $("#reportRoot"));
+      if (!sec || !lastProfile) return;
+      const timing = timingAnalysis(lastProfile);
+      const evolving = evolvingChartData(lastProfile, timing);
+      const db = getActiveDB();
+      const lang = getLang();
+      sec.querySelector(".insight-grid").innerHTML = `
+        <div class="metric-card">
+          <div class="metric-label">${lang === "hi" ? "सुरक्षित चार्ट" : lang === "gu" ? "સેવ કરેલા ચાર્ટ" : "Saved snapshots"}</div>
+          <div class="metric-value">${evolving.snapshots.length}</div>
+          <div class="metric-sub">${lang === "hi" ? `नवीनतम: ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "अभी सुरक्षित नहीं"}` : lang === "gu" ? `તાજેતરનું: ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "હજી સેવ નથી"}` : `Latest saved on ${evolving.snapshots[0] ? prettyDate(evolving.snapshots[0].savedAt) : "this device not yet"}`}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">${lang === "hi" ? "इस वर्ष का प्रभाव" : lang === "gu" ? "આ વર્ષનો પ્રભાવ" : "This year in context"}</div>
+          <div class="metric-value">${evolving.currentYearLucky ? (lang === "hi" ? "अनुकूल" : lang === "gu" ? "અનુકૂળ" : "Favourable") : (lang === "hi" ? "धैर्य से निर्माण" : lang === "gu" ? "ધીરજથી નિર્માણ" : "Build steadily")}</div>
+          <div class="metric-sub">${evolving.currentYearLucky ? (lang === "hi" ? "यह वर्ष आपके शुभ वर्षों की सूची में आता है।" : lang === "gu" ? "આ વર્ષ તમારા શુભ વર્ષોની યાદીમાં આવે છે." : "This year appears in your lucky-year window.") : (lang === "hi" ? "अनुशासन और निरंतरता बनाए रखें।" : lang === "gu" ? "શિસ્ત અને સાતત્ય જાળવી રાખો." : "Not one of your top timing windows — use discipline and consistency.")}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">${lang === "hi" ? "इस वर्ष दर्ज कदम" : lang === "gu" ? "આ વર્ષે નોંધેલા પગલાં" : "Moves logged this year"}</div>
+          <div class="metric-value">${evolving.movesThisYear}</div>
+          <div class="metric-sub">A local reality-check against your timing cycle.</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">${lang === "hi" ? "ज्ञान का स्रोत" : lang === "gu" ? "જ્ઞાનનો સ્ત્રોત" : "Knowledge source"}</div>
+          <div class="metric-value">v${esc(activePack().packVersion)}</div>
+          <div class="metric-sub">${esc(activePack().source === "remote" ? "Live-updated content pack" : activePack().source === "cached" ? "Cached content pack" : "Bundled starter pack")}</div>
+        </div>
+      `;
+      sec.querySelector(".engagement-list").innerHTML = evolving.practiceSummary.map((item) => `<div class="engagement-item"><div><strong>${item.n} — ${esc(db.numbers[item.n].planet)}</strong><span>${item.month} logged this month · ${item.total} total</span></div><button class="btn btn-secondary btn-32" type="button" data-practice-number="${item.n}">${lang === "hi" ? "अभ्यास दर्ज करें" : lang === "gu" ? "અભ્યાસ નોંધો" : "Log practice"}</button></div>`).join("");
+      sec.querySelector(".timeline").innerHTML = evolving.journal.length ? evolving.journal.map((entry) => `<div class="timeline-item"><div><strong>${esc(entry.text)}</strong><span>${prettyDate(entry.at)}</span></div></div>`).join("") : `<div class="timeline-item"><div><strong>${lang === "hi" ? "अभी कोई नोट दर्ज नहीं है" : lang === "gu" ? "હજી કોઈ નોંધ દાખલ નથી" : "No local moves logged yet"}</strong><span>${lang === "hi" ? "आपकी टिप्पणियां पूरी तरह आपके डिवाइस पर ही रहती हैं।" : lang === "gu" ? "તમારી નોંધ સંપૂર્ણપણે તમારા ડિવાઇસ પર જ રહે છે." : "Your notes stay on this device and never enter the anonymous contribution payload."}</span></div></div>`;
+      bindReportInteractions();
+    }
+
+    function rerenderToPlan() {
+      if (!lastProfile) return;
+      const planKey = state.activeProfileKey || profileKeyOf(lastProfile);
+      const planState = readPlan(planKey);
+      const PLAN_DAYS = 40;
+      const planDays = Array.from({ length: PLAN_DAYS }, (_, i) => !!planState.days[i]);
+      const planDone = planDays.filter(Boolean).length;
+      const planNext = planDays.indexOf(false);
+      const lang = getLang();
+
+      const planStatus = planDone >= PLAN_DAYS
+        ? (lang === "hi" ? `मंडल पूर्ण — ४० में से ४० दिन संपन्न! अब प्रगति चार्ट में परिणाम देखें।` : lang === "gu" ? `મંડળ પૂર્ણ — ૪૦ માંથી ૪૦ દિવસ સંપન્ન! હવે પ્રગતિ ચાર્ટમાં પરિણામો જુઓ.` : `Mandala complete — ${PLAN_DAYS} of ${PLAN_DAYS} days done. Now review what shifted in Your Evolving Chart (Section ${SECTION.memory}).`)
+        : planDone === 0
+          ? (lang === "hi" ? `सर्वोत्तम शुरुआत के लिए <strong>${dayOf(lastProfile.driver)}</strong> की सुबह से प्रारंभ करें और दिन १ पर टैप करें।` : lang === "gu" ? `શ્રેષ્ઠ શરૂઆત માટે <strong>${dayOf(lastProfile.driver)}</strong> ની સવારથી પ્રારંભ કરો અને દિવસ ૧ પર ટેપ કરો.` : `Begin on a <strong>${DAY_OF[lastProfile.driver]}</strong> morning for the strongest start, then tap Day 1. The ritual takes under 10 minutes — consistency is the remedy.`)
+          : (lang === "hi" ? `${planDone} / ${PLAN_DAYS} दिन पूर्ण — अगला दिन ${planNext + 1} है। नियम न तोड़ें।` : lang === "gu" ? `${planDone} / ${PLAN_DAYS} દિવસ પૂર્ણ — આગામી દિવસ ${planNext + 1} છે. સાતત્ય જાળવી રાખો.` : `${planDone} of ${PLAN_DAYS} days done — Day ${planNext + 1} is next${planNext + 1 <= PLAN_DAYS ? `, ${PLAN_DAYS - planDone} day${PLAN_DAYS - planDone === 1 ? "" : "s"} to go` : ""}. Keep the thread unbroken.`);
+
+      const tracker = $("#plan-tracker", $("#reportRoot"));
+      if (!tracker) return;
+      tracker.querySelector(".badge").textContent = `${planDone}/${PLAN_DAYS}`;
+      tracker.querySelector(".badge").className = `badge ${planDone >= PLAN_DAYS ? "good" : planDone > 0 ? "info" : "warn"}`;
+      tracker.querySelector(".kit-value").innerHTML = planStatus;
+      tracker.querySelector(".progress-fill").style.width = `${Math.round((planDone / PLAN_DAYS) * 100)}%`;
+      tracker.querySelector(".progress-track").setAttribute("aria-valuenow", String(planDone));
+      tracker.querySelector(".tracker-grid").innerHTML = planDays.map((done, i) => `<button type="button" class="tracker-cell${done ? " done" : ""}${!done && i === planNext ? " next" : ""}" data-plan-day="${i + 1}" aria-pressed="${done}" aria-label="Day ${i + 1}${done ? " completed" : ""}">${done ? "✓" : i + 1}</button>`).join("");
+      tracker.querySelector(".tracker-foot").innerHTML = `
+        <span>${planState.startedAt ? `Cycle started ${prettyDate(planState.startedAt)} · ` : ""}Progress is saved privately on this device, per profile.</span>
+        ${planDone > 0 ? `<button class="btn btn-secondary btn-32" type="button" data-plan-reset>${t("resetCycle", "Reset cycle")}</button>` : ""}
+      `;
+      bindReportInteractions();
+    }
+
+    $$("[data-plan-day]", $("#reportRoot")).forEach((cell) => {
+      cell.addEventListener("click", () => {
+        const dayIdx = Number(cell.getAttribute("data-plan-day")) - 1;
+        if (dayIdx < 0 || dayIdx >= 40) return;
         const key = state.activeProfileKey || (state.lastInput ? profileKeyOf(state.lastInput) : "");
-        const day = Number(btn.getAttribute("data-plan-day"));
-        if (!key || !day || day < 1 || day > PLAN_DAYS) return;
+        if (!key) return;
         const plan = readPlan(key);
+        const PLAN_DAYS = 40;
         const days = Array.from({ length: PLAN_DAYS }, (_, i) => !!plan.days[i]);
-        days[day - 1] = !days[day - 1];
-        writePlan(key, { startedAt: plan.startedAt || isoDate(), days });
-        const done = days.filter(Boolean).length;
-        showToast(done >= PLAN_DAYS ? "40-day mandala complete — review Your Evolving Chart" : `Day ${day} ${days[day - 1] ? "logged" : "unmarked"} — keep the rhythm`, "good");
+        const currentlyDone = !!days[dayIdx];
+        days[dayIdx] = !currentlyDone;
+        const newStartedAt = plan.startedAt || isoDate();
+        writePlan(key, { startedAt: newStartedAt, days });
+        showToast(currentlyDone ? `Day ${dayIdx + 1} marked incomplete` : `Day ${dayIdx + 1} complete — keep going!`, currentlyDone ? "info" : "good");
         rerenderToPlan();
       });
     });
+
     const planResetBtn = $("[data-plan-reset]", $("#reportRoot"));
     if (planResetBtn) {
       planResetBtn.addEventListener("click", () => {
@@ -2181,9 +2545,11 @@
       });
     }
   }
+
   function showReport(p, options) {
     const opts = options || {};
     const scrollTop = window.scrollY || 0;
+    lastProfile = p;
     $("#reportRoot").innerHTML = renderReport(p);
     $("#intakeView").classList.add("hidden");
     $("#reportView").classList.remove("hidden");
@@ -2193,6 +2559,7 @@
     window.scrollTo({ top: opts.preserveScroll ? scrollTop : 0, behavior: "auto" });
     document.title = `Report — ${p.name} | NumeroVastu 360`;
   }
+
   function showIntake() {
     $("#reportView").classList.add("hidden");
     $("#intakeView").classList.remove("hidden");
@@ -2202,10 +2569,63 @@
     window.scrollTo({ top: 0 });
   }
 
+  /* ---------------- language switching ---------------- */
+  function applyLanguageToUI() {
+    const lang = getLang();
+    populateDirectionSelects();
+
+    // Update buttons in header and form
+    $$("#langSelector .lang-btn").forEach((btn) => btn.classList.toggle("active", btn.dataset.lang === lang));
+    $$("#formLangPicker .lang-chip").forEach((chip) => chip.classList.toggle("active", chip.dataset.lang === lang));
+
+    if ($("#editBtn .btn-text")) $("#editBtn .btn-text").textContent = t("editDetails", "Edit Details");
+    if ($("#printBtn .btn-text")) $("#printBtn .btn-text").textContent = t("savePrint", "Save / Print Report");
+    if ($(".brand-sub")) $(".brand-sub").textContent = t("brandSub", "Numerology & Vastu Remedy Engine");
+
+    // Intake intro
+    if ($(".intro-title")) $(".intro-title").textContent = t("introTitle", "Your 360° Remedy Report");
+    if ($(".intro-desc")) $(".intro-desc").textContent = t("introDesc", "Enter your details once...");
+    if ($("#lblReportLang")) $("#lblReportLang").textContent = t("reportLanguage", "Report Language");
+    if ($("#descReportLang")) $("#descReportLang").textContent = t("reportLanguageDesc", "Choose your preferred language for the report.");
+
+    // Generate button
+    if ($("#generateBtn")) {
+      const btn = $("#generateBtn");
+      btn.innerHTML = `${t("generateBtn", "Generate My Remedy Report")} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+    }
+  }
+
+  function setLanguage(lang) {
+    if (!window.I18N || !window.I18N[lang]) return;
+    state.lang = lang;
+    try { localStorage.setItem(STORAGE_KEYS.lang, lang); } catch (e) {}
+    applyLanguageToUI();
+
+    if (!$("#reportView").classList.contains("hidden") && state.lastInput) {
+      lastProfile = computeProfile(state.lastInput);
+      showReport(lastProfile, { preserveScroll: true });
+    }
+
+    const langObj = window.I18N[lang];
+    const langNative = (langObj && langObj.meta && langObj.meta.native) || lang;
+    const msg = lang === "hi" ? `भाषा: ${langNative} सेट की गई` : lang === "gu" ? `ભાષા: ${langNative} પસંદ કરી` : `Language: ${langNative}`;
+    showToast(msg, "good");
+  }
+
+  // Bind language buttons
+  $$("#langSelector .lang-btn").forEach((btn) => {
+    btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
+  });
+  $$("#formLangPicker .lang-chip").forEach((chip) => {
+    chip.addEventListener("click", () => setLanguage(chip.dataset.lang));
+  });
+
+  populateDirectionSelects();
   hydrateState();
   updateContributionUI();
   updateKnowledgeUI();
   updateMemoryUI();
+  applyLanguageToUI();
 
   $("#contributeAnonymous").addEventListener("change", (e) => {
     state.contributionEnabled = !!e.target.checked;
@@ -2257,6 +2677,13 @@
   $("#printBtn").addEventListener("click", () => window.print());
   refreshKnowledgePack({ silent: true });
 
-  /* expose for smoke tests */
-  window.__NV = { computeProfile, nameSuggestions, brandAnalysis, spellingCandidates, mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign, zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning, masterNumber, reduce, relation, chaldeanValue, validatePack, normalizePack, contributionPayload, formatBirthTime };
+  /* expose for smoke tests and external control */
+  window.__NV = {
+    computeProfile, nameSuggestions, brandAnalysis, spellingCandidates,
+    mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign,
+    zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning,
+    masterNumber, reduce, relation, chaldeanValue, validatePack,
+    normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
+    renderReport, showReport, showIntake, getActiveDB
+  };
 })();

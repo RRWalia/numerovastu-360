@@ -74,6 +74,11 @@
       </div>
     </div>
     <div class="header-actions">
+      <div class="lang-selector" id="langSelector" role="group" aria-label="Language selector">
+        <button class="lang-btn active" type="button" data-lang="en" title="English">English</button>
+        <button class="lang-btn" type="button" data-lang="hi" title="हिन्दी">हिन्दी</button>
+        <button class="lang-btn" type="button" data-lang="gu" title="ગુજરાતી">ગુજરાતી</button>
+      </div>
       <button id="editBtn" class="btn btn-secondary btn-32 hidden" type="button" aria-label="Edit Details">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
         <span class="btn-text">Edit Details</span>
@@ -134,6 +139,17 @@
     </div>
 
     <form id="intakeForm" class="form" novalidate>
+
+      <!-- Language selection -->
+      <div class="form-block form-block-lang">
+        <h2 class="form-block-title" id="lblReportLang">Report Language / रिपोर्ट की भाषा / રિપોર્ટની ભાષા</h2>
+        <p class="form-block-desc" id="descReportLang">Select your desired language. The report will be simple, accurate, and easy to understand.</p>
+        <div class="lang-picker-group" id="formLangPicker" role="group" aria-label="Choose Report Language">
+          <button type="button" class="lang-chip active" data-lang="en"><span class="lang-flag" aria-hidden="true">🇬🇧</span> English</button>
+          <button type="button" class="lang-chip" data-lang="hi"><span class="lang-flag" aria-hidden="true">🇮🇳</span> हिन्दी (Hindi)</button>
+          <button type="button" class="lang-chip" data-lang="gu"><span class="lang-flag" aria-hidden="true">🇮🇳</span> ગુજરાતી (Gujarati)</button>
+        </div>
+      </div>
 
       <!-- Personal details -->
       <div class="form-block">
@@ -353,6 +369,7 @@
 
 <script src="astro.js"></script>
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
