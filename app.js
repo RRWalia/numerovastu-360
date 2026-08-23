@@ -33,6 +33,7 @@
 
   const DAY_OF = { 1: "Sunday", 2: "Monday", 9: "Tuesday", 5: "Wednesday", 3: "Thursday", 6: "Friday", 8: "Saturday", 4: "Saturday", 7: "Tuesday" };
   const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.1.0";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build local";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
     packCache: "nv360.packCache.v1",
@@ -203,6 +204,7 @@
     const sourceText = pack ? (pack.source === "remote" ? "Live update active" : pack.source === "cached" ? "Cached update active" : "Bundled pack active") : "Bundled pack active";
     if ($("#knowledgeBadge")) $("#knowledgeBadge").textContent = label;
     if ($("#appBadge")) $("#appBadge").textContent = `App v${APP_VERSION} · Meeus engine`;
+    if ($("#buildBadge")) $("#buildBadge").textContent = BUILD_LABEL;
     if ($("#knowledgeVersionText")) $("#knowledgeVersionText").textContent = `v${pack ? pack.packVersion : APP_VERSION}`;
     if ($("#knowledgeStatusText")) $("#knowledgeStatusText").textContent = `${sourceText}. The app works instantly offline, then can optionally fetch a newer public knowledge pack.`;
     if ($("#knowledgeSubtext")) $("#knowledgeSubtext").textContent = pack && pack.generatedAt
@@ -839,6 +841,59 @@
     return items.slice(0, 7);
   }
 
+  function plainText(html) {
+    return String(html || "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function firstNameOf(name) {
+    return String(name || "Friend").trim().split(/\s+/)[0] || "Friend";
+  }
+
+  function northstarSummary(p, timing, goals, priorities, vastu, nameSug, mobSug) {
+    const driverInfo = DB.numbers[p.driver];
+    const conductorInfo = DB.numbers[p.conductor];
+    const currentYear = timing.years[0];
+    const criticalMissing = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
+    const missingFocus = criticalMissing.length ? criticalMissing : p.missing.slice(0, 3);
+    const goalNames = p.goals.length ? p.goals : ["overall growth"];
+    const doshCount = vastu.filter((f) => f.tone === "bad").length;
+    const firstGoal = goals[0];
+    const firstGoalFocus = firstGoal && firstGoal.focus && firstGoal.focus.length
+      ? firstGoal.focus.map((f) => `${f.n} (${f.planet})`).join(", ")
+      : `${p.driver} (${driverInfo.planet}) and ${p.conductor} (${conductorInfo.planet})`;
+    const nameLine = nameSug.needed && nameSug.variants && nameSug.variants.length
+      ? `Name correction is a high-leverage identity action: test <strong>${esc(nameSug.variants[0].text)}</strong> for 40 days before making legal changes.`
+      : "Your current name vibration is workable; focus first on consistency, remedies and environment.";
+    const mobileLine = mobSug.needed
+      ? `Your mobile vibration can be improved; prefer future totals <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong>.`
+      : "Your mobile vibration is not the first bottleneck; keep attention on the priority practices below.";
+    const vastuLine = doshCount
+      ? `${doshCount} Vastu correction${doshCount === 1 ? "" : "s"} need attention; handle the most-used zones first.`
+      : "No major Vastu dosh dominates the inputs given; keep Brahmasthan clean and northeast light active.";
+    const actionItems = priorities.slice(0, 5).map((item, idx) => `<li><span class="summary-step">${idx + 1}</span><span>${item}</span></li>`).join("");
+
+    return {
+      headline: `${esc(firstNameOf(p.name))}, your northstar is disciplined ${esc(goalNames.join(" + ").toLowerCase())} growth through ${esc(driverInfo.planet.split(" ")[0])} clarity and ${esc(conductorInfo.planet.split(" ")[0])} execution.`,
+      story: `Your Driver ${p.driver} (${esc(driverInfo.planet)}) shapes how you think and respond each day, while Conductor ${p.conductor} (${esc(conductorInfo.planet)}) shows the destiny path that gives lasting results. In simple terms: lead with ${esc(driverInfo.traits.split(",")[0].toLowerCase())}, but build systems that satisfy ${esc(conductorInfo.traits.split(",")[0].toLowerCase())}. ${missingFocus.length ? `The main leaks to plug are missing number${missingFocus.length > 1 ? "s" : ""} <strong>${missingFocus.join(", ")}</strong>; these become the first remedy targets because they affect your selected focus areas.` : "Your birth grid has no missing numbers, so the path is about refinement rather than repair."}`,
+      cards: [
+        { label: "Primary direction", value: `Focus on ${esc(goalNames.join(", "))}`, note: `Use Driver ${p.driver} for daily decisions and Conductor ${p.conductor} for long-term commitments.` },
+        { label: "This year", value: currentYear ? `Personal Year ${currentYear.n}` : "Timing check", note: currentYear ? esc(currentYear.meaning) : "Use the timing section before major moves." },
+        { label: "Remedy focus", value: esc(firstGoalFocus), note: firstGoal && firstGoal.weak.length ? `These numbers block ${esc(firstGoal.goal.toLowerCase())} when unsupported.` : "Maintain these energies through colour, mantra and weekly rhythm." },
+        { label: "Environment", value: doshCount ? `${doshCount} Vastu dosh${doshCount === 1 ? "" : "es"}` : "Vastu maintenance", note: esc(plainText(vastuLine)) }
+      ],
+      checks: [nameLine, mobileLine, vastuLine],
+      actionItems
+    };
+  }
+
   function saveSnapshot(input, profile, timing) {
     const snapshot = {
       id: `${profileKeyOf(input)}|${Date.now()}`,
@@ -1284,7 +1339,30 @@
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
     const watch = watchSpec(p);
     const evolving = evolvingChartData(p, timing);
+    const summary = northstarSummary(p, timing, goals, priorities, vastu, nameSug, mobSug);
     const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
+
+    const summarySection = `<section class="rsection summary-section" id="summary-section">
+      <div class="summary-shell">
+        <p class="summary-kicker">Northstar Summary</p>
+        <h2 class="summary-title">${summary.headline}</h2>
+        <p class="summary-story">${summary.story}</p>
+        <div class="summary-card-grid">
+          ${summary.cards.map((card) => `<div class="summary-card"><div class="summary-label">${card.label}</div><div class="summary-value">${card.value}</div><p>${card.note}</p></div>`).join("")}
+        </div>
+        <div class="summary-next">
+          <div>
+            <h3>Key action points</h3>
+            <ol class="summary-actions">${summary.actionItems}</ol>
+          </div>
+          <div class="summary-way-forward">
+            <h3>Way forward</h3>
+            ${summary.checks.map((line) => `<p>${line}</p>`).join("")}
+            <p><strong>Use this as your northstar:</strong> do not try every remedy at once. Complete the first 40-day rhythm, then review results in Your Evolving Chart.</p>
+          </div>
+        </div>
+      </div>
+    </section>`;
 
     /* Section 2: core nature — traits, strengths & shadows */
     const td = DB.traits[p.driver], tc = DB.traits[p.conductor];
@@ -1762,6 +1840,7 @@
           ${vedicPill}
         </div>
         <nav class="report-nav" aria-label="Quick report navigation">
+          <a href="#summary-section">Summary</a>
           <a href="#core-profile">Profile</a>
           <a href="#loshu-section">Loshu Grid</a>
           <a href="#vedic-section">Vedic Sign</a>
@@ -1770,6 +1849,7 @@
           <a href="#vastu-section">Vastu</a>
         </nav>
       </div>
+      ${summarySection}
       <section class="rsection" id="core-profile">
         <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>Core Numerology Profile</h2>
         <div class="card-grid">
