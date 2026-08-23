@@ -40,6 +40,7 @@
     history: "nv360.history.v1",
     practice: "nv360.practice.v1",
     journal: "nv360.journal.v1",
+    plan: "nv360.plan.v1",
     contributionEnabled: "nv360.contributionEnabled.v1",
     contributionOutbox: "nv360.contributionOutbox.v1"
   };
@@ -817,28 +818,45 @@
     });
   }
 
-  /* -------- priority action plan -------- */
+  /* -------- priority action plan --------
+     Each item carries a cadence so the 40-Day Activation Plan can tag how
+     often it runs; this list renders ONLY in the final plan section (the
+     Northstar Summary speaks at a higher altitude and never repeats it). */
   function priorityPlan(p, nameSug, mobSug, vastu) {
-    const items = [];
+    const daily = [];
+    const weekly = [];
+    const once = [];
     const weakGoalNums = new Set();
     p.goals.forEach((g) => (DB.goals[g] || []).forEach((n) => { if (p.missing.includes(n)) weakGoalNums.add(n); }));
-    weakGoalNums.forEach((n) => {
-      const info = DB.numbers[n];
-      items.push(`Strengthen <strong>${info.planet}</strong> (missing ${n} in your grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, wear ${esc(info.color.split(",")[0])} on ${esc(info.day)}, and consider ${esc(info.crystal)}.`);
+    /* Order by chart criticality (numbers missing everywhere first, in grid
+       order) so the checklist agrees with the summary and the plan target. */
+    const criticalFirst = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
+    const rankOrder = criticalFirst.length ? criticalFirst : p.missing;
+    const orderedWeak = Array.from(weakGoalNums).sort((a, b) => {
+      const ra = rankOrder.indexOf(a), rb = rankOrder.indexOf(b);
+      return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb);
     });
-    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
-      items.push(`Correct your name spelling — try <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) to align with your birth numbers.`);
-    }
-    if (mobSug.needed) {
-      items.push(`Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
-    }
-    items.push(`Wear the aligned watch spec (metal, dial, geometry as per Section ${SECTION.watch}) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.`);
-    vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
-      items.push(`Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section ${SECTION.vastu}.`);
+    orderedWeak.forEach((n) => {
+      const info = DB.numbers[n];
+      daily.push({ cadence: "daily", text: `Strengthen <strong>${info.planet}</strong> (missing ${n} in your grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, wear ${esc(info.color.split(",")[0])} on ${esc(info.day)}, and consider ${esc(info.crystal)}.` });
     });
     const day2 = DAY_OF[p.conductor];
-    items.push(`Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>) and Conductor day (<strong>${day2}</strong>) remedies — charity, colours and fasting as listed.`);
-    return items.slice(0, 7);
+    const sameDay = DAY_OF[p.driver] === day2;
+    weekly.push({ cadence: "weekly", text: `Weekly rhythm: observe your Driver day (<strong>${DAY_OF[p.driver]}</strong>)${sameDay ? " and Conductor day remedies together (both fall on the same day for you)" : ` and Conductor day (<strong>${day2}</strong>) remedies`} — charity, colours and fasting as listed.` });
+    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+      once.push({ cadence: "once", text: `Correct your name spelling — try <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) to align with your birth numbers.` });
+    }
+    if (mobSug.needed) {
+      once.push({ cadence: "once", text: `Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.` });
+    }
+    once.push({ cadence: "once", text: `Wear the aligned watch spec (metal, dial, geometry as per Section ${SECTION.watch}) — activate it on <strong>${DAY_OF[p.driver]}</strong> morning, 6:30–8:30 AM.` });
+    vastu.filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
+      once.push({ cadence: "once", text: `Vastu correction: <strong>${esc(f.item)}</strong> — apply the remedy listed in Section ${SECTION.vastu}.` });
+    });
+    /* The checklist is now the single operational home for every action in
+       the report (the old 7-item cap existed to keep the summary strip
+       short); keep a generous bound for extreme charts. */
+    return daily.concat(weekly, once).slice(0, 9);
   }
 
   function plainText(html) {
@@ -857,7 +875,7 @@
     return String(name || "Friend").trim().split(/\s+/)[0] || "Friend";
   }
 
-  function northstarSummary(p, timing, goals, priorities, vastu, nameSug, mobSug) {
+  function northstarSummary(p, timing, goals, vastu, nameSug, mobSug) {
     const driverInfo = DB.numbers[p.driver];
     const conductorInfo = DB.numbers[p.conductor];
     const currentYear = timing.years[0];
@@ -874,11 +892,55 @@
       : "Your current name vibration is workable; focus first on consistency, remedies and environment.";
     const mobileLine = mobSug.needed
       ? `Your mobile vibration can be improved; prefer future totals <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong>.`
-      : "Your mobile vibration is not the first bottleneck; keep attention on the priority practices below.";
+      : "Your mobile vibration is not the first bottleneck; keep attention on the daily practice and environment fixes.";
+    const topDosh = vastu.find((f) => f.tone === "bad");
     const vastuLine = doshCount
       ? `${doshCount} Vastu correction${doshCount === 1 ? "" : "s"} need attention; handle the most-used zones first.`
       : "No major Vastu dosh dominates the inputs given; keep Brahmasthan clean and northeast light active.";
-    const actionItems = priorities.slice(0, 5).map((item, idx) => `<li><span class="summary-step">${idx + 1}</span><span>${item}</span></li>`).join("");
+
+    /* The summary speaks only in "moves" — named directions of travel.
+       The operational detail (mantras, counts, timings) lives once, in
+       the 40-Day Activation Plan at the end of the report. */
+    const moves = [];
+    if (missingFocus.length) {
+      const planetNames = missingFocus.slice(0, 2).map((n) => `${esc(DB.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
+      moves.push({
+        title: `Seal the leak — power up ${planetNames}`,
+        detail: `${missingFocus.length > 1 ? "These numbers are" : "This number is"} missing from your Lo Shu grid and directly ${missingFocus.length > 1 ? "gate" : "gates"} your chosen focus areas. ${missingFocus.length > 1 ? "They headline" : "It headlines"} your daily ritual.`
+      });
+    } else {
+      moves.push({
+        title: "Protect a rare, complete grid",
+        detail: "All nine numbers are present — your work is refinement, not repair. Your ritual is a maintenance practice that keeps every planet fed."
+      });
+    }
+    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+      moves.push({
+        title: `Trial a corrected spelling — ${esc(nameSug.variants[0].text)}`,
+        detail: "Identity vibrations compound daily. Run a 40-day writing trial before touching legal documents; the full protocol is in the Name section and the plan."
+      });
+    } else if (mobSug.needed) {
+      moves.push({
+        title: "Re-tune your most-used vibration",
+        detail: `Your mobile number rings all day — plan a future number totalling ${mobSug.goodTotals.slice(0, 3).join(", ")} when the 40-day window feels settled.`
+      });
+    } else {
+      moves.push({
+        title: "Your name and number already cooperate",
+        detail: "No identity change is required, so every drop of effort goes into practice and environment — the two levers that move fastest."
+      });
+    }
+    if (topDosh) {
+      moves.push({
+        title: `Quiet the ${esc(topDosh.item)} zone`,
+        detail: "This is the highest-friction corner in your Vastu scan. Correct it in the first week so the space stops arguing with your remedies."
+      });
+    } else {
+      moves.push({
+        title: `Keep the centre light and the northeast lit`,
+        detail: "Your space shows no dominant dosh — a clean Brahmasthan and a daily northeast diya hold the field while your remedies work."
+      });
+    }
 
     return {
       headline: `${esc(firstNameOf(p.name))}, your northstar is disciplined ${esc(goalNames.join(" + ").toLowerCase())} growth through ${esc(driverInfo.planet.split(" ")[0])} clarity and ${esc(conductorInfo.planet.split(" ")[0])} execution.`,
@@ -887,11 +949,94 @@
         { label: "Primary direction", value: `Focus on ${esc(goalNames.join(", "))}`, note: `Use Driver ${p.driver} for daily decisions and Conductor ${p.conductor} for long-term commitments.` },
         { label: "This year", value: currentYear ? `Personal Year ${currentYear.n}` : "Timing check", note: currentYear ? esc(currentYear.meaning) : "Use the timing section before major moves." },
         { label: "Remedy focus", value: esc(firstGoalFocus), note: firstGoal && firstGoal.weak.length ? `These numbers block ${esc(firstGoal.goal.toLowerCase())} when unsupported.` : "Maintain these energies through colour, mantra and weekly rhythm." },
-        { label: "Environment", value: doshCount ? `${doshCount} Vastu dosh${doshCount === 1 ? "" : "es"}` : "Vastu maintenance", note: esc(plainText(vastuLine)) }
+        { label: "Environment", value: doshCount ? `${doshCount} Vastu dosha${doshCount === 1 ? "" : "s"} flagged` : "Vastu maintenance", note: esc(plainText(vastuLine)) }
       ],
       checks: [nameLine, mobileLine, vastuLine],
-      actionItems
+      moves
     };
+  }
+
+  /* -------- 40-day activation plan --------
+     Turns the chart into an itinerary: one daily core ritual, a weekly
+     rhythm, and four classical phases. The 40-day mandala is the
+     classical activation period for a remedy to imprint its vibration. */
+  function activationPlan(p, timing, goals, vastu, nameSug, mobSug) {
+    const driverInfo = DB.numbers[p.driver];
+    const conductorInfo = DB.numbers[p.conductor];
+    const criticalMissing = (p.missingSeverity || []).filter((m) => m.critical).map((m) => m.n);
+    const missingFocus = criticalMissing.length ? criticalMissing : p.missing.slice(0, 3);
+    const targetN = missingFocus[0] || p.driver;
+    const target = DB.numbers[targetN];
+    const targetShort = DB.mantraShort[targetN];
+    const secondaryN = missingFocus.filter((n) => n !== targetN)[0] || (missingFocus.length ? null : p.conductor);
+    const secondary = secondaryN ? DB.numbers[secondaryN] : null;
+    const badVastu = vastu.filter((f) => f.tone === "bad");
+    const firstGoalName = goals[0] ? goals[0].goal : null;
+    const currentYearLucky = timing.luckyYears.some((entry) => entry.yr === new Date().getFullYear());
+
+    /* Daily core ritual — the engine of the whole plan */
+    const daily = [
+      { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — 27 times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This feeds ${esc(target.planet)}, your ${missingFocus.length ? "weakest link" : "Driver planet"}.` },
+      { ico: "📝", label: "Wish paper", value: `Write “${esc(targetShort.affirmation)}” 11 times`, sub: "Then keep the paper in your wallet or under your pillow — the written word anchors the vibration." },
+      { ico: "🎨", label: "Dress the vibration", value: `Touch ${esc(target.color.split(",")[0].toLowerCase())} every ${esc(target.day.split(" ")[0])}; wear your Driver colour (${esc(driverInfo.color.split(",")[0].toLowerCase())}) on ${esc(DAY_OF[p.driver])}`, sub: "Colour is the fastest wearable remedy — even a thread, watch-strap or phone wallpaper counts." },
+      { ico: "🌿", label: "Lifestyle cue", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)}'s daily discipline — small, boring, compounding.` }
+    ];
+
+    /* Weekly rhythm — the days that carry the most charge */
+    const weekly = [];
+    const dDay = DAY_OF[p.driver], cDay = DAY_OF[p.conductor];
+    weekly.push({ day: dDay, planet: `${p.driver} — ${esc(driverInfo.planet)}`, note: "Your Driver day — strongest for starting remedies and visible moves", charity: driverInfo.charity, fast: driverInfo.fast });
+    if (cDay !== dDay) {
+      weekly.push({ day: cDay, planet: `${p.conductor} — ${esc(conductorInfo.planet)}`, note: "Your Conductor day — strongest for destiny-level decisions and commitments", charity: conductorInfo.charity, fast: conductorInfo.fast });
+    }
+    if (targetN !== p.driver && targetN !== p.conductor && target.day.indexOf(dDay) !== 0 && target.day.indexOf(cDay) !== 0) {
+      weekly.push({ day: target.day, planet: `${targetN} — ${esc(target.planet)}`, note: `Remedy day for your missing number ${targetN} — give this one extra weight this cycle`, charity: target.charity, fast: target.fast });
+    }
+
+    /* Four phases of the mandala */
+    const phases = [];
+    const phase1Rows = [
+      `Begin the <strong>daily core ritual</strong> above — same time, same place, every morning. Starting on a <strong>${dDay}</strong> gives the strongest charge.`
+    ];
+    if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
+      phase1Rows.push(`Start the <strong>40-day spelling trial</strong>: write <strong>${esc(nameSug.variants[0].text)}</strong> 21 times each morning and update non-legal profiles first (protocol in Section ${SECTION.name}).`);
+    }
+    phase1Rows.push(`Set your space: place a <strong>bowl of sea salt</strong> in ${badVastu.length ? `your dosh zone${badVastu.length > 1 ? "s" : ""} (${esc(badVastu.slice(0, 2).map((f) => f.item).join(", "))})` : "the northeast of your home"} and light a daily <strong>northeast diya</strong>.`);
+    phases.push({ badge: "Days 1–7", title: "Foundation — anchor the ritual", rows: phase1Rows });
+
+    const dayList = weekly.map((w) => `<strong>${esc(w.day)}</strong>`);
+    const dayListText = dayList.length > 2 ? `${dayList.slice(0, -1).join(", ")} and ${dayList[dayList.length - 1]}` : dayList.join(" and ");
+    const phase2Rows = [
+      `Add the <strong>weekly rhythm</strong> — ${dayListText} charity and fasting exactly as listed above.`,
+      badVastu.length
+        ? `First Vastu fix: correct the <strong>${esc(badVastu[0].item)}</strong> (${esc(badVastu[0].label.toLowerCase())}) using the remedy in Section ${SECTION.vastu} — space and mind must agree.`
+        : `Vastu upkeep: keep the <strong>Brahmasthan (centre)</strong> empty and clean so energy can circulate.`
+    ];
+    if (p.watchType && p.watchType !== "none") phase2Rows.push(`Activate your aligned <strong>watch</strong> (Section ${SECTION.watch}) on a ${dDay} morning, 6:30–8:30 AM, if you have not yet.`);
+    phase2Rows.push(`Log each day's practice with one tap in <strong>Your Evolving Chart</strong> (Section ${SECTION.memory}) — the chart learns your consistency.`);
+    phases.push({ badge: "Days 8–21", title: "Build the rhythm", rows: phase2Rows });
+
+    const phase3Rows = [];
+    if (secondary) {
+      phase3Rows.push(`Add the second key: fold in <strong>${esc(secondary.planet)} (${secondaryN})</strong> — its short mantra <span class="mantra">${esc(DB.mantraShort[secondaryN].dev)}</span> ×11 and ${esc(secondary.color.split(",")[0].toLowerCase())} on ${esc(secondary.day.split(" ")[0])}. Two planets, one ritual.`);
+    } else {
+      phase3Rows.push(`Deepen the practice: raise the sunrise mantra to <strong>108 times</strong> on ${esc(target.day.split(" ")[0])}s — quantity matures into quality in the third week.`);
+    }
+    if (mobSug.needed) phase3Rows.push(`This is the window to shortlist a <strong>new mobile number</strong> totalling <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> — ${firstGoalName ? `supporting your ${esc(firstGoalName.toLowerCase())} focus and` : ""} harmony with Driver ${p.driver} and Conductor ${p.conductor}.`);
+    if (badVastu[1]) phase3Rows.push(`Second Vastu fix: correct the <strong>${esc(badVastu[1].item)}</strong> — the other zone flagged in your scan.`);
+    phase3Rows.push(`Notice and note: sleep, mood, money conversations${firstGoalName ? `, ${esc(firstGoalName.toLowerCase())} openings` : ""} — one line a day in the Evolving Chart journal.`);
+    phases.push({ badge: "Days 22–40", title: "Integrate — two keys, one flow", rows: phase3Rows });
+
+    const phase4Rows = [
+      `On <strong>Day 40</strong>, close the loop: compare your tracker, practice log and snapshots in <strong>Your Evolving Chart</strong> — what shifted, what resisted?`,
+      `Decide the keepers: Driver &amp; Conductor practices are <strong>lifelong companions</strong>; missing-number remedies can rest once the leak is sealed — re-run this report any month to refresh the reading.`,
+      currentYearLucky
+        ? `This calendar year sits in your <strong>Best Years window</strong> (Section ${SECTION.timing}) — schedule the launch, application or purchase you have been holding for right after Day 40.`
+        : `Look ahead: time your next big move for the favourable years in Section ${SECTION.timing} — the 40-day cycle builds the vessel, timing sails it.`
+    ];
+    phases.push({ badge: "Day 40+", title: "Review &amp; reset", rows: phase4Rows });
+
+    return { targetN, target: { ...target, short: targetShort }, missingFocus, daily, weekly, phases };
   }
 
   function saveSnapshot(input, profile, timing) {
@@ -914,6 +1059,25 @@
     writeStore(STORAGE_KEYS.history, state.history);
     updateMemoryUI();
     return snapshot;
+  }
+  /* ---- 40-day activation tracker (local, per profile) ---- */
+  const PLAN_DAYS = 40;
+  function readPlanStore() {
+    return readStore(STORAGE_KEYS.plan, {});
+  }
+  function writePlanStore(store) {
+    writeStore(STORAGE_KEYS.plan, store);
+  }
+  function readPlan(profileKey) {
+    const entry = readPlanStore()[profileKey];
+    if (!entry || !Array.isArray(entry.days)) return { startedAt: null, days: [] };
+    return { startedAt: entry.startedAt || null, days: entry.days.slice(0, PLAN_DAYS) };
+  }
+  function writePlan(profileKey, plan) {
+    if (!profileKey) return;
+    const store = readPlanStore();
+    store[profileKey] = plan;
+    writePlanStore(store);
   }
   function readPracticeStore() {
     return readStore(STORAGE_KEYS.practice, {});
@@ -1339,7 +1503,8 @@
     const priorities = priorityPlan(p, nameSug, mobSug, vastu);
     const watch = watchSpec(p);
     const evolving = evolvingChartData(p, timing);
-    const summary = northstarSummary(p, timing, goals, priorities, vastu, nameSug, mobSug);
+    const summary = northstarSummary(p, timing, goals, vastu, nameSug, mobSug);
+    const activation = activationPlan(p, timing, goals, vastu, nameSug, mobSug);
     const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
 
     const summarySection = `<section class="rsection summary-section" id="summary-section">
@@ -1352,13 +1517,15 @@
         </div>
         <div class="summary-next">
           <div>
-            <h3>Key action points</h3>
-            <ol class="summary-actions">${summary.actionItems}</ol>
+            <h3>Your first three moves</h3>
+            <ol class="summary-actions">${summary.moves.map((move, idx) => `<li><span class="summary-step">${idx + 1}</span><span class="summary-move"><span class="summary-move-title">${move.title}</span><span class="summary-move-detail">${move.detail}</span></span></li>`).join("")}
+            </ol>
+            <a class="summary-cta" href="#plan-section">Open your full 40-Day Activation Plan ↓</a>
           </div>
           <div class="summary-way-forward">
             <h3>Way forward</h3>
             ${summary.checks.map((line) => `<p>${line}</p>`).join("")}
-            <p><strong>Use this as your northstar:</strong> do not try every remedy at once. Complete the first 40-day rhythm, then review results in Your Evolving Chart.</p>
+            <p><strong>Use this as your northstar:</strong> do not try every remedy at once. Walk the 40-day Activation Plan at the end of this report — tick each day off in its tracker — then review your results in Your Evolving Chart (Section ${SECTION.memory}).</p>
           </div>
         </div>
       </div>
@@ -1808,11 +1975,69 @@
       <div class="card-grid two">${g.focus.map((f) => kitCard(f.n)).join("")}</div>
     </section>`).join("");
 
-    /* final section: priority plan */
-    const prioritySection = `<section class="rsection">
-      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Priority Plan</h2>
-      <p class="rsection-desc">Start here — the highest-impact actions, ordered. Consistency for 40 days is the classical activation period.</p>
-      <div class="priority-list">${priorities.map((t) => `<div class="priority-item">${t}</div>`).join("")}</div>
+    /* final section: 40-day activation plan — the operational itinerary.
+       The only place the priority checklist renders; the Northstar Summary
+       deliberately speaks at a higher altitude so nothing is repeated. */
+    const cadenceLabel = { daily: "Daily", weekly: "Weekly", once: "One-time" };
+    const planKey = state.activeProfileKey || profileKeyOf(p);
+    const planState = readPlan(planKey);
+    const planDays = Array.from({ length: PLAN_DAYS }, (_, i) => !!planState.days[i]);
+    const planDone = planDays.filter(Boolean).length;
+    const planNext = planDays.indexOf(false); // -1 when all 40 done
+    const planStatus = planDone >= PLAN_DAYS
+      ? `Mandala complete — ${PLAN_DAYS} of ${PLAN_DAYS} days done. Now review what shifted in Your Evolving Chart (Section ${SECTION.memory}).`
+      : planDone === 0
+        ? `Begin on a <strong>${DAY_OF[p.driver]}</strong> morning for the strongest start, then tap Day 1. The ritual takes under 10 minutes — consistency is the remedy.`
+        : `${planDone} of ${PLAN_DAYS} days done — Day ${planNext + 1} is next${planNext + 1 <= PLAN_DAYS ? `, ${PLAN_DAYS - planDone} day${PLAN_DAYS - planDone === 1 ? "" : "s"} to go` : ""}. Keep the thread unbroken.`;
+    const prioritySection = `<section class="rsection" id="plan-section">
+      <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>Your 40-Day Activation Plan</h2>
+      <p class="rsection-desc">Forty days is the classical <strong>mandala</strong> — the minimum cycle for a remedy to imprint its vibration. This page is your itinerary: one small daily ritual, a weekly rhythm, four phases, and a tracker to keep you honest. The action checklist that follows is the full to-do list of this report — it lives here, once, tagged by how often each action runs.</p>
+      <div class="card-grid two">
+        <div class="card ritual-card">
+          <div class="card-title">Your Daily Core Ritual — every morning, without negotiation</div>
+          <div class="kit">
+            ${activation.daily.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${row.label}</div><div class="kit-value">${row.value}<br><span class="card-sub">${row.sub}</span></div></div></div>`).join("")}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Your Weekly Rhythm — the charged days</div>
+          <div class="table-scroll"><table class="rtable">
+            <tr><th>Day</th><th>Planet</th><th>Charity</th><th>Fast</th></tr>
+            ${activation.weekly.map((w) => `<tr>
+              <td><strong>${esc(w.day)}</strong></td>
+              <td>${w.planet}<br><span class="card-sub">${w.note}</span></td>
+              <td>${esc(w.charity)}</td>
+              <td>${esc(w.fast)}</td>
+            </tr>`).join("")}
+          </table></div>
+        </div>
+      </div>
+      <div class="plan-subhead">The four phases of your mandala</div>
+      <div class="phase-grid">
+        ${activation.phases.map((phase) => `<div class="phase-card">
+          <span class="phase-badge">${phase.badge}</span>
+          <div class="phase-title">${phase.title}</div>
+          <div class="phase-rows">${phase.rows.map((r) => `<div class="phase-row">${r}</div>`).join("")}</div>
+        </div>`).join("")}
+      </div>
+      <div class="plan-subhead">Your action checklist — tagged by cadence</div>
+      <div class="priority-list">${priorities.map((item) => `<div class="priority-item"><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span></div>`).join("")}
+      </div>
+      <div class="card tracker-card" id="plan-tracker">
+        <div class="goal-head">
+          <div class="card-title">40-Day Tracker — tap each day you complete</div>
+          <span class="badge ${planDone >= PLAN_DAYS ? "good" : planDone > 0 ? "info" : "warn"}">${planDone}/${PLAN_DAYS}</span>
+        </div>
+        <div class="kit-value">${planStatus}</div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${PLAN_DAYS}" aria-valuenow="${planDone}"><div class="progress-fill" style="width:${Math.round((planDone / PLAN_DAYS) * 100)}%"></div></div>
+        <div class="tracker-grid">
+          ${planDays.map((done, i) => `<button type="button" class="tracker-cell${done ? " done" : ""}${!done && i === planNext ? " next" : ""}" data-plan-day="${i + 1}" aria-pressed="${done}" aria-label="Day ${i + 1}${done ? " completed" : ""}">${done ? "✓" : i + 1}</button>`).join("")}
+        </div>
+        <div class="tracker-foot">
+          <span>${planState.startedAt ? `Cycle started ${prettyDate(planState.startedAt)} · ` : ""}Progress is saved privately on this device, per profile.</span>
+          ${planDone > 0 ? `<button class="btn btn-secondary btn-32" type="button" data-plan-reset>Reset cycle</button>` : ""}
+        </div>
+      </div>
     </section>`;
 
     const birthLine = [p.birthTimeDisplay, p.birthPlace].filter(Boolean).join(", ");
@@ -1847,6 +2072,7 @@
           <a href="#timing-section">Timing</a>
           <a href="#memory-section">Evolving Chart</a>
           <a href="#vastu-section">Vastu</a>
+          <a href="#plan-section">40-Day Plan</a>
         </nav>
       </div>
       ${summarySection}
@@ -1921,6 +2147,37 @@
         showReport(lastProfile, { preserveScroll: true });
         const anchor = $("#memory-section");
         if (anchor) anchor.scrollIntoView({ block: "start" });
+      });
+    }
+    /* 40-day tracker: toggle a day, persist locally, re-render in place */
+    const rerenderToPlan = () => {
+      lastProfile = computeProfile(state.lastInput);
+      showReport(lastProfile, { preserveScroll: true });
+      const anchor = $("#plan-tracker");
+      if (anchor && typeof anchor.scrollIntoView === "function") anchor.scrollIntoView({ block: "center" });
+    };
+    $$("[data-plan-day]", $("#reportRoot")).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const key = state.activeProfileKey || (state.lastInput ? profileKeyOf(state.lastInput) : "");
+        const day = Number(btn.getAttribute("data-plan-day"));
+        if (!key || !day || day < 1 || day > PLAN_DAYS) return;
+        const plan = readPlan(key);
+        const days = Array.from({ length: PLAN_DAYS }, (_, i) => !!plan.days[i]);
+        days[day - 1] = !days[day - 1];
+        writePlan(key, { startedAt: plan.startedAt || isoDate(), days });
+        const done = days.filter(Boolean).length;
+        showToast(done >= PLAN_DAYS ? "40-day mandala complete — review Your Evolving Chart" : `Day ${day} ${days[day - 1] ? "logged" : "unmarked"} — keep the rhythm`, "good");
+        rerenderToPlan();
+      });
+    });
+    const planResetBtn = $("[data-plan-reset]", $("#reportRoot"));
+    if (planResetBtn) {
+      planResetBtn.addEventListener("click", () => {
+        const key = state.activeProfileKey || (state.lastInput ? profileKeyOf(state.lastInput) : "");
+        if (!key) return;
+        writePlan(key, { startedAt: null, days: [] });
+        showToast("40-day tracker reset — begin again on your Driver day", "info");
+        rerenderToPlan();
       });
     }
   }

@@ -10,7 +10,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 
 | Area | What's analysed / generated |
 | --- | --- |
-| **Northstar summary** | Plain-language executive summary with key action points, way forward and the 40-day priority rhythm before the detailed report |
+| **Northstar summary** | Plain-language executive summary — headline, chart story, strategy cards, your first three moves and the way forward — with a jump link to the 40-day plan (the two never repeat each other) |
 | **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic Sun Sign (Surya Rashi) |
 | **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (unlocked):** add your exact birth time + birth city and the **Astro-Identity Snapshot** computes your Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna (ascendant) and Midheaven — a real in-browser Vedic ephemeris (see below), never sent anywhere. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Lo Shu numbers. |
 | **Loshu Grid** | Live 3×3 grid with all **8 planes** fully interpreted (Mental, Emotional, Practical, Thought, Will, Action, Golden Rajyoga, Silver Rajyoga) plus the **8 classical arrows** (Determination, Intellect, Spirituality, etc.) with strong / partial / frustrated states, and missing-number severity tiers |
@@ -23,7 +23,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | **Timing** | Personal-year cycle, favourable years, milestone ages |
 | **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
 | **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
-| **Priority plan** | A 40-day, highest-impact action plan ordered by priority |
+| **40-Day Activation Plan** | The report's operational finale: a daily core ritual, a weekly charity/fast rhythm, the four classical mandala phases (Foundation → Rhythm → Integrate → Review), the single action checklist tagged Daily/Weekly/One-time, and an **interactive 40-day tracker** saved privately per profile |
 | **Evolving skill system** | Bundled **Knowledge Pack** with optional self-update, on-device chart memory, private remedy check-ins, and an off-by-default anonymous aggregate contribution scaffold |
 
 ---
