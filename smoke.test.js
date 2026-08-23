@@ -55,7 +55,14 @@ const checks = [
   ["build badge", $("#buildBadge").textContent === "Build 2026-08-23"],
   ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
-  ["northstar summary section", report.includes("Northstar Summary") && report.includes("Key action points") && report.includes("Way forward")],
+  ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
+  ["northstar summary links to plan", report.includes('href="#plan-section"')],
+  ["no summary/plan duplication", (() => {
+    const summaryPart = report.slice(report.indexOf('id="summary-section"'), report.indexOf('id="core-profile"'));
+    const summaryClean = !summaryPart.includes("Strengthen <strong>") && !summaryPart.includes("observe your Driver day") && !summaryPart.includes("Wear the aligned watch spec");
+    const onceEach = (report.match(/observe your Driver day/g) || []).length === 1 && (report.match(/Wear the aligned watch spec/g) || []).length === 1;
+    return summaryClean && onceEach;
+  })()],
   ["green wording", report.includes("Green cells are present")],
   ["driver = 2", report.includes('num-value">2<')],
   ["conductor = 8", report.includes('num-value">8<')],
@@ -101,14 +108,42 @@ const checks = [
   ["SW entrance dosh detected", report.includes("Southwest entrance")],
   ["kitchen NE dosh detected", report.includes("Kitchen (fire)")],
   ["goal plans", report.includes("Money — Remedy Plan") && report.includes("Career — Remedy Plan")],
-  ["priority plan", report.includes("40-Day Priority Plan")],
+  ["40-day activation plan", report.includes("Your 40-Day Activation Plan") && report.includes("Daily Core Ritual") && report.includes("Weekly Rhythm")],
+  ["plan phases rendered", report.includes("Days 1–7") && report.includes("Days 8–21") && report.includes("Days 22–40") && report.includes("Day 40+")],
+  ["plan cadence chips", report.includes("cadence-daily") && report.includes("cadence-weekly") && report.includes("cadence-once")],
+  ["40-day tracker grid", (report.match(/data-plan-day="/g) || []).length === 40 && report.includes("40-Day Tracker")],
+  ["report nav includes plan", report.includes(">40-Day Plan</a>")],
   ["smartwatch caution", report.includes("Rahu (4) energy")],
   ["no undefined leaks", !report.includes("undefined")],
   ["no NaN leaks", !report.includes("NaN")],
 ];
 
 let fail = 0;
+window.Element.prototype.scrollIntoView = window.Element.prototype.scrollIntoView || (() => {});
 checks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 40-day tracker interactions: toggle, persist, reset (first profile still on screen)
+const qsa = (s) => Array.from(window.document.querySelectorAll(s));
+qsa('[data-plan-day="1"]')[0].click();
+qsa('[data-plan-day="2"]')[0].click();
+let live = $("#reportRoot").innerHTML;
+const trackerChecks = [
+  ["tracker toggles two days", live.includes(">2/40<") && (live.match(/aria-pressed="true"/g) || []).length === 2],
+  ["tracker highlights next day", live.includes("Day 3 is next")],
+  ["tracker reset button appears", live.includes("data-plan-reset")],
+];
+qsa('[data-plan-day="1"]')[0].click();
+live = $("#reportRoot").innerHTML;
+trackerChecks.push(["tracker untoggles a day", live.includes(">1/40<") && live.includes("Day 1 is next")]);
+qsa('[data-plan-reset]')[0].click();
+live = $("#reportRoot").innerHTML;
+trackerChecks.push(["tracker resets cycle", live.includes(">0/40<") && !live.includes("data-plan-reset")]);
+qsa('[data-plan-day="7"]')[0].click();
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+live = $("#reportRoot").innerHTML;
+trackerChecks.push(["tracker persists across re-submit", live.includes(">1/40<") && live.includes('data-plan-day="7" aria-pressed="true"')]);
+trackerChecks.push(["tracker store is local-only", (() => { try { const s = JSON.parse(window.localStorage.getItem("nv360.plan.v1") || "{}"); const k = Object.keys(s)[0]; return !!k && Array.isArray(s[k].days); } catch { return false; } })()]);
+trackerChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // second profile: name correction path with an enemy name number
 $("#editBtn").click();
