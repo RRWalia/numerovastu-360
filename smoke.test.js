@@ -53,9 +53,9 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.4.0 · Meeus engine"],
+  ["app version badge", $("#appBadge").textContent === "App v2.5.0 · Meeus engine"],
   ["build badge", $("#buildBadge").textContent === "Build 2026-08-31"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.2.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -117,6 +117,10 @@ const checks = [
   ["report nav includes plan", report.includes(">40-Day Plan</a>")],
   ["smartwatch caution", report.includes("Rahu (4) energy")],
   ["no undefined leaks", !report.includes("undefined")],
+  ["excess energy card title", report.includes("Excess Energy") && report.includes("Channel It")],
+  ["excess energy repeated number rendered", report.includes("repeated 3×") && report.includes("Moon (Chandra)")],
+  ["excess energy overshoot + channel labels", report.includes("When it overshoots:") && report.includes("Channel it:")],
+  ["excess energy guidance (no more fuel)", report.includes("give it direction, not more fuel")],
   ["no NaN leaks", !report.includes("NaN")],
 ];
 
@@ -249,6 +253,54 @@ const checks3 = [
 ];
 checks3.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 if (sug3.variants) console.log("  Meher variants:", sug3.variants.map((v) => `${v.text} (${v.compound}->${v.reduced})`).join(" | "));
+
+// 3b: optional grid-filling spellings — name ALREADY harmonious (D6 C4, missing 2/3/7/8).
+$("#editBtn").click();
+$("#fullName").value = "Nayan Laxmichand Shah";
+$("#dob").value = "1990-06-15";
+$("#mobile").value = "9876543210";
+$("#vehicle").value = "";
+// Toggle Money off then back on so the shared goal-chip state is unchanged for
+// the downstream reference-chart block (which clicks Career and needs ≥1 goal).
+$("#goalChips .chip[data-goal='Money']").click();
+$("#goalChips .chip[data-goal='Money']").click();
+$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r3b = $("#reportRoot").innerHTML;
+const p3b = window.__NV.computeProfile({
+  name: "Nayan Laxmichand Shah", dob: "1990-06-15", mobile: "9876543210",
+  goals: ["Money"], entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
+});
+const sug3b = window.__NV.nameSuggestions(p3b);
+const opt3b = window.__NV.buildOptionalSpellings(p3b);
+const optVariantFillsMissing = opt3b.variants.length > 0 && opt3b.variants.every((v) => p3b.missing.includes(v.reduced));
+const optNonEnemy = opt3b.variants.every((v) => window.__NV.relation(p3b.driver, v.reduced) !== "enemy" && window.__NV.relation(p3b.conductor, v.reduced) !== "enemy");
+const optNotRepeated = opt3b.variants.every((v) => !p3b.repeated.includes(v.reduced));
+const optHarmonious = sug3b.needed === false;
+const checks3b = [
+  ["harmonious name needs no correction", optHarmonious],
+  ["optional spellings fill a genuinely missing number", !!optVariantFillsMissing],
+  ["optional spellings stay non-enemy to Driver & Conductor", !!optNonEnemy],
+  ["optional spellings never add to an excessive number", !!optNotRepeated],
+  ["optional enhancement card rendered", r3b.includes("Optional Enhancement") && r3b.includes("Optional only")],
+  ["optional why-it-helps uses 'optional:' framing", r3b.includes("optional: fills your missing number")],
+  ["no undefined leaks", !r3b.includes("undefined")],
+  ["no NaN leaks", !r3b.includes("NaN")],
+];
+checks3b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+if (opt3b.variants) console.log("  Optional variants:", opt3b.variants.map((v) => `${v.text} (${v.compound}->${v.reduced}, fills ${v.targetN})`).join(" | "));
+
+// 3c: excess-energy knowledge content — present for all nine numbers.
+const ee = window.__NV.getActiveDB().excessEnergy || {};
+const eeChecks = [
+  ["excessEnergy data has 9 numbers", Object.keys(ee).length === 9],
+  ["each number has en overshoot + channel", [1,2,3,4,5,6,7,8,9].every((n) => ee[n] && ee[n].overshoot && ee[n].overshoot.en && ee[n].channel && ee[n].channel.en)],
+  ["each number has hindi + gujarati channel", [1,2,3,4,5,6,7,8,9].every((n) => ee[n] && ee[n].channel.hi && ee[n].channel.gu)],
+  ["excessEnergy data in active DB via getActiveDB", window.__NV.getActiveDB().excessEnergy === ee],
+];
+eeChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // fourth block: engine functions (kua + compatibility)
 const NV = window.__NV;

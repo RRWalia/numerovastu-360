@@ -28,7 +28,7 @@
     return "enemy";
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.4.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.5.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-31";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -180,7 +180,7 @@
     return {
       app: raw.app || "NumeroVastu 360",
       schemaVersion: raw.schemaVersion || 1,
-      packVersion: raw.packVersion || "2.1.0",
+      packVersion: raw.packVersion || "2.2.0",
       generatedAt: raw.generatedAt || isoDate(),
       manifestPath: raw.manifestPath || DEFAULT_MANIFEST_PATH,
       source: source || "bundled",
@@ -247,10 +247,14 @@
     state.history = readStore(STORAGE_KEYS.history, []);
     state.contributionEnabled = !!readStore(STORAGE_KEYS.contributionEnabled, false);
     const cached = readStore(STORAGE_KEYS.packCache, null);
-    if (cached && cached.packVersion) {
+    const bundled = bundledPack();
+    /* A stale cached pack could silently shadow newer bundled content after an
+       upgrade — only restore the cache when it is at least as new as the bundle,
+       and overwrite a stale cache with the fresh bundled pack. */
+    if (cached && cached.packVersion && compareVersions(cached.packVersion, bundled.packVersion) >= 0) {
       setActivePack(cached, "cached", false);
     } else {
-      setActivePack(bundledPack(), "bundled", false);
+      setActivePack(bundled, "bundled", !!cached);
     }
   }
 
@@ -606,9 +610,45 @@
     return candidates;
   }
 
+  /* Optional grid-filling spellings for an ALREADY-harmonious name.
+     These never "correct" anything — they consciously fill a number that is
+     missing from the Lo Shu grid, stay non-enemy to both Driver and Conductor,
+     and never add to a number the person already has in excess. */
+  function buildOptionalSpellings(p) {
+    const db = getActiveDB();
+    const fillable = p.missing.filter((n) =>
+      relation(p.driver, n) !== "enemy" &&
+      relation(p.conductor, n) !== "enemy" &&
+      !p.repeated.includes(n)
+    );
+    if (!fillable.length) return { variants: [], targets: [] };
+    const candidates = spellingCandidates(p.name, p.nameCompound);
+    const kindRank = { double: 0, swap: 1, insert: 2 };
+    const variants = [];
+    const seen = new Set();
+    fillable.forEach((n) => {
+      const planet = db.numbers[n].planet.split(" ")[0];
+      const hits = candidates
+        .filter((c) => c.reduced === n)
+        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
+      hits.slice(0, 2).forEach((c) => {
+        const key = c.text.toUpperCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        variants.push({
+          ...c,
+          targetN: n,
+          why: `optional: fills your missing number ${n} (${planet}) — stays harmonious with Driver ${p.driver} and Conductor ${p.conductor}`
+        });
+      });
+    });
+    return { variants: variants.slice(0, 4), targets: fillable };
+  }
+
   function nameSuggestions(p) {
+    const optional = buildOptionalSpellings(p);
     if (p.nameRelD !== "enemy" && p.nameRelC !== "enemy") {
-      return { needed: false, verdict: p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly" };
+      return { needed: false, verdict: p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly", optional };
     }
 
     const db = getActiveDB();
@@ -656,7 +696,7 @@
       finalSeen.add(k); out.push(v);
     });
 
-    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((tgt) => tgt.n) };
+    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((tgt) => tgt.n), optional };
   }
 
   function brandAnalysis(brand, p) {
@@ -1708,6 +1748,47 @@
     </div>`;
   }
 
+  /* Shared spelling table (used by both correction-required and optional-enhancement rows). */
+  function spellingTableHtml(rows) {
+    const lang = getLang();
+    if (!rows || !rows.length) return "";
+    return `<div class="table-scroll"><table class="rtable">
+      <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
+      ${rows.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}
+    </table></div>`;
+  }
+
+  /* Excess-energy channeling card — numbers repeated 3+ times get a full,
+     prescriptive "overshoot / channel it" card instead of one generic line. */
+  function renderExcessEnergyCard(p) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const rows = p.repeated.map((n) => {
+      const ee = (db.excessEnergy && db.excessEnergy[n]) || {};
+      const overshoot = (ee.overshoot && ee.overshoot[lang]) || (ee.overshoot && ee.overshoot.en) || "";
+      const channel = (ee.channel && ee.channel[lang]) || (ee.channel && ee.channel.en) || "";
+      const count = p.counts[n] || 0;
+      return `<div class="kit-row">
+        <div class="kit-ico"><strong>${n}</strong></div>
+        <div class="kit-body">
+          <div class="kit-label">${esc(db.numbers[n].planet)} — ${lang === "hi" ? `दोहराया गया ${count}×` : lang === "gu" ? `પુનરાવર્તિત ${count}×` : `repeated ${count}×`}</div>
+          <div class="kit-value"><strong>${lang === "hi" ? "जब यह बढ़ जाता है:" : lang === "gu" ? "જ્યારે તે વધુ પડતું થાય:" : "When it overshoots:"}</strong> ${esc(overshoot)}</div>
+          <div class="kit-value"><strong>${lang === "hi" ? "इसे सही दिशा दें:" : lang === "gu" ? "તેને યોગ્ય દિશા આપો:" : "Channel it:"}</strong> ${esc(channel)}</div>
+        </div>
+      </div>`;
+    }).join("");
+    const guidance = lang === "hi"
+      ? "एक दोहराया गया अंक प्रतिभा का प्रवर्धक है — इसे दिशा दें, अधिक ईंधन नहीं। जब तक अनुपस्थित अंक भरे नहीं जाते, ऐसे नाम, मोबाइल या वाहन कुल से बचें जो इसी अंक को और बढ़ाएं; अतिरिक्त ऊर्जा को ऊपर दी गई दिशा में लगाएं।"
+      : lang === "gu"
+        ? "એક પુનરાવર્તિત અંક પ્રતિભાનો પ્રવર્ધક છે — તેને દિશા આપો, વધુ બળતણ નહીં. જ્યાં સુધી ખૂટતા અંક ભરાય નહીં, એવા નામ, મોબાઈલ કે વાહન કુલ ટાળો જે આ જ અંકને વધુ મજબૂત કરે; વધારાની ઊર્જાને ઉપર આપેલી દિશામાં લગાવો."
+        : "A repeated number is a talent amplifier — give it direction, not more fuel. Until the missing numbers are filled, avoid name, mobile or vehicle totals that add to this same number; channel the surplus through the actions above instead.";
+    return `<div class="card">
+      <div class="card-title">${lang === "hi" ? "अधिक ऊर्जा — सही दिशा में लगाएं" : lang === "gu" ? "વધુ ઊર્જા — યોગ્ય દિશામાં લગાવો" : "Excess Energy — Channel It, Don't Fight It"}</div>
+      <div class="kit">${rows}</div>
+      <div class="card-sub">${guidance}</div>
+    </div>`;
+  }
+
   function renderGridCells(counts) {
     const db = getActiveDB();
     const layout = (window.DB && window.DB.loshuLayout) || [[4,9,2],[3,5,7],[8,1,6]];
@@ -1854,7 +1935,7 @@
         </div>
       </div>
       ${p.missing.length ? `<div class="card"><div class="card-title">${lang === "hi" ? "अनुपस्थित अंक — त्वरित संतुलन उपाय" : lang === "gu" ? "ખૂટતા અંકો — સરળ સંતુલન ઉપાયો" : "Missing Numbers — Quick Balancers"}</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">${lang === "hi" ? "पूर्ण ग्रिड" : lang === "gu" ? "સંપૂર્ણ ગ્રીડ" : "Complete grid"}</span> ${lang === "hi" ? "सभी नौ अंक मौजूद हैं — यह एक दुर्लभ और संतुलित चार्ट है। साप्ताहिक दिनचर्या से ग्रहों की ऊर्जा बनाए रखें।" : lang === "gu" ? "બધા જ નવ અંકો હાજર છે — આ એક દુર્લભ અને સંતુલિત ચાર્ટ છે. સાપ્તાહિક નિયમોથી ગ્રહોની ઊર્જા જાળવી રાખો." : "All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan."}</div></div>`}
-      ${p.repeated.length ? `<p class="rsection-desc">${lang === "hi" ? `३+ बार दोहराए गए अंक: <strong>${p.repeated.join(", ")}</strong> — यहां तीव्र ऊर्जा है; इसे सही दिशा दें।` : lang === "gu" ? `૩+ વખત પુનરાવર્તિત અંકો: <strong>${p.repeated.join(", ")}</strong> — અહીં તીવ્ર ઊર્જા છે; તેને સાચી દિશા આપો.` : `Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong> — strong energy here; use it, don't let it dominate (e.g. excess 9 → channel Mars into sport, excess 8 → delegate Saturn's workload).`}</p>` : ""}
+      ${p.repeated.length ? `<div class="rsection-desc">${lang === "hi" ? `३+ बार दोहराए गए अंक: <strong>${p.repeated.join(", ")}</strong>` : lang === "gu" ? `૩+ વખત પુનરાવર્તિત અંકો: <strong>${p.repeated.join(", ")}</strong>` : `Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong>`}</div>${renderExcessEnergyCard(p)}` : ""}
     </section>`;
   }
 
@@ -2049,13 +2130,18 @@
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
             ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:"}</div>
-               <div class="table-scroll"><table class="rtable">
-                 <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
-                 ${nameSug.variants.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}
-               </table></div>
+               ${spellingTableHtml(nameSug.variants)}
                <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
-          : `<div class="kit-value">${esc(db.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>`}
+          : `<div class="kit-value">${esc(db.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>${(nameSug.optional && nameSug.optional.variants && nameSug.optional.variants.length) ? `<div class="card" style="margin-top:12px">
+               <div class="goal-head">
+                 <div class="card-title">${lang === "hi" ? "वैकल्पिक वृद्धि (Optional Enhancement)" : lang === "gu" ? "વૈકલ્પિક ઉન્નતિ (Optional Enhancement)" : "Optional Enhancement"}</div>
+                 <span class="badge info">${lang === "hi" ? "केवल वैकल्पिक — कोई बदलाव आवश्यक नहीं" : lang === "gu" ? "માત્ર વૈકલ્પિક — કોઈ ફેરફાર જરૂરી નથી" : "Optional only — no change required"}</span>
+               </div>
+               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो-शू ग्रिड में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો-શુ ગ્રીડમાં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess.`}</div>
+               ${spellingTableHtml(nameSug.optional.variants)}
+               <div class="card-sub">${lang === "hi" ? "वैकल्पिक: यदि चाहें तो नई स्पेलिंग को ४० दिनों तक रोज २१ बार लिखें और पहले गैर-कानूनी प्रोफाइल पर उपयोग करें — कोई कानूनी बदलाव आवश्यक नहीं।" : lang === "gu" ? "વૈકલ્પિક: જો ઇચ્છો તો નવી સ્પેલિંગ ૪૦ દિવસ સુધી રોજ ૨૧ વખત લખો અને પહેલાં બિન-કાનૂની પ્રોફાઇલ પર વાપરો — કોઈ કાનૂની ફેરફાર જરૂરી નથી." : `Optional: if you wish to activate it, write the new spelling 21 times daily for 40 days and use it on non-legal profiles first — no legal change is required.`}</div>
+             </div>` : ""}`}
       </div>
       ${brand ? `<div class="card">
         <div class="card-title">Business / Brand Name — Chaldean Success Reading</div>
@@ -2838,7 +2924,7 @@
 
   /* expose for smoke tests and external control */
   window.__NV = {
-    computeProfile, nameSuggestions, brandAnalysis, spellingCandidates,
+    computeProfile, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, relation, chaldeanValue, validatePack,
