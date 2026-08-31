@@ -53,8 +53,8 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.3.1 · Meeus engine"],
-  ["build badge", $("#buildBadge").textContent === "Build 2026-08-23"],
+  ["app version badge", $("#appBadge").textContent === "App v2.4.0 · Meeus engine"],
+  ["build badge", $("#buildBadge").textContent === "Build 2026-08-31"],
   ["knowledge pack badge", report.includes("Knowledge pack v2.1.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
@@ -271,6 +271,23 @@ const compChecks = [
 ];
 compChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// compatibility bridge remedies (engine)
+const pc = NV.computeProfile({ name: "C", dob: "2000-01-01", mobile: "", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
+const compC = NV.compatibility(pa, pc); // 2/7 vs 1/1 -> two enemy pairs (7 vs 1)
+const cRemC = NV.compatRemedies(pa, pc, compC);
+const cRem = NV.compatRemedies(pa, pb, comp);
+const F = window.DB.friendship;
+const bridgeOk = (rem, profA, profB) => rem.bridges.every((br) => [profA.driver, profA.conductor, profB.driver, profB.conductor].every((m) => F[m].enemies.indexOf(br.n) === -1));
+const remedyChecks = [
+  ["compatRemedies conflicts match enemy count", cRemC.conflicts.length === compC.enemy],
+  ["conflicting pair has bridge guidance", cRemC.conflicts.every((c) => c.friction && c.bridge && c.friction.en && c.bridge.en)],
+  ["conflicting pair names planets", cRemC.conflicts.every((c) => typeof c.planetA === "string" && typeof c.planetB === "string")],
+  ["bridge numbers non-enemy to all four numbers", bridgeOk(cRemC, pa, pc) && bridgeOk(cRem, pa, pb)],
+  ["bridge numbers ranked 1..9, max 3", cRemC.bridges.length <= 3 && cRemC.bridges.every((b) => b.n >= 1 && b.n <= 9)],
+  ["clean pairing -> no conflicts, neutral plan", cRem.conflicts.length === comp.enemy && cRem.neutralLinks === comp.neutral],
+];
+remedyChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 // Vedic precision tiers + birth-time formatting (progressive disclosure engine)
 const baseInput = { name: "T", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" };
 const pTier2 = NV.computeProfile(Object.assign({}, baseInput, { birthTime: "14:05", birthPlace: "New Delhi, India" }));
@@ -311,7 +328,12 @@ const nakUnitChecks = [
   ["unknown place -> null", NA.matchPlace("Atlantis, Somewhere") === null],
   ["coordinates parsed", NA.matchPlace("28.39, 77.31") && NA.matchPlace("28.39, 77.31").fromCoords === true],
   ["coordinates + tz override", NA.matchPlace("40.71, -74.01, -5") && NA.matchPlace("40.71, -74.01, -5").tz === -5],
-  ["atlas has 300+ cities", NA.cityNames().length >= 300],
+  ["atlas has 600+ cities", NA.cityNames().length >= 600],
+  ["Hargeisa, Capital of Somaliland resolves", NA.matchPlace("Hargeisa, Capital of Somaliland") && NA.matchPlace("Hargeisa, Capital of Somaliland").name === "Hargeisa" && NA.matchPlace("Hargeisa, Capital of Somaliland").tz === 3],
+  ["country alias Somaliland -> Hargeisa", NA.matchPlace("Somaliland") && NA.matchPlace("Somaliland").name === "Hargeisa"],
+  ["world capitals resolve (spot check)", ["Naypyidaw", "Brasília", "Dodoma", "Abuja", "Minsk", "Havana", "Nuuk", "Ankara", "Sri Jayawardenepura Kotte"].every((c) => NA.matchPlace(c))],
+  ["country aliases resolve (spot check)", ["Nepal", "Bhutan", "Kenya", "Peru", "Chile", "New Zealand"].every((c) => NA.matchPlace(c))],
+  ["atlas entries structurally sound", NA.cities().every((r) => Array.isArray(r) && r.length === 8 && Math.abs(r[4]) <= 90 && Math.abs(r[5]) <= 180 && r[6] >= -12 && r[6] <= 14 && typeof r[7] === "boolean")],
 ];
 nakUnitChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -455,7 +477,7 @@ $("#mobile").value = "9876543210";
 $("#vehicle").value = "";
 $("#gender").value = "female";
 $("#partnerName").value = "Anjali Verma";
-$("#partnerDob").value = "1990-04-15";
+$("#partnerDob").value = "1990-05-06"; // driver 6, conductor 3 -> no enemy pairs vs 2/8
 $("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
 $("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
 $("#watchType").value = "none";
@@ -472,10 +494,38 @@ const checks4 = [
   ["kua number computed (female 2005 -> 2)", r4.includes("Kua number is 2")],
   ["compatibility section", r4.includes("Compatibility &amp; Matchmaking") && r4.includes("Anjali Verma")],
   ["compatibility verdict", r4.includes("Overall verdict")],
+  ["compatibility remedy card", r4.includes("Compatibility remedy plan") && r4.includes("no clashes")],
+  ["bridge numbers row (clean pairing)", r4.includes("Bridge numbers")],
+  ["neutral-link activation (clean pairing)", r4.includes("Activate the neutral links")],
   ["no undefined leaks", !r4.includes("undefined")],
   ["no NaN leaks", !r4.includes("NaN")],
 ];
 checks4.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 4b: compatibility remedy card with a conflicting pairing (2/7 vs 1/1)
+$("#editBtn").click();
+$("#fullName").value = "Priya Sharma";
+$("#dob").value = "2005-08-20";
+$("#mobile").value = "9876543210";
+$("#vehicle").value = "";
+$("#gender").value = "female";
+$("#partnerName").value = "Rahul Singh";
+$("#partnerDob").value = "2000-01-01";
+$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r4b = $("#reportRoot").innerHTML;
+const checks4b = [
+  ["remedy card shows clash pair count", r4b.includes("clash pair(s)")],
+  ["friction + bridge conduct rendered", r4b.includes("Couple remedy for this pair") && r4b.includes("🌉")],
+  ["couple rituals with mantras", r4b.includes("11×") && r4b.includes("mantra")],
+  ["bridge kit card for partner planet", r4b.includes("Bridge kit")],
+  ["bridge numbers row", r4b.includes("Bridge numbers")],
+  ["no undefined leaks", !r4b.includes("undefined")],
+  ["no NaN leaks", !r4b.includes("NaN")],
+];
+checks4b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // sixth block: compound numbers, master numbers, name/combined grids, brand, vastu extras
 const compoundChecks = [
