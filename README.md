@@ -18,7 +18,7 @@ Enter your name, date of birth, mobile and vehicle numbers once, and the app com
 | **Name & combined grids** | Loshu grids plotted from your **name's Chaldean letter values** and a **combined DOB + name** grid, alongside the birth grid |
 | **Business / brand mode** | Chaldean success reading for a brand, shop or venture name — compound number, auspicious roots, and sound-preserving corrections |
 | **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
-| **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table |
+| **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table, plus a **compatibility remedy plan** — per-clash friction & bridge guidance, couple rituals drawn from both planets' remedy kits, and "bridge numbers" friendly to both charts |
 | **Remedy kits** | Per-planet mantras, crystals, rudraksha, yantras, colours, charity, fasting & lifestyle remedies |
 | **Timing** | Personal-year cycle, favourable years, milestone ages |
 | **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
@@ -44,7 +44,7 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 
 - **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
 - **Visible release metadata** — app version, build label and Knowledge Pack version are surfaced as badges on the intake screen
-- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa** and a 400+-city offline atlas (with coordinate + time-zone override entry). The ephemeris is a **fully self-contained port of Jean Meeus' "Astronomical Algorithms"** (Julian day & ΔT, IAU-82 sidereal time, ch. 22 nutation, ch. 25 Sun, ch. 47 Moon) — zero runtime dependencies, validated to < 12″ against VSOP87 (astronomy-engine) on the reference chart
+- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa** and a **630+-place offline world atlas** (with coordinate + time-zone override entry) — every sovereign world capital including **Hargeisa, Somaliland**, widely-recognised territories, and 350+ Indian cities, all validated by `scripts/validate-atlas.mjs` against IANA time-zone data. The ephemeris is a **fully self-contained port of Jean Meeus' "Astronomical Algorithms"** (Julian day & ΔT, IAU-82 sidereal time, ch. 22 nutation, ch. 25 Sun, ch. 47 Moon) — zero runtime dependencies, validated to < 12″ against VSOP87 (astronomy-engine) on the reference chart
 - **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
 - **[Vite](https://vitejs.dev/)** for local development

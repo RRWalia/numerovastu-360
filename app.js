@@ -20,6 +20,7 @@
   const digitsOf = (str) => str.replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
 
   function relation(a, b) {
+    if (a === b) return "friendly"; // a planet is never its own enemy
     const f = (window.DB && window.DB.friendship) ? window.DB.friendship[a] : null;
     if (!f) return "neutral";
     if (f.friends.includes(b)) return "friendly";
@@ -27,8 +28,8 @@
     return "enemy";
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.3.1";
-  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-23";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.4.0";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-31";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
     lang: "nv_lang",
@@ -703,10 +704,10 @@
 
   function compatibility(a, b) {
     const pairs = [
-      { a: `Your Driver ${a.driver}`, b: `their Driver ${b.driver}`, r: relation(a.driver, b.driver) },
-      { a: `Your Driver ${a.driver}`, b: `their Conductor ${b.conductor}`, r: relation(a.driver, b.conductor) },
-      { a: `Your Conductor ${a.conductor}`, b: `their Driver ${b.driver}`, r: relation(a.conductor, b.driver) },
-      { a: `Your Conductor ${a.conductor}`, b: `their Conductor ${b.conductor}`, r: relation(a.conductor, b.conductor) }
+      { a: `Your Driver ${a.driver}`, b: `their Driver ${b.driver}`, aNum: a.driver, bNum: b.driver, sideB: "their Driver", r: relation(a.driver, b.driver) },
+      { a: `Your Driver ${a.driver}`, b: `their Conductor ${b.conductor}`, aNum: a.driver, bNum: b.conductor, sideB: "their Conductor", r: relation(a.driver, b.conductor) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Driver ${b.driver}`, aNum: a.conductor, bNum: b.driver, sideB: "their Driver", r: relation(a.conductor, b.driver) },
+      { a: `Your Conductor ${a.conductor}`, b: `their Conductor ${b.conductor}`, aNum: a.conductor, bNum: b.conductor, sideB: "their Conductor", r: relation(a.conductor, b.conductor) }
     ];
     const score = pairs.reduce((s, p) => s + (p.r === "friendly" ? 2 : p.r === "neutral" ? 1 : 0), 0);
     const friendly = pairs.filter((p) => p.r === "friendly").length;
@@ -715,6 +716,96 @@
     const verdict = score >= 7 ? "Strong" : score >= 5 ? "Good" : score >= 3 ? "Workable" : "Challenging";
     return { pairs, score, max: 8, verdict, friendly, neutral, enemy };
   }
+
+  /* ---- compatibility bridge remedies ----------------------------------
+     For each conflicting (enemy) pairing the report now prescribes a
+     bridge plan: what the friction looks like, how to conduct around it,
+     mutually-acceptable "bridge numbers" (friendly/neutral to BOTH
+     charts) and couple rituals drawn from the two planets' remedy kits. */
+  const PAIR_BRIDGE = {
+    "1-4": {
+      friction: { en: "Sun's need for recognition meets Rahu's unconventional, restless style — clashes over authority, credit and \"who is right\".", hi: "सूर्य की पहचान की चाह और राहु की अपरंपरागत, चंचल शैली टकराती है — अधिकार, श्रेय और \"सही कौन\" पर विवाद।", gu: "સૂર્યની ઓળખની ચાહ અને રાહુની અપરંપરાગત, ચંચળ શૈલી અથડાય છે — સત્તા, શ્રેય અને \"સાચો કોણ\" પર વિવાદ." },
+      bridge: { en: "Let the 1-side lead decisions openly and publicly credit the 4-side's ideas; the 4-side shares plans before springing them. Serve elders together on Saturdays.", hi: "1 पक्ष निर्णय खुलकर ले और 4 पक्ष के विचारों को सार्वजनिक श्रेय दे; 4 पक्ष योजना पहले बताकर चले। शनिवार को बड़ों की सेवा साथ करें।", gu: "1 પક્ષ નિર્ણય ખુલ્લામાં લે અને 4 પક્ષના વિચારોને સાર્વજનિક શ્રેય આપે; 4 પક્ષ યોજના પહેલાં જણાવી ચાલે. શનિવારે વડીલોની સેવા સાથે કરો." }
+    },
+    "1-6": {
+      friction: { en: "Sun's authority vs Venus's comfort and sociability — one pushes status and discipline, the other beauty, leisure and spending.", hi: "सूर्य का अधिकार बनाम शुक्र का सुख-सामर्थ्य और मिलनसारिता — एक पद और अनुशासन का दबाव देता है, दूसरा सौंदर्य, विश्राम और खर्च की चाह।", gu: "સૂર્યનું વર્ચસ્વ વિરુદ્ધ શુક્રનો આરામ અને મિલનસારપણું — એક પ્રતિષ્ઠા અને શિસ્ત થોપે, બીજો સૌંદર્ય, વિશ્રાંતિ અને ખર્ચ ઇચ્છે." },
+      bridge: { en: "Host and celebrate together — Venus-side plans the gathering, Sun-side blesses it publicly. Fix a shared monthly budget so spending never reads as disrespect.", hi: "साथ आयोजन और उत्सव करें — शुक्र पक्ष मेहफिल सजाए, सूर्य पक्ष उसे सार्वजनिक सम्मान दे। साझा मासिक बजट बनाएं ताकि खर्च अनादर न लगे।", gu: "સાથે આયોજન અને ઉજવણી કરો — શુક્ર પક્ષ મહેફિલ સજાવે, સૂર્ય પક્ષ તેને સાર્વજનિક સન્માન આપે. સામુહિક માસિક બજેટ બનાવો જેથી ખર્ચ અનાદર ન લાગે." }
+    },
+    "1-7": {
+      friction: { en: "Sun wants the stage, Ketu prefers silence and withdrawal — one feels ignored, the other feels exposed.", hi: "सूर्य मंच चाहता है, केतु मौन और एकांत — एक को अनदेखा लगता है, दूसरे को बहुत उजाला।", gu: "સૂર્યને સ્ટેજ જોઈએ, કેતુને મૌન અને એકાંત — એકને અવગણના લાગે, બીજાને વધુ પડતું પ્રકાશન." },
+      bridge: { en: "Alternate stage and sanctuary: public appreciation for the 1-side, protected quiet time for the 7-side. Share one spiritual practice (temple, meditation) weekly.", hi: "मंच और मौन का एकांतावास बारी-बारी: 1 पक्ष को सार्वजनिक सराहना, 7 पक्ष को सुरक्षित एकांत। साप्ताहिक एक आध्यात्मिक साधना (मंदिर/ध्यान) साझा करें।", gu: "સ્ટેજ અને મૌન વારાફરતી: 1 પક્ષને સાર્વજનિક પ્રશંસા, 7 પક્ષને સુરક્ષિત એકાંત. સાપ્તાહિક એક આધ્યાત્મિક સાધના (મંદિર/ધ્યાન) વહેંચો." }
+    },
+    "1-8": {
+      friction: { en: "Sun's quick authority meets Saturn's slow, tested methods — power struggles, delays read as defiance, discipline as insult.", hi: "सूर्य की तेज़ अधिकार-शैली और शनि की धीमी, परखी हुई पद्धति — सत्ता-संघर्ष, विलंब को विरोध और अनुशासन को अपमान समझा जाता है।", gu: "સૂર્યની ઝડપી સત્તા-શૈલી અને શનિની ધીમી, કસાયેલી પદ્ધતિ — સત્તા-સંઘર્ષ, વિલંબને વિરોધ અને શિસ્તને અપમાન ગણાય." },
+      bridge: { en: "Give the 8-side time frames, not ultimatums; the 8-side gives the 1-side visible milestones. Serve workers/elders together; donate iron, oil or black sesame on Saturdays.", hi: "8 पक्ष को अल्टीमेटम नहीं, समय-सीमा दें; 8 पक्ष 1 पक्ष को दृश्य प्रगति दिखाए। साथ मजदूरों/बड़ों की सेवा करें; शनिवार को लोहा, तेल या काले तिल दान करें।", gu: "8 પક્ષને અલ્ટિમેટમ નહીં, સમય-મર્યાદા આપો; 8 પક્ષ 1 પક્ષને દેખાય એવી પ્રગતિ બતાવે. સાથે કામદારો/વડીલોની સેવા કરો; શનિવારે લોખંડ, તેલ કે કાળા તલ દાન કરો." }
+    },
+    "2-4": {
+      friction: { en: "Moon's emotional sensitivity meets Rahu's restlessness — mood swings meet unpredictability, reassurance meets distraction.", hi: "चंद्र की भावुक संवेदनशीलता और राहु की बेचैनी — मन की लहरें अनिश्चितता से टकराती हैं, आश्वासन विचलित करने से।", gu: "ચંદ્રની ભાવુક સંવેદનશીલતા અને રાહુની બેચાની — મનની લહેરો અનિશ્ચિતતા સામે અથડાય, દિલાસો વિચલિત કરે." },
+      bridge: { en: "Fixed, soothing routines — same dinner time, device-free evenings. The 4-side states plans plainly; the 2-side voices hurt early instead of storing it.", hi: "नियमित, सुखद दिनचर्या — एक समय भोजन, रात में बिना स्क्रीन का समय। 4 पक्ष योजना स्पष्ट बताए; 2 पक्ष दुख जमा करने की बजाय तुरंत कहे।", gu: "નિયમિત, હૂંફાળી દિનચર્યા — એક સમયે ભોજન, રાત્રે સ્ક્રીન-મુક્ત સમય. 4 પક્ષ યોજના સ્પષ્ટ કહે; 2 પક્ષ દુઃખ ભેગું કરવાને બદલે તરત કહે." }
+    },
+    "2-7": {
+      friction: { en: "Moon needs connection and words; Ketu withdraws into silence — distance feels like rejection, closeness feels like pressure.", hi: "चंद्र को जुड़ाव और वाणी चाहिए; केतु मौन में खो जाता है — दूरी अस्वीकृति और निकटता दबाव लगती है।", gu: "ચંદ્રને જોડાણ અને વાણી જોઈએ; કેતુ મૌનમાં ખોવાય — અંતરાલ અસ્વીકૃતિ અને નિકટતા દબાણ લાગે." },
+      bridge: { en: "One gentle, spoken appreciation daily from the 7-side; one no-questions quiet hour for the 7-side from the 2-side. Share moonlit walks or water-side time.", hi: "7 पक्ष रोज़ एक कोमल मौखिक सराहना कहे; 2 पक्ष 7 पक्ष को बिना सवाल का एक शांत घंटा दे। चांदनी में सैर या जल-किनारा साझा करें।", gu: "7 પક્ષ રોજ એક કોમળ મૌખિક પ્રશંસા કહે; 2 પક્ષ 7 પક્ષને પ્રશ્ન વગરનો એક શાંત કલાક આપે. ચાંદનીમાં ચાલ કે પાણી-કિનારો સાથે ભોગવો." }
+    },
+    "3-4": {
+      friction: { en: "Jupiter's tradition and study vs Rahu's shortcuts — the 3-side preaches, the 4-side improvises; both feel unrespected.", hi: "गुरु की परंपरा और अध्ययन बनाम राहु के शॉर्टकट — 3 पक्ष उपदेश देता है, 4 पक्ष जुगाड़ करता है; दोनों को अनादर लगता है।", gu: "ગુરુની પરંપરા અને અભ્યાસ વિરુદ્ધ રાહુના ટૂંકા રસ્તા — 3 પક્ષ ઉપદેશ આપે, 4 પક્ષ જુગાડ કરે; બંનેને અનાદર લાગે." },
+      bridge: { en: "Turn preaching into teaching and jugaad into innovation: the 3-side mentors without moralising, the 4-side brings experiments to the table early. Donate books together on Thursdays.", hi: "उपदेश को शिक्षा और जुगाड़ को नवाचार बनाएं: 3 पक्ष बिना नीति-वचन के सिखाए, 4 पक्ष प्रयोग पहले साझा करे। गुरुवार को साथ पुस्तकें दान करें।", gu: "ઉપદેશને શિક્ષણ અને જુગાડને નવીનતા બનાવો: 3 પક્ષ નીતિ-વચન વગર શીખવે, 4 પક્ષ પ્રયોગો પહેલાં મૂકે. ગુરુવારે સાથે પુસ્તકો દાન કરો." }
+    },
+    "3-5": {
+      friction: { en: "Jupiter's depth vs Mercury's speed — advice sounds like criticism to the 5-side; the 3-side finds the 5-side scattered and superficial.", hi: "गुरु की गहराई बनाम बुध की गति — 5 पक्ष को सलाह आलोचना लगती है; 3 पक्ष 5 पक्ष को बिखरा हुआ और ऊपरी समझता है।", gu: "ગુરુની ઊંડાણ વિરુદ્ધ બુધની ઝડપ — 5 પક્ષને સલાહ ટીકા લાગે; 3 પક્ષ 5 પક્ષને બિખરાયેલો અને સપરી સમજે." },
+      bridge: { en: "Agree on when to advise and when to just listen. Give the 5-side variety in tasks and the 3-side one deep project; exchange books and skills monthly.", hi: "तय करें कब सलाह देनी है और कब केवल सुनना है। 5 पक्ष को काम में विविधता, 3 पक्ष को एक गहरा प्रोजेक्ट दें; मासिक पुस्तकें/कौशल साझा करें।", gu: "નક્કી કરો ક્યારે સલાહ આપવી અને ક્યારે ફક્ત સાંભળવું. 5 પક્ષને કામમાં વૈવિધ્ય, 3 પક્ષને એક ઊંડો પ્રોજેક્ટ આપો; માસિક પુસ્તકો/કૌશલ્ય વહેંચો." }
+    },
+    "3-6": {
+      friction: { en: "Jupiter's dharma and study vs Venus's comfort and luxury — spending vs saving, devotion vs enjoyment.", hi: "गुरु का धर्म और अध्ययन बनाम शुक्र का आराम और विलासिता — बचत बनाम खर्च, त्याग बनाम भोग।", gu: "ગુરુનો ધર્મ અને અભ્યાસ વિરુદ્ધ શુક્રનો આરામ અને વિલાસ — બચત વિરુદ્ધ ખર્ચ, ત્યાગ વિરુદ્ધ ભોગ." },
+      bridge: { en: "Balance altar and dining table: one shared study/devotion hour weekly, and a planned allowance for beauty and food joys — generosity by design, not by guilt.", hi: "पूजा और परोस को संतुलित करें: साप्ताहिक एक साझा अध्ययन/भक्ति घंटा, और सौंदर्य-स्वाद के लिए नियोजित खर्च — बिना अपराध-बोध के औदार्य।", gu: "પૂજા અને પરોસાનું સંતુલન: સાપ્તાહિક એક સામુહિક અભ્યાસ/ભક્તિ કલાક, અને સૌંદર્ય-સ્વાદ માટે આયોજિત ખર્ચ — અપરાધ-ભાવ વગર ઉદારતા." }
+    },
+    "3-7": {
+      friction: { en: "Jupiter's outward teaching vs Ketu's inward detachment — one expands the world, the other renounces it; plans meet sudden withdrawal.", hi: "गुरु का बाहरमुखी उपदेश बनाम केतु का भीतरमुखी वैराग्य — एक जग का विस्तार करता है, दूसरा त्याग; योजनाएँ अचानक मौन से मिलती हैं।", gu: "ગુરુનું બહિર્મુખ શિક્ષણ વિરુદ્ધ કેતુનું અંતર્મુખ વૈરાગ્ય — એક જગતનો વિસ્તાર કરે, બીજો ત્યાગે; યોજનાઓ અચાનક મૌન પામે." },
+      bridge: { en: "Honour the 7-side's silences as practice, not rejection; the 7-side announces retreats in advance. Read scripture or walk in nature together weekly.", hi: "7 पक्ष का मौन साधना है, अस्वीकृति नहीं — इसे सम्मान दें; 7 पक्ष एकांत पहले बता दे। साप्ताहिक शास्त्र-पाठ या प्रकृति-भ्रमण साझा करें।", gu: "7 પક્ષનું મૌન સાધના છે, અસ્વીકૃતિ નહીં — તેને સન્માન આપો; 7 પક્ષ એકાંત પહેલાં જણાવે. સાપ્તાહિક શાસ્ત્ર-પાઠ કે પ્રકૃતિ-સવારી સાથે કરો." }
+    },
+    "4-9": {
+      friction: { en: "Rahu's risky shortcuts meet Mars's blunt force — impulsive decisions meet a short fuse; arguments escalate fast.", hi: "राहु के जोखिम भरे शॉर्टकट और मंगल की सीधी तेज़ शक्ति — आवेशी निर्णय और तपती ज़ुबान; बहस तेज़ी से बढ़ती है।", gu: "રાહુના જોખમી ટૂંકા રસ્તા અને મંગળની સીધી તેજ શક્તિ — આવેશી નિર્ણય અને ગરમ જીભ; વાદ-વિવાદ ઝડપથી વધે." },
+      bridge: { en: "Cool the fire with the body: exercise or sport together before hard talks. The 9-side speaks after counting to ten; the 4-side drops half-finished risky plans.", hi: "शरीर से अग्नि शांत करें: कठिन बात से पहले साथ व्यायाम/खेल। 9 पक्ष दस तक गिनकर बोले; 4 पक्ष अधूरे जोखिम भरे प्लान छोड़ दे।", gu: "શરીરથી અગ્નિ શાંત કરો: કઠિન વાત પહેલાં સાથે કસરત/રમત. 9 પક્ષ દસ ગણીને બોલે; 4 પક્ષ અધૂરા જોખમી પ્લાન છોડી દે." }
+    },
+    "7-9": {
+      friction: { en: "Ketu's detachment vs Mars's fiery drive — one renounces, one conquers; shared plans stall between mysticism and muscle.", hi: "केतु का वैराग्य बनाम मंगल की तेज़ चाह — एक त्यागता है, दूसरा जीतता है; रहस्यवाद और बल के बीच योजनाएँ अटकती हैं।", gu: "કેતુનો વૈરાગ્ય વિરુદ્ધ મંગળની તેજ ઇચ્છા — એક ત્યાગે, બીજો જીતે; રહસ્યવાદ અને બળ વચ્ચે યોજનાઓ અટકે." },
+      bridge: { en: "Channel Mars into seva (service) and Ketu into shared pilgrimage — purpose unites them. The 9-side sets the pace, the 7-side sets the meaning; review goals under one roof monthly.", hi: "मंगल को सेवा में और केतु को साझा तीर्थ में जोड़ें — उद्देश्य दोनों को जोड़ता है। 9 पक्ष गति निर्धारित करे, 7 पक्ष अर्थ; मासिक एक स्थान पर लक्ष्य समीक्षा करें।", gu: "મંગળને સેવામાં અને કેતુને સામુહિક તીર્થમાં જોડો — હેતુ બંનેને જોડે. 9 પક્ષ ગતિ નક્કી કરે, 7 પક્ષ અર્થ; માસિક એક સ્થળે લક્ષ્ય-સમીક્ષા કરો." }
+    }
+  };
+
+  function pairKey(x, y) { return Math.min(x, y) + "-" + Math.max(x, y); }
+
+  function compatRemedies(a, b, compat) {
+    const db = getActiveDB();
+    const conflicts = compat.pairs
+      .filter((pr) => pr.r === "enemy")
+      .map((pr) => {
+        const g = PAIR_BRIDGE[pairKey(pr.aNum, pr.bNum)] || null;
+        return Object.assign({}, pr, {
+          planetA: db.numbers[pr.aNum].planet,
+          planetB: db.numbers[pr.bNum].planet,
+          friction: g ? g.friction : null,
+          bridge: g ? g.bridge : null
+        });
+      });
+    /* bridge numbers: acceptable (never enemy) to BOTH charts, ranked */
+    const four = [a.driver, a.conductor, b.driver, b.conductor].filter((n, i, arr) => arr.indexOf(n) === i);
+    const bridges = [];
+    for (let n = 1; n <= 9; n++) {
+      const rels = four.map((m) => (m === n ? "friendly" : relation(m, n)));
+      if (rels.indexOf("enemy") !== -1) continue;
+      const score = rels.reduce((s, r) => s + (r === "friendly" ? 2 : 1), 0);
+      bridges.push({ n, score, planet: db.numbers[n].planet.split(" ")[0], day: db.numbers[n].day, color: db.numbers[n].color.split(",")[0] });
+    }
+    bridges.sort((x, y) => y.score - x.score || x.n - y.n);
+    return {
+      conflicts,
+      bridges: bridges.slice(0, 3),
+      bridgePool: bridges.length,
+      neutralLinks: compat.pairs.filter((pr) => pr.r === "neutral").length
+    };
+  }
+
 
   function vehicleAnalysis(p) {
     const db = getActiveDB();
@@ -1558,7 +1649,7 @@
     if (!p.birthPlace) need.push("<strong>birth city / place</strong>");
     let unlockText;
     if (a.placeUnmatched) {
-      unlockText = `We couldn't match <strong>“${esc(p.birthPlace)}”</strong> to the built-in atlas (${(window.NVAstro && window.NVAstro.cityNames().length) || 400}+ cities, fully offline). Try “City, State” — e.g. <strong>Faridabad, India</strong> — or enter coordinates like <strong>“28.41, 77.32”</strong> (add a third number to override the time zone, e.g. “40.71, -74.01, -5”).`;
+      unlockText = `We couldn't match <strong>“${esc(p.birthPlace)}”</strong> to the built-in atlas (${(window.NVAstro && window.NVAstro.cityNames().length) || 630}+ cities, fully offline). Try “City, State” — e.g. <strong>Faridabad, India</strong> — or enter coordinates like <strong>“28.41, 77.32”</strong> (add a third number to override the time zone, e.g. “40.71, -74.01, -5”).`;
     } else if (need.length === 1) {
       unlockText = `Almost unlocked — add your ${need[0]} (Edit Details → Vedic Precision) to reveal your <strong>Moon Sign (Chandra Rashi)</strong>, <strong>Nakshatra</strong> with its pada, <strong>Lagna</strong> and <strong>Midheaven</strong>, computed instantly on this device.`;
     } else {
@@ -2227,9 +2318,76 @@
     </section>`;
 
     const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
-    const compat = partnerValid
-      ? compatibility(p, computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }))
+    const partnerFirst = (p.partnerName || "").trim().split(/\s+/)[0] || (lang === "hi" ? "पार्टनर" : lang === "gu" ? "પાર્ટનર" : "partner");
+    const partnerProfile = partnerValid
+      ? computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" })
       : null;
+    const compat = partnerValid ? compatibility(p, partnerProfile) : null;
+    const cRem = compat ? compatRemedies(p, partnerProfile, compat) : null;
+    const LT = (en, hi, gu) => (lang === "hi" ? hi : lang === "gu" ? gu : en);
+
+    /* Compatibility remedy card — turns the pairwise match into a shared,
+       prescriptive plan: friction -> bridge conduct, couple rituals drawn
+       from the two planets' remedy kits, and numbers acceptable to both. */
+    const compatRemedyCard = !cRem ? "" : (function () {
+      const T = [];
+      const introText = (compat.verdict === "Strong" || compat.verdict === "Good")
+        ? LT("Your pairing is naturally aligned — the plan below protects the bond, converts the neutral links into strengths, and gives the relationship a shared weekly rhythm.",
+             "आपका मिलान स्वाभाविक रूप से अनुकूल है — नीचे दी योजना बंधन को सुरक्षित रखती है, तटस्थ कड़ियों को सामर्थ्य में बदलती है, और संबंध को साझा साप्ताहिक लय देती है।",
+             "તમારું મિલાન કુદરતી રીતે અનુકૂળ છે — નીચેની યોજના બંધનને સુરક્ષિત રાખે છે, તટસ્થ કડીઓને શક્તિમાં બદલે છે, અને સંબંધને સામુહિક સાપ્તાહિક લય આપે છે.")
+        : (compat.verdict === "Workable")
+          ? LT("These remedies target the specific conflicting pairs — practise them together for one 40-day mandala to soften the friction and build the bridge.",
+               "ये उपाय विशेष रूप से टकराव वाली कड़ियों पर काम करते हैं — एक 40-दिन मंडल तक साथ करें, घर्षण घटेगा और सेतु बनेगी।",
+               "આ ઉપાયો ખાસ ટકરાવવાળી કડીઓ પર કામ કરે છે — એક 40-દિવસ મંડળ સુધી સાથે કરો, ઘર્ષણ ઘટશે અને સેતુ બનશે.")
+          : LT("This pairing needs conscious bridging — treat the plan below as priority repair work. Every remedy is small enough to do together; consistency converts friction into understanding.",
+               "इस मिलान को सजग सेतु-निर्माण चाहिए — नीचे की योजना को प्राथमिक मरम्मत कार्य मानें। हर उपाय साथ में करने लायक सरल है; निरंतरता ही घर्षण को समझ में बदलती है।",
+               "આ મિલાનને જાગૃત સેતુ-નિર્માણ જોઈએ — નીચેની યોજનાને પ્રાથમિક સમારકામ ગણો. દરેક ઉપાય સાથે કરી શકાય એટલો સરળ છે; નિયમિતતા જ ઘર્ષણને સમજણમાં બદલે.");
+      T.push('<div class="card" id="compat-remedies">');
+      T.push('<div class="goal-head"><div class="card-title">🤝 ' + LT("Compatibility remedy plan", "सामंजस्य उपाय योजना", "સુસંગતતા ઉપાય યોજના") + " — " + esc(p.name.split(/\s+/)[0]) + " &amp; " + esc(partnerFirst) + '</div><span class="badge ' + (compat.enemy ? "warn" : "good") + '">' + (cRem.conflicts.length ? cRem.conflicts.length + " " + LT("clash pair(s)", "टकराव जोड़(ें)", "ટકરાવ જોડી(ઓ)") : LT("no clashes", "कोई टकराव नहीं", "કોઈ ટકરાવ નહીં")) + "</span></div>");
+      T.push('<div class="kit-value">' + introText + "</div>");
+      cRem.conflicts.forEach(function (c) {
+        T.push('<div class="kit-row"><div class="kit-ico">⚡</div><div class="kit-body"><div class="kit-label">' + esc(c.a) + " (" + esc(c.planetA.split(" ")[0]) + ") × " + esc(c.b) + " (" + esc(c.planetB.split(" ")[0]) + ")</div>");
+        T.push(c.friction
+          ? '<div class="kit-value">' + esc(c.friction[lang] || c.friction.en) + '</div><div class="kit-value">🌉 ' + esc(c.bridge[lang] || c.bridge.en) + "</div>"
+          : '<div class="kit-value">' + LT("Conflicting planets — both partners keep their own planet's remedy kit active (kits below).", "प्रतिकूल ग्रह — दोनों साथी अपने-अपने ग्रह का उपाय-किट सक्रिय रखें (नीचे किट देखें)।", "પ્રતિકૂળ ગ્રહો — બંને ભાગીદારો પોતાના ગ્રહનો ઉપાય-કિટ સક્રિય રાખે (નીચે કિટ જુઓ).") + "</div>");
+        T.push("</div></div>");
+        T.push('<div class="kit-row"><div class="kit-ico">🕊</div><div class="kit-body"><div class="kit-label">' + LT("Couple remedy for this pair", "इस जोड़ी का संयुक्त उपाय", "આ જોડીનો સંયુક્ત ઉપાય") + "</div>");
+        T.push('<div class="kit-value">' + LT("You", "आप", "તમે") + ": " + esc(db.numbers[c.aNum].charity) + " · " + LT("chant", "जपें", "જપો") + ' <span class="mantra">' + esc(db.mantraShort[c.aNum].dev) + "</span> 11×<br>" + esc(partnerFirst) + ": " + esc(db.numbers[c.bNum].charity) + " · " + LT("chants", "जपें", "જપો") + ' <span class="mantra">' + esc(db.mantraShort[c.bNum].dev) + "</span> 11×</div>");
+        T.push('<div class="kit-value">' + LT("On those two weekdays wear", "उन दो वारों पर पहनें", "એ બે વારે પહેરો") + " <strong>" + esc(db.numbers[c.aNum].color.split(",")[0]) + "</strong> / <strong>" + esc(db.numbers[c.bNum].color.split(",")[0]) + "</strong> " + LT("and avoid hard conversations on the other's weekday.", "और दूसरे के वार पर कठिन बातचीत टालें।", "અને બીજાના વારે કઠિન વાતચીત ટાળો.") + "</div></div></div>");
+      });
+      if (!cRem.conflicts.length && cRem.neutralLinks) {
+        const rows = compat.pairs.filter(function (pr) { return pr.r === "neutral"; }).map(function (pr) {
+          const nn = pr.bNum;
+          return LT(pr.b + " (" + db.numbers[nn].planet.split(" ")[0] + ") — on " + db.numbers[nn].day + ", one of you wears " + db.numbers[nn].color.split(",")[0] + " and you donate together: " + db.numbers[nn].charity + ".",
+                    esc(pr.b) + " (" + esc(db.numbers[nn].planet.split(" ")[0]) + ") — " + esc(db.numbers[nn].day) + " को आप दोनों में से एक " + esc(db.numbers[nn].color.split(",")[0]) + " पहने और साथ दान करें: " + esc(db.numbers[nn].charity) + ".",
+                    esc(pr.b) + " (" + esc(db.numbers[nn].planet.split(" ")[0]) + ") — " + esc(db.numbers[nn].day) + "એ તમે બંનેમાંથી એક " + esc(db.numbers[nn].color.split(",")[0]) + " પહેરો અને સાથે દાન કરો: " + esc(db.numbers[nn].charity) + ".");
+        }).join("<br>");
+        T.push('<div class="kit-row"><div class="kit-ico">🌱</div><div class="kit-body"><div class="kit-label">' + LT("Activate the neutral links", "तटस्थ कड़ियों को सक्रिय करें", "તટસ્થ કડીઓ સક્રિય કરો") + '</div><div class="kit-value">' + rows + "</div></div></div>");
+      }
+      if (cRem.bridges.length) {
+        const b0 = cRem.bridges[0];
+        const useText = LT("Use them where the two of you share a number: the last digit of a new mobile number, vehicle totals, house/flat numbers, joint account or firm names (Chaldean total), and the digit-sum of engagement/wedding/launch dates. " + b0.n + " is your strongest shared vibration — its day is " + b0.day + ", its colour " + b0.color + ".",
+                           "इन्हें वहाँ चुनें जहाँ दोनों का अंक साझा होता है: नए मोबाइल का अंतिम अंक, वाहन कुल, मकान/फ्लैट नंबर, संयुक्त खाते या फर्म का नाम (कालदेवी कुल), और सगाई/विवाह/उद्घाटन तिथि का अंक-योग। " + b0.n + " आपकी सबसे प्रबल साझा कंपन है — इसका वार " + b0.day + " और रंग " + b0.color + " है।",
+                           "તેમને ત્યાં પસંદ કરો જ્યાં બંનેનો અંક સાઝો હોય: નવા મોબાઈલનો છેલ્લો અંક, વાહન કુલ, મકાન/ફ્લેટ નંબર, સંયુક્ત ખાતાં કે ફર્મનું નામ (કલ્દી કુલ), અને સગાઈ/લગ્ન/ઉદ્ઘાટન તારીખનો અંક-સરવાળો. " + b0.n + " તમારો સૌથી પ્રબળ સાઝો કંપન છે — તેનો વાર " + b0.day + " અને રંગ " + b0.color + ".");
+        T.push('<div class="kit-row"><div class="kit-ico">🌉</div><div class="kit-body"><div class="kit-label">' + LT("Bridge numbers — friendly to both charts", "सेतु अंक — दोनों के अनुकूल", "સેતુ અંક — બંનેને અનુકૂળ") + '</div><div class="kit-value">' + cRem.bridges.map(function (br) { return "<strong>" + br.n + "</strong> (" + esc(br.planet) + ")"; }).join(" · ") + '</div><div class="kit-value">' + useText + "</div></div></div>");
+      }
+      if (cRem.conflicts.length) {
+        T.push('<div class="kit-value" style="margin-top:8px">🧩 ' + LT("Bridge kits below carry the full remedy set (mantra, crystal, rudraksha, yantra, fasting) for the partner-side planets in your top conflicts — run both partners' kits in parallel through the 40-day plan.",
+          "नीचे के सेतु-किट में आपके प्रमुख टकरावों के पार्टनर-पक्ष ग्रहों का पूरा उपाय-सेट (मंत्र, रत्न, रुद्राक्ष, यंत्र, व्रत) है — 40-दिन योजना के दौरान दोनों किट समानांतर चलाएँ।",
+          "નીચેના સેતુ-કિટમાં તમારા મુખ્ય ટકરાવોના પાર્ટનર-પક્ષ ગ્રહોનો સંપૂર્ણ ઉપાય-સેટ (મંત્ર, રત્ન, રુદ્રાક્ષ, યંત્ર, વ્રત) છે — 40-દિવસ યોજના દરમિયાન બંને કિટ સમાંતર ચલાવો.") + "</div>");
+        const seenKit = [];
+        const kitHtml = cRem.conflicts.map(function (c) {
+          if (seenKit.indexOf(c.bNum) !== -1) return "";
+          seenKit.push(c.bNum);
+          if (seenKit.length > 2) return "";
+          return kitCard(c.bNum, LT("Bridge kit — accommodate " + partnerFirst + "'s " + c.planetB, partnerFirst + " के " + c.planetB + " के लिए सेतु-किट", partnerFirst + "ના " + c.planetB + " માટે સેતુ-કિટ"));
+        }).join("");
+        T.push('<div class="card-grid two">' + kitHtml + "</div>");
+      }
+      T.push("</div>");
+      return T.join("");
+    })();
+
     const compatSection = `<section class="rsection" id="compatibility-section">
       <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>${t("secCompat", "Compatibility & Matchmaking")}</h2>
       ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
@@ -2243,7 +2401,8 @@
             ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
           </table></div>
           <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को कम करने के लिए उपाय और संवाद आवश्यक है।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને ઘટાડવા માટે ઉપાયો અને સંવાદ જરૂરી છે." : "Challenging pairing — the conflicting numbers need remedies and clear communication to bridge.")}</div>
-        </div>`
+        </div>
+        ${compatRemedyCard}`
       : `<div class="card">
           <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
           <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
@@ -2681,7 +2840,7 @@
   window.__NV = {
     computeProfile, nameSuggestions, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign,
-    zodiacSignSidereal, kuaNumber, compatibility, compoundMeaning,
+    zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, relation, chaldeanValue, validatePack,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderReport, showReport, showIntake, getActiveDB
