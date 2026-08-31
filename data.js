@@ -756,13 +756,56 @@ var DB = {
     friendly: "Your name number vibrates in harmony with your birth numbers — no spelling change needed.",
     neutral:  "Your name number is neutral. It neither blocks nor boosts; a tuned spelling could add support.",
     enemy:    "Your name number conflicts with your birth numbers — a spelling correction is strongly recommended."
+  },
+
+  /* ---- Excess energy (numbers repeated 3+ times) — channeling guidance ----
+     A repeated number is a talent amplifier. When it overshoots it shows up as
+     the negative pole of that planet; the "channel" guidance redirects the
+     surplus into a fruitful, happy, wholesome direction — never adds more fuel. */
+  excessEnergy: {
+    1: {
+      overshoot: { en: "Ego and dominance in family/team decisions, needing to be right, friction with father or authority, burnout from carrying everything alone.", hi: "परिवार/टीम के निर्णयों में अहंकार और दबदबा, हमेशा सही होने की ज़िद, पिता या अधिकार से मनमुटाव, सब कुछ अकेले ढोने से थकावट।", gu: "કુટુંબ/ટીમના નિર્ણયોમાં અહંકાર અને દબદબો, હંમેશાં સાચા હોવાની જિદ, પિતા કે સત્તા સાથે મનમુટાવ, બધું એકલા ઉપાડવાથી થાક." },
+      channel: { en: "Lead by lifting others — mentor one person weekly and give credit in public; offer water to the rising Sun; donate wheat or jaggery on a Sunday as a humility practice.", hi: "दूसरों को आगे बढ़ाकर नेतृत्व करें — हर हफ्ते किसी एक को मार्गदर्शन दें और सार्वजनिक रूप से श्रेय दें; उगते सूर्य को जल अर्पित करें; विनम्रता हेतु रविवार को गेहूं या गुड़ दान करें।", gu: "બીજાને આગળ લાવીને નેતૃત્વ કરો — દર અઠવાડિયે કોઈ એકને માર્ગદર્શન આપો અને જાહેરમાં શ્રેય આપો; ઊગતા સૂર્યને જળ અર્પણ કરો; નમ્રતા માટે રવિવારે ઘઉં કે ગોળ દાન કરો." }
+    },
+    2: {
+      overshoot: { en: "Overthinking, mood swings, emotional dependence, sleepless nights, indecision from feeling too much.", hi: "अत्यधिक सोचना, मन की लहरें, भावनात्मक निर्भरता, नींद न आना, बहुत ज़्यादा महसूस करने से असमंजस।", gu: "વધુ પડતું વિચારવું, મનની લહેરો, લાગણીશીલ નિર્ભરતા, ઊંઘ ન આવવી, વધુ પડતું અનુભવવાથી દ્વિધા." },
+      channel: { en: "Channel the sensitive mind into service — write or journal nightly, spend quiet time near water; fast on Monday or serve your mother to ground the Moon.", hi: "संवेदनशील मन को सेवा में लगाएं — रात को लिखें या डायरी रखें, जल के पास शांत समय बिताएं; सोमवार को उपवास रखें या मां की सेवा करें।", gu: "સંવેદનશીલ મનને સેવામાં લગાવો — રાત્રે લખો કે ડાયરી રાખો, પાણી પાસે શાંત સમય પસાર કરો; સોમવારે ઉપવાસ રાખો કે માતાની સેવા કરો." }
+    },
+    3: {
+      overshoot: { en: "Over-generosity, unsolicited advice, ego in teaching, spending on status, friction with children or mentors.", hi: "अति उदारता, अनचाही सलाह, सिखाने में अहंकार, प्रतिष्ठा पर खर्च, बच्चों/गुरुओं से उलझन।", gu: "અતિ ઉદારતા, અણધારી સલાહ, શીખવવામાં અહંકાર, પ્રતિષ્ઠા પર ખર્ચ, બાળકો/ગુરુ સાથે મતભેદ." },
+      channel: { en: "Turn wisdom into structured teaching or writing; give knowledge (books, mentoring), not money; donate books on Thursday and practise humility in counsel.", hi: "ज्ञान को व्यवस्थित शिक्षण या लेखन में बदलें; धन नहीं, ज्ञान (पुस्तकें/मार्गदर्शन) दें; गुरुवार को पुस्तकें दान करें और सलाह में नम्रता रखें।", gu: "જ્ઞાનને વ્યવસ્થિત શિક્ષણ કે લેખનમાં ફેરવો; ધન નહીં, જ્ઞાન (પુસ્તકો/માર્ગદર્શન) આપો; ગુરુવારે પુસ્તકો દાન કરો અને સલાહમાં નમ્રતા રાખો." }
+    },
+    4: {
+      overshoot: { en: "Restlessness, shortcuts and risky gambles, tech/gadget over-dependence, sudden volatility, distrust.", hi: "बेचैनी, शॉर्टकट और जोखिम भरे दांव, तकनीक/गैजेट पर अत्यधिक निर्भरता, अचानक उतार-चढ़ाव, अविश्वास।", gu: "બેચેની, શોર્ટકટ અને જોખમી શરત, ટેક/ગેજેટ પર અતિ નિર્ભરતા, અચાનક ઉતાર-ચઢાવ, અવિશ્વાસ." },
+      channel: { en: "Channel the hunger into innovation and technology careers; discipline screen time; donate blankets or sesame on Saturday; ground decisions in routine.", hi: "इस महत्वाकांक्षा को नवाचार और तकनीकी करियर में लगाएं; स्क्रीन समय नियंत्रित करें; शनिवार को कंबल/तिल दान करें; निर्णय दिनचर्या पर टिकाएं।", gu: "આ મહત્વાકાંક્ષાને નવીનતા અને ટેક કરિયરમાં લગાવો; સ્ક્રીન સમય મર્યાદિત રાખો; શનિવારે ધાબળા/તલ દાન કરો; નિર્ણયો દિનચર્યા પર ટેકવો." }
+    },
+    5: {
+      overshoot: { en: "Scattered focus, chatter and over-promising, nervous energy, too many deals, superficial connections.", hi: "बिखरा हुआ ध्यान, बहुत बोलना और वादों का बोझ, घबराहट भरी ऊर्जा, बहुत सारे सौदे, सतही रिश्ते।", gu: "છૂટાછવાયું ધ્યાન, વધુ બોલવું અને વચનોનો બોજ, ગભરાટ ભરી ઊર્જા, ઘણા સોદા, સપાટીપરી સંબંધો." },
+      channel: { en: "Channel the speed into writing, trading, data or marketing; speak less and listen more; journal daily; donate green moong or stationery on Wednesday.", hi: "गति को लेखन, व्यापार, डेटा या मार्केटिंग में लगाएं; कम बोलें, ज़्यादा सुनें; रोज डायरी लिखें; बुधवार को हरा मूंग/स्टेशनरी दान करें।", gu: "ઝડપને લેખન, વેપાર, ડેટા કે માર્કેટિંગમાં લગાવો; ઓછું બોલો, વધુ સાંભળો; રોજ ડાયરી લખો; બુધવારે લીલા મગ/સ્ટેશનરી દાન કરો." }
+    },
+    6: {
+      overshoot: { en: "Over-indulgence in luxury, spending, attraction or relationships, vanity, comfort-seeking.", hi: "विलासिता, खर्च, आकर्षण/रिश्तों में अति, दिखावा, आराम की तलाश की अधिकता।", gu: "વૈભવ, ખર્ચ, આકર્ષણ/સંબંધોમાં અતિ, દેખાડો, આરામની શોધ વધુ પડતી." },
+      channel: { en: "Channel charm into art, hospitality or relationship counselling; enjoy beauty without excess — give white sweets or curd on Friday; make Friday a shared day of enjoyment.", hi: "आकर्षण को कला, आतिथ्य या रिश्तों की सलाह में लगाएं; सौंदर्य का आनंद संयम से लें — शुक्रवार को सफेद मिठाई/दही दान करें; शुक्रवार को साझा आनंद का दिन बनाएं।", gu: "આકર્ષણને કલા, આતિથ્ય કે સંબંધ-સલાહમાં લગાવો; સૌંદર્યનો આનંદ મર્યાદાથી લો — શુક્રવારે સફેદ મીઠાઈ/દહીં દાન કરો; શુક્રવારને સાઝો આનંદનો દિવસ બનાવો." }
+    },
+    7: {
+      overshoot: { en: "Detachment and withdrawal, unexplained fears, isolation, sudden losses, escapism.", hi: "वैराग्य और एकांत, अज्ञात भय, अलगाव, अचानक हानि, पलायनवाद।", gu: "વૈરાગ્ય અને એકાંત, અજ્ઞાત ભય, અલગાવ, અચાનક હાનિ, પલાયનવાદ." },
+      channel: { en: "Channel intuition into research, spirituality or healing; meditate 10 minutes daily; donate silently (stray dogs, blankets); stay connected to people.", hi: "अंतर्ज्ञान को शोध, अध्यात्म या चिकित्सा में लगाएं; रोज 10 मिनट ध्यान करें; बिना घोषणा दान करें (आवारा कुत्ते/कंबल); लोगों से जुड़े रहें।", gu: "અંતર્જ્ઞાનને સંશોધન, અધ્યાત્મ કે ચિકિત્સામાં લગાવો; રોજ 10 મિનિટ ધ્યાન કરો; જાહેરાત વગર દાન કરો (રખડતા કૂતરા/ધાબળા); લોકો સાથે જોડાયેલા રહો." }
+    },
+    8: {
+      overshoot: { en: "Overwork and burnout, pessimism, delays and blame, controlling others, joint or bone strain.", hi: "अति परिश्रम और थकावट, निराशावाद, विलंब और दोषारोपण, दूसरों को नियंत्रित करना, जोड़ों/हड्डियों में खिंचाव।", gu: "વધુ પડતું કામ અને થાક, નિરાશાવાદ, વિલંબ અને દોષારોપણ, બીજાને નિયંત્રિત કરવું, સાંધા/હાડકાંની તાણ." },
+      channel: { en: "Delegate Saturn's workload; serve workers and elders; donate oil, iron or black sesame on Saturday; take one rest day and structure work in cycles.", hi: "शनि का बोझ बांटें — काम सौंपें; मजदूरों/बड़ों की सेवा करें; शनिवार को तेल, लोहा या काले तिल दान करें; एक विश्राम दिवस रखें और काम को चक्रों में बांटें।", gu: "શનિનો બોજો વહેંચો — કામ સોંપો; મજૂરો/વડીલોની સેવા કરો; શનિવારે તેલ, લોખંડ કે કાળા તલ દાન કરો; એક વિશ્રાંતિ દિવસ રાખો અને કામને ચક્રોમાં વહેંચો." }
+    },
+    9: {
+      overshoot: { en: "Anger, impulsive action, conflict, accidents, fiery arguments, a dominating force.", hi: "क्रोध, आवेशपूर्ण कार्य, संघर्ष, दुर्घटनाएं, तीखी बहस, दबदबे की शक्ति।", gu: "ક્રોધ, આવેશી કાર્ય, સંઘર્ષ, અકસ્માત, તીખી દલીલ, દબદબાની શક્તિ." },
+      channel: { en: "Channel Mars into sport, exercise, martial arts or seva; count to ten before speaking; donate red lentils or red cloth on Tuesday; lead by protecting, not fighting.", hi: "मंगल को खेल, व्यायाम, मार्शल आर्ट या सेवा में लगाएं; बोलने से पहले दस तक गिनें; मंगलवार को मसूर की दाल/लाल कपड़ा दान करें; रक्षक बनकर नेतृत्व करें, लड़ाकू नहीं।", gu: "મંગળને રમત, કસરત, માર્શલ આર્ટ કે સેવામાં લગાવો; બોલતાં પહેલાં દસ સુધી ગણો; મંગળવારે મસૂર/લાલ કાપડ દાન કરો; લડાકુ નહીં, રક્ષક બનીને નેતૃત્વ કરો." }
+    }
   }
 };
 
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 1,
-  packVersion: "2.1.0",
+  packVersion: "2.2.0",
   generatedAt: "2026-08-20T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
