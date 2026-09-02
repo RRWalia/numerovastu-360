@@ -55,7 +55,7 @@ const checks = [
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
   ["app version badge", $("#appBadge").textContent === "App v2.6.1 · Meeus engine"],
   ["build badge", $("#buildBadge").textContent === "Build 2026-09-02"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.4.0")],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.5.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -130,6 +130,12 @@ const checks = [
   ["dosha aggravation cross-ref in excess energy", report.includes("Dosha view:") && report.includes("repeated 3×")],
   ["dosha-aware 40-day plan line", report.includes("Dosha-aware rhythm:") && report.includes("anchor the morning ritual")],
   ["dosha disclaimer on card", report.includes("traditional wellness guidance") && report.includes("not a substitute for professional medical advice")],
+  ["deity protection card renders", report.includes("Deity Protection Layer — Your Ishta Devta") && report.includes('id="deity-card"')],
+  ["deity card names both guardian deities", report.includes("Lord Shiva") && report.includes("Shri Hanuman")],
+  ["deity card shows classical mantras", report.includes("Om Namah Shivaya") && report.includes("Hum Hanumante Namah")],
+  ["deity aggravation cross-ref in excess energy", report.includes("Deity view:") && report.includes("2 (Moon) → Lord Shiva")],
+  ["deity chant line in 40-day plan", report.includes("Ishta Devta chant:") && report.includes("11× in the early morning on an empty stomach")],
+  ["deity disclaimer on card", report.includes("traditional spiritual guidance") && report.includes("family tradition")],
   ["no NaN leaks", !report.includes("NaN")],
 ];
 
@@ -181,6 +187,8 @@ const hindiChecks = [
   ["Hindi ayurvedic dosha card", rHi.includes("आयुर्वेदिक दोष स्तर") && rHi.includes("मिश्रित प्रकृति")],
   ["Hindi dosha cross-ref + plan line", rHi.includes("दोष-दृष्टि") && rHi.includes("दोष-लय")],
   ["Hindi dosha disclaimer", rHi.includes("पारंपरिक") && rHi.includes("पेशेवर चिकित्सा सलाह")],
+  ["Hindi deity protection card", rHi.includes("देव-संरक्षण स्तर — आपका इष्ट देवता") && rHi.includes("इष्ट-देव मंत्र:")],
+  ["Hindi deity cross-ref + disclaimer", rHi.includes("देव-दृष्टि:") && rHi.includes("पारंपरिक आध्यात्मिक मार्गदर्शन") && rHi.includes("गुरु की आज्ञा")],
   ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
   ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
   ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
@@ -208,6 +216,8 @@ const gujaratiChecks = [
   ["Gujarati ayurvedic dosha card", rGu.includes("આયુર્વેદિક દોષ સ્તર") && rGu.includes("મિશ્ર પ્રકૃતિ")],
   ["Gujarati dosha cross-ref + plan line", rGu.includes("દોષ-દૃષ્ટિ") && rGu.includes("દોષ-લય")],
   ["Gujarati dosha disclaimer", rGu.includes("પરંપરાગત") && rGu.includes("વ્યાવસાયિક તબીબી સલાહ")],
+  ["Gujarati deity protection card", rGu.includes("દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા") && rGu.includes("ઈષ્ટ-દેવ મંત્ર:")],
+  ["Gujarati deity cross-ref + disclaimer", rGu.includes("દેવ-દૃષ્ટિ:") && rGu.includes("પરંપરાગત આધ્યાત્મિક માર્ગદર્શન") && rGu.includes("ગુરુની આજ્ઞા")],
 ];
 gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -343,6 +353,28 @@ const doshaProfileChecks = [
   ["doshaProfile exposes balanced/support gaps", typeof doshaProfile.counts.pitta === "number" && Array.isArray(doshaProfile.underSupported) && Array.isArray(doshaProfile.missingDosha)],
 ];
 doshaProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 3e: Deity protection layer (ishta devta) content + pure compute function.
+const deityDb = window.__NV.getActiveDB().deity || {};
+const deityChecks = [
+  ["deity data has 9 numbers", Object.keys(deityDb).length === 9],
+  ["each deity has trilingual god + classical mantra", [1,2,3,4,5,6,7,8,9].every((n) => deityDb[n] && deityDb[n].god && deityDb[n].god.en && deityDb[n].god.hi && deityDb[n].god.gu && typeof deityDb[n].mantra === "string" && deityDb[n].mantra.length > 10)],
+  ["each deity has trilingual chant + offerings + support + protection note", [1,2,3,4,5,6,7,8,9].every((n) => deityDb[n] && ["primaryChant", "weeklyChant", "offerings", "support", "protectionNote"].every((k) => deityDb[n][k] && deityDb[n][k].en && deityDb[n][k].hi && deityDb[n][k].gu))],
+  ["mulank 5 maps to Lord Ganesha with pinned practice", deityDb[5].god.en === "Lord Ganesha" && deityDb[5].mantra.includes("Ganapataye") && deityDb[5].primaryChant.en.includes("11×") && deityDb[5].weeklyChant.en.includes("Wednesdays") && deityDb[5].offerings.en.includes("Modak")],
+  ["bhagyank 9 maps to Maa Durga with pinned practice", deityDb[9].god.en === "Maa Durga" && deityDb[9].mantra.includes("Durgaye") && deityDb[9].primaryChant.en.includes("Tuesdays") && deityDb[9].weeklyChant.en.includes("Navaratri")],
+];
+deityChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+const deityProfile = window.__NV.computeProfile({
+  name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", goals: ["Money", "Career"],
+  entrance: "SW", kitchen: "NE", bedroom: "SW", toilet: "NW", watchType: "smart", vehicle: "HR51AB1234"
+}).deityProfile;
+const deityProfileChecks = [
+  ["deityProfile pairs driver + conductor deities", deityProfile.driverNumber === 2 && deityProfile.conductorNumber === 8 && deityProfile.driverDeity.god.en === "Lord Shiva" && deityProfile.conductorDeity.god.en === "Shri Hanuman" && deityProfile.sameDeity === false],
+  ["deityProfile flags repeated 3+ with its guardian", deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count >= 3 && a.god.en === "Lord Shiva")],
+  ["deityProfile exposes missing/under-supported gaps", Array.isArray(deityProfile.missingDeity) && Array.isArray(deityProfile.underSupported)],
+];
+deityProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // fourth block: engine functions (kua + compatibility)
 const NV = window.__NV;

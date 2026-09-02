@@ -12,6 +12,7 @@ Last reviewed: 2026-09-02
 | Privacy posture | Strong | Calculations run in browser; no backend; anonymous contribution excludes personal fields. |
 | Vedic precision | Strong | Self-contained Meeus engine with reference-chart and brute-force cross-checks in tests. |
 | Content architecture | Strong | Versioned Knowledge Pack with schema, manifest and bundled fallback. |
+| Deity protection layer | Pass | Ishta devta mapping for numbers 1–9 (EN/HI/GU) in knowledge pack v2.5.0; smoke suite covers the card, excess-energy cross-ref and 40-day plan line. |
 | Accessibility baseline | Improved | Added keyboard skip link; form labels and aria-live regions already present. |
 | Visual regression | Added | Playwright specs cover desktop report and print-media first-page layouts, plus a print-pagination guard that keeps the Northstar Summary breakable across pages. |
 | SEO/share metadata | Improved | Added robots, theme colour, Open Graph and Twitter summary metadata. |

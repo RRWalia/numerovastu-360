@@ -47,6 +47,10 @@
       "dosha": {
         "type": "object",
         "description": "Optional Ayurvedic dosha layer: numbers 1–9 map to a planetary constitutional signature (dominant, nature, aggravation, balancingFoods, routine, mantraLinkedNote)."
+      },
+      "deity": {
+        "type": "object",
+        "description": "Optional deity protection layer: numbers 1–9 map to an ishta devta (god, mantra, primaryChant, weeklyChant, offerings, support, protectionNote) — traditional spiritual guidance."
       }
     }
   }
