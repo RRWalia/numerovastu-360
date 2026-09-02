@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.2.0",
-  "packUrl": "knowledge-pack/packs/2.2.0.json",
-  "notes": "Adds curated excess-energy channeling guidance for numbers repeated 3+ times (all nine numbers, in English, Hindi and Gujarati) and version-aware knowledge-pack restore."
+  "latestVersion": "2.3.0",
+  "packUrl": "knowledge-pack/packs/2.3.0.json",
+  "notes": "Adds classical Karmic Debt readings (13/14/16/19 checked at the unreduced birth-day, birth-date and name totals, with settling remedies) and the four-phase Pinnacle & Challenge life-cycle content — all in English, Hindi and Gujarati."
 }

@@ -799,14 +799,113 @@ var DB = {
       overshoot: { en: "Anger, impulsive action, conflict, accidents, fiery arguments, a dominating force.", hi: "क्रोध, आवेशपूर्ण कार्य, संघर्ष, दुर्घटनाएं, तीखी बहस, दबदबे की शक्ति।", gu: "ક્રોધ, આવેશી કાર્ય, સંઘર્ષ, અકસ્માત, તીખી દલીલ, દબદબાની શક્તિ." },
       channel: { en: "Channel Mars into sport, exercise, martial arts or seva; count to ten before speaking; donate red lentils or red cloth on Tuesday; lead by protecting, not fighting.", hi: "मंगल को खेल, व्यायाम, मार्शल आर्ट या सेवा में लगाएं; बोलने से पहले दस तक गिनें; मंगलवार को मसूर की दाल/लाल कपड़ा दान करें; रक्षक बनकर नेतृत्व करें, लड़ाकू नहीं।", gu: "મંગળને રમત, કસરત, માર્શલ આર્ટ કે સેવામાં લગાવો; બોલતાં પહેલાં દસ સુધી ગણો; મંગળવારે મસૂર/લાલ કાપડ દાન કરો; લડાકુ નહીં, રક્ષક બનીને નેતૃત્વ કરો." }
     }
+  },
+
+  /* ---- Karmic Debt numbers (13 / 14 / 16 / 19) ----
+     Classical rule: when the UNREDUCED birth day, the full birth-date total
+     or the Chaldean name total lands on one of these four numbers, the
+     reduced Driver/Conductor/Name number carries a specific karmic lesson.
+     Each entry: title, the lesson life keeps repeating, and the settling
+     remedy — routed through the planet remedy kit of the reduced root. */
+  karmicDebt: {
+    13: {
+      root: 4,
+      title: { en: "Debt of Effort (13 → 4)", hi: "परिश्रम का कर्मऋण (13 → 4)", gu: "પરિશ્રમનું કર્મઋણ (13 → 4)" },
+      lesson: { en: "Life keeps removing shortcuts until work is finished fully and honestly. Half-done efforts, corner-cutting, procrastination and shifting blame return as repeated obstacles — steady, organised effort is the only way through.",
+                hi: "जीवन तब तक शॉर्टकट बंद करता रहता है जब तक काम पूरी निष्ठा से पूरा न हो। आधे-अधूरे प्रयास, कोना काटना, टालमटोल और दोष दूसरों पर डालना बार-बार बाधा बनकर लौटते हैं — व्यवस्थित और निरंतर परिश्रम ही एकमात्र मार्ग है।",
+                gu: "જીવન ત્યાં સુધી શોર્ટકટ બંધ કરતું રહે છે જ્યાં સુધી કામ પૂરી નિષ્ઠાથી પૂરું ન થાય. અધૂરા પ્રયાસ, છેડા કાપવા, ટાળવણું અને દોષ બીજા પર નાખવો વારંવાર અવરોધ બનીને પાછા આવે છે — વ્યવસ્થિત અને સતત પરિશ્રમ જ એકમાત્ર માર્ગ છે." },
+      remedy: { en: "On Saturdays serve or feed daily-wage workers; keep one fixed daily work-slot that nothing can break; finish one pending task fully before starting anything new (Rahu–4 discipline).",
+                hi: "शनिवार को दिहाड़ी मजदूरों की सेवा करें या उन्हें भोजन दें; रोज का एक निश्चित काम-समय रखें जिसे कुछ भी न तोड़ सके; नया काम शुरू करने से पहले एक अटका हुआ काम पूरा करें (राहु–४ का अनुशासन)।",
+                gu: "શનિવારે મજૂરોની સેવા કરો કે ભોજન આપો; રોજનો એક નિશ્ચિત કામનો સમય રાખો જેને કંઈ પણ તોડી ન શકે; નવું કામ શરૂ કરતાં પહેલાં એક અટકેલું કામ પૂરું કરો (રાહુ–૪ ની શિસ્ત)." }
+    },
+    14: {
+      root: 5,
+      title: { en: "Debt of Moderation (14 → 5)", hi: "संयम का कर्मऋण (14 → 5)", gu: "સંયમનું કર્મઋણ (14 → 5)" },
+      lesson: { en: "The senses keep pulling toward excess — food, drink, comfort, thrill-seeking or promises made lightly and broken easily. The lesson is moderation: freedom survives only inside commitment.",
+                hi: "इंद्रियां बार-बार अति की ओर खींचती हैं — भोजन, आराम, उत्साह के पीछे भागना या हल्के में दिए और आसानी से टूटते वादे। सीख है संयम — स्वतंत्रता केवल प्रतिबद्धता के भीतर ही टिकती है।",
+                gu: "ઇન્દ્રિયો વારંવાર અતિ તરફ ખેંચે છે — ભોજન, આરામ, ઉત્તેજનાની લય, કે હળવાશથી આપીને સહેલાશથી તૂટી જતાં વચનો. સીખ છે સંયમ — સ્વાતંત્ર્ય ફક્ત પ્રતિબદ્ધતામાં જ ટકે છે." },
+      remedy: { en: "Keep five small, unbreakable promises instead of one big one; avoid speculation and impulse spending; donate green moong or books/stationery on Wednesday; one evening a week, keep the senses light.",
+                hi: "एक बड़े वादे की जगह पाँच छोटे, अटूट वादे रखें; सट्टे और आवेगी खर्च से बचें; बुधवार को हरा मूंग या पुस्तकें/स्टेशनरी दान करें; सप्ताह में एक शाम इंद्रियों को हल्की रखें।",
+                gu: "એક મોટા વચનને બદલે પાંચ નાના, અકાપત વચનો રાખો; સટ્ટા અને આવેગી ખર્ચથી બચો; બુધવારે લીલા મગ કે પુસ્તકો/સ્ટેશનરી દાન કરો; અઠવાડિયામાં એક સાંજ ઇન્દ્રિયો માટે હળવી રાખો." }
+    },
+    16: {
+      root: 7,
+      title: { en: "Debt of Humility (16 → 7)", hi: "विनम्रता का कर्मऋण (16 → 7)", gu: "વિનમ્રતાનું કર્મઋણ (16 → 7)" },
+      lesson: { en: "Sudden falls arrive where pride or secrecy built the tower — often around love, trust or status. What collapses was standing on ego; what is rebuilt on humility and truth stays standing.",
+                hi: "जहां मीनार अहंकार या गोपनीयता पर खड़ी होती है, वहां अचानक पतन आता है — प्रायः प्रेम, विश्वास या प्रतिष्ठा के क्षेत्र में। जो गिरता है वो अहं पर टिका था; जो विनम्रता और सत्य पर फिर बनता है, वही टिकता है।",
+                gu: "જ્યાં મિનારો અહંકાર કે ગોપનીયતા પર ઊભો હોય ત્યાં અચાનક પતન આવે છે — સામાન્ય રીતે પ્રેમ, વિશ્વાસ કે પ્રતિષ્ઠામાં. જે પડે છે તે અહં પર ટકેલું હતું; જે વિનમ્રતા અને સત્ય પર ફરી બને છે તે જ ટકે છે." },
+      remedy: { en: "Practise silent charity — feed stray dogs or donate blankets without telling anyone; meditate 10 minutes daily (Ketu–7); be the first to apologise in your closest relationship; never attack anyone's dignity publicly.",
+                hi: "मौन दान का अभ्यास करें — आवारा कुत्तों को खिलाएं या कंबल बिना किसी को बताए दान करें; रोज १० मिनट ध्यान करें (केतु–७); सबसे निकट के रिश्ते में क्षमा मांगने की पहल करें; किसी की प्रतिष्ठा सार्वजनिक रूप से कभी न ठेस पहुंचाएं।",
+                gu: "મૌન દાનનો અભ્યાસ કરો — રખડતા કૂતરાઓને ખવડાવો કે કોઈને ન કહેતા ધાબળા દાન કરો; રોજ ૧૦ મિનિટ ધ્યાન કરો (કેતુ–૭); સૌથી નજીકના સંબંધમાં ક્ષમા માંગવાની પહેલ કરો; કોઈની પ્રતિષ્ઠાને જાહેરમાં ક્યારેય ઠેસ ન પહોંચાડો." }
+    },
+    19: {
+      root: 1,
+      title: { en: "Debt of Power (19 → 1)", hi: "सत्ता का कर्मऋण (19 → 1)", gu: "સત્તાનું કર્મઋણ (19 → 1)" },
+      lesson: { en: "Independence was once misused — either leaning on no one and refusing help, or making others carry too much. Life re-teaches fair self-reliance: stand alone when needed, accept help with grace, and use strength for others.",
+                hi: "स्वतंत्रता का दुरुपयोग हुआ — या तो किसी पर भरोसा न करना और सहायता ठुकराना, या दूसरों पर अति बोझ डालना। जीवन निष्पक्ष आत्मनिर्भरता फिर सिखाता है — ज़रूरत हो तो अकेले खड़े रहें, सहायता शालीनता से स्वीकारें, बल दूसरों के लिए लगाएं।",
+                gu: "સ્વતંત્રતાનો દુરુપયોગ થયો — કાં તો કોઈ પર આધાર ન લેવો અને મદદ અસ્વીકારવી, કે બીજા પર અતિશય બોજ નાખવો. જીવન ન્યાયસંગત આત્મનિર્ભરતા ફરી શીખવે છે — જરૂર હોય તો એકલા ઊભા રહો, મદદ સૌજન્યથી સ્વીકારો, શક્તિ બીજા માટે વાપરો." },
+      remedy: { en: "Offer water to the rising Sun daily (Surya arghya); serve your father or a mentor; once a week do one task for someone without being asked; donate wheat, jaggery or copper on Sunday.",
+                hi: "रोज उगते सूर्य को जल अर्पित करें (सूर्य अर्घ्य); पिता या गुरु की सेवा करें; हर हफ्ते किसी के लिए बिना कहे एक काम करें; रविवार को गेहूं, गुड़ या तांबा दान करें।",
+                gu: "રોજ ઊગતા સૂર્યને જળ અર્પણ કરો (સૂર્ય અર્ઘ્ય); પિતા કે ગુરુની સેવા કરો; દર અઠવાડિયે કોઈ માટે વગર કહ્યે એક કામ કરો; રવિવારે ઘઉં, ગોળ કે તાંબું દાન કરો." }
+    }
+  },
+
+  /* ---- Pinnacles & Challenges (four life phases) ----
+     Classical life-phase system derived from the birth date:
+       P1 = day+month, P2 = day+year, P3 = P1+P2, P4 = month+year (reduced 1–9)
+       C1 = |day−month|, C2 = |day−year|, C3 = |C1−C2|, C4 = |month−year| (0–8, never reduced)
+     Phase boundaries: first pinnacle ends at 36 − Conductor, each next
+     spans 9 years, the fourth runs to the end of life.
+     pinnacle[n] = the peak energy available in that phase;
+     challengeLesson[c] = the recurring lesson to master alongside it. */
+  pinnacle: {
+    1: { theme: { en: "Independence and self-starting — a phase to lead, launch and build identity.", hi: "स्वतंत्रता और आत्म-शुरुआत — नेतृत्व, शुभारंभ और पहचान बनाने का चरण।", gu: "સ્વતંત્રતા અને સ્વ-શરૂઆત — નેતૃત્વ, શરૂઆત અને ઓળખ ઘડવાનો તબક્કો." } },
+    2: { theme: { en: "Partnership and patience — alliances, diplomacy and quiet consolidation.", hi: "साझेदारी और धैर्य — गठबंधन, कूटनीति और शांत सुधृढ़ीकरण।", gu: "ભાગીદારી અને ધીરજ — જોડાણ, કૂટનીતિ અને શાંત મજબૂતાઈ." } },
+    3: { theme: { en: "Expression and expansion — visibility, creativity, teaching and growth.", hi: "अभिव्यक्ति और विस्तार — प्रमुखता, रचनात्मकता, शिक्षण और वृद्धि।", gu: "અભિવ્યક્તિ અને વિસ્તાર — દેખાવ, સર્જનાત્મકતા, શિક્ષણ અને વૃદ્ધિ." } },
+    4: { theme: { en: "Foundation and system — hard structuring; slow but permanent gains.", hi: "नींव और व्यवस्था — कठोर संरचना; धीमे पर स्थायी लाभ।", gu: "પાયો અને વ્યવસ્થા — મક્કમ બાંધકામ; ધીમો પરંતુ કાયમી લાભ." } },
+    5: { theme: { en: "Change and commerce — travel, deals, reinvention; doors move fast.", hi: "परिवर्तन और व्यापार — यात्रा, सौदे, नवीनीकरण; दरवाज़े तेज़ी से खुलते हैं।", gu: "ફેરફાર અને વેપાર — મુસાફરી, સોદા, નવીનીકરણ; દરવાજા ઝડપથી ખુલે છે." } },
+    6: { theme: { en: "Home, harmony and service — family duty, comfort and trusted counsel.", hi: "घर, सामंजस्य और सेवा — पारिवारिक दायित्व, सुख-सुविधा और विश्वसनीय सलाह।", gu: "ઘર, સુમેળ અને સેવા — પારિવારિક ફરજ, આરામ અને વિશ્વસનીય સલાહ." } },
+    7: { theme: { en: "Depth and mastery — study, specialisation, spiritual insight; inward strength.", hi: "गहराई और प्रवीणता — अध्ययन, विशेषज्ञता, आध्यात्मिक अंतर्दृष्टि; आंतरिक बल।", gu: "ઊંડાણ અને નિપુણતા — અભ્યાસ, વિશિષ્ટતા, આધ્યાત્મિક સૂઝ; આંતરિક બળ." } },
+    8: { theme: { en: "Authority and harvest — karma pays; command, management, material results.", hi: "अधिकार और फसल — कर्म फल देता है; कमान, प्रबंधन, भौतिक परिणाम।", gu: "સત્તા અને કાપણી — કર્મ ફળ આપે છે; કમાન, સંચાલન, ભૌતિક પરિણામ." } },
+    9: { theme: { en: "Action and completion — bold closures, courage and large-scale service.", hi: "कर्म और पूर्णता — साहसिक समापन, धैर्य और बड़े पैमाने की सेवा।", gu: "ક્રિયા અને સંપૂર્ણતા — હિંમતભર્યું સમાપન, સાહસ અને મોટા પાયે સેવા." } }
+  },
+
+  challengeLesson: {
+    0: { en: "The challenge of choice — no single fault is assigned; any number's weakness can surface. Discipline across the board is the answer.",
+         hi: "चुनाव की चुनौती — कोई एक दोष निर्धारित नहीं; किसी भी अंक की कमजोरी उभर सकती है। सभी क्षेत्रों में अनुशासन ही उत्तर है।",
+         gu: "પસંદગીનો પડકાર — કોઈ એક ખામી નિયત નથી; કોઈ પણ અંકની નબળાઈ ઊભરી શકે છે. સર્વક્ષેત્ર શિસ્ત જ ઉત્તર છે." },
+    1: { en: "Stand up for yourself — overcome the urge to yield to others' will.",
+         hi: "अपने लिए खड़े होना सीखें — दूसरों की इच्छा के आगे झुकने की प्रवृत्ति पर काबू पाएं।",
+         gu: "પોતાના માટે ઊભા રહેતા શીખો — બીજાની ઇચ્છા આગળ નમવાની વૃત્તિ પર કાબૂ મેળવો." },
+    2: { en: "Over-sensitivity and self-doubt — build inner security without comparing yourself to others.",
+         hi: "अति-संवेदनशीलता और आत्म-संदेह — बिना तुलना के आंतरिक सुरक्षा बनाएं।",
+         gu: "અતિ-સંવેદનશીલતા અને આત્મ-શંકા — સરખામણી વગર આંતરિક સુરક્ષા ઘડો." },
+    3: { en: "Scattered self-expression — focus your words; finish what you start saying and doing.",
+         hi: "बिखरी अभिव्यक्ति — अपने शब्दों पर केंद्रित रहें; जो कहना-करना शुरू करें, उसे पूरा करें।",
+         gu: "છૂટાછવાયેલી અભિવ્યક્તિ — તમારા શબ્દો પર કેન્દ્રિત રહો; શરૂ કરેલું કહેવું-કરવું પૂરું કરો." },
+    4: { en: "Rigidity or disorder — build routines and honour them without becoming inflexible.",
+         hi: "कठोरता या अस्तव्यस्तता — दिनचर्या बनाएं और ढीले हुए बिना उसका पालन करें।",
+         gu: "કઠોરતા કે ગડબડ — દિનચર્યા બનાવો અને અનમ્ય ન બનતા તેનું પાલન કરો." },
+    5: { en: "Restlessness — channel freedom constructively; don't run from responsibility.",
+         hi: "बेचैनी — स्वतंत्रता को रचनात्मक दिशा दें; जिम्मेदारी से न भागें।",
+         gu: "અસ્થિરતા — સ્વાતંત્ર્યને રચનાત્મક દિશા આપો; જવાબદારીથી ભાગશો નહીં." },
+    6: { en: "Perfectionism in relationships — accept loved ones as they are; duty without resentment.",
+         hi: "रिश्तों में परफेक्शनवाद — अपनों को जैसे हैं स्वीकारें; कर्तव्य, बिना शिकायत।",
+         gu: "સંબંધોમાં સંપૂર્ણતાવાદ — પ્રિયજનોને જેમ છે તેમ સ્વીકારો; ફરજ, ફરિયાદ વગર." },
+    7: { en: "Trust and faith — fear of betrayal closes you off; develop discernment without suspicion.",
+         hi: "विश्वास और आस्था — धोखे के डर से बंद न हों; संदेह के बिना विवेक विकसित करें।",
+         gu: "વિશ્વાસ અને શ્રદ્ધા — છેતરાવાના ડરથી બંધાશો નહીં; શંકા વગર વિવેક વિકસાવો." },
+    8: { en: "Money and power lessons — balance material drive with ethics; neither chase it nor scorn it.",
+         hi: "धन और सत्ता की सीख — भौतिक महत्वाकांक्षा को नैतिकता से संतुलित करें; न पीछा करें, न तिरस्कार।",
+         gu: "ધન અને સત્તાની સીખ — ભૌતિક મહત્વાકાંક્ષાને નૈતિકતા સાથે સંતુલિત કરો; ન પાછળ ભાગો, ન તિરસ્કાર કરો." }
   }
 };
 
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 1,
-  packVersion: "2.2.0",
-  generatedAt: "2026-08-20T00:00:00Z",
+  packVersion: "2.3.0",
+  generatedAt: "2026-09-01T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",

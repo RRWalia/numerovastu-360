@@ -18,6 +18,7 @@
   }
   const digitSum = (str) => str.replace(/\D/g, "").split("").reduce((a, d) => a + Number(d), 0);
   const digitsOf = (str) => str.replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
+  const KARMIC_DEBT_POOL = [13, 14, 16, 19];
 
   function relation(a, b) {
     if (a === b) return "friendly"; // a planet is never its own enemy
@@ -77,6 +78,13 @@
     if (en && en[key] !== undefined) return en[key];
     return fallback || "";
   }
+
+  /* Localised knowledge-pack text — entries shaped { en, hi, gu } with
+     English as the guaranteed fallback (same pattern as excessEnergy). */
+  const loc = (field, lang) => {
+    const l = lang || getLang();
+    return (field && (field[l] || field.en)) || "";
+  };
 
   function getActiveDB() {
     const base = window.DB || {};
@@ -473,7 +481,9 @@
     setErr("dob", badDob); if (badDob) { ok = false; first = first || $("#dob"); }
 
     const mob = ($("#mobile") && $("#mobile").value.replace(/\D/g, "")) || "";
-    const badMob = mob.length < 8;
+    // 8+ digits AND at least one non-zero digit — an all-zero number has no
+    // planetary vibration and would otherwise surface as a phantom "9".
+    const badMob = mob.length < 8 || !/[1-9]/.test(mob);
     setErr("mobile", badMob); if (badMob) { ok = false; first = first || $("#mobile"); }
 
     const badGoals = selectedGoals.size === 0;
@@ -488,7 +498,8 @@
   function computeProfile(input) {
     const [y, m, d] = input.dob.split("-").map(Number);
     const driver = reduce(d);
-    const conductor = reduce(digitSum(input.dob));
+    const dobCompound = digitSum(input.dob);
+    const conductor = reduce(dobCompound);
 
     // Loshu counts: DOB digits + driver + conductor (0s excluded)
     const counts = {};
@@ -504,6 +515,15 @@
     const nameNum = reduce(nameCompound);
     const nameRelD = relation(driver, nameNum);
     const nameRelC = relation(conductor, nameNum);
+
+    // Karmic Debt scan (13 / 14 / 16 / 19) — the classical rule checks the
+    // UNREDUCED totals: the birth day itself, the full birth-date digit sum,
+    // and the full Chaldean name total. When one of them lands on a karmic
+    // number, the reduced Driver/Conductor/Name carries that lesson.
+    const karmicDebts = [];
+    if (KARMIC_DEBT_POOL.includes(d)) karmicDebts.push({ n: d, source: "driver" });
+    if (KARMIC_DEBT_POOL.includes(dobCompound)) karmicDebts.push({ n: dobCompound, source: "conductor" });
+    if (KARMIC_DEBT_POOL.includes(nameCompound)) karmicDebts.push({ n: nameCompound, source: "name" });
 
     const nameCounts = {};
     for (let i = 1; i <= 9; i++) nameCounts[i] = 0;
@@ -546,6 +566,7 @@
       name: input.name,
       day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak, missingSeverity,
+      dobCompound, karmicDebts,
       nameCompound, nameNum, nameRelD, nameRelC, nameCounts, combinedCounts,
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
@@ -881,11 +902,42 @@
     };
   }
 
+  /* Pinnacles & Challenges — the classical four life phases, derived purely
+     from the birth date:
+       P1 = day+month, P2 = day+year, P3 = P1+P2, P4 = month+year   (reduced 1–9)
+       C1 = |day−month|, C2 = |day−year|, C3 = |C1−C2|, C4 = |month−year|
+     Challenges use the single-digit components and are kept as-is (0–8,
+     never reduced). Phase convention: the first pinnacle ends at age
+     36 − Conductor, each following pinnacle spans 9 years, and the fourth
+     runs to the end of life. */
+  function pinnacleAnalysis(p) {
+    const rd = reduce(p.day), rm = reduce(p.month), ry = reduce(p.year);
+    const p1 = reduce(p.day + p.month);
+    const p2 = reduce(p.day + p.year);
+    const p3 = reduce(p1 + p2);
+    const p4 = reduce(p.month + p.year);
+    const c1 = Math.abs(rd - rm);
+    const c2 = Math.abs(rd - ry);
+    const c3 = Math.abs(c1 - c2);
+    const c4 = Math.abs(rm - ry);
+    const end1 = 36 - p.conductor;
+    const end2 = end1 + 9;
+    const end3 = end2 + 9;
+    const phases = [
+      { i: 1, pinnacle: p1, challenge: c1, from: 0, to: end1 },
+      { i: 2, pinnacle: p2, challenge: c2, from: end1 + 1, to: end2 },
+      { i: 3, pinnacle: p3, challenge: c3, from: end2 + 1, to: end3 },
+      { i: 4, pinnacle: p4, challenge: c4, from: end3 + 1, to: null },
+    ];
+    return { phases, firstEnd: end1 };
+  }
+
   function timingAnalysis(p) {
     const now = new Date();
     const cy = now.getFullYear();
     const personalYearNum = (yr) => reduce(p.day + p.month + reduce(yr));
     const db = getActiveDB();
+    const pinnacles = pinnacleAnalysis(p);
 
     const years = [0, 1, 2, 3].map((off) => {
       const yr = cy + off;
@@ -915,7 +967,7 @@
       else if (a === p.conductor) milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} = your Conductor — destiny-alignment year` });
       else if (rd === "friendly" && rc === "friendly") milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} — harmonious with both your numbers` });
     }
-    return { years, luckyYears, milestones, curAge };
+    return { years, luckyYears, milestones, curAge, pinnacles };
   }
 
   function watchSpec(p) {
@@ -1069,11 +1121,27 @@
     const dayC = dayOf(p.conductor);
     const sameDay = dayD === dayC;
 
+    /* Karmic debt settling joins the one-time plan — the debt's own remedy
+       text is used, routed through the reduced root's planetary kit. */
+    const kdOnce = ((p.karmicDebts || []).map((kd) => {
+      const e = (db.karmicDebt && db.karmicDebt[kd.n]) || null;
+      if (!e) return null;
+      const title = loc(e.title, lang);
+      const remedy = loc(e.remedy, lang);
+      if (!remedy) return null;
+      return { cadence: "once", text: lang === "hi"
+        ? `कर्मऋण ${kd.n} का निवारण — <strong>${esc(title)}</strong>: ${esc(remedy)}`
+        : lang === "gu"
+          ? `કર્મઋણ ${kd.n} નું નિવારણ — <strong>${esc(title)}</strong>: ${esc(remedy)}`
+          : `Settle karmic debt ${kd.n} — <strong>${esc(title)}</strong>: ${esc(remedy)}` };
+    }))[0] || null;
+
     if (lang === "hi") {
       weekly.push({ cadence: "weekly", text: `साप्ताहिक नियम: अपने मूलांक वार (<strong>${dayD}</strong>)${sameDay ? " और भाग्यांक वार के उपाय साथ करें (दोनों एक ही दिन हैं)" : ` और भाग्यांक वार (<strong>${dayC}</strong>) के उपाय करें`} — बताए अनुसार दान, शुभ रंग और व्रत का पालन करें।` });
       if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
         once.push({ cadence: "once", text: `नाम की स्पेलिंग में सुधार करें — जन्म अंकों से तालमेल के लिए <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) अपनाएं।` });
       }
+      if (kdOnce) once.push(kdOnce);
       if (mobSug.needed) {
         once.push({ cadence: "once", text: `मोबाइल नंबर बदलने की योजना बनाएं — मूलांक ${p.driver} और भाग्यांक ${p.conductor} की शुभता के लिए ऐसा नंबर चुनें जिसके अंकों का कुल योग <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> हो।` });
       }
@@ -1086,6 +1154,7 @@
       if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
         once.push({ cadence: "once", text: `નામની સ્પેલિંગમાં સુધારો કરો — જન્મ અંકો સાથે સુમેળ માટે <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) અપનાવો.` });
       }
+      if (kdOnce) once.push(kdOnce);
       if (mobSug.needed) {
         once.push({ cadence: "once", text: `મોબાઈલ નંબર બદલવાનું આયોજન કરો — મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} ની શુભતા માટે એવો નંબર પસંદ કરો જેના અંકોનો કુલ સરવાળો <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> થતો હોય.` });
       }
@@ -1098,6 +1167,7 @@
       if (nameSug.needed && nameSug.variants && nameSug.variants.length) {
         once.push({ cadence: "once", text: `Correct your name spelling — try <strong>${esc(nameSug.variants[0].text)}</strong> (${nameSug.variants[0].compound} → ${nameSug.variants[0].reduced}) to align with your birth numbers.` });
       }
+      if (kdOnce) once.push(kdOnce);
       if (mobSug.needed) {
         once.push({ cadence: "once", text: `Plan a mobile-number change — choose a number whose digits total <strong>${mobSug.goodTotals.slice(0, 3).join(", ")}</strong> for harmony with Driver ${p.driver} and Conductor ${p.conductor}.` });
       }
@@ -1789,6 +1859,52 @@
     </div>`;
   }
 
+  /* Karmic Debt card — scans the three classical unreduced totals
+     (birth day, full birth-date sum, Chaldean name total) for 13/14/16/19.
+     A clean slate is stated explicitly so users trust the check ran.
+     Remedies route through the remedy kit of the debt's reduced root. */
+  function karmicDebtCard(p) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const debts = p.karmicDebts || [];
+    const srcLabel = (src) => src === "driver"
+      ? (lang === "hi" ? "जन्म तिथि" : lang === "gu" ? "જન્મ તિથિ" : "Birth day")
+      : src === "conductor"
+        ? (lang === "hi" ? "पूर्ण जन्मतिथि का योग" : lang === "gu" ? "સંપૂર્ણ જન્મતારીખનો સરવાળો" : "Full birth-date total")
+        : (lang === "hi" ? "नाम का चाल्डियन योग" : lang === "gu" ? "નામનો કાલ્ડિયન સરવાળો" : "Name Chaldean total");
+    const rows = debts.map((kd) => {
+      const e = (db.karmicDebt && db.karmicDebt[kd.n]) || {};
+      const rootInfo = db.numbers[reduce(kd.n)] || {};
+      return `<div class="kit-row">
+        <div class="kit-ico bad-ico"><strong>${kd.n}</strong></div>
+        <div class="kit-body">
+          <div class="kit-label">${esc(srcLabel(kd.source))} — ${esc(loc(e.title, lang) || `Karmic Debt ${kd.n}`)}</div>
+          <div class="kit-value"><strong>${lang === "hi" ? "दोहराती सीख:" : lang === "gu" ? "વારંવાર આવતી સીખ:" : "Repeating lesson:"}</strong> ${esc(loc(e.lesson, lang))}</div>
+          <div class="kit-value"><strong>${lang === "hi" ? "निवारण:" : lang === "gu" ? "નિવારણ:" : "Settling remedy:"}</strong> ${esc(loc(e.remedy, lang))}</div>
+          <div class="card-sub">${lang === "hi" ? `यह अंक ${kd.n} → ${reduce(kd.n)} में सिमटता है — पूर्ण सहायता के लिए ${esc(rootInfo.planet || "")} उपाय-किट भी अपनाएं।` : lang === "gu" ? `આ અંક ${kd.n} → ${reduce(kd.n)} માં સંયોજાય છે — સંપૂર્ણ સહાય માટે ${esc(rootInfo.planet || "")} ઉપાય-કિટ પણ અપનાવો.` : `This debt reduces to ${kd.n} → ${reduce(kd.n)} — pair it with the ${esc(rootInfo.planet || "")} remedy kit for full support.`}</div>
+        </div>
+      </div>`;
+    }).join("");
+    const clean = lang === "hi"
+      ? "जन्म तिथि, पूर्ण जन्मतिथि के योग और नाम के चाल्डियन योग में कर्मऋण अंक (13, 14, 16, 19) में से कोई नहीं है — जन्म-पट्टिका का कर्म पट्ट साफ है।"
+      : lang === "gu"
+        ? "જન્મ તિથિ, સંપૂર્ણ જન્મતારીખના સરવાળા અને નામના કાલ્ડિયન સરવાળામાં કર્મઋણ અંકો (13, 14, 16, 19) પૈકી કોઈ નથી — જન્મ-પત્રિકાનો કર્મ હિસાબ સ્વચ્છ છે."
+        : "None of the karmic debt numbers (13, 14, 16, 19) appear in your birth day, full birth-date total or name total — a clean karmic slate.";
+    const judgeNote = lang === "hi"
+      ? "कर्मऋण हमेशा <strong>सीमांत (गैर-संक्षिप्त) योग</strong> पर जांचा जाता है — जन्म तिथि जैसी है, पूरी जन्मतिथि के अंकों का कुल योग, और नाम का पूरा चाल्डियन योग। केवल अंतिम अंक (मूलांक/भाग्यांक/नामांक) देखने से ये सीख छूट जाती हैं।"
+      : lang === "gu"
+        ? "કર્મઋણ હંમેશાં <strong>અઘટિત (બિન-ઘટાડેલા) સરવાળા</strong> પર તપાસાય છે — જન્મ તિથિ જેમ છે તેમ, સંપૂર્ણ જન્મતારીખના અંકોનો કુલ સરવાળો, અને નામનો સંપૂર્ણ કાલ્ડિયન સરવાળો. ફક્ત અંતિમ અંક (મૂળાંક/ભાગ્યાંક/નામાંક) જોવાથી આ સીખ છૂટી જાય છે."
+        : "Karmic debt is always checked at the <strong>unreduced subtotal</strong> — the birth day as it falls, the digit sum of the entire birth date, and the full Chaldean name total. Reading only the final Driver/Conductor/Name digit would miss these lessons.";
+    return `<div class="card" id="karmic-debt-card">
+      <div class="goal-head">
+        <div class="card-title">${t("karmicDebtTitle", "Karmic Debt Check — 13 · 14 · 16 · 19")}</div>
+        <span class="badge ${debts.length ? "warn" : "good"}">${debts.length ? (lang === "hi" ? `${debts.length} मिले` : lang === "gu" ? `${debts.length} મળ્યા` : `${debts.length} found`) : (lang === "hi" ? "कोई कर्मऋण नहीं" : lang === "gu" ? "કોઈ કર્મઋણ નહીં" : "Clean slate")}</span>
+      </div>
+      ${debts.length ? `<div class="kit">${rows}</div>` : `<div class="kit-value">${clean}</div>`}
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${judgeNote}</div>
+    </div>`;
+  }
+
   function renderGridCells(counts) {
     const db = getActiveDB();
     const layout = (window.DB && window.DB.loshuLayout) || [[4,9,2],[3,5,7],[8,1,6]];
@@ -2286,6 +2402,29 @@
       </div>
     </section>`;
 
+    const pinn = timing.pinnacles || { phases: [], firstEnd: null };
+    const agesLbl = lang === "hi" ? "आयु" : lang === "gu" ? "ઉંમર" : "Ages";
+    const pinnacleCard = `<div class="card" id="pinnacles-card">
+        <div class="card-title">${t("pinnacleCardTitle", "Four Life Phases — Pinnacles & Challenges")}</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>${lang === "hi" ? "चरण" : lang === "gu" ? "તબક્કો" : "Phase"}</th><th>${lang === "hi" ? "आयु व वर्ष" : lang === "gu" ? "ઉંમર અને વર્ષ" : "Ages & Years"}</th><th>${lang === "hi" ? "पिनेकल (शिखर) — उभरती ऊर्जा" : lang === "gu" ? "પિનેકલ (શિખર) — ઊભરતી ઊર્જા" : "Pinnacle — rising energy"}</th><th>${lang === "hi" ? "चुनौती — सीखने योग्य पाठ" : lang === "gu" ? "પડકાર — શીખવા જેવી સીખ" : "Challenge — lesson to master"}</th></tr>
+          ${pinn.phases.map((ph) => {
+            const pk = (db.pinnacle && db.pinnacle[ph.pinnacle]) || {};
+            const cl = (db.challengeLesson && db.challengeLesson[ph.challenge]) || {};
+            const ageSpan = ph.to === null ? `${agesLbl} ${ph.from}+` : `${agesLbl} ${ph.from}–${ph.to}`;
+            const yearSpan = ph.to === null ? `${p.year + ph.from} →` : `${p.year + ph.from}–${p.year + ph.to}`;
+            const cur = timing.curAge >= ph.from && (ph.to === null || timing.curAge <= ph.to);
+            return `<tr${cur ? ' class="hl-row"' : ""}>
+            <td><strong>${lang === "hi" ? "चरण" : lang === "gu" ? "તબક્કો" : "Phase"} ${ph.i}</strong>${cur ? ` <span class="badge info">${lang === "hi" ? "वर्तमान" : lang === "gu" ? "હાલમાં" : "Now"}</span>` : ""}</td>
+            <td>${ageSpan} <span class="card-sub">(${yearSpan})</span></td>
+            <td><strong>${ph.pinnacle}</strong> (${esc(db.numbers[ph.pinnacle].planet.split(" ")[0])}) — ${esc(loc(pk.theme, lang))}</td>
+            <td><strong>${ph.challenge}</strong> — ${esc(loc(cl, lang))}</td>
+          </tr>`;
+          }).join("")}
+        </table></div>
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "पिनेकल जन्मतिथि से निकाले जाते हैं — दिन+माह, दिन+वर्ष, उन दोनों का योग, और माह+वर्ष। चुनौतियां इन्हीं घटकों के अंतर हैं। पहला चरण <strong>36 − भाग्यांक</strong> की उम्र तक चलता है, उसके बाद प्रत्येक चरण ९ वर्ष का होता है। हर चरण की शिखर-ऊर्जा को साधें और चुनौती की सीख अपनाएं — यही उस दौर का सबसे तेज़ मार्ग है।" : lang === "gu" ? "પિનેકલ જન્મતારીખથી નિગમે છે — દિવસ+માસ, દિવસ+વર્ષ, તે બંનેનો સરવાળો, અને માસ+વર્ષ. પડકારો એ જ ઘટકોના તફાવત છે. પહેલો તબક્કો <strong>36 − ભાગ્યાંક</strong> ઉંમર સુધી ચાલે છે, પછી દરેક તબક્કો ૯ વર્ષનો. દરેક તબક્કાની શિખર-ઊર્જાને વધારો અને પડકારની સીખ અપનાવો — એ જ તે સમયનો સૌથી ઝડપી માર્ગ છે." : "Pinnacles are derived from your birth date — day+month, day+year, their sum, and month+year. Challenges are the gaps between those same components. The first phase runs to <strong>36 − Conductor</strong>, each phase after spans 9 years. Grow into each phase's rising energy while mastering its challenge — that is the fastest route through the period."}</div>
+      </div>`;
+
     const timingSection = `<section class="rsection" id="timing-section">
       <h2 class="rsection-title"><span class="idx">${SECTION.timing}</span>${t("secTiming", "Favourable Years & Timing")}</h2>
       <div class="card">
@@ -2299,6 +2438,7 @@
           </tr>`).join("")}
         </table></div>
       </div>
+      ${pinnacleCard}
       <div class="card-grid two">
         <div class="card">
           <div class="card-title">Best Years Ahead</div>
@@ -2631,6 +2771,7 @@
           <div class="card-title">Driver ${p.driver} × Conductor ${p.conductor} combination</div>
           <div class="kit-value">Your mind runs on <strong>${esc(db.numbers[p.driver].planet)}</strong> (${esc(db.numbers[p.driver].traits.split(",")[0].toLowerCase())}) while your destiny demands <strong>${esc(db.numbers[p.conductor].planet)}</strong> (${esc(db.numbers[p.conductor].traits.split(",")[0].toLowerCase())}). This pair is <strong>${relation(p.driver, p.conductor)}</strong> — ${relation(p.driver, p.conductor) === "friendly" ? "a naturally cooperative chart; remedies will amplify what already flows." : relation(p.driver, p.conductor) === "neutral" ? "a workable chart; targeted remedies will sharpen results." : "the remedies below are chosen to bridge these two energies."}</div>
         </div>
+        ${karmicDebtCard(p)}
       </section>
       ${traitsSection}
       ${renderLoshu(p)}
@@ -2838,6 +2979,17 @@
       const btn = $("#generateBtn");
       btn.innerHTML = `${t("generateBtn", "Generate My Remedy Report")} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
     }
+
+    /* Generic intake-form localisation: any element carrying
+         data-i18n="key"      -> textContent
+         data-i18n-html="key" -> innerHTML (trusted pack content only)
+         data-i18n-ph="key"   -> placeholder attribute
+       is translated from the active i18n pack, falling back to the markup
+       text already present in index.html. This keeps the form, its hints and
+       its error messages in the same language as the generated report. */
+    $$("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n"), el.textContent); });
+    $$("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.getAttribute("data-i18n-html"), el.innerHTML); });
+    $$("[data-i18n-ph]").forEach((el) => { el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"), el.getAttribute("placeholder") || "")); });
   }
 
   function setLanguage(lang) {
@@ -2925,7 +3077,7 @@
   /* expose for smoke tests and external control */
   window.__NV = {
     computeProfile, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
-    mobileSuggestion, vehicleAnalysis, timingAnalysis, zodiacSign,
+    mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, zodiacSign,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, relation, chaldeanValue, validatePack,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,

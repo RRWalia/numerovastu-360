@@ -53,9 +53,9 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.5.0 · Meeus engine"],
-  ["build badge", $("#buildBadge").textContent === "Build 2026-08-31"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.2.0")],
+  ["app version badge", $("#appBadge").textContent === "App v2.6.1 · Meeus engine"],
+  ["build badge", $("#buildBadge").textContent === "Build 2026-09-01"],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.3.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -85,6 +85,10 @@ const checks = [
   ["colors section", report.includes("Lucky Colours") && report.includes("Day-wise Dressing")],
   ["career section", report.includes("Best Fields")],
   ["timing section", report.includes("Favourable Years") && report.includes("Personal Year")],
+  ["karmic debt card renders (clean slate)", report.includes("Karmic Debt Check") && report.includes("Clean slate")],
+  ["pinnacle & challenge card renders", report.includes("Four Life Phases") && report.includes("Pinnacle") && report.includes("Challenge")],
+  ["pinnacle phase ages (20/08/2005 -> first ends 36-8=28)", report.includes("Ages 0–28") && report.includes("Ages 47+")],
+  ["current pinnacle phase highlighted", report.includes('id="pinnacles-card"') && (report.match(/hl-row/g) || []).length >= 2],
   ["evolving chart section", report.includes("Your Evolving Chart") && report.includes("Lucky-year timing vs what you actually did")],
   ["anonymous scaffold shown", report.includes("Anonymous contribution scaffold")],
   ["zodiac section (Leo for 20/08)", report.includes("Zodiac Power Kit") && report.includes("Leo")],
@@ -168,6 +172,11 @@ const hindiChecks = [
   ["Hindi Vastu dosh", rHi.includes("वास्तु दोष")],
   ["Hindi no undefined leaks", !rHi.includes("undefined")],
   ["Hindi no NaN leaks", !rHi.includes("NaN")],
+  ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
+  ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
+  ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
+  ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
+  ["Hindi goal chips localized", $('#goalChips .chip[data-goal="Money"]').textContent.includes("धन")],
 ];
 hindiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -187,6 +196,7 @@ const gujaratiChecks = [
   ["Gujarati Vastu dosh", rGu.includes("વાસ્તુ દોષ")],
   ["Gujarati no undefined leaks", !rGu.includes("undefined")],
   ["Gujarati no NaN leaks", !rGu.includes("NaN")],
+  ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],
 ];
 gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -590,6 +600,25 @@ const compoundChecks = [
 ];
 compoundChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// karmic debt + pinnacles engine checks (classical formulas)
+// "Priya" -> Chaldean 8+2+1+1+1 = 13; 16/07/1994 -> birth day 16 (debt),
+// full-date sum 1+6+0+7+1+9+9+4 = 37 -> conductor 1 (no debt).
+const kdp = NV.computeProfile({ name: "Priya", dob: "1994-07-16", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
+const kdpMain = NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
+const kdpT = NV.timingAnalysis(kdpMain);
+const karmicChecks = [
+  ["karmic debt detected at unreduced subtotals", kdp.karmicDebts.length === 2 && kdp.karmicDebts.some((k) => k.n === 16 && k.source === "driver") && kdp.karmicDebts.some((k) => k.n === 13 && k.source === "name")],
+  ["no false karmic debt on clean chart", kdpMain.karmicDebts.length === 0],
+  ["dobCompound exposed (17 for 20/08/2005)", kdpMain.dobCompound === 17],
+  ["pinnacles: 4 phases returned", kdpT.pinnacles && kdpT.pinnacles.phases.length === 4],
+  ["pinnacle values 20/08/2005 -> 1,9,1,6", kdpT.pinnacles.phases.map((x) => x.pinnacle).join(",") === "1,9,1,6"],
+  ["challenge values 20/08/2005 -> 6,5,1,1", kdpT.pinnacles.phases.map((x) => x.challenge).join(",") === "6,5,1,1"],
+  ["first pinnacle ends at 36 - conductor", kdpT.pinnacles.firstEnd === 28 && kdpT.pinnacles.phases[0].to === 28 && kdpT.pinnacles.phases[1].from === 29],
+  ["challenges stay within 0-8", kdpT.pinnacles.phases.every((x) => x.challenge >= 0 && x.challenge <= 8)],
+  ["pure pinnacle fn export matches", NV.pinnacleAnalysis(kdpMain).phases[3].pinnacle === 6],
+];
+karmicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 // brand analysis (reuses the Chaldean engine)
 const brand = NV.brandAnalysis("Shree Balaji Textiles", NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" }));
 const brandChecks = [
@@ -624,6 +653,33 @@ const checks5 = [
 ];
 checks5.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
+// 6b: karmic debt profile rendered end-to-end (name "Priya" = 13, birth day 16)
+$("#editBtn").click();
+$("#fullName").value = "Priya";
+$("#dob").value = "1994-07-16";
+$("#mobile").value = "9876543210";
+$("#vehicle").value = "";
+$("#birthTime").value = ""; $("#birthPlace").value = "";
+$("#brand").value = "";
+$("#partnerName").value = ""; $("#partnerDob").value = "";
+$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
+$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
+$("#watchType").value = "none";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const r5b = $("#reportRoot").innerHTML;
+const checks5b = [
+  ["karmic debt badge shows count", r5b.includes("Karmic Debt Check") && r5b.includes("2 found")],
+  ["debt 16 humility content", r5b.includes("Debt of Humility") && r5b.includes("Birth day")],
+  ["debt 13 effort content", r5b.includes("Debt of Effort") && r5b.includes("Name Chaldean total")],
+  ["settling remedy rendered", r5b.includes("Settling remedy:")],
+  ["debt resolved to root kit", r5b.includes("16 → 7") && r5b.includes("13 → 4")],
+  ["karmic debt joins one-time plan", r5b.includes("Settle karmic debt 16")],
+  ["pinnacle card still renders", r5b.includes("Four Life Phases")],
+  ["no undefined leaks", !r5b.includes("undefined")],
+  ["no NaN leaks", !r5b.includes("NaN")],
+];
+checks5b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
 // seventh block: reinforcing harmony branch — zodiac ruler equals the Driver.
 // 06/06/1990 -> Driver 6, sidereal Taurus (ruled by Venus/number 6) -> overlap.
 $("#editBtn").click();
@@ -643,6 +699,28 @@ const checks6 = [
   ["no undefined leaks", !r6.includes("undefined")],
 ];
 checks6.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// eighth block: intake validation guards (degenerate inputs must not render)
+$("#editBtn").click();
+$("#fullName").value = "Validation Probe";
+$("#dob").value = "1990-06-06";
+$("#mobile").value = "0000000000"; // all-zero: no planetary vibration
+$("#vehicle").value = "";
+$("#birthTime").value = ""; $("#birthPlace").value = "";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const valChecks = [
+  ["all-zero mobile rejected", !$("#err-mobile").hidden],
+  ["degenerate input did not re-render report", !$("#reportRoot").innerHTML.includes("Validation Probe")],
+];
+$("#mobile").value = "9876543210";
+$("#dob").value = "2999-01-01"; // future date
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+valChecks.push(["future DOB rejected", !$("#err-dob").hidden]);
+valChecks.push(["future DOB did not re-render", !$("#reportRoot").innerHTML.includes("Validation Probe")]);
+$("#dob").value = "1990-06-06";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+valChecks.push(["form recovers after valid submit", $("#reportRoot").innerHTML.includes("Validation Probe")]);
+valChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);
