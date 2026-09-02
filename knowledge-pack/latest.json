@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.4.0",
-  "packUrl": "knowledge-pack/packs/2.4.0.json",
-  "notes": "Adds the Ayurvedic Dosha Layer — a Jyotish–Ayurveda constitutional map for numbers 1–9 (dominant dosha, nature, aggravation, balancing foods, routine and mantra-linked note in English, Hindi and Gujarati), blended from Driver + Conductor, with aggravation from repeated 3+ numbers and under-supported (missing-critical) gaps."
+  "latestVersion": "2.5.0",
+  "packUrl": "knowledge-pack/packs/2.5.0.json",
+  "notes": "Adds the Deity Protection Layer — the classical number-to-ishta-devta correspondence for numbers 1–9 (guardian deity, mantra, primary and 108× chant, offerings, support materials and protection note in English, Hindi and Gujarati), paired from Driver + Conductor, with extra vigilance from repeated 3+ numbers and under-supported (missing-critical) gaps. Framed as traditional spiritual guidance following the reader's own family tradition and guru."
 }

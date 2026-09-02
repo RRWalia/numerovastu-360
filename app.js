@@ -75,6 +75,35 @@
     };
   }
 
+  /* Ishta Devta (deity protection) profile — pure function over the Driver +
+     Conductor numbers using the classical number → deity correspondence.
+     It names the personal guardian deity (ishta devta) behind each key
+     number and turns the deity's chant, 108× round and offerings into a
+     small, concrete protection practice. Read as traditional spiritual
+     guidance — the reader's own family tradition and guru's instruction
+     always take priority. */
+  function buildDeityProfile(src) {
+    const db = getActiveDB();
+    const map = db.deity || (window.DB && window.DB.deity) || {};
+    const driverDeity = map[src.driver] || null;
+    const conductorDeity = map[src.conductor] || null;
+    const sameDeity = !!(driverDeity && conductorDeity && driverDeity.god && conductorDeity.god &&
+      driverDeity.god.en === conductorDeity.god.en && driverDeity.mantra === conductorDeity.mantra);
+    const repeatedDeity = (src.repeated || []).filter((n) => map[n]).map((n) => Object.assign({ n, count: src.counts[n] || 0 }, map[n]));
+    const missingDeity = (src.missing || []).filter((n) => map[n]).map((n) => Object.assign({ n }, map[n]));
+    const underSupported = (src.missingSeverity || []).filter((m) => m.critical && map[m.n]).map((m) => Object.assign({ n: m.n, critical: true }, map[m.n]));
+    return {
+      driverNumber: src.driver,
+      conductorNumber: src.conductor,
+      driverDeity,
+      conductorDeity,
+      sameDeity,
+      repeatedDeity,
+      missingDeity,
+      underSupported
+    };
+  }
+
   const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.5.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-31";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
@@ -614,6 +643,7 @@
       driver, conductor, counts, missing, repeated, weak, missingSeverity,
       dobCompound, karmicDebts,
       doshaProfile: buildDoshaProfile({ driver, conductor, counts, repeated, missing, missingSeverity }),
+      deityProfile: buildDeityProfile({ driver, conductor, counts, repeated, missing, missingSeverity }),
       nameCompound, nameNum, nameRelD, nameRelC, nameCounts, combinedCounts,
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
@@ -1606,6 +1636,26 @@
         : `<strong>Dosha-aware rhythm:</strong> your <strong>${doshaLabel(dpDosha.primary, "en")}</strong> nature does best when ${isCombo ? "you run both balancing rules in parallel — fixed times, daily movement and a cool-down after midday." : isKapha ? "you move daily (walk, stairs or pranayama) and keep the largest meal before sunset." : isPitta ? "you keep the core ritual at sunrise, avoid noon sun exertion and take a short cool-down after midday." : isVata ? `you anchor the morning ritual on a ${DAY_OF[p.driver]} and keep fixed meal and sleep times.` : "you keep the Mercury-style reset steady — one rhythm, one regular reset per week."}`;
     if (phases[1]) phases[1].rows.push(doshaPlanLine);
 
+    /* Deity Protection Line — the ishta devta chants for both key numbers,
+       carried into the 40-day rhythm the same way as the report card. */
+    const dpDeity = p.deityProfile || {};
+    const dG = (d) => (d ? (d.god[lang] || d.god.en) : "");
+    const deityPlanLine = !dpDeity.driverDeity
+      ? null
+      : (dpDeity.sameDeity
+        ? (lang === "hi"
+          ? `<strong>इष्ट-देव मंत्र:</strong> आपके दोनों मुख्य अंकों का एक ही संरक्षक है — <strong>${dG(dpDeity.driverDeity)}</strong>। ${dpDeity.driverDeity.mantra} — ${loc(dpDeity.driverDeity.primaryChant, lang)}; ${loc(dpDeity.driverDeity.weeklyChant, lang)}।`
+          : lang === "gu"
+            ? `<strong>ઈષ્ટ-દેવ મંત્ર:</strong> તમારા બંને મુખ્ય અંકોનો એક જ સંરક્ષક છે — <strong>${dG(dpDeity.driverDeity)}</strong>. ${dpDeity.driverDeity.mantra} — ${loc(dpDeity.driverDeity.primaryChant, lang)}; ${loc(dpDeity.driverDeity.weeklyChant, lang)}.`
+            : `<strong>Ishta Devta chant:</strong> one guardian covers both your key numbers — <strong>${dG(dpDeity.driverDeity)}</strong>. Chant ${dpDeity.driverDeity.mantra} — ${loc(dpDeity.driverDeity.primaryChant, "en")}; ${loc(dpDeity.driverDeity.weeklyChant, "en")}.`)
+        : (lang === "hi"
+          ? `<strong>इष्ट-देव मंत्र:</strong> आपके संरक्षक देव <strong>${dG(dpDeity.driverDeity)}</strong> (मूलंक) — ${dpDeity.driverDeity.mantra} (${loc(dpDeity.driverDeity.primaryChant, lang)}; ${loc(dpDeity.driverDeity.weeklyChant, lang)}) और <strong>${dG(dpDeity.conductorDeity)}</strong> (भाग्यंक) — ${dpDeity.conductorDeity.mantra} (${loc(dpDeity.conductorDeity.primaryChant, lang)}; ${loc(dpDeity.conductorDeity.weeklyChant, lang)}).`
+          : lang === "gu"
+            ? `<strong>ઈષ્ટ-દેવ મંત્ર:</strong> તમારા સંરક્ષક દેવ <strong>${dG(dpDeity.driverDeity)}</strong> (મૂલંક) — ${dpDeity.driverDeity.mantra} (${loc(dpDeity.driverDeity.primaryChant, lang)}; ${loc(dpDeity.driverDeity.weeklyChant, lang)}) અને <strong>${dG(dpDeity.conductorDeity)}</strong> (ભાગ્યંક) — ${dpDeity.conductorDeity.mantra} (${loc(dpDeity.conductorDeity.primaryChant, lang)}; ${loc(dpDeity.conductorDeity.weeklyChant, lang)}).`
+            : `<strong>Ishta Devta chant:</strong> your guardian deities are <strong>${dG(dpDeity.driverDeity)}</strong> (Mulank) — ${dpDeity.driverDeity.mantra} (${loc(dpDeity.driverDeity.primaryChant, "en")}; ${loc(dpDeity.driverDeity.weeklyChant, "en")}) and <strong>${dG(dpDeity.conductorDeity)}</strong> (Bhagyank) — ${dpDeity.conductorDeity.mantra} (${loc(dpDeity.conductorDeity.primaryChant, "en")}; ${loc(dpDeity.conductorDeity.weeklyChant, "en")}).`)
+      );
+    if (deityPlanLine && phases[1]) phases[1].rows.push(deityPlanLine);
+
     return { targetN, target: { ...target, short: targetShort }, missingFocus, daily, weekly, phases };
   }
 
@@ -1938,11 +1988,27 @@
         : lang === "gu"
           ? "<strong>દોષ-દૃષ્ટિ:</strong> તમારું ગ્રીડ સંતુલિત રહે છે — જ્યારે પણ કોઈ અંક 3+ વખત ઊભરે, તે જ ગ્રહ તમારી દોષ-પ્રકૃતિ વધારી શકે છે."
           : "<strong>Dosha view:</strong> your grid is balanced right now — a repeated 3+ number is the signal to watch, because that same planet is what can tip your constitution.");
+    /* Deity view: the repeated number's own ishta devta is the first shield
+       when its energy runs high — the 108× round keeps intensity protected. */
+    const ddp = p.deityProfile || {};
+    const dagg = (ddp.repeatedDeity || []).slice(0, 2).map((a) => `${a.n} (${esc(db.numbers[a.n].planet.split(" ")[0])}) → ${loc(a.god, lang)}`).join(", ");
+    const deityView = dagg
+      ? (lang === "hi"
+        ? `<strong>देव-दृष्टि:</strong> ${dagg} — इन ग्रहों की बढ़ी हुई ऊर्जा को उनके इष्ट देव के मंत्र से संभालें — 108× का वृहद जाप तीव्रता को कठोरता में बदलने से रोकता है।`
+        : lang === "gu"
+          ? `<strong>દેવ-દૃષ્ટિ:</strong> ${dagg} — આ ગ્રહોની વધેલી ઊર્જાને તેમના ઇષ્ટ દેવના મંત્રથી સંભાલો — 108× નો મહાન જાપ તીવ્રતાને કઠોરતામાં ફેરવાતો ટાળે છે.`
+          : `<strong>Deity view:</strong> ${dagg} — hold the excess with the number's own ishta devta: the 108× round turns raw intensity into protected momentum instead of aggression.`)
+      : (lang === "hi"
+        ? "<strong>देव-दृष्टि:</strong> आपका ग्रिड संतुलित रहता है — जब भी कोई अंक 3+ बार उभरे, उसी अंक के इष्ट देव का 108× जाप पहली रक्षा है।"
+        : lang === "gu"
+          ? "<strong>દેવ-દૃષ્ટિ:</strong> તમારું ગ્રીડ સંતુલિત રહે છે — જ્યારે પણ કોઈ અંક 3+ વખત ઊભરે, તે જ અંકના ઇષ્ટ દેવનું 108× જાપ પ્રથમ રક્ષણ છે."
+          : "<strong>Deity view:</strong> your grid is balanced right now — when a number does repeat 3+, its ishta devta's 108× round is the first line of protection.");
     return `<div class="card">
       <div class="card-title">${lang === "hi" ? "अधिक ऊर्जा — सही दिशा में लगाएं" : lang === "gu" ? "વધુ ઊર્જા — યોગ્ય દિશામાં લગાવો" : "Excess Energy — Channel It, Don't Fight It"}</div>
       <div class="kit">${rows}</div>
       <div class="card-sub">${guidance}</div>
       <div class="judge-note">${doshaView}</div>
+      <div class="judge-note">${deityView}</div>
     </div>`;
   }
 
@@ -2071,6 +2137,127 @@
         <div class="card-sub"><strong>${lang === "hi" ? "मंत्र-लिंक:" : lang === "gu" ? "મંત્ર-લિંક:" : "Mantra-linked note:"}</strong> ${esc(loc(d.driverDosha && d.driverDosha.mantraLinkedNote, lang))}</div>
       </div>
       <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "यह <strong>पारंपरिक सुख-सजगता मार्गदर्शन</strong> है — ग्रहीय संविधान पर आधारित जीवनशैली ढांचा, निदान नहीं। उपाय सहायक साधन हैं और पेशेवर चिकित्सा सलाह के स्थान पर नहीं हैं।" : lang === "gu" ? "આ <strong>પરંપરાગત સુખ-સજગતા માર્ગદર્શન</strong> છે — ગ્રહીય સંવિધાન પર આધારિત જીવનશૈલી ઢાંચો, નિદાન નહીં. ઉપાય સહાયક સાધનો છે અને વ્યાવસાયિક તબીબી સલાહના સ્થાને નથી." : "This is <strong>traditional wellness guidance</strong> — a constitution-based lifestyle framework from the planetary map, not a diagnosis. Remedies are supportive practices, not a substitute for professional medical advice."}</div>
+    </div>`;
+  }
+
+  /* Deity Protection Layer — Ishta Devta card. Names the guardian deity
+     (ishta devta) behind the Driver and Conductor numbers, with the
+     classical mantra, the daily 11× chant, the 108× round, offerings and
+     support materials. Framed as traditional spiritual guidance: the
+     reader's own family tradition and guru's instruction take priority. */
+  function deityCard(p) {
+    const dp = p.deityProfile;
+    const db = getActiveDB();
+    const lang = getLang();
+    const L = (obj) => (obj ? obj[lang] || obj.en : "");
+    const god = (d) => (d ? L(d.god) : "");
+    const planetShort = (n) => (db.numbers[n] ? esc(db.numbers[n].planet.split(" ")[0]) : String(n));
+
+    const guardians = [];
+    if (dp.driverDeity) {
+      guardians.push({
+        n: dp.driverNumber,
+        role: lang === "hi" ? "ड्राइवर (मूलंक)" : lang === "gu" ? "ડ્રાઈવર (મૂલંક)" : "Driver (Moolank)",
+        deity: dp.driverDeity
+      });
+    }
+    if (dp.conductorDeity && !dp.sameDeity) {
+      guardians.push({
+        n: dp.conductorNumber,
+        role: lang === "hi" ? "कंडक्टर (भाग्यंक)" : lang === "gu" ? "કન્ડક્ટર (ભાગ્યંક)" : "Conductor (Bhagyank)",
+        deity: dp.conductorDeity
+      });
+    }
+    const sameNote = dp.sameDeity
+      ? (lang === "hi"
+        ? "एक ही देवता आपके दोनों मुख्य अंकों की रक्षा करते हैं — इष्ट-देवता साझा होने पर रक्षा दोहरी होती है।"
+        : lang === "gu"
+          ? "એક જ દેવતા તમારા બંને મુખ્ય અંકોની રક્ષા કરે છે — ઈષ્ટ-દેવતા સાંચા થતાં રક્ષણ બમણું બને છે."
+          : "One deity guards both of your key numbers — a shared ishta devta means double the protection.")
+      : "";
+
+    const gRows = guardians.map((g) => {
+      const d = g.deity;
+      return `<div class="kit-row">
+        <div class="kit-label"><span class="chip num">${g.n}</span> ${planetShort(g.n)} · ${esc(g.role)}</div>
+        <div class="kit-val"><strong>${esc(god(d))}</strong> — <span class="mantra">${esc(d.mantra)}</span></div>
+        <div class="kit-sub">${esc(L(d.primaryChant))} · ${esc(L(d.weeklyChant))}</div>
+        <div class="kit-sub">${esc(L(d.protectionNote))}</div>
+      </div>`;
+    }).join("");
+
+    const offRows = guardians.map((g) => {
+      const d = g.deity;
+      return `<div class="kit-row">
+        <div class="kit-label">${esc(god(d))} (${g.n} · ${planetShort(g.n)})</div>
+        <div class="kit-val">${esc(L(d.offerings))}</div>
+        <div class="kit-sub">${esc(L(d.support))}</div>
+      </div>`;
+    }).join("");
+
+    const vigilRows = (dp.repeatedDeity || []).slice(0, 2).map((r) => `<div class="kit-row">
+      <div class="kit-label"><span class="chip num">${r.n}</span> ${planetShort(r.n)} → ${esc(god(r))} — ${r.count}×</div>
+      <div class="kit-val">${esc(L(r.weeklyChant))}</div>
+      <div class="kit-sub">${lang === "hi"
+        ? "यह अंक बार-बार उभर रहा है — इसकी ऊर्जा को 108× वृहद जाप से संभालना पहला कवच है।"
+        : lang === "gu"
+          ? "આ અંક ફરીફરી ઊભરે છે — તેની ઊર્જાને 108× મહાન જાપથી સંભાળવી પ્રથમ કવચ છે."
+          : "This number is rising repeatedly — fold the 108× round into your channeling routine as the first shield."}</div>
+    </div>`).join("");
+
+    const vigil = vigilRows
+      ? `<div class="kit-label">${lang === "hi" ? "बढ़ी ऊर्जा = अतिरिक्त सावधानी" : lang === "gu" ? "વધેલી ઊર્જા = વધારાની સાવધાની" : "Excess energy = extra vigilance"}</div>${vigilRows}`
+      : `<div class="kit-row">
+        <div class="kit-val">${lang === "hi"
+          ? "कोई अंक 3+ बार नहीं — आपके संरक्षक संतुलित खड़े हैं। जब कोई उभरे, उसका 108× जाप पहली रक्षा है।"
+          : lang === "gu"
+            ? "કોઈ અંક 3+ વખત નથી — તમારા સંરક્ષકો સંતુલિત રહે છે. જ્યારે કોઈ ઊભરે, તેનું 108× જાપ પ્રથમ રક્ષણ છે."
+            : "No number repeats 3+ times — your guardians are standing easy. When one rises, its 108× round is the first shield."}</div>
+      </div>`;
+
+    const gapRows = (dp.underSupported || []).slice(0, 3).map((m) => `<div class="kit-row">
+      <div class="kit-label"><span class="chip num">${m.n}</span> ${planetShort(m.n)} → ${esc(god(m))} — ${lang === "hi" ? "critical अनुपस्थित" : lang === "gu" ? "critical ખાલી" : "critical gap"}</div>
+      <div class="kit-val">${esc(L(m.primaryChant))}</div>
+      <div class="kit-sub">${lang === "hi"
+        ? "यह प्रमुख अंक आपके चार्ट में कम है — इस संरक्षक का 11× जाप सूर्योदय कृति में जोड़ें।"
+        : lang === "gu"
+          ? "આ મુખ્ય અંક તમારા ચાર્ટમાં ઓછો છે — આ સંરક્ષકનું 11× જાપ સૂર્યોદય કરમમાં ઉમેરો."
+          : "This critical number runs low in your chart — add the guardian's 11× chant to your sunrise ritual."}</div>
+    </div>`).join("");
+
+    const gap = gapRows
+      ? `<div class="kit-label">${lang === "hi" ? "अनुपष्ठित प्रमुख अंक — उनका संरक्षण" : lang === "gu" ? "ખાલી મુખ્ય અંક — તેમનું સંરક્ષણ" : "Under-supported numbers — their protection"}</div>${gapRows}`
+      : `<div class="kit-row">
+        <div class="kit-val">${lang === "hi"
+          ? "कोई critical अनुपस्थित-अंक नहीं — आपके संरक्षक पूरे ग्रिड पर खड़े हैं।"
+          : lang === "gu"
+            ? "કોઈ critical ખાલી-અંક નથી — તમારા સંરક્ષકો આખા ગ્રીડ પર રહે છે."
+            : "No critical missing-number gap — your guardians cover the whole grid."}</div>
+      </div>`;
+
+    const badge = dp.sameDeity
+      ? esc(god(dp.driverDeity))
+      : [god(dp.driverDeity), god(dp.conductorDeity)].filter(Boolean).join(" · ");
+
+    return `<div class="card" id="deity-card">
+      <div class="card-title">${lang === "hi" ? "देव-संरक्षण स्तर — आपका इष्ट देवता" : lang === "gu" ? "દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા" : "Deity Protection Layer — Your Ishta Devta"} <span class="badge">${badge}</span></div>
+      <div class="card-sub">${lang === "hi"
+        ? "हिंदू परंपरा में हर जन्म-अंक के पीछे एक रक्षक देवता होता है — इष्ट देवता। अपने इष्ट को पहचानना और उससे छोटी दैनिक साधना रखना स्वयं एक कवच है; यह स्तर आपके दो मुख्य अंकों के रक्षक देव को दिखाता है।"
+        : lang === "gu"
+          ? "હિંદુ પરંપરામાં દરેક જન્મ-અંક પાછળ એક રક્ષક દેવતા હોય છે — ઈષ્ટ દેવતા. પોતાના ઈષ્ટને ઓળખવું અને તેમ સાથે નાની દૈનિક સાધના રાખવી સ્વયં એક કવચ છે; આ સ્તર તમારા બે મુખ્ય અંકોના રક્ષક દેવ બતાવે છે."
+          : "In the Hindu tradition every birth number carries a guardian deity — the ishta devta. Knowing your own ishta and keeping a small daily practice with it is itself a shield; this layer maps the guardian behind your two key numbers."}</div>
+      <div class="kit-label">${lang === "hi" ? "आपके संरक्षक देव (Driver + Conductor)" : lang === "gu" ? "તમારા સંરક્ષક દેવ (Driver + Conductor)" : "Your guardian deities (Driver + Conductor)"}</div>
+      ${gRows}
+      ${sameNote ? `<div class="kit-row"><div class="kit-val">${esc(sameNote)}</div></div>` : ""}
+      <div class="kit-label">${lang === "hi" ? "भोग व सहारा (नायवेद्य + दैनिक आधार)" : lang === "gu" ? "ભોગ અને સહારો (નાયવેદ્ય + દૈનિક આધાર)" : "Offerings & support (naivedya + daily anchor)"}</div>
+      ${offRows}
+      <div class="kit">${vigil}</div>
+      <div class="kit">${gap}</div>
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi"
+        ? "यह <strong>पारंपरिक आध्यात्मिक मार्गदर्शन</strong> है — शास्त्रीय इष्ट-देवता संबंध, परिणामों की गारंटी नहीं। पहले अपनी कुल-परंपरा और अपने गुरु की आज्ञा का पालन करें; साधना आस्था का कवच है, विवेक या पेशेवर सलाह का विकल्प नहीं।"
+        : lang === "gu"
+          ? "આ <strong>પરંપરાગત આધ્યાત્મિક માર્ગદર્શન</strong> છે — શાસ્ત્રીય ઈષ્ટ-દેવતા સંબંધ, પરિણામોની ગારંટી નહીં. પહેલાં પોતાની કુલ-પરંપરા અને ગુરુની આજ્ઞાનો પાલન કરો; સાધના આસ્થાનું કવચ છે, વિવેક કે વ્યાવસાયિક સલાહનો વિકલ્પ નહીં."
+        : "This is <strong>traditional spiritual guidance</strong> — the classical ishta-devta correspondence, not a guarantee of outcomes. Follow your own family tradition and your guru's instruction first; the practice is a shield of faith, not a replacement for judgement or professional advice."}</div>
     </div>`;
   }
 
@@ -2942,6 +3129,7 @@
         </div>
         ${karmicDebtCard(p)}
         ${doshaCard(p)}
+        ${deityCard(p)}
       </section>
       ${traitsSection}
       ${renderLoshu(p)}
