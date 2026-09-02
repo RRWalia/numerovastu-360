@@ -29,6 +29,52 @@
     return "enemy";
   }
 
+  /* Ayurvedic dosha profile — pure function over the Driver + Conductor
+     numbers and the grid severity fields already computed by computeProfile.
+     It enriches the "Health" interpretation without adding PII or asking any
+     medical measurement. Read as traditional wellness guidance only. */
+  function buildDoshaProfile(src) {
+    const db = getActiveDB();
+    const map = db.dosha || (window.DB && window.DB.dosha) || {};
+    const ddriver = map[src.driver] || {};
+    const dconductor = map[src.conductor] || {};
+    const counts = { pitta: 0, vata: 0, kapha: 0 };
+    const addType = (label) => {
+      String(label || "").toLowerCase().split(/[\s\u2013\-/,]+/).forEach((tok) => {
+        const k = tok.replace(/[^a-z]/g, "");
+        if (counts[k] !== undefined) counts[k]++;
+      });
+    };
+    addType(ddriver.dominant);
+    addType(dconductor.dominant);
+    const driverT = String(ddriver.dominant || "").toLowerCase();
+    const conductorT = String(dconductor.dominant || "").toLowerCase();
+    if (driverT.includes("tridoshic") || conductorT.includes("tridoshic")) {
+      counts.pitta++; counts.vata++; counts.kapha++;
+    }
+    const max = Math.max(counts.pitta, counts.vata, counts.kapha);
+    const cap = (x) => x === "pitta" ? "Pitta" : x === "vata" ? "Vata" : "Kapha";
+    const top = ["pitta", "vata", "kapha"].filter((k) => counts[k] === max && max > 0);
+    const primary = top.map(cap).join(top.length > 1 ? "–" : "");
+    const aggravated = (src.repeated || []).filter((n) => map[n]).map((n) => Object.assign({ n, count: src.counts[n] || 0 }, map[n]));
+    const underSupported = (src.missingSeverity || []).filter((m) => m.critical && map[m.n]).map((m) => Object.assign({ n: m.n, critical: true }, map[m.n]));
+    const missingDosha = (src.missing || []).filter((n) => map[n]).map((n) => Object.assign({ n }, map[n]));
+    return {
+      driverNumber: src.driver,
+      conductorNumber: src.conductor,
+      driverType: ddriver.dominant || "",
+      conductorType: dconductor.dominant || "",
+      driverDosha: ddriver,
+      conductorDosha: dconductor,
+      counts,
+      primary,
+      primaryTags: top.map(cap),
+      aggravated,
+      underSupported,
+      missingDosha
+    };
+  }
+
   const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.5.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-31";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
@@ -567,6 +613,7 @@
       day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak, missingSeverity,
       dobCompound, karmicDebts,
+      doshaProfile: buildDoshaProfile({ driver, conductor, counts, repeated, missing, missingSeverity }),
       nameCompound, nameNum, nameRelD, nameRelC, nameCounts, combinedCounts,
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
@@ -590,6 +637,17 @@
       zodiacTropical: zodiacSign(d, m),
       vedicTier, astro, kua
     };
+  }
+
+  /* Localised label for dosha tags, so the constitution name reads naturally
+     in English, Hindi and Gujarati while the data stays canonical. */
+  function doshaLabel(type, lang) {
+    const map = (lang === "hi"
+      ? { pitta: "पित्त", vata: "वात", kapha: "कफ" }
+      : lang === "gu"
+        ? { pitta: "પિત્ત", vata: "વાત", kapha: "કફ" }
+        : { pitta: "Pitta", vata: "Vata", kapha: "Kapha" });
+    return String(type || "").split(/[\s\u2013\-/,]+/).map((w) => map[w.toLowerCase()] || w).filter(Boolean).join("–");
   }
 
   /* ---------------- spelling correction & name suggestions ---------------- */
@@ -1533,6 +1591,21 @@
       phases.push({ badge: "Day 40+", title: "Review &amp; reset", rows: phase4Rows });
     }
 
+    /* Constitution-aware rhythm: fold the dosha layer into the 40-day plan
+       one line, in the second phase, so lifestyle timing matches the blend. */
+    const dpDosha = p.doshaProfile || {};
+    const dTags = dpDosha.primaryTags || [];
+    const isCombo = dTags.length > 1;
+    const isVata = dTags.includes("Vata");
+    const isPitta = dTags.includes("Pitta");
+    const isKapha = dTags.includes("Kapha");
+    const doshaPlanLine = lang === "hi"
+      ? `<strong>दोष-लय:</strong> आपकी मिश्रित प्रकृति <strong>${doshaLabel(dpDosha.primary, lang)}</strong> है — ${isCombo ? "दोनों दोषों के संतुलन-नियम साथ चलाएं: नियत समय, रोज गति और दोपहर बाद ठंडा विश्राम।" : isKapha ? "रोज चलें/सीढ़ियां/प्राणायाम और सबसे बड़ा भोजन सूर्यास्त से पहले रखें।" : isPitta ? "सुबह का मुख्य उपाय रखें, दोपहर की धूप से बचें और दोपहर बाद एक ठंडा विश्राम लें।" : isVata ? `मुख्य उपाय ${dayOf(p.driver)} की सुबह से शुरू करें और भोजन/नींद का स्थिर समय रखें।` : "बुध/संतुलक प्रकृति — दिनचर्या को स्थिर रखें और सप्ताह में एक बार स्पष्ट रीसेट करें।"}`
+      : lang === "gu"
+        ? `<strong>દોષ-લય:</strong> તમારી મિશ્ર પ્રકૃતિ <strong>${doshaLabel(dpDosha.primary, lang)}</strong> છે — ${isCombo ? "બંને દોષના સંતુલન-નિયમ સાથે ચલાવો: નિયત સમય, રોજ ગતિ અને બપોર પછી ઠંડો વિશ્રામ." : isKapha ? "રોજ ચાલો/સીડી/પ્રાણાયામ અને સૌથી મોટું ભોજન સૂર્યાસ્ત પહેલાં લો." : isPitta ? "સવારનો મુખ્ય ઉપાય રાખો, બપોરનો તડકો ટાળો અને બપોર પછી થોડો ઠંડો વિશ્રામ લો." : isVata ? `મુખ્ય ઉપાય ${dayOf(p.driver)} ની સવારથી શરૂ કરો અને ભોજન/ઊંઘનો સ્થિર સમય રાખો.` : "બુધ/સંતુલક પ્રકૃતિ — દિનચર્યા સ્થિર રાખો અને સપ્તાહમાં એક વાર સ્પષ્ટ રીસેટ કરો."}`
+        : `<strong>Dosha-aware rhythm:</strong> your <strong>${doshaLabel(dpDosha.primary, "en")}</strong> nature does best when ${isCombo ? "you run both balancing rules in parallel — fixed times, daily movement and a cool-down after midday." : isKapha ? "you move daily (walk, stairs or pranayama) and keep the largest meal before sunset." : isPitta ? "you keep the core ritual at sunrise, avoid noon sun exertion and take a short cool-down after midday." : isVata ? `you anchor the morning ritual on a ${DAY_OF[p.driver]} and keep fixed meal and sleep times.` : "you keep the Mercury-style reset steady — one rhythm, one regular reset per week."}`;
+    if (phases[1]) phases[1].rows.push(doshaPlanLine);
+
     return { targetN, target: { ...target, short: targetShort }, missingFocus, daily, weekly, phases };
   }
 
@@ -1852,10 +1925,24 @@
       : lang === "gu"
         ? "એક પુનરાવર્તિત અંક પ્રતિભાનો પ્રવર્ધક છે — તેને દિશા આપો, વધુ બળતણ નહીં. જ્યાં સુધી ખૂટતા અંક ભરાય નહીં, એવા નામ, મોબાઈલ કે વાહન કુલ ટાળો જે આ જ અંકને વધુ મજબૂત કરે; વધારાની ઊર્જાને ઉપર આપેલી દિશામાં લગાવો."
         : "A repeated number is a talent amplifier — give it direction, not more fuel. Until the missing numbers are filled, avoid name, mobile or vehicle totals that add to this same number; channel the surplus through the actions above instead.";
+    const dp = p.doshaProfile || {};
+    const agg = (dp.aggravated || []).slice(0, 2).map((a) => `${a.n} (${esc(db.numbers[a.n].planet.split(" ")[0])}) → ${a.dominant}`).join(", ");
+    const doshaView = agg
+      ? (lang === "hi"
+        ? `<strong>दोष-दृष्टि:</strong> ${agg} — इन ग्रहों की अधिक ऊर्जा आपकी <strong>${dp.primary || ""}</strong> प्रकृति को बढ़ा सकती है। संतुलन-पोषण और ग्राउंडिंग दिनचर्या खंड ${SECTION.core} के दोष-स्तर कार्ड में अपनाएं, और उसी ग्रह को अपना वृद्धि-जोखिम मानें।`
+        : lang === "gu"
+          ? `<strong>દોષ-દૃષ્ટિ:</strong> ${agg} — આ ગ્રહોની વધુ ઊર્જા તમારી <strong>${dp.primary || ""}</strong> પ્રકૃતિને વધારી શકે છે. સંતુલન-પોષણ અને ગ્રાઉન્ડિંગ દિનચર્યા વિભાગ ${SECTION.core} ના દોષ-સ્તર કાર્ડમાં અપનાવો, અને તે જ ગ્રહને તમારું વૃદ્ધિ-જોખમ ગણો.`
+          : `<strong>Dosha view:</strong> ${agg} — the excess of these planets can aggravate your <strong>${dp.primary || "constitution"}</strong> nature. Pair the channeling guidance above with the balancing foods and grounding routine in the Ayurvedic Dosha Layer card (Section ${SECTION.core}), and treat that planet as your priority aggravation risk.`)
+      : (lang === "hi"
+        ? "<strong>दोष-दृष्टि:</strong> आपका ग्रिड संतुलित रहता है — जब भी कोई अंक 3+ बार उभरे, वही ग्रह आपकी दोष-प्रकृति को बढ़ा सकता है।"
+        : lang === "gu"
+          ? "<strong>દોષ-દૃષ્ટિ:</strong> તમારું ગ્રીડ સંતુલિત રહે છે — જ્યારે પણ કોઈ અંક 3+ વખત ઊભરે, તે જ ગ્રહ તમારી દોષ-પ્રકૃતિ વધારી શકે છે."
+          : "<strong>Dosha view:</strong> your grid is balanced right now — a repeated 3+ number is the signal to watch, because that same planet is what can tip your constitution.");
     return `<div class="card">
       <div class="card-title">${lang === "hi" ? "अधिक ऊर्जा — सही दिशा में लगाएं" : lang === "gu" ? "વધુ ઊર્જા — યોગ્ય દિશામાં લગાવો" : "Excess Energy — Channel It, Don't Fight It"}</div>
       <div class="kit">${rows}</div>
       <div class="card-sub">${guidance}</div>
+      <div class="judge-note">${doshaView}</div>
     </div>`;
   }
 
@@ -1902,6 +1989,88 @@
       </div>
       ${debts.length ? `<div class="kit">${rows}</div>` : `<div class="kit-value">${clean}</div>`}
       <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${judgeNote}</div>
+    </div>`;
+  }
+
+  /* Ayurvedic dosha card — the constitution layer behind the Health goal.
+     It cross-references the Driver/Conductor pair with the classical
+     Jyotish–Ayurveda correspondence and flags aggravation (repeated 3+) and
+     under-supported (missing-critical) planetary numbers. */
+  function doshaCard(p) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const d = p.doshaProfile || {};
+    const doshaLabels = (lang === "hi"
+      ? { pitta: "पित्त", vata: "वात", kapha: "कफ" }
+      : lang === "gu"
+        ? { pitta: "પિત્ત", vata: "વાત", kapha: "કફ" }
+        : { pitta: "Pitta", vata: "Vata", kapha: "Kapha" });
+    const doshaName = (t) => String(t || "").split(/[\s\u2013\-/,]+/).map((w) => doshaLabels[w.toLowerCase()] || w).filter(Boolean).join(lang === "en" ? "–" : "–");
+    const typeOf = (n, entry) => `${esc(db.numbers[n].planet)} → ${doshaName(entry.dominant || "")}`;
+    const natureRows = [
+      { n: d.driverNumber, entry: d.driverDosha || {} },
+      { n: d.conductorNumber, entry: d.conductorDosha || {} }
+    ].map((r) => `<div class="kit-row">
+      <div class="kit-ico"><strong>${r.n}</strong></div>
+      <div class="kit-body">
+        <div class="kit-label">${esc(typeOf(r.n, r.entry))}</div>
+        <div class="kit-value">${esc(loc(r.entry.nature, lang))}</div>
+        <div class="card-sub">${lang === "hi" ? "जब यह बढ़ता है:" : lang === "gu" ? "જ્યારે તે વધે છે:" : "When it rises:"} ${esc(loc(r.entry.aggravation, lang))}</div>
+      </div>
+    </div>`).join("");
+
+    const aggRows = (d.aggravated || []).map((a) => `<div class="kit-row">
+      <div class="kit-ico bad-ico"><strong>${a.n}</strong></div>
+      <div class="kit-body">
+        <div class="kit-label">${esc(typeOf(a.n, a))} — ${lang === "hi" ? `दोहराया ${a.count}×` : lang === "gu" ? `પુનરાવર્તિત ${a.count}×` : `repeated ${a.count}×`}</div>
+        <div class="kit-value">${esc(loc(a.aggravation, lang))}</div>
+      </div>
+    </div>`).join("");
+
+    const supportRows = (d.underSupported || []).map((m) => `<div class="kit-row">
+      <div class="kit-ico"><strong>${m.n}</strong></div>
+      <div class="kit-body">
+        <div class="kit-label">${esc(typeOf(m.n, m))} — ${lang === "hi" ? "प्रमुख संतुलन अंतर" : lang === "gu" ? "મુખ્ય સંતુલન ક્ષેત્ર" : "critical missing-number gap"}</div>
+        <div class="kit-value">${lang === "hi" ? "सहारा:" : lang === "gu" ? "ટેકો:" : "Support:"} ${esc(loc(m.routine, lang))}</div>
+      </div>
+    </div>`).join("");
+
+    const blendCount = ["pitta", "vata", "kapha"].map((k) => `${doshaLabels[k]} ${d.counts[k] ?? 0}`).join(" · ");
+    const foods = `${loc(d.driverDosha && d.driverDosha.balancingFoods, lang)}${loc(d.conductorDosha && d.conductorDosha.balancingFoods, lang) ? " " + loc(d.conductorDosha && d.conductorDosha.balancingFoods, lang) : ""}`;
+    const routine = `${loc(d.driverDosha && d.driverDosha.routine, lang)}${loc(d.conductorDosha && d.conductorDosha.routine, lang) ? " " + loc(d.conductorDosha && d.conductorDosha.routine, lang) : ""}`;
+
+    return `<div class="card" id="dosha-card">
+      <div class="goal-head">
+        <div class="card-title">${lang === "hi" ? "आयुर्वेदिक दोष स्तर — आपकी प्रकृति" : lang === "gu" ? "આયુર્વેદિક દોષ સ્તર — તમારી પ્રકૃતિ" : "Ayurvedic Dosha Layer — Your Constitution"}</div>
+        <span class="badge warn">${doshaName(d.primary) || (lang === "hi" ? "सामान्य" : lang === "gu" ? "સામાન્ય" : "Balanced")}</span>
+      </div>
+      <div class="card-sub">${lang === "hi" ? "ज्योतिष और आयुर्वेद एक ही ग्रह-तत्व से काम करते हैं — हर अंक 1–9 अपने ग्रह की संविधानिक छाप लाता है।" : lang === "gu" ? "જ્યોતિષ અને આયુર્વેદ એક જ ગ્રહ-તત્વ સાથે કામ કરતા હોય — દરેક અંક 1–9 પોતાના ગ્રહની સંવિધાનિક છાપ લાવે છે." : "Jyotish and Ayurveda share the same planetary substrate — every number 1–9 carries its planet's constitutional signature."}</div>
+      <div class="kit">
+        ${natureRows}
+        <div class="kit-row">
+          <div class="kit-ico"><strong>≈</strong></div>
+          <div class="kit-body">
+            <div class="kit-label">${lang === "hi" ? "मिश्रित प्रकृति (Driver + Conductor)" : lang === "gu" ? "મિશ્ર પ્રકૃતિ (Driver + Conductor)" : "Blended constitution (Driver + Conductor)"}</div>
+            <div class="kit-value"><strong>${doshaName(d.primary)}</strong> — ${blendCount}</div>
+            <div class="card-sub">${d.primaryTags && d.primaryTags.length > 1 ? (lang === "hi" ? "दो दोषों को साथ देखें; दोनों के संतुलन-उपाय साथ चलें।" : lang === "gu" ? "બે દોષ સાથે જુઓ; બંનેના સંતુલન-ઉપાય સાથે ચલાવો." : "Read both doshas together — their balancing practices run in parallel.") : (lang === "hi" ? "यह आपका प्रमुख दोष है; बाकी सहायक हैं।" : lang === "gu" ? "આ તમારો મુખ્ય દોષ છે; બાકી સહાયક છે." : "This is your dominant dosha; the others are supportive.")}</div>
+          </div>
+        </div>
+      </div>
+      <div class="kit">
+        <div class="kit-label">${lang === "hi" ? "बढ़ी हुई ऊर्जा = दोष वृद्धि जोखिम" : lang === "gu" ? "વધેલી ઊર્જા = દોષ વૃદ્ધિ જોખમ" : "Excess energy = dosha aggravation risk"}</div>
+        ${aggRows || (lang === "hi" ? "<div class=\"kit-value\">कोई अंक 3+ बार दोहराया नहीं है — आज आपका दोष-जोखिम संतुलित है।</div>" : lang === "gu" ? "<div class=\"kit-value\">કોઈ અંક 3+ વખત પુનરાવર્તિત નથી — આજે તમારું દોષ-જોખમ સંતુલિત છે.</div>" : "<div class=\"kit-value\">No number repeats 3+ times — your aggravation risk is balanced today.</div>")}
+      </div>
+      <div class="kit">
+        <div class="kit-label">${lang === "hi" ? "प्रमुख अंकों का सहारा (critical missing)" : lang === "gu" ? "મુખ્ય અંકનો ટેકો (critical missing)" : "Under-supported numbers (missing-critical)"}</div>
+        ${supportRows || (lang === "hi" ? "<div class=\"kit-value\">कोई प्रमुख अनुपस्थित अंक संतुलन-उपाय मांग रहा है — मुख्य सहारा आपके मूलांक/भाग्यांक जोड़े में ही है।</div>" : lang === "gu" ? "<div class=\"kit-value\">કોઈ મુખ્ય ખૂટતો અંક સંતુલન-ઉપાય માંગતો નથી — મુખ્ય ટેકો તમારા મૂળાંક/ભાગ્યાંક જોડામાં જ છે.</div>" : "<div class=\"kit-value\">No critical missing-number support gap — the main support lives in your Driver/Conductor pair.</div>")}
+      </div>
+      <div class="kit">
+        <div class="kit-label">${lang === "hi" ? "खाद्य-आधार और दिनचर्या स्थिरक" : lang === "gu" ? "ખોરાક-આધાર અને દિનચર્યા સ્થિરક" : "Food baseline & routine anchors"}</div>
+        <div class="kit-value"><strong>${lang === "hi" ? "संतुलन-पोषण:" : lang === "gu" ? "સંતુલન-પોષણ:" : "Balancing foods:"}</strong> ${esc(foods)}</div>
+        <div class="kit-value"><strong>${lang === "hi" ? "दिनचर्या:" : lang === "gu" ? "દિનચર્યા:" : "Routine:"}</strong> ${esc(routine)}</div>
+        <div class="card-sub"><strong>${lang === "hi" ? "मंत्र-लिंक:" : lang === "gu" ? "મંત્ર-લિંક:" : "Mantra-linked note:"}</strong> ${esc(loc(d.driverDosha && d.driverDosha.mantraLinkedNote, lang))}</div>
+      </div>
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "यह <strong>पारंपरिक सुख-सजगता मार्गदर्शन</strong> है — ग्रहीय संविधान पर आधारित जीवनशैली ढांचा, निदान नहीं। उपाय सहायक साधन हैं और पेशेवर चिकित्सा सलाह के स्थान पर नहीं हैं।" : lang === "gu" ? "આ <strong>પરંપરાગત સુખ-સજગતા માર્ગદર્શન</strong> છે — ગ્રહીય સંવિધાન પર આધારિત જીવનશૈલી ઢાંચો, નિદાન નહીં. ઉપાય સહાયક સાધનો છે અને વ્યાવસાયિક તબીબી સલાહના સ્થાને નથી." : "This is <strong>traditional wellness guidance</strong> — a constitution-based lifestyle framework from the planetary map, not a diagnosis. Remedies are supportive practices, not a substitute for professional medical advice."}</div>
     </div>`;
   }
 
@@ -2772,6 +2941,7 @@
           <div class="kit-value">Your mind runs on <strong>${esc(db.numbers[p.driver].planet)}</strong> (${esc(db.numbers[p.driver].traits.split(",")[0].toLowerCase())}) while your destiny demands <strong>${esc(db.numbers[p.conductor].planet)}</strong> (${esc(db.numbers[p.conductor].traits.split(",")[0].toLowerCase())}). This pair is <strong>${relation(p.driver, p.conductor)}</strong> — ${relation(p.driver, p.conductor) === "friendly" ? "a naturally cooperative chart; remedies will amplify what already flows." : relation(p.driver, p.conductor) === "neutral" ? "a workable chart; targeted remedies will sharpen results." : "the remedies below are chosen to bridge these two energies."}</div>
         </div>
         ${karmicDebtCard(p)}
+        ${doshaCard(p)}
       </section>
       ${traitsSection}
       ${renderLoshu(p)}

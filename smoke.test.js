@@ -54,8 +54,8 @@ const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
   ["app version badge", $("#appBadge").textContent === "App v2.6.1 · Meeus engine"],
-  ["build badge", $("#buildBadge").textContent === "Build 2026-09-01"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.3.0")],
+  ["build badge", $("#buildBadge").textContent === "Build 2026-09-02"],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.4.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -125,6 +125,11 @@ const checks = [
   ["excess energy repeated number rendered", report.includes("repeated 3×") && report.includes("Moon (Chandra)")],
   ["excess energy overshoot + channel labels", report.includes("When it overshoots:") && report.includes("Channel it:")],
   ["excess energy guidance (no more fuel)", report.includes("give it direction, not more fuel")],
+  ["ayurvedic dosha card renders", report.includes("Ayurvedic Dosha Layer") && report.includes('id="dosha-card"')],
+  ["dosha blend from Driver + Conductor", report.includes("Blended constitution") && report.includes("Kapha–Vata") && report.includes("Vata")],
+  ["dosha aggravation cross-ref in excess energy", report.includes("Dosha view:") && report.includes("repeated 3×")],
+  ["dosha-aware 40-day plan line", report.includes("Dosha-aware rhythm:") && report.includes("anchor the morning ritual")],
+  ["dosha disclaimer on card", report.includes("traditional wellness guidance") && report.includes("not a substitute for professional medical advice")],
   ["no NaN leaks", !report.includes("NaN")],
 ];
 
@@ -173,6 +178,9 @@ const hindiChecks = [
   ["Hindi no undefined leaks", !rHi.includes("undefined")],
   ["Hindi no NaN leaks", !rHi.includes("NaN")],
   ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
+  ["Hindi ayurvedic dosha card", rHi.includes("आयुर्वेदिक दोष स्तर") && rHi.includes("मिश्रित प्रकृति")],
+  ["Hindi dosha cross-ref + plan line", rHi.includes("दोष-दृष्टि") && rHi.includes("दोष-लय")],
+  ["Hindi dosha disclaimer", rHi.includes("पारंपरिक") && rHi.includes("पेशेवर चिकित्सा सलाह")],
   ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
   ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
   ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
@@ -197,6 +205,9 @@ const gujaratiChecks = [
   ["Gujarati no undefined leaks", !rGu.includes("undefined")],
   ["Gujarati no NaN leaks", !rGu.includes("NaN")],
   ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],
+  ["Gujarati ayurvedic dosha card", rGu.includes("આયુર્વેદિક દોષ સ્તર") && rGu.includes("મિશ્ર પ્રકૃતિ")],
+  ["Gujarati dosha cross-ref + plan line", rGu.includes("દોષ-દૃષ્ટિ") && rGu.includes("દોષ-લય")],
+  ["Gujarati dosha disclaimer", rGu.includes("પરંપરાગત") && rGu.includes("વ્યાવસાયિક તબીબી સલાહ")],
 ];
 gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -311,6 +322,27 @@ const eeChecks = [
   ["excessEnergy data in active DB via getActiveDB", window.__NV.getActiveDB().excessEnergy === ee],
 ];
 eeChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// 3d: Ayurvedic dosha content + pure compute function.
+const doshaDb = window.__NV.getActiveDB().dosha || {};
+const doshaChecks = [
+  ["dosha data has 9 numbers", Object.keys(doshaDb).length === 9],
+  ["each number has dominant + en/hi/gu nature", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].dominant && doshaDb[n].nature && doshaDb[n].nature.en && doshaDb[n].nature.hi && doshaDb[n].nature.gu)],
+  ["each number has en/hi/gu aggravation + balancingFoods", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].aggravation.en && doshaDb[n].aggravation.hi && doshaDb[n].aggravation.gu && doshaDb[n].balancingFoods.en && doshaDb[n].balancingFoods.hi && doshaDb[n].balancingFoods.gu)],
+  ["each number has routine + mantraLinkedNote", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].routine.en && doshaDb[n].routine.hi && doshaDb[n].routine.gu && doshaDb[n].mantraLinkedNote.en && doshaDb[n].mantraLinkedNote.hi && doshaDb[n].mantraLinkedNote.gu)],
+];
+doshaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+const doshaProfile = window.__NV.computeProfile({
+  name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", goals: ["Money", "Career"],
+  entrance: "SW", kitchen: "NE", bedroom: "SW", toilet: "NW", watchType: "smart", vehicle: "HR51AB1234"
+}).doshaProfile;
+const doshaProfileChecks = [
+  ["doshaProfile blended from driver + conductor", doshaProfile.driverNumber === 2 && doshaProfile.conductorNumber === 8 && doshaProfile.primary === "Vata"],
+  ["doshaProfile flags repeated 3+ as aggravation", doshaProfile.aggravated.some((a) => a.n === 2 && a.count >= 3)],
+  ["doshaProfile exposes balanced/support gaps", typeof doshaProfile.counts.pitta === "number" && Array.isArray(doshaProfile.underSupported) && Array.isArray(doshaProfile.missingDosha)],
+];
+doshaProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // fourth block: engine functions (kua + compatibility)
 const NV = window.__NV;

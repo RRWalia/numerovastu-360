@@ -801,6 +801,86 @@ var DB = {
     }
   },
 
+  /* ---- Ayurvedic Dosha Layer (Jyotish–Ayurveda constitutional map) ----
+     Each Vedic number carries a classical planetary dosha signature.
+     In this app it is used only as traditional wellness guidance: a
+     constitution-level lifestyle scaffold that explains the "why" behind
+     the existing remedy kits. It is never a diagnosis or medical claim. */
+  dosha: {
+    1: {
+      dominant: "Pitta",
+      nature: { en: "Solar-fire constitution — naturally warm digestion, focused will, leadership and inner heat.", hi: "सूर्य-अग्नि प्रकृति — स्वाभाविक रूप से गर्म पाचन, केंद्रित इच्छाशक्ति, नेतृत्व और भीतर की ऊष्मा।", gu: "સૂર્ય-અગ્નિ પ્રકૃતિ — કુદરતી રીતે ગરમ પાચન, કેન્દ્રિત ઇચ્છાશક્તિ, નેતૃત્વ અને અંદરની ઊષ્મા." },
+      aggravation: { en: "Inflammation, acidity, irritability, ego-heat, midday heat exhaustion and skin sensitivity to sun.", hi: "जलन, एसिडिटी, चिड़चिड़ापन, अहं-ऊष्मा, दोपहर की गर्मी से थकावट और सूर्य से त्वचा की संवेदनशीलता।", gu: "બળતરા, એસિડિટી, ચિડિચિડાપણું, અહં-ઊષ્મા, બપોરની ગરમીથી થાક અને સૂર્યથી ત્વચાની સંવેદનશીલતા." },
+      balancingFoods: { en: "Cooling, sweet and bitter foods: cucumber, fennel, coriander, coconut water, melon and cooled grains.", hi: "ठंडे, मीठे और कड़वे आहार: खीरा, सौंफ, धनिया, नारियल पानी, खरबूजा और ठंडा अनाज।", gu: "ઠંડા, મીઠા અને કડવા આહાર: કાકડી, સુંફ, ધાણા, નારિયેળ પાણી, તરબૂચ અને ઠંડું અનાજ." },
+      routine: { en: "Start before sunrise with Surya arghya; avoid noon sun exertion; keep meals warm but not spicy; schedule a short cool-down rest after noon.", hi: "सूर्योदय से पहले सूर्य अर्घ्य दें; दोपहर की धूप में परिश्रम से बचें; भोजन गर्म पर अति-मसालेदार नहीं व तेल हल्का; दोपहर बाद थोड़ा ठंडा विश्राम रखें।", gu: "સૂર્યોદય પહેલાં સૂર્ય અર્ઘ્ય આપો; બપોરના તડકામાં પરિશ્રમ ટાળો; ભોજન ગરમ પણ વધુ મસાલેદાર નહીં; બપોર પછી થોડો ઠંડો વિશ્રામ લો." },
+      mantraLinkedNote: { en: "The Sunday / Surya fast and water-offering work best when paired with cooling foods and an early start — the ritual cools solar heat instead of adding dry intensity.", hi: "रविवार / सूर्य का व्रत और जल-अर्घ्य ठंडे आहार व सुबह की शुरुआत के साथ सर्वोत्तम लाभ देते हैं — यह उपाय सूर्य-ऊष्मा को ठंडा करता है, तीव्रता नहीं बढ़ाता।", gu: "રવિવાર / સૂર્યનો ઉપવાસ અને જળ-અર્ઘ્ય ઠંડા આહાર સાથે અને વહેલી શરૂઆત સાથે શ્રેષ્ઠ લાભ આપે છે — આ ઉપાય સૂર્ય-ઊષ્માને ઠંડી કરે છે, તીવ્રતા નહીં વધારે." }
+    },
+    2: {
+      dominant: "Kapha–Vata",
+      nature: { en: "Moon constitution — watery, rhythmic, caring, with a sensitive mind and a calm, fluid body memory.", hi: "चंद्र प्रकृति — जलमय, लयबद्ध, स्नेही, संवेदनशील मन और शांत, तरल शरीर-स्मृति।", gu: "ચંદ્ર પ્રકૃતિ — જલમય, લયબદ્ધ, સ્નેહી, સંવેદનશીલ મન અને શાંત, પ્રવાહી શરીર-સ્મૃતિ." },
+      aggravation: { en: "Fluid retention plus anxious overthinking, disturbed sleep, emotional dependence and cyclical heaviness.", hi: "जल-संचय के साथ चिंताग्रस्त अतिविचार, नींद न आना, भावनात्मक निर्भरता और चक्रीय भारीपन।", gu: "પ્રવાહીના જથ્થા સાથે ચિંતાપૂર્ણ અતિવિચાર, ઊંઘ ન આવવી, લાગણીશીલ નિર્ભરતા અને ચક્રીય ભારેપણું." },
+      balancingFoods: { en: "Warm, light, easily digestible foods: cooked vegetables, ginger, small lentil soup and star-anise tea; avoid excessive cold and heavy dairy.", hi: "गर्म, हल्के और सुपाच्य आहार: उबली सब्जियां, अदरक, हल्की दाल सूप व चक्रफूल चाय; अत्यधिक ठंडा और भारी डेयरी से बचें।", gu: "ગરમ, હળવા અને સુપાચ્ય આહાર: બાફેલી શાકભાજી, આદુ, હળવી દાળ સૂપ અને સુંગધ ચા; વધુ ઠંડું અને ભારે ડેરી ટાળો." },
+      routine: { en: "Anchor the Moon with a fixed sleep time, a silver-glass water habit, journaling before bed and light evening movement.", hi: "चंद्रमा को निर्धारित सोने के समय, चांदी के गिलास में पानी, रात में डायरी और हल्की शाम की यात्रा-गति से स्थिर करें।", gu: "ચંદ્રને નિશ્ચિત સૂવાના સમય, ચાંદીના ગ્લાસમાં પાણીની આદત, સાંજે ડાયરી અને હળવી સાંજની ગતિથી સ્થિર કરો." },
+      mantraLinkedNote: { en: "The Monday Moon fast and silver-water practice work best with a steady bedtime — the Moon calms through rhythm, not restriction.", hi: "सोमवार का चंद्र व्रत और चांदी का जल स्थिर सोने के समय के साथ सर्वोत्तम हैं — चंद्रमा नियम (लय) से शांत होता है, निषेध से नहीं।", gu: "સોમવારનો ચંદ્ર ઉપવાસ અને ચાંદીનું જળ સ્થિર સૂવાના સમય સાથે શ્રેષ્ઠ છે — ચંદ્ર લયથી શાંત થાય છે, નિષેધથી નહીં." }
+    },
+    3: {
+      dominant: "Kapha",
+      nature: { en: "Kapha constitution — steady, generous, wise, slow to change but deeply loyal and grounded.", hi: "कफ प्रकृति — स्थिर, उदार, बुद्धिमान, बदलने में धीमा पर गहरा स्नेही और आधारभूत।", gu: "કફ પ્રકૃતિ — સ્થિર, ઉદાર, બુદ્ધિશાળી, બદલવામાં ધીમી પણ ઊંડો સ્નેહી અને આધારભૂત." },
+      aggravation: { en: "Heaviness, congestion, lethargy, weight stagnation and a tendency to accumulate — in food, money or obligations.", hi: "भारीपन, जकड़न, आलस्य, वजन में रुकावट और संचय की प्रवृत्ति — भोजन, धन या जिम्मेदारियों में।", gu: "ભારેપણું, જકડાણ, આળસ, વજનમાં અટકાવ અને સંચયની વૃત્તિ — ભોજન, ધન કે જવાબદારીઓમાં." },
+      balancingFoods: { en: "Light, warm, pungent foods: ginger, turmeric, oats, millets and hot water through the day; less cold and heavy dairy.", hi: "हल्का, गर्म और तीखा आहार: अदरक, हल्दी, ओट्स, मोटे अनाज और दिनभर गर्म पानी; ठंडा व भारी डेयरी कम।", gu: "હળવો, ગરમ અને તીખો આહાર: આદુ, હળદર, ઓટ્સ, બાજરી અને દિવસભર ગરમ પાણી; ઠંડી અને ભારે ડેરી ઓછી." },
+      routine: { en: "Move daily — brisk walk, stair climbing or pranayama before breakfast; take the largest meal before sunset; keep Thursday learning active.", hi: "रोज चलें — नाश्ते से पहले तेज सैर, सीढ़ियां या प्राणायाम; सबसे बड़ा भोजन सूर्यास्त से पहले; गुरुवार का अध्ययन सक्रिय रखें।", gu: "રોજ ચાલો — નાસ્તા પહેલાં ઝડપી સૈર, સીડી કે પ્રાણાયામ; સૌથી મોટું ભોજન સૂર્યાસ્ત પહેલાં; ગુરુવારનો અભ્યાસ સક્રિય રાખો." },
+      mantraLinkedNote: { en: "The Thursday Jupiter routine acts as a mental heater — add real movement so wealth ideas do not settle into storage.", hi: "गुरुवार का जीवनशैली उपाय मानसिक ऊष्मक है — इसमें वास्तविक शारीरिक गति जोड़ें ताकि धन की सोच भंडार में न पड़ी रहे।", gu: "ગુરુવારનો જીવનશૈલી ઉપાય માનસિક ઊષ્મક છે — તેમાં વાસ્તવિક શારીરિક ગતિ ઉમેરો જેથી ધનના વિચાર સંગ્રહમાં ન પડી રહે." }
+    },
+    4: {
+      dominant: "Vata",
+      nature: { en: "Rahu constitution — quick, unconventional, technology-driven, with a restless mind and sudden bursts of change.", hi: "राहु प्रकृति — तेज़, अपारंपरिक, तकनीक-चालित, बेचैन मन और अचानक बदलाव की लहरें।", gu: "રાહુ પ્રકૃતિ — ઝડપી, અપરંપરાગત, ટેક-આધારિત, બેચેન મન અને અચાનક બદલાવની લહેરો." },
+      aggravation: { en: "Nervous restlessness, erratic routine, obsessive loops, phone or tech overuse and feeling scattered.", hi: "घबराहट भरी बेचैनी, अस्त-व्यस्त दिनचर्या, जुनूनी चक्र, फोन/तकनीक अति-प्रयोग और मन का बिखराव।", gu: "ગભરાટ ભરી બેચેની, અસ્તવ્યસ્ત દિનચર્યા, જુનૂની ચક્ર, ફોન/ટેક અતિ-ઉપયોગ અને મનનું છૂટાછવાયું થવું." },
+      balancingFoods: { en: "Warm, moist, grounding foods: cooked grains, sesame, ghee, soups and root vegetables; regular warm meals instead of snack-drifting.", hi: "गर्म, नम और स्थिर आहार: पका अनाज, तिल, घी, सूप व जड़ वाली सब्जियां; स्नैक-अनियमितता के बजाय नियमित गर्म भोजन।", gu: "ગરમ, ભેજવાળો અને સ્થિર આહાર: શેકેલું ધાન, તલ, ઘી, સૂપ અને મૂળ શાકભાજી; નાસ્તાના તણાવને બદલે નિયમિત ગરમ ભોજન." },
+      routine: { en: "Ground the routine: fixed meal and sleep times, screens off after sunset, one daily walk and a written plan each morning.", hi: "दिनचर्या स्थिर करें: भोजन और नींद का नियत समय, सूर्यास्त के बाद स्क्रीन बंद, रोज एक सैर और सुबह की लिखित योजना।", gu: "દિનચર્યા સ્થિર કરો: ભોજન અને ઊંઘનો નિયત સમય, સૂર્યાસ્ત પછી સ્ક્રીન બંધ, રોજ એક સૈર અને સવારની લેખિત યોજના." },
+      mantraLinkedNote: { en: "Rahu is disciplined by time — the Saturday sesame/blanket giving works when paired with screens off at night and one non-negotiable meal time.", hi: "राहु समय से अनुशासित होता है — शनिवार के तिल/कंबल दान का असर तब बनता है जब रात में स्क्रीन बंद और भोजन का एक अटल समय हो।", gu: "રાહુ સમયથી શિસ્તમાં રહે છે — શનિવારના તલ/ધાબળા દાનની અસર ત્યારે બનતી જ્યારે રાત્રે સ્ક્રીન બંધ અને ભોજનનો એક અટલ સમય હોય." }
+    },
+    5: {
+      dominant: "Tridoshic",
+      nature: { en: "Mercury constitution — the balancer of the three doshas: changeable, communicative, adaptable and able to correct over time.", hi: "बुध प्रकृति — तीनों दोषों का संतुलक: परिवर्तनशील, संवादात्मक, अनुकूलनशील और समय के साथ सुधारने वाला।", gu: "બુધ પ્રકૃતિ — ત્રણેય દોષનો સંતુલક: પરિવર્તનશીલ, સંવાદાત્મક, અનુકૂલનશીલ અને સમય સાથે સુધારતો." },
+      aggravation: { en: "Overthinking, irregular digestion, scattered nerves, excessive talking and inconsistent routine.", hi: "अतिविचार, अनियमित पाचन, बिखरी नसें, अति-बोलना और असंगत दिनचर्या।", gu: "અતિવિચાર, અનિયમિત પાચન, છૂટાછવાયા ચેતા-તંત્ર, વધુ બોલવું અને સંગત નહીં દિનચર્યા." },
+      balancingFoods: { en: "Simple, regular, easy-to-digest meals: light grains, cooked salad, herbs and a daily green-vegetable dish; avoid grazing and excess coffee.", hi: "साधारण, नियमित और सुपाच्य भोजन: हल्का अनाज, हरा सलाद, जड़ी-बूटियां व रोज की हरी सब्जी; बार-बार खाना और अधिक कॉफी से बचें।", gu: "સાદું, નિયમિત અને સુપાચ્ય ભોજન: હળવું અનાજ, કાચું સલાડ, જડીબુટ્ટી અને રોજની લીલી શાકભાજી; વારંવાર ખાવું અને વધુ કોફી ટાળો." },
+      routine: { en: "Use the Wednesday Mercury habit as a reset — speak less, journal more, keep fixed wake/sleep windows and regular meal times.", hi: "बुधवार की आदत को रीसेट बनाएं — कम बोलें, अधिक लिखें, सोने-जागने का नियत समय और भोजन के नियमित समय।", gu: "બુધવારની આદતને રીસેટ બનાવો — ઓછું બોલો, વધુ લખો, ઊંઘ-જાગવાનો નિયત સમય અને નિયમિત ભોજનના સમય." },
+      mantraLinkedNote: { en: "Mercury is the natural equaliser — its mantra and weekly green/stationery giving are especially useful when another dosha runs too high.", hi: "बुध स्वाभाविक संतुलक है — उसका मंत्र और साप्ताहिक हरा/स्टेशनरी दान विशेष रूप से तब काम आता है जब कोई दूसरा दोष बढ़ रहा हो।", gu: "બુધ સ્વાભાવિક સંતુલક છે — તેનો મંત્ર અને સાપ્તાહિક લીલું/સ્ટેશનરી દાન ખાસ ત્યારે કામ આવે છે જ્યારે કોઈ બીજો દોષ વધતો હોય." }
+    },
+    6: {
+      dominant: "Vata–Kapha",
+      nature: { en: "Venus constitution — relational, artistic, comfort-seeking, with both a refined sweet side and a lazy digestive side.", hi: "शुक्र प्रकृति — संबंध-प्रधान, कलात्मक, सुख-सुविधा चाहने वाली; एक ओर सुंदर मिठास, दूसरी ओर धीमा पाचन।", gu: "શુક્ર પ્રકૃતિ — સંબંધ-પ્રધાન, કલાત્મક, આરામ શોધનાર; એક બાજુ સુંદર મીઠાશ, બીજી બાજુ ધીમું પાચન." },
+      aggravation: { en: "Indulgence, cravings, reproductive or comfort excess, heavy rich foods and over-attachment to pleasure.", hi: "भोग-विलास, लालसा, प्रजनन/सुख-सुविधा की अति, भारी मिठास और सुखदायी खाने से अधिक जुड़ाव।", gu: "ભોગ-વિલાસ, લાલસા, પ્રજનન/આરામની અતિ, ભારે મીઠી વસ્તુઓ અને સુખદ ભોજન સાથે વધુ જોડાણ." },
+      balancingFoods: { en: "Light, aromatic, balanced food: fresh greens, lentils, rose water and fennel; avoid prolonged sugar, heavy cream and late-night sweets.", hi: "हल्का, सुगंधित और संतुलित भोजन: ताजे साग, दालें, गुलाब जल व सौंफ; लंबे समय तक चीनी, भारी क्रीम और रात की मिठाइयों से बचें।", gu: "હળવો, સુગંધિત અને સંતુલિત આહાર: તાજા લીલા શાક, દાળ, ગુલાબજળ અને સુંફ; લાંબા સમય સુધી ખાંડ, ભારે ક્રીમ અને રાત્રિની મીઠાઈ ટાળો." },
+      routine: { en: "Keep Friday a shared enjoyable day, but with a clear boundary — one treat, then movement, long walk or dance; keep relationships light, not clinging.", hi: "शुक्रवार को साझा आनंद का दिन रखें पर स्पष्ट सीमा — एक मिठाई, फिर गति, सैर या नृत्य; रिश्ते हल्के रखें, जकड़ें नहीं।", gu: "શુક્રવારને સાઝો આનંદનો દિવસ રાખો પણ સ્પષ્ટ મર્યાદા — એક મીઠાઈ, પછી ગતિ, ચાલ કે નૃત્ય; સંબંધ હળવા રાખો, જકડો નહીં." },
+      mantraLinkedNote: { en: "The Friday Venus cures work best with moderation — white sweets and comfort need a companion walk, or the treat becomes the aggravation.", hi: "शुक्रवार के शुक्र उपाय संयम के साथ सर्वोत्तम हैं — सफेद मिठाई और सुख-सुविधा के साथ सैर जरूरी है, अन्यथा भोग ही दोष बन जाता है।", gu: "શુક્રવારના શુક્ર ઉપાય સંયમ સાથે શ્રેષ્ઠ છે — સફેદ મીઠાઈ અને આરામની સાથે ચાલ જરૂરી છે, નહીંતર ભોગ જ દોષ બની જાય." }
+    },
+    7: {
+      dominant: "Pitta",
+      nature: { en: "Ketu constitution — piercing insight, research ability, spiritual heat, with a precise but often detached fire.", hi: "केतु प्रकृति — गहरी दृष्टि, शोध-क्षमता, आध्यात्मिक ऊष्मा; सूक्ष्म पर प्रायः विरक्त अग्नि।", gu: "કેતુ પ્રકૃતિ — ઊંડી દૃષ્ટિ, સંશોધન-ક્ષમતા, આધ્યાત્મિક ઊષ્મા; સૂક્ષ્મ પણ સામાન્યતઃ અલગ અગ્નિ." },
+      aggravation: { en: "Sudden heat spikes, skin sensitivity, ungrounded intensity and irritation from feeling invisible or disconnected.", hi: "अचानक ऊष्मा-लहरें, त्वचा की संवेदनशीलता, बेजड़ तीव्रता और अदृश्य/विच्छिन्न महसूस होने से चिड़चिड़ापन।", gu: "અચાનક ઊષ્મા-લહેરો, ત્વચાની સંવેદનશીલતા, બેજડ તીવ્રતા અને અદ્રશ્ય/વિચ્છિન્ન લાગવાથી ચિડિચિડાપણું." },
+      balancingFoods: { en: "Cooling, gentle, clean foods: coconut, coriander, bitter greens, rice and warm milk; avoid fermented, pungent and late-night hot food.", hi: "ठंडे, कोमल और साफ आहार: नारियल, धनिया, कड़वे साग, चावल और गर्म दूध; किण्वित, तीखा और रात को गर्म-भारी भोजन से बचें।", gu: "ઠંડા, નમ્ર અને શુદ્ધ આહાર: નારિયેળ, ધાણા, કડવા લીલા શાક, ચોખા અને ગરમ દૂધ; કિણ્વિત, તીખું અને રાત્રે ગરમ-ભારે ભોજન ટાળો." },
+      routine: { en: "Ground the inward fire: 10 minutes of meditation daily, silent charity, time outdoors in the morning and one quiet evening without screens.", hi: "आंतरिक अग्नि को स्थिर करें: रोज 10 मिनट ध्यान, मौन दान, सुबह खुले में समय और बिना स्क्रीन की शांत शाम।", gu: "આંતરિક અગ્નિને સ્થિર કરો: રોજ ૧૦ મિનિટ ધ્યાન, મૌન દાન, સવારે ખુલ્લામાં સમય અને સ્ક્રીન વગરની શાંત સાંજ." },
+      mantraLinkedNote: { en: "The Ketu mantra opens awareness — keep it paired with silent giving and early grounding so heat becomes direction, not a spike.", hi: "केतु मंत्र जागरूकता खोलता है — इसे मौन दान और सुबह की स्थिरता के साथ रखें ताकि ऊष्मा दिशा बने, न कि अचानक लहर।", gu: "કેતુ મંત્ર જાગૃતતા ખોલે છે — તેને મૌન દાન અને સવારની સ્થિરતા સાથે રાખો જેથી ઊષ્મા દિશા બને, નહીં કે અચાનક લહેર." }
+    },
+    8: {
+      dominant: "Vata",
+      nature: { en: "Saturn constitution — structured, enduring, detail-focused, with a dry, cold and hardworking physical tone.", hi: "शनि प्रकृति — संरचित, सहनशील, बारीकी-केंद्रित; शुष्क, ठंडा और परिश्रमी शारीरिक स्वर।", gu: "શનિ પ્રકૃતિ — માળખાગત, ટકાઉ, ઝીણવટ-કેન્દ્રિત; શુષ્ક, ઠંડો અને પરિશ્રમી શારીરિક સ્વર." },
+      aggravation: { en: "Dryness, joint stiffness, cold limbs, chronic worry, overwork and burnout from holding too much.", hi: "शुष्कता, जोड़ों की जकड़न, ठंडे अंग, चिर-चिंता, अति-परिश्रम और अधिक संभालने से थकावट।", gu: "શુષ્કતા, સાંધાની જકડાણ, ઠંડા અંગ, લાંબી ચિંતા, વધુ કામ અને બહુ સંભાળવાથી થાક." },
+      balancingFoods: { en: "Warm, oily, grounding foods: sesame, ghee, cooked rice, root vegetables and warm milk; avoid dry, raw, cold and instant snacking.", hi: "गर्म, स्निग्ध और स्थिर आहार: तिल, घी, पका चावल, जड़ वाली सब्जियां, गर्म दूध; सूखा, कच्चा, ठंडा और झटपट स्नैक से बचें।", gu: "ગરમ, તૈલી અને સ્થિર આહાર: તલ, ઘી, શેકેલું ચોખા, મૂળ શાકભાજી, ગરમ દૂધ; સૂકું, કાચું, ઠંડું અને ઝટપટ નાસ્તો ટાળો." },
+      routine: { en: "Regular meal times, warm oil massage (abhyanga) on Saturday or before bed, one rest day and short structured work cycles with breaks.", hi: "भोजन का नियत समय, शनिवार या सोने से पहले गर्म तेल मालिश (अभ्यंग), एक विश्राम दिवस और ब्रेक-सहित छोटे कार्य-चक्र।", gu: "ભોજનનો નિયત સમય, શનિવારે કે સૂતાં પહેલાં ગરમ તેલ માલિશ (અભ્યંગ), એક વિશ્રામ દિવસ અને વિરામ સાથે ટૂંકાં કામ-ચક્ર." },
+      mantraLinkedNote: { en: "The Saturday Saturn practice — oil, iron and black sesame giving — works because it adds warmth and rhythm to dry, over-worked Vata energy.", hi: "शनिवार का शनि उपाय — तेल, लोहा और काले तिल — शुष्क, अधिक-काम वाली वात ऊर्जा में गर्मी और लय जोड़ने के कारण कार्य करता है।", gu: "શનિવારનો શનિ ઉપાય — તેલ, લોખંડ અને કાળા તલ — શુષ્ક, વધુ કામવાળી વાત ઊર્જામાં ગરમી અને લય ઉમેરવાથી કામ કરે છે." }
+    },
+    9: {
+      dominant: "Pitta",
+      nature: { en: "Mars constitution — brave, driven, protective, with a hot, fiery metabolism and an instinct to act now.", hi: "मंगल प्रकृति — साहसी, प्रेरित, रक्षक; गर्म, ज्वलंत चयापचय और अभी-अभी करने की प्रवृत्ति।", gu: "મંગળ પ્રકૃતિ — હિંમતવાન, પ્રેરિત, રક્ષક; ગરમ, અગ્નિમય ચયાપચય અને તરત કરવાની વૃત્તિ." },
+      aggravation: { en: "Anger-flashes, blood-pressure heat, inflammation, impatience and burning out from too much intensity.", hi: "क्रोध की लहरें, रक्तचाप-ऊष्मा, जलन, अधीरता और अति-तीव्रता से जलना।", gu: "ક્રોધની લહેરો, બ્લડપ્રેશર-ઊષ્મા, બળતરા, અધીરાઈ અને અતિ-તીવ્રતાથી બળવું." },
+      balancingFoods: { en: "Cooling, sweet and hydrating foods: cucumber, coconut, mint, watermelon and barley water; avoid very spicy, fried and alcoholic heat.", hi: "ठंडे, मीठे और जलयुक्त आहार: खीरा, नारियल, पुदीना, तरबूज, जौ का पानी; अति-मसालेदार, तला और शराब से बचें।", gu: "ઠંડા, મીઠા અને જળયુક્ત આહાર: કાકડી, નારિયેળ, ફુદીના, તરબૂચ, જવનું પાણી; વધુ મસાલેદાર, તળેલું અને આલ્કોહોલ ટાળો." },
+      routine: { en: "Channel the fire: daily exercise or sport, count to ten before speaking, morning movement over evening intensity and a cool-down after conflict.", hi: "अग्नि को दिशा दें: रोज व्यायाम/खेल, बोलने से पहले दस तक गिनें, शाम की तीव्रता से बेहतर सुबह की गति, और विवाद के बाद ठंडा होना।", gu: "અગ્નિને દિશા આપો: રોજ કસરત/રમત, બોલતાં પહેલાં દસ સુધી ગણો, સાંજની તીવ્રતા કરતાં સવારની ગતિ, અને વિવાદ પછી ઠંડા થવું." },
+      mantraLinkedNote: { en: "The Tuesday Mars remedy works when paired with physical release — red lentils and red cloth are for protection; exercise is the pressure valve.", hi: "मंगलवार का मंगल उपाय शारीरिक निष्कासन के साथ काम करता है — लाल दाल और लाल कपड़ा रक्षा के लिए हैं; व्यायाम दबाव-नली है।", gu: "મંગળવારનો મંગળ ઉપાય શારીરિક નિકાલ સાથે કામ કરે છે — લાલ દાળ અને લાલ કાપડ રક્ષણ માટે છે; કસરત દબાણ-નળી છે." }
+    }
+  },
+
   /* ---- Karmic Debt numbers (13 / 14 / 16 / 19) ----
      Classical rule: when the UNREDUCED birth day, the full birth-date total
      or the Chaldean name total lands on one of these four numbers, the
@@ -904,8 +984,8 @@ var DB = {
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 1,
-  packVersion: "2.3.0",
-  generatedAt: "2026-09-01T00:00:00Z",
+  packVersion: "2.4.0",
+  generatedAt: "2026-09-02T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",
