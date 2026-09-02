@@ -48,7 +48,7 @@ An **anonymous contribution** switch is included as a scaffold and is **off by d
 - **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
 - **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
 - **[Vite](https://vitejs.dev/)** for local development
-- **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test (285+ checks, including an independently cross-validated reference chart)
+- **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test (295+ checks, including an independently cross-validated reference chart)
 
 ---
 

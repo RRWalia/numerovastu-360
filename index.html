@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>NumeroVastu 360 — Numerology & Vastu Remedy Report</title>
 <meta name="description" content="360° numerology and Vastu remedy engine: Loshu Grid, name and mobile analysis, crystals, rudraksha, mantras, watch specs and Vastu dosh fixes." />
-<meta name="nv-version" content="2.6.0" />
+<meta name="nv-version" content="2.6.1" />
 <meta name="nv-build-label" content="Build 2026-09-01" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
@@ -23,7 +23,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%231e1b4b'/%3E%3Cstop offset='.6' stop-color='%236d28d9'/%3E%3Cstop offset='1' stop-color='%23b45309'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='44' height='44' rx='11' fill='url(%23b)'/%3E%3Cg stroke='%23ffd782' stroke-width='1.6' stroke-linecap='round' opacity='.95'%3E%3Cpath d='M18.7 9v30M29.3 9v30M9 18.7h30M9 29.3h30'/%3E%3C/g%3E%3Ctext x='24' y='29.5' text-anchor='middle' font-size='15' fill='%23ffd782' font-family='Noto Sans Devanagari,sans-serif'%3E%E0%A5%90%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
-<a class="skip-link" href="#mainContent">Skip to main content</a>
+<a class="skip-link" href="#mainContent" data-i18n="skipLink">Skip to main content</a>
 
 <!-- ============ HEADER ============ -->
 <header class="app-header">
@@ -99,7 +99,7 @@
       <h1 class="intro-title">Your 360° Remedy Report</h1>
       <p class="intro-desc">Enter your details once. We compute your Driver &amp; Conductor numbers, build your live Loshu Grid, check your name, mobile and vehicle vibrations, map your lucky colours, best careers and favourable years, scan your Vastu — and generate a complete remedy plan for money, health, career, business and relationships.</p>
       <div class="intro-meta">
-        <span class="status-pill status-private">Private &amp; local</span>
+        <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.2.0</span>
         <span class="status-pill status-app" id="appBadge">App v2.5.0 · Meeus engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-08-31</span>
@@ -110,31 +110,31 @@
     <div class="status-surface" id="startupPanel">
       <div class="status-row">
         <div>
-          <p class="status-eyebrow">Evolving skill system</p>
-          <h2 class="status-title">Knowledge Pack + on-device memory</h2>
+          <p class="status-eyebrow" data-i18n="startupSubtitle">Evolving skill system</p>
+          <h2 class="status-title" data-i18n="startupTitle">Knowledge Pack + on-device memory</h2>
           <p class="status-text" id="knowledgeStatusText">Loading bundled knowledge pack…</p>
         </div>
-        <button id="refreshKnowledgeBtn" class="btn btn-secondary btn-32" type="button">Check updates</button>
+        <button id="refreshKnowledgeBtn" class="btn btn-secondary btn-32" type="button" data-i18n="checkUpdates">Check updates</button>
       </div>
       <div class="status-grid">
         <div class="status-card">
-          <span class="status-card-label">Current pack</span>
+          <span class="status-card-label" data-i18n="currentPack">Current pack</span>
           <strong id="knowledgeVersionText">v2.2.0</strong>
           <p id="knowledgeSubtext">Uses bundled content instantly, then quietly checks for a newer pack.</p>
         </div>
         <div class="status-card">
-          <span class="status-card-label">Local memory</span>
+          <span class="status-card-label" data-i18n="localMemory">Local memory</span>
           <strong id="memorySummaryText">No saved charts yet</strong>
           <p id="memoryStatusText">Saved reports stay on this device only.</p>
         </div>
         <div class="status-card">
-          <span class="status-card-label">Privacy mode</span>
+          <span class="status-card-label" data-i18n="privacyMode">Privacy mode</span>
           <strong>Browser-only processing</strong>
           <p id="privacyStatusText">Names, DOBs, mobile numbers and Vastu details stay on your device.</p>
         </div>
       </div>
       <div class="status-actions">
-        <button id="loadLatestBtn" class="btn btn-secondary btn-32 hidden" type="button">Load latest local chart</button>
+        <button id="loadLatestBtn" class="btn btn-secondary btn-32 hidden" type="button" data-i18n="loadLatestChart">Load latest local chart</button>
       </div>
     </div>
 
@@ -142,7 +142,7 @@
 
       <!-- Language selection -->
       <div class="form-block form-block-lang">
-        <h2 class="form-block-title" id="lblReportLang">Report Language / रिपोर्ट की भाषा / રિપોર્ટની ભાષા</h2>
+        <h2 class="form-block-title" id="lblReportLang" data-i18n="reportLanguage">Report Language</h2>
         <p class="form-block-desc" id="descReportLang">Select your desired language. The report will be simple, accurate, and easy to understand.</p>
         <div class="lang-picker-group" id="formLangPicker" role="group" aria-label="Choose Report Language">
           <button type="button" class="lang-chip active" data-lang="en"><span class="lang-flag" aria-hidden="true">🇬🇧</span> English</button>
@@ -153,86 +153,86 @@
 
       <!-- Personal details -->
       <div class="form-block">
-        <h2 class="form-block-title">Personal Details</h2>
+        <h2 class="form-block-title" data-i18n="personalDetails">Personal Details</h2>
 
         <div class="field">
-          <label class="field-label" for="fullName">Full Name <span class="req" aria-hidden="true">*</span></label>
-          <input class="input" id="fullName" name="fullName" type="text" placeholder="As used daily, e.g. Rahul Sharma" autocomplete="name" required aria-required="true" />
-          <p class="field-error" id="err-fullName" hidden>Please enter your full name.</p>
-          <p class="field-hint">Name spelling is analysed with the Chaldean system — use the spelling you actually use.</p>
+          <label class="field-label" for="fullName"><span data-i18n="fullName">Full Name</span> <span class="req" aria-hidden="true">*</span></label>
+          <input class="input" id="fullName" name="fullName" type="text" placeholder="As used daily, e.g. Rahul Sharma" data-i18n-ph="fullNamePlaceholder" autocomplete="name" required aria-required="true" />
+          <p class="field-error" id="err-fullName" hidden data-i18n="errFullName">Please enter your full name.</p>
+          <p class="field-hint" data-i18n="fullNameHint">Name spelling is analysed with the Chaldean system — use the spelling you actually use.</p>
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="dob">Date of Birth <span class="req" aria-hidden="true">*</span></label>
+            <label class="field-label" for="dob"><span data-i18n="dob">Date of Birth</span> <span class="req" aria-hidden="true">*</span></label>
             <input class="input" id="dob" name="dob" type="date" required aria-required="true" />
-            <p class="field-error" id="err-dob" hidden>Please enter a valid date of birth.</p>
+            <p class="field-error" id="err-dob" hidden data-i18n="errDob">Please enter a valid date of birth.</p>
           </div>
           <div class="field">
-            <label class="field-label" for="mobile">Mobile Number <span class="req" aria-hidden="true">*</span></label>
-            <input class="input" id="mobile" name="mobile" type="tel" inputmode="numeric" placeholder="e.g. 9876543210" required aria-required="true" />
-            <p class="field-error" id="err-mobile" hidden>Please enter a valid mobile number (8+ digits).</p>
+            <label class="field-label" for="mobile"><span data-i18n="mobile">Mobile Number</span> <span class="req" aria-hidden="true">*</span></label>
+            <input class="input" id="mobile" name="mobile" type="tel" inputmode="numeric" placeholder="10 digits, e.g. 9876543210" data-i18n-ph="mobilePlaceholder" required aria-required="true" />
+            <p class="field-error" id="err-mobile" hidden data-i18n="errMobile">Please enter a valid mobile number (8+ digits, not all zeros).</p>
           </div>
         </div>
 
         <div class="field">
-          <label class="field-label" for="gender">Gender <span class="optional">(optional — for your Kua number)</span></label>
+          <label class="field-label" for="gender"><span data-i18n="gender">Gender (for Feng Shui Kua)</span></label>
           <select class="input select" id="gender" name="gender">
-            <option value="">Prefer not to say</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
+            <option value="" data-i18n="genderUnsure">Prefer not to say</option>
+            <option value="male" data-i18n="genderMale">Male</option>
+            <option value="female" data-i18n="genderFemale">Female</option>
           </select>
         </div>
 
         <div class="field">
-          <label class="field-label" for="vehicle">Vehicle Number <span class="optional">(optional — car / bike)</span></label>
-          <input class="input" id="vehicle" name="vehicle" type="text" placeholder="e.g. HR51AB1234" autocomplete="off" />
-          <p class="field-hint">Letters carry Chaldean values and digits carry face value — we check how your vehicle's vibration sits with your chart.</p>
+          <label class="field-label" for="vehicle"><span data-i18n="vehicle">Vehicle Number</span> <span class="optional">(optional — car / bike)</span></label>
+          <input class="input" id="vehicle" name="vehicle" type="text" placeholder="e.g. HR51AB1234" data-i18n-ph="vehiclePlaceholder" autocomplete="off" />
+          <p class="field-hint" data-i18n="vehicleHint">Letters carry Chaldean values and digits carry face value — we check how your vehicle's vibration sits with your chart.</p>
         </div>
 
         <div class="field">
-          <span class="field-label" id="goalsLabel">Your Focus Areas <span class="req" aria-hidden="true">*</span></span>
+          <span class="field-label" id="goalsLabel"><span data-i18n="focusAreas">Your Focus Areas</span> <span class="req" aria-hidden="true">*</span></span>
           <div class="chip-group" role="group" aria-labelledby="goalsLabel" id="goalChips">
-            <button type="button" class="chip" data-goal="Money">Money</button>
-            <button type="button" class="chip" data-goal="Health">Health</button>
-            <button type="button" class="chip" data-goal="Career">Career</button>
-            <button type="button" class="chip" data-goal="Business">Business</button>
-            <button type="button" class="chip" data-goal="Relationship">Relationship</button>
+            <button type="button" class="chip" data-goal="Money" data-i18n="focusMoney">Money</button>
+            <button type="button" class="chip" data-goal="Health" data-i18n="focusHealth">Health</button>
+            <button type="button" class="chip" data-goal="Career" data-i18n="focusCareer">Career</button>
+            <button type="button" class="chip" data-goal="Business" data-i18n="focusBusiness">Business</button>
+            <button type="button" class="chip" data-goal="Relationship" data-i18n="focusRelationship">Relationship</button>
           </div>
-          <p class="field-error" id="err-goals" hidden>Select at least one focus area.</p>
+          <p class="field-error" id="err-goals" hidden data-i18n="errGoals">Select at least one focus area.</p>
         </div>
       </div>
 
       <!-- Vedic precision (optional, progressive disclosure: Tier 1 now, Tier 2 unlocked on-device) -->
       <div class="form-block" id="vedicPrecisionBlock">
-        <h2 class="form-block-title">Vedic Precision <span class="optional">(optional — unlocks your full Vedic sky)</span></h2>
-        <p class="form-block-desc">Your <strong>Vedic Sun Sign (Surya Rashi)</strong> — sidereal / Lahiri ayanamsa — is computed instantly from your date of birth alone (Tier 1, ready now). Adding your exact birth time and birth city unlocks the full <strong>Astro-Identity Snapshot</strong>: Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna and Midheaven — all computed right here in your browser, never sent anywhere.</p>
+        <h2 class="form-block-title"><span data-i18n="vedicPrecision">Vedic Precision (optional — unlocks your full Vedic sky)</span></h2>
+        <p class="form-block-desc" data-i18n-html="vedicPrecisionDesc">Your <strong>Vedic Sun Sign (Surya Rashi)</strong> — sidereal / Lahiri ayanamsa — is computed instantly from your date of birth alone (Tier 1, ready now). Adding your exact birth time and birth city unlocks the full <strong>Astro-Identity Snapshot</strong>: Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna and Midheaven — all computed right here in your browser, never sent anywhere.</p>
 
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="birthTime">Exact Birth Time <span class="optional">(optional)</span></label>
+            <label class="field-label" for="birthTime"><span data-i18n="birthTime">Exact Birth Time (optional)</span></label>
             <input class="input" id="birthTime" name="birthTime" type="time" autocomplete="off" />
-            <p class="field-hint">Tier 2 — unlocks Moon Sign (Chandra Rashi), Nakshatra, Lagna &amp; Midheaven (computed on-device).</p>
+            <p class="field-hint" data-i18n="birthTimeHint">Tier 2 — unlocks Moon Sign (Chandra Rashi), Nakshatra, Lagna &amp; Midheaven (computed on-device).</p>
           </div>
           <div class="field">
-            <label class="field-label" for="birthPlace">Birth City / Place <span class="optional">(optional)</span></label>
-            <input class="input" id="birthPlace" name="birthPlace" type="text" placeholder="e.g. New Delhi, India" autocomplete="address-level2" list="birthPlaceList" />
+            <label class="field-label" for="birthPlace"><span data-i18n="birthPlace">Birth City / Place (optional)</span></label>
+            <input class="input" id="birthPlace" name="birthPlace" type="text" placeholder="e.g. New Delhi, India" data-i18n-ph="birthPlacePlaceholder" autocomplete="address-level2" list="birthPlaceList" />
             <datalist id="birthPlaceList"></datalist>
-            <p class="field-hint">Tier 2 — anchors the sky over your birthplace. 630+ cities built in (offline); or type coordinates like “28.41, 77.32”.</p>
+            <p class="field-hint" data-i18n-html="birthPlaceHint">Tier 2 — anchors the sky over your birthplace. 630+ cities built in (offline); or type coordinates like “28.41, 77.32”.</p>
           </div>
         </div>
 
         <div class="tier-list" aria-label="Vedic precision tiers">
           <div class="tier tier-ready">
-            <span class="tier-badge tier-badge-ready">Tier 1 · Ready now</span>
+            <span class="tier-badge tier-badge-ready" data-i18n="tier1Ready">Tier 1 · Ready now</span>
             <div class="tier-body">
-              <strong>Vedic Sun Sign (Surya Rashi)</strong> — sidereal / Lahiri, computed instantly from your date of birth. This is the layer today's report uses.
+              <span data-i18n="tier1Desc"><strong>Vedic Sun Sign (Surya Rashi)</strong> — sidereal / Lahiri, computed instantly from your date of birth. This is the layer today's report uses.</span>
             </div>
           </div>
           <div class="tier tier-upcoming">
-            <span class="tier-badge tier-badge-upcoming">Tier 2 · Unlock now</span>
+            <span class="tier-badge tier-badge-upcoming" data-i18n="tier2Unlock">Tier 2 · Unlock now</span>
             <div class="tier-body">
-              <strong>Moon Sign (Chandra Rashi) · Nakshatra · Lagna · Midheaven</strong> — birth time + place unlock these instantly, computed on your device with a built-in Vedic ephemeris. They never leave this device.
+              <span data-i18n="tier2Desc"><strong>Moon Sign (Chandra Rashi) · Nakshatra · Lagna · Midheaven</strong> — birth time + place unlock these instantly, computed on your device with a built-in Vedic ephemeris. They never leave this device.</span>
             </div>
           </div>
         </div>
@@ -240,41 +240,41 @@
 
       <!-- Vastu details -->
       <div class="form-block">
-        <h2 class="form-block-title">Vastu Details <span class="optional">(home / office)</span></h2>
-        <p class="form-block-desc">Stand at the centre of your property and check directions with a compass app. Choose “Not sure” if unknown.</p>
+        <h2 class="form-block-title"><span data-i18n="vastuDetails">Vastu Details (home / office)</span></h2>
+        <p class="form-block-desc" data-i18n-html="vastuDetailsDesc">Stand at the centre of your property and check directions with a compass app. Choose “Not sure” if unknown.</p>
 
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="entrance">Main Entrance Faces</label>
+            <label class="field-label" for="entrance" data-i18n="entranceLabel">Main Entrance Faces</label>
             <select class="input select" id="entrance" name="entrance"></select>
           </div>
           <div class="field">
-            <label class="field-label" for="kitchen">Kitchen Located In</label>
+            <label class="field-label" for="kitchen" data-i18n="kitchenLabel">Kitchen Located In</label>
             <select class="input select" id="kitchen" name="kitchen"></select>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="bedroom">Master Bedroom In</label>
+            <label class="field-label" for="bedroom" data-i18n="bedroomLabel">Master Bedroom In</label>
             <select class="input select" id="bedroom" name="bedroom"></select>
           </div>
           <div class="field">
-            <label class="field-label" for="toilet">Toilet Located In</label>
+            <label class="field-label" for="toilet" data-i18n="toiletLabel">Toilet Located In</label>
             <select class="input select" id="toilet" name="toilet"></select>
           </div>
         </div>
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="study">Study Room In</label>
+            <label class="field-label" for="study" data-i18n="studyLabel">Study Room In</label>
             <select class="input select" id="study" name="study"></select>
           </div>
           <div class="field">
-            <label class="field-label" for="staircase">Staircase Located In</label>
+            <label class="field-label" for="staircase" data-i18n="staircaseLabel">Staircase Located In</label>
             <select class="input select" id="staircase" name="staircase"></select>
           </div>
         </div>
         <div class="field">
-          <label class="field-label" for="plotShape">Plot Shape <span class="optional">(optional)</span></label>
+          <label class="field-label" for="plotShape"><span data-i18n="plotShapeLabel">Plot Shape (optional)</span></label>
           <select class="input select" id="plotShape" name="plotShape">
             <option value="unsure">Not sure</option>
             <option value="rectangular">Rectangular (standard)</option>
@@ -290,7 +290,7 @@
           </select>
         </div>
         <div class="field">
-          <label class="field-label" for="watchType">Watch You Currently Wear <span class="optional">(optional)</span></label>
+          <label class="field-label" for="watchType"><span data-i18n="watchTypeLabel">Watch You Currently Wear (optional)</span></label>
           <select class="input select" id="watchType" name="watchType">
             <option value="none">I don't wear a watch</option>
             <option value="analog">Analog — metal strap</option>
@@ -303,42 +303,42 @@
 
       <!-- Business / Brand (optional) -->
       <div class="form-block">
-        <h2 class="form-block-title">Business / Brand Name <span class="optional">(optional)</span></h2>
-        <p class="form-block-desc">Enter your business, brand, shop or venture name for a Chaldean success reading — its compound number, auspiciousness and sound-preserving spelling corrections.</p>
+        <h2 class="form-block-title"><span data-i18n="brandTitle">Business / Brand Name (optional)</span></h2>
+        <p class="form-block-desc" data-i18n="brandDesc">Enter your business, brand, shop or venture name for a Chaldean success reading — its compound number, auspiciousness and sound-preserving spelling corrections.</p>
         <div class="field">
-          <label class="field-label" for="brand">Business / Brand Name</label>
-          <input class="input" id="brand" name="brand" type="text" placeholder="e.g. Shree Balaji Textiles" autocomplete="off" />
+          <label class="field-label" for="brand" data-i18n="brandLabel">Business / Brand Name</label>
+          <input class="input" id="brand" name="brand" type="text" placeholder="e.g. Shree Balaji Textiles" data-i18n-ph="brandPlaceholder" autocomplete="off" />
         </div>
       </div>
 
       <div class="form-block">
-        <h2 class="form-block-title">Privacy &amp; Learning Settings</h2>
-        <p class="form-block-desc">The app evolves through public knowledge packs and private on-device memory. Anonymous contribution is optional and stays off unless you enable it.</p>
+        <h2 class="form-block-title" data-i18n="privacyTitle">Privacy &amp; Learning Settings</h2>
+        <p class="form-block-desc" data-i18n="privacyDesc">The app evolves through public knowledge packs and private on-device memory. Anonymous contribution is optional and stays off unless you enable it.</p>
         <div class="toggle-row">
           <div>
-            <label class="field-label" for="contributeAnonymous">Help improve future remedies</label>
-            <p class="field-hint">If you opt in, the app will only prepare anonymous aggregate counts such as missing-number totals and selected focus areas.</p>
+            <label class="field-label" for="contributeAnonymous" data-i18n="privacyToggleLabel">Help improve future remedies</label>
+            <p class="field-hint" data-i18n="privacyToggleHint">If you opt in, the app will only prepare anonymous aggregate counts such as missing-number totals and selected focus areas.</p>
           </div>
           <label class="toggle" aria-label="Toggle anonymous contribution">
             <input id="contributeAnonymous" name="contributeAnonymous" type="checkbox" />
             <span class="toggle-slider" aria-hidden="true"></span>
           </label>
         </div>
-        <p class="field-hint" id="contributionHint">Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.</p>
+        <p class="field-hint" id="contributionHint" data-i18n="privacyFooterHint">Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.</p>
       </div>
 
       <!-- Compatibility (optional) -->
       <div class="form-block">
-        <h2 class="form-block-title">Compatibility <span class="optional">(optional — partner / spouse / business partner)</span></h2>
-        <p class="form-block-desc">Add a second person to compare Driver &amp; Conductor compatibility for marriage or partnership.</p>
+        <h2 class="form-block-title"><span data-i18n="compatTitle">Compatibility (optional — partner / spouse / business partner)</span></h2>
+        <p class="form-block-desc" data-i18n="compatDesc">Add a second person to compare Driver &amp; Conductor compatibility for marriage or partnership.</p>
 
         <div class="field-row">
           <div class="field">
-            <label class="field-label" for="partnerName">Partner's Full Name</label>
-            <input class="input" id="partnerName" name="partnerName" type="text" placeholder="e.g. Anjali Verma" autocomplete="off" />
+            <label class="field-label" for="partnerName" data-i18n="partnerName">Partner's Full Name</label>
+            <input class="input" id="partnerName" name="partnerName" type="text" placeholder="e.g. Anjali Verma" data-i18n-ph="partnerNamePlaceholder" autocomplete="off" />
           </div>
           <div class="field">
-            <label class="field-label" for="partnerDob">Partner's Date of Birth</label>
+            <label class="field-label" for="partnerDob" data-i18n="partnerDob">Partner's Date of Birth</label>
             <input class="input" id="partnerDob" name="partnerDob" type="date" />
           </div>
         </div>
@@ -349,7 +349,7 @@
           Generate My Remedy Report
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
-        <p class="form-note">Your data never leaves this device — all calculations run locally in your browser.</p>
+        <p class="form-note" data-i18n="formNote">Your data never leaves this device — all calculations run locally in your browser.</p>
       </div>
     </form>
   </section>
@@ -362,7 +362,7 @@
 </main>
 
 <footer class="app-footer">
-  <p>NumeroVastu 360 — guidance based on classical Vedic numerology and Vastu principles. Remedies are supportive practices, not a substitute for professional medical, legal or financial advice.</p>
+  <p data-i18n="footerText">NumeroVastu 360 — guidance based on classical Vedic numerology and Vastu principles. Remedies are supportive practices, not a substitute for professional medical, legal or financial advice.</p>
 </footer>
 
 <div id="toastViewport" class="toast-viewport" aria-live="polite" aria-atomic="true"></div>

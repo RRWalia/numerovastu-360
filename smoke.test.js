@@ -53,7 +53,7 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.6.0 · Meeus engine"],
+  ["app version badge", $("#appBadge").textContent === "App v2.6.1 · Meeus engine"],
   ["build badge", $("#buildBadge").textContent === "Build 2026-09-01"],
   ["knowledge pack badge", report.includes("Knowledge pack v2.3.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
@@ -173,6 +173,10 @@ const hindiChecks = [
   ["Hindi no undefined leaks", !rHi.includes("undefined")],
   ["Hindi no NaN leaks", !rHi.includes("NaN")],
   ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
+  ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
+  ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
+  ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
+  ["Hindi goal chips localized", $('#goalChips .chip[data-goal="Money"]').textContent.includes("धन")],
 ];
 hindiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -695,6 +699,28 @@ const checks6 = [
   ["no undefined leaks", !r6.includes("undefined")],
 ];
 checks6.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// eighth block: intake validation guards (degenerate inputs must not render)
+$("#editBtn").click();
+$("#fullName").value = "Validation Probe";
+$("#dob").value = "1990-06-06";
+$("#mobile").value = "0000000000"; // all-zero: no planetary vibration
+$("#vehicle").value = "";
+$("#birthTime").value = ""; $("#birthPlace").value = "";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+const valChecks = [
+  ["all-zero mobile rejected", !$("#err-mobile").hidden],
+  ["degenerate input did not re-render report", !$("#reportRoot").innerHTML.includes("Validation Probe")],
+];
+$("#mobile").value = "9876543210";
+$("#dob").value = "2999-01-01"; // future date
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+valChecks.push(["future DOB rejected", !$("#err-dob").hidden]);
+valChecks.push(["future DOB did not re-render", !$("#reportRoot").innerHTML.includes("Validation Probe")]);
+$("#dob").value = "1990-06-06";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+valChecks.push(["form recovers after valid submit", $("#reportRoot").innerHTML.includes("Validation Probe")]);
+valChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
 process.exit(fail === 0 ? 0 : 1);

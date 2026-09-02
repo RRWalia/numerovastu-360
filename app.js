@@ -481,7 +481,9 @@
     setErr("dob", badDob); if (badDob) { ok = false; first = first || $("#dob"); }
 
     const mob = ($("#mobile") && $("#mobile").value.replace(/\D/g, "")) || "";
-    const badMob = mob.length < 8;
+    // 8+ digits AND at least one non-zero digit — an all-zero number has no
+    // planetary vibration and would otherwise surface as a phantom "9".
+    const badMob = mob.length < 8 || !/[1-9]/.test(mob);
     setErr("mobile", badMob); if (badMob) { ok = false; first = first || $("#mobile"); }
 
     const badGoals = selectedGoals.size === 0;
@@ -2977,6 +2979,17 @@
       const btn = $("#generateBtn");
       btn.innerHTML = `${t("generateBtn", "Generate My Remedy Report")} <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
     }
+
+    /* Generic intake-form localisation: any element carrying
+         data-i18n="key"      -> textContent
+         data-i18n-html="key" -> innerHTML (trusted pack content only)
+         data-i18n-ph="key"   -> placeholder attribute
+       is translated from the active i18n pack, falling back to the markup
+       text already present in index.html. This keeps the form, its hints and
+       its error messages in the same language as the generated report. */
+    $$("[data-i18n]").forEach((el) => { el.textContent = t(el.getAttribute("data-i18n"), el.textContent); });
+    $$("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.getAttribute("data-i18n-html"), el.innerHTML); });
+    $$("[data-i18n-ph]").forEach((el) => { el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"), el.getAttribute("placeholder") || "")); });
   }
 
   function setLanguage(lang) {
