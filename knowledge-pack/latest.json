@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.3.0",
-  "packUrl": "knowledge-pack/packs/2.3.0.json",
-  "notes": "Adds classical Karmic Debt readings (13/14/16/19 checked at the unreduced birth-day, birth-date and name totals, with settling remedies) and the four-phase Pinnacle & Challenge life-cycle content — all in English, Hindi and Gujarati."
+  "latestVersion": "2.4.0",
+  "packUrl": "knowledge-pack/packs/2.4.0.json",
+  "notes": "Adds the Ayurvedic Dosha Layer — a Jyotish–Ayurveda constitutional map for numbers 1–9 (dominant dosha, nature, aggravation, balancing foods, routine and mantra-linked note in English, Hindi and Gujarati), blended from Driver + Conductor, with aggravation from repeated 3+ numbers and under-supported (missing-critical) gaps."
 }

@@ -43,7 +43,11 @@
         "compound",
         "masterNumbers",
         "nameAdvice"
-      ]
+      ],
+      "dosha": {
+        "type": "object",
+        "description": "Optional Ayurvedic dosha layer: numbers 1–9 map to a planetary constitutional signature (dominant, nature, aggravation, balancingFoods, routine, mantraLinkedNote)."
+      }
     }
   }
 }
