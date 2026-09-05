@@ -82,7 +82,13 @@ The report intentionally shows the source of each kind of guidance.
 | Power days | Driver + Conductor | Either grid |
 | Missing/repeated remedies, crystals, Rudraksha, affirmations, habits and 40-day practice | Lo Shu Birth Grid | Vedic comparison, zodiac and Dasha |
 | Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
+| Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
 | Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
+
+Compatibility uses the four Driver/Conductor pairings to make mutual strengths,
+watch points, potential blind spots and communication cues explicit. It is a
+relationship reflection only: it never adds crystals, Rudraksha, affirmations,
+lifestyle obligations, partner-side remedy kits or a second 40-day plan.
 
 The Driver/Conductor power-day card is a scheduling reference. It does not pick
 or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng

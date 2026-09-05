@@ -2931,28 +2931,52 @@
        40-day remedy plan; those remain governed by the primary Lo Shu chart. */
     const compatReflectionCard = !cRem ? "" : (function () {
       const rows = [];
+      const friendlyPairs = compat.pairs.filter(function (pair) { return pair.r === "friendly"; });
+      const neutralPairs = compat.pairs.filter(function (pair) { return pair.r === "neutral"; });
+      const pairList = function (pairs) {
+        return pairs.map(function (pair) { return "<strong>" + esc(pair.a) + " × " + esc(pair.b) + "</strong>"; }).join(" · ");
+      };
       const intro = (compat.verdict === "Strong" || compat.verdict === "Good")
-        ? LT("This pairing has a cooperative baseline. Use the notes below as communication and planning prompts, not as a remedial checklist.",
-             "इस मिलान का सहयोगी आधार है। नीचे के नोट्स को संवाद और योजना के संकेत की तरह लें, उपाय-list की तरह नहीं।",
-             "આ જોડાણનો સહયોગી આધાર છે. નીચેના નોંધોને સંવાદ અને આયોજનના સંકેત તરીકે લો, ઉપાય-list તરીકે નહીં.")
-        : LT("This pairing benefits from conscious communication. The notes below name likely friction and a practical bridge; they are not a replacement for professional relationship support.",
-             "इस मिलान को सजग संवाद से लाभ होगा। नीचे संभावित टकराव और व्यावहारिक सेतु दिए हैं; ये पेशेवर relationship support का विकल्प नहीं हैं।",
-             "આ જોડાણને સજાગ સંવાદથી લાભ થશે. નીચે સંભવિત ઘર્ષણ અને વ્યવહારુ સેતુ છે; તે વ્યાવસાયિક relationship support નો વિકલ્પ નથી.");
+        ? LT("This pairing has a cooperative baseline. Read the strengths, watch points and communication cues below as shared planning prompts, not as a remedial checklist.",
+             "इस मिलान का सहयोगी आधार है। नीचे की शक्तियों, ध्यान-बिंदुओं और संवाद-संकेतों को साझा योजना के संकेत की तरह लें, उपाय-list की तरह नहीं।",
+             "આ જોડાણનો સહયોગી આધાર છે. નીચેની શક્તિઓ, ધ્યાન-બિંદુઓ અને સંવાદ-સંકેતોને સહભાગી આયોજનના સંકેત તરીકે લો, ઉપાય-list તરીકે નહીં.")
+        : LT("This pairing benefits from conscious communication. The strengths, blind spots and practical cues below help you make agreements together; they are not a replacement for professional relationship support.",
+             "इस मिलान को सजग संवाद से लाभ होगा। नीचे की शक्तियां, सावधानी-बिंदु और व्यावहारिक संकेत साथ में समझौते बनाने में मदद करते हैं; ये पेशेवर relationship support का विकल्प नहीं हैं।",
+             "આ જોડાણને સજાગ સંવાદથી લાભ થશે. નીચેની શક્તિઓ, સાવચેતીના મુદ્દા અને વ્યવહારુ સંકેતો સાથે મળીને કરાર બનાવવા મદદ કરે છે; તે વ્યાવસાયિક relationship support નો વિકલ્પ નથી.");
       rows.push('<div class="card" id="compatibility-reflection" data-authority="compatibility-reflection">');
+      rows.push('<div class="compatibility-reflection-intro">');
       rows.push('<div class="goal-head"><div class="card-title">🤝 ' + LT("Compatibility reflection", "सामंजस्य चिंतन", "સુસંગતતા ચિંતન") + " — " + esc(p.name.split(/\s+/)[0]) + " &amp; " + esc(partnerFirst) + '</div><span class="badge ' + (compat.enemy ? "warn" : "good") + '">' + (cRem.conflicts.length ? cRem.conflicts.length + " " + LT("friction pair(s)", "घर्षण जोड़(ें)", "ઘર્ષણ જોડી(ઓ)") : LT("no major friction", "मुख्य घर्षण नहीं", "મુખ્ય ઘર્ષણ નથી")) + "</span></div>");
       rows.push('<div class="kit-value">' + intro + "</div>");
-      cRem.conflicts.forEach(function (c) {
-        rows.push('<div class="kit-row"><div class="kit-ico">⚡</div><div class="kit-body"><div class="kit-label">' + esc(c.a) + " (" + esc(c.planetA.split(" ")[0]) + ") × " + esc(c.b) + " (" + esc(c.planetB.split(" ")[0]) + ")</div>");
-        rows.push(c.friction
-          ? '<div class="kit-value">' + esc(c.friction[lang] || c.friction.en) + '</div><div class="kit-value">🌉 ' + esc(c.bridge[lang] || c.bridge.en) + "</div>"
-          : '<div class="kit-value">' + LT("Name the difference, make one small agreement, then review it together.", "अंतर को नाम दें, एक छोटा समझौता बनाएं, फिर उसे साथ में देखें।", "તફાવતને નામ આપો, એક નાનો કરાર બનાવો, પછી સાથે તેની સમીક્ષા કરો.") + "</div>");
-        rows.push("</div></div>");
-      });
-      if (!cRem.conflicts.length && cRem.neutralLinks) {
-        rows.push('<div class="kit-row"><div class="kit-ico">🌱</div><div class="kit-body"><div class="kit-label">' + LT("Workable neutral links", "साध्य तटस्थ कड़ियां", "સાધ્ય તટસ્થ કડીઓ") + '</div><div class="kit-value">' + LT("Set a recurring shared check-in and decide in advance how each person prefers to receive feedback.", "नियमित साझा check-in रखें और पहले से तय करें कि हर व्यक्ति feedback कैसे लेना पसंद करता है।", "નિયમિત સામૂહિક check-in રાખો અને પહેલેથી નક્કી કરો કે દરેક વ્યક્તિ feedback કેવી રીતે લેવા ઇચ્છે છે.") + "</div></div></div>");
+      rows.push("</div>");
+
+      rows.push('<div class="kit-row compatibility-strengths"><div class="kit-ico">✨</div><div class="kit-body"><div class="kit-label">' + LT("Mutual strengths", "परस्पर शक्तियां", "પરસ્પર શક્તિઓ") + '</div><div class="kit-value">' + (friendlyPairs.length
+        ? LT(pairList(friendlyPairs) + " form supportive lanes between your two Driver/Conductor pairs. Use these natural points of agreement for shared decisions, appreciation and momentum.",
+             pairList(friendlyPairs) + " आपके दो मूलांक/भाग्यांक जोड़ों के सहयोगी मार्ग हैं। इन सहज सहमतियों को साझा निर्णय, सराहना और गति के लिए उपयोग करें।",
+             pairList(friendlyPairs) + " તમારા બે મૂળાંક/ભાગ્યાંક જોડીઓ વચ્ચે સહાયક માર્ગ બનાવે છે. આ સહજ સહમતીઓનો ઉપયોગ સહભાગી નિર્ણય, પ્રશંસા અને ગતિ માટે કરો.")
+        : LT("No pair is marked harmonious yet. Build strength by making expectations and repair steps explicit rather than assuming alignment.",
+             "अभी कोई जोड़ी harmonious चिह्नित नहीं है। अनकही सहमति मानने के बजाय अपेक्षाएं और सुधार के कदम स्पष्ट करके शक्ति बनाएं।",
+             "હજી કોઈ જોડી harmonious તરીકે ચિહ્નિત નથી. અનકહી સહમતી માનવાને બદલે અપેક્ષાઓ અને સુધારાના પગલાં સ્પષ્ટ કરીને શક્તિ બનાવો.")) + "</div></div></div>");
+
+      if (neutralPairs.length) {
+        rows.push('<div class="kit-row compatibility-watch-points"><div class="kit-ico">👀</div><div class="kit-body"><div class="kit-label">' + LT("Watch points", "ध्यान-बिंदु", "ધ્યાન-બિંદુઓ") + '</div><div class="kit-value">' + LT(pairList(neutralPairs) + " are workable rather than automatic strengths. Name assumptions early, agree roles and revisit decisions before small differences accumulate.",
+          pairList(neutralPairs) + " साध्य हैं, अपने-आप बनने वाली शक्तियां नहीं। धारणाएं जल्दी स्पष्ट करें, भूमिकाएं तय करें और छोटे मतभेद बढ़ने से पहले निर्णय दोबारा देखें।",
+          pairList(neutralPairs) + " સાધ્ય છે, આપમેળે બનતી શક્તિઓ નથી. ધારણાઓ વહેલી સ્પષ્ટ કરો, ભૂમિકાઓ નક્કી કરો અને નાના મતભેદ વધે તે પહેલાં નિર્ણય ફરી જુઓ.") + "</div></div></div>");
       }
+
+      if (cRem.conflicts.length) {
+        cRem.conflicts.forEach(function (c) {
+          rows.push('<div class="kit-row compatibility-blind-spot"><div class="kit-ico">⚡</div><div class="kit-body"><div class="kit-label">' + LT("Potential blind spot", "संभावित सावधानी-बिंदु", "સંભવિત સાવચેતીનો મુદ્દો") + " · " + esc(c.a) + " (" + esc(c.planetA.split(" ")[0]) + ") × " + esc(c.b) + " (" + esc(c.planetB.split(" ")[0]) + ")</div>");
+          rows.push(c.friction
+            ? '<div class="kit-value">' + esc(c.friction[lang] || c.friction.en) + '</div><div class="compatibility-cue">🌉 <strong>' + LT("Communication cue:", "संवाद संकेत:", "સંવાદ સંકેત:") + "</strong> " + esc(c.bridge[lang] || c.bridge.en) + "</div>"
+            : '<div class="compatibility-cue">🌉 <strong>' + LT("Communication cue:", "संवाद संकेत:", "સંવાદ સંકેત:") + "</strong> " + LT("Name the difference, make one small agreement, then review it together.", "अंतर को नाम दें, एक छोटा समझौता बनाएं, फिर उसे साथ में देखें।", "તફાવતને નામ આપો, એક નાનો કરાર બનાવો, પછી સાથે તેની સમીક્ષા કરો.") + "</div>");
+          rows.push("</div></div>");
+        });
+      } else {
+        rows.push('<div class="kit-row compatibility-blind-spot"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">' + LT("Potential blind spots", "संभावित सावधानी-बिंदु", "સંભવિત સાવચેતીના મુદ્દા") + '</div><div class="kit-value">' + LT("No conflicting Driver/Conductor pair appears in this comparison. Protect the bond by keeping communication specific when priorities or timing differ.", "इस तुलना में कोई विरोधी मूलांक/भाग्यांक जोड़ी नहीं है। प्राथमिकताएं या समय अलग हों तो संवाद को स्पष्ट रखकर संबंध की रक्षा करें।", "આ સરખામણીમાં કોઈ વિરોધી મૂળાંક/ભાગ્યાંક જોડી નથી. પ્રાથમિકતાઓ અથવા સમય અલગ હોય ત્યારે સંવાદને સ્પષ્ટ રાખીને સંબંધનું રક્ષણ કરો.") + '</div><div class="compatibility-cue">🌉 <strong>' + LT("Communication cue:", "संवाद संकेत:", "સંવાદ સંકેત:") + '</strong> ' + LT("Keep a short recurring check-in for decisions, appreciation and any change in priorities.", "निर्णय, सराहना और प्राथमिकताओं में बदलाव के लिए छोटा नियमित check-in रखें।", "નિર્ણય, પ્રશંસા અને પ્રાથમિકતાઓમાં ફેરફાર માટે ટૂંકો નિયમિત check-in રાખો.") + "</div></div></div>");
+      }
+
       if (cRem.bridges.length) {
-        rows.push('<div class="kit-row"><div class="kit-ico">🌉</div><div class="kit-body"><div class="kit-label">' + LT("Shared reference numbers", "साझा संदर्भ अंक", "સહભાગી સંદર્ભ અંકો") + '</div><div class="kit-value">' + cRem.bridges.map(function (br) { return "<strong>" + br.n + "</strong> (" + esc(br.planet) + ")"; }).join(" · ") + '</div><div class="card-sub">' + LT("These are discussion cues for shared projects, not remedy targets, power days or event-timing instructions.", "ये साझा परियोजनाओं के लिए चर्चा-संकेत हैं, remedy targets, power days या event-timing निर्देश नहीं।", "આ સહભાગી યોજનાઓ માટે ચર્ચા-સંકેત છે, remedy targets, power days અથવા event-timing સૂચના નથી.") + "</div></div></div>");
+        rows.push('<div class="kit-row compatibility-shared-cues"><div class="kit-ico">🌉</div><div class="kit-body"><div class="kit-label">' + LT("Shared reference numbers", "साझा संदर्भ अंक", "સહભાગી સંદર્ભ અંકો") + '</div><div class="kit-value">' + cRem.bridges.map(function (br) { return "<strong>" + br.n + "</strong> (" + esc(br.planet) + ")"; }).join(" · ") + '</div><div class="card-sub">' + LT("Use these as conversation cues for shared projects, not remedy targets, power days or event-timing instructions.", "इनको साझा परियोजनाओं के लिए संवाद-संकेत की तरह लें, remedy targets, power days या event-timing निर्देश की तरह नहीं।", "તેનો ઉપયોગ સહભાગી યોજનાઓ માટે સંવાદ-સંકેત તરીકે કરો, remedy targets, power days અથવા event-timing સૂચના તરીકે નહીં.") + "</div></div></div>");
       }
       rows.push('<div class="judge-note"><strong>' + LT("Scope:", "सीमा:", "મર્યાદા:") + "</strong> " + LT("Compatibility does not add crystals, Rudraksha, affirmations, lifestyle obligations or a second 40-day plan. Use the Lo Shu Foundation for those; use Timeline for Dasha timing and active Vastu.", "सामंजस्य crystals, Rudraksha, affirmations, lifestyle obligations या दूसरी 40-दिन योजना नहीं जोड़ता। इनके लिए लो शू Foundation और दशा समय/सक्रिय वास्तु के लिए Timeline देखें।", "સુસંગતતા crystals, Rudraksha, affirmations, lifestyle obligations અથવા બીજી ૪૦-દિવસની યોજના ઉમેરતી નથી. તેના માટે લો શુ Foundation અને દશા સમય/સક્રિય વાસ્તુ માટે Timeline જુઓ.") + "</div>");
       rows.push("</div>");
@@ -2960,28 +2984,30 @@
     })();
 
     const compatSection = `<section class="rsection" id="compatibility-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>${t("secCompat", "Compatibility & Matchmaking")}</h2>
-      ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
-        <div class="card">
-          <div class="goal-head">
-            <div class="card-title">Overall verdict: ${compat.verdict}</div>
-            <span class="badge ${compat.verdict === "Strong" || compat.verdict === "Good" ? "good" : compat.verdict === "Workable" ? "warn" : "bad"}">${compat.friendly} harmonious · ${compat.neutral} neutral · ${compat.enemy} conflicting</span>
-          </div>
-          <div class="table-scroll"><table class="rtable">
-            <tr><th>Pairing</th><th>Relation</th></tr>
-            ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
-          </table></div>
-          <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को समझने के लिए साफ संवाद और व्यवहारिक समझौते जरूरी हैं।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને સમજવા માટે સ્પષ્ટ સંવાદ અને વ્યવહારુ સમજોતાં જરૂરી છે." : "Challenging pairing — the conflicting numbers need clear communication and practical agreements to bridge.")}</div>
-        </div>
-        ${compatReflectionCard}`
-      : `<div class="card">
-          <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
-          <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
-          <div class="table-scroll"><table class="rtable">
-            <tr><th>${lang === "hi" ? "अन्य व्यक्ति का मूलांक" : lang === "gu" ? "અન્ય વ્યક્તિનો મૂળાંક" : "Other person's Driver"}</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
-            ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(db.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
-          </table></div>
-        </div>`}
+      <div class="compatibility-overview">
+        <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>${t("secCompat", "Compatibility & Matchmaking")}</h2>
+        ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
+          <div class="card compatibility-overview-card">
+            <div class="goal-head">
+              <div class="card-title">Overall verdict: ${compat.verdict}</div>
+              <span class="badge ${compat.verdict === "Strong" || compat.verdict === "Good" ? "good" : compat.verdict === "Workable" ? "warn" : "bad"}">${compat.friendly} harmonious · ${compat.neutral} neutral · ${compat.enemy} conflicting</span>
+            </div>
+            <div class="table-scroll"><table class="rtable">
+              <tr><th>Pairing</th><th>Relation</th></tr>
+              ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
+            </table></div>
+            <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को समझने के लिए साफ संवाद और व्यवहारिक समझौते जरूरी हैं।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને સમજવા માટે સ્પષ્ટ સંવાદ અને વ્યવહારુ સમજોતાં જરૂરી છે." : "Challenging pairing — the conflicting numbers need clear communication and practical agreements to bridge.")}</div>
+          </div>`
+        : `<div class="card compatibility-overview-card">
+            <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
+            <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
+            <div class="table-scroll"><table class="rtable">
+              <tr><th>${lang === "hi" ? "अन्य व्यक्ति का मूलांक" : lang === "gu" ? "અન્ય વ્યક્તિનો મૂળાંક" : "Other person's Driver"}</th><th>vs your Driver ${p.driver}</th><th>vs your Conductor ${p.conductor}</th></tr>
+              ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `<tr><td><strong>${n}</strong> (${esc(db.numbers[n].planet.split(" ")[0])})</td><td>${relBadge(relation(p.driver, n))}</td><td>${relBadge(relation(p.conductor, n))}</td></tr>`).join("")}
+            </table></div>
+          </div>`}
+      </div>
+      ${compat ? compatReflectionCard : ""}
     </section>`;
 
     const goalsStart = SECTION.goalsStart;

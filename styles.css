@@ -663,6 +663,17 @@ body {
 .kit-body { min-width: 0; }
 .kit-label { font-size: 12px; font-weight: 500; line-height: 18px; color: var(--label-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
 .kit-value { font-size: 14px; line-height: 22px; }
+
+/* Compatibility is a compact relationship reflection rather than a remedy
+   surface. The grouped overview keeps its heading with the four D/C-pair
+   table, while the reflection rows stay easy to scan on screen and in print. */
+.compatibility-overview,
+.compatibility-reflection-intro { display: flex; flex-direction: column; gap: 12px; }
+.compatibility-overview { gap: 16px; }
+#compatibility-reflection .kit-row { padding-top: 12px; border-top: 0.5px solid var(--separator); }
+.compatibility-cue { margin-top: 6px; color: var(--label-secondary); font-size: 14px; line-height: 22px; }
+.compatibility-cue strong { color: var(--label-primary); }
+
 .mantra { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--fill-f1); padding: 2px 6px; border-radius: var(--r-xxs); }
 
 /* Tables */
@@ -1041,6 +1052,21 @@ body {
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   .rsection { animation: none; break-inside: avoid-page; }
+  /* Let Compatibility flow only between its meaningful blocks. The heading,
+     introductory pair table and each reflection row remain atomic, so removing
+     the former bulky remedy kits cannot leave a title, blank shell or cue orphaned. */
+  #compatibility-section { display: block; break-inside: auto; page-break-inside: auto; }
+  #compatibility-section > * + * { margin-top: 16px; }
+  #compatibility-section .compatibility-overview,
+  #compatibility-section .compatibility-reflection-intro,
+  #compatibility-section .kit-row,
+  #compatibility-section .judge-note {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  #compatibility-section #compatibility-reflection { display: block; break-inside: auto; page-break-inside: auto; }
+  #compatibility-section #compatibility-reflection > * + * { margin-top: 12px; }
+  #compatibility-section .table-scroll { overflow: visible; }
   /* The Northstar Summary is taller than the space left on page 1 (below the
      header) but shorter than a full page. The blanket avoid-page rule above
      made Chrome push the whole section onto page 2, printing page 1 almost

@@ -44,6 +44,8 @@ async function generateCompleteReport(page) {
   await page.locator('#vehicle').fill('HR51AB1234');
   await page.locator('#birthTime').fill('14:05');
   await page.locator('#birthPlace').fill('New Delhi, India');
+  await page.locator('#partnerName').fill('Arjun Patel');
+  await page.locator('#partnerDob').fill('2000-04-04');
   await page.locator("#goalChips .chip[data-goal='Money']").click();
   await page.locator("#goalChips .chip[data-goal='Career']").click();
   await page.locator('#entrance').selectOption('SW');
@@ -105,6 +107,43 @@ test.describe('hybrid report browser regression', () => {
     await page.evaluate(() => { window.location.hash = '#vastu-section'; });
     await expect(page.locator('#timeline-panel')).toBeVisible();
     await expect(page.locator('#vastu-section')).toBeVisible();
+  });
+
+  test('Compatibility stays relational and print-safe after remedy cards are removed', async ({ page }) => {
+    await generateCompleteReport(page);
+
+    const compatibility = page.locator('#compatibility-section');
+    await expect(compatibility.locator('.compatibility-overview')).toBeVisible();
+    await expect(compatibility.locator('.compatibility-overview-card')).toContainText('Overall verdict');
+    await expect(compatibility.locator('#compatibility-reflection')).toContainText('Mutual strengths');
+    await expect(compatibility.locator('#compatibility-reflection')).toContainText('Potential blind spot');
+    await expect(compatibility.locator('#compatibility-reflection')).toContainText('Communication cue');
+    await expect(compatibility.locator('#compatibility-reflection .kit-row')).toHaveCount(4);
+    await expect(compatibility.locator('.kit-card')).toHaveCount(0);
+    await expect(compatibility).not.toContainText('Couple remedy');
+    await expect(compatibility.locator('#compatibility-reflection')).toContainText('does not add crystals, Rudraksha, affirmations, lifestyle obligations or a second 40-day plan');
+
+    await page.emulateMedia({ media: 'print' });
+    const printBreaks = await compatibility.evaluate((section) => {
+      const overview = section.querySelector('.compatibility-overview');
+      const intro = section.querySelector('.compatibility-reflection-intro');
+      const rows = Array.from(section.querySelectorAll('.kit-row'));
+      const reflection = section.querySelector('#compatibility-reflection');
+      return {
+        section: getComputedStyle(section).breakInside,
+        sectionDisplay: getComputedStyle(section).display,
+        reflectionDisplay: reflection && getComputedStyle(reflection).display,
+        overview: overview && getComputedStyle(overview).breakInside,
+        intro: intro && getComputedStyle(intro).breakInside,
+        rows: rows.map((row) => getComputedStyle(row).breakInside),
+      };
+    });
+    expect(printBreaks.section).toBe('auto');
+    expect(printBreaks.sectionDisplay).toBe('block');
+    expect(printBreaks.reflectionDisplay).toBe('block');
+    expect(printBreaks.overview).not.toBe('auto');
+    expect(printBreaks.intro).not.toBe('auto');
+    expect(printBreaks.rows.every((value) => value !== 'auto')).toBe(true);
   });
 
   test('mobile Timeline navigation is keyboard and horizontal-scroll safe', async ({ page }) => {

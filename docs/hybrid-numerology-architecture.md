@@ -34,7 +34,14 @@ This table is both a product decision and a regression boundary.
 | 40-day activation target and practice | Lo Shu Birth Grid | Home scan, Dasha, dosha and deity cards |
 | Dasha dates and event windows | Dasha engine | Both grids |
 | Dynamic Active Vastu Zone | Active Dasha lords + Vedic compass mapping | Both grids, static room scan, Kua |
+| Compatibility reflection | Four pairwise Driver/Conductor relations | Lo Shu remedy output, Dasha timing, Vastu activation |
 | Kua directions | Feng Shui | Classical Vastu / Dasha |
+
+Compatibility is intentionally relational rather than prescriptive: it makes
+mutual strengths, workable watch points, potential blind spots and communication
+cues visible across the four Driver/Conductor pairings. It cannot generate
+partner-side remedy kits, crystals, Rudraksha, affirmations, lifestyle
+obligations or a second 40-day plan.
 
 The UI carries these boundaries with `data-authority` or
 `data-remedy-authority` markers where appropriate. Textual guardrails are also
@@ -205,7 +212,9 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
 - English, Hindi and Gujarati label Foundation, Timeline and Advanced Vedic
   Comparison separately.
 - Print/PDF CSS exposes both module panels and expands closed advanced Vedic
-  content so exports are complete.
+  content so exports are complete. Compatibility is allowed to flow between
+  meaningful blocks, while its overview/header, reflection intro and each
+  relationship row stay together to prevent orphaned headings or blank shells.
 
 ## 8. Regression coverage
 
@@ -216,10 +225,13 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
 - Lo Shu Name/Combined coordinate mapping;
 - advanced Vedic birth-only/collapsed behavior;
 - Dasha and Vastu timing independence from both grids;
-- all authority boundaries, including Lo Shu-only 40-day/crystal selection;
+- all authority boundaries, including Lo Shu-only 40-day/crystal selection and
+  non-prescriptive Compatibility output;
 - schema/pack validation and canonical Vastu mappings;
-- English/Hindi/Gujarati labels, tabs/hash handling, mobile CSS and print CSS.
+- English/Hindi/Gujarati labels, tabs/hash handling, mobile CSS and print CSS;
+- Compatibility overview/row print-break safeguards and no empty partner-kit
+  placeholders.
 
 `tests/visual/report-print.visual.spec.js` runs the hybrid report in Chromium
-and verifies Foundation defaults, real tab/hash behavior, mobile Timeline
-navigation and print expansion.
+and verifies Foundation defaults, real tab/hash behavior, relational
+Compatibility output, mobile Timeline navigation and print expansion.
