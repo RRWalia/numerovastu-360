@@ -864,6 +864,183 @@ window.NVAstro = (function () {
     return names.sort((a, b) => a.localeCompare(b));
   }
 
+  const CORE_KEYS = new Set(Object.keys(PLACE_LOOKUP));
+  const ATLAS_PLACES = [];
+  const ATLAS_SEEN = new Set();
+  let LOOKUP_KEYS_SORTED = null;
+
+  function invalidateLookupKeys() { LOOKUP_KEYS_SORTED = null; }
+
+  function lookupKeysSorted() {
+    if (!LOOKUP_KEYS_SORTED) {
+      LOOKUP_KEYS_SORTED = Object.keys(PLACE_LOOKUP).sort((a, b) => b.length - a.length);
+    }
+    return LOOKUP_KEYS_SORTED;
+  }
+
+  function placeKeyList(name, state, country) {
+    const n = norm(name), st = norm(state), c = norm(country);
+    const keys = [];
+    if (n) keys.push(n);
+    if (n && st) keys.push(n + " " + st);
+    if (n && c) keys.push(n + " " + c);
+    if (n && st && c) keys.push(n + " " + st + " " + c);
+    return keys;
+  }
+
+  function registerPlace(place, opts) {
+    opts = opts || {};
+    const name = String((place && place.name) || "").trim();
+    if (!name) return null;
+    const state = String((place && place.state) || "").trim();
+    const country = String((place && place.country) || "").trim();
+    const lat = Number(place && place.lat);
+    const lon = Number(place && place.lon);
+    const tz = Number(place && place.tz);
+    const dst = !!(place && place.dst);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(tz)) return null;
+    if (!opts.core && CORE_KEYS.has(norm(name))) return null;
+    const entry = {
+      name, state, country, lat, lon, tz, dst,
+      source: (place && place.source) || (opts.core ? "core" : "atlas")
+    };
+    placeKeyList(name, state, country).forEach((k) => {
+      if (!k) return;
+      if (!opts.core && CORE_KEYS.has(k)) return;
+      if (PLACE_LOOKUP[k]) return;
+      PLACE_LOOKUP[k] = entry;
+    });
+    if (!opts.core) {
+      const id = norm(name) + "|" + norm(state) + "|" + norm(country);
+      if (!ATLAS_SEEN.has(id)) {
+        ATLAS_SEEN.add(id);
+        ATLAS_PLACES.push(entry);
+      }
+    }
+    invalidateLookupKeys();
+    return entry;
+  }
+
+  function ingestAtlas(chunk) {
+    if (!chunk || typeof chunk !== "object") return 0;
+    const packed = String(chunk.packed || "");
+    if (!packed) return 0;
+    const admin1 = Array.isArray(chunk.admin1) ? chunk.admin1 : [];
+    const tzTable = Array.isArray(chunk.tzTable) ? chunk.tzTable : [];
+    const ccNames = chunk.ccNames || {};
+    const defaultCountry = chunk.country || "";
+    const defaultCc = chunk.cc || "";
+    const defaultTz = Number(chunk.tzHours);
+    const defaultDst = !!chunk.dst;
+    const implicitTz = Number.isFinite(defaultTz);
+    let n = 0;
+    const lines = packed.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) continue;
+      const p = line.split("|");
+      if (p.length < 4) continue;
+      const name = p[0];
+      const lat = Number(p[1]) / 100;
+      const lon = Number(p[2]) / 100;
+      let tz, dst, cc, adminIdx;
+      if (p.length >= 6) {
+        const tzIdx = Number(p[3]);
+        cc = p[4] || defaultCc;
+        adminIdx = Number(p[5]);
+        const slot = tzTable[tzIdx];
+        if (Array.isArray(slot)) { tz = Number(slot[0]); dst = !!slot[1]; }
+        else if (slot && typeof slot === "object") { tz = Number(slot.hours != null ? slot.hours : slot[0]); dst = !!(slot.dst != null ? slot.dst : slot[1]); }
+        else { tz = implicitTz ? defaultTz : 0; dst = defaultDst; }
+      } else {
+        adminIdx = Number(p[3]);
+        cc = defaultCc;
+        tz = implicitTz ? defaultTz : 5.5;
+        dst = defaultDst;
+      }
+      const state = admin1[adminIdx] || "";
+      const country = (cc && ccNames[cc]) || defaultCountry || cc || "";
+      if (registerPlace({ name, state, country, lat, lon, tz, dst, source: chunk.region || "atlas" })) n++;
+    }
+    return n;
+  }
+
+  function searchPlaces(query, limit) {
+    limit = limit || 12;
+    const q = norm(query);
+    if (q.length < 2) return [];
+    const scored = [];
+    const seen = new Set();
+    function consider(entry, core) {
+      const id = entry.name + "|" + entry.state + "|" + entry.country;
+      if (seen.has(id)) return;
+      const n = norm(entry.name);
+      const hay = norm([entry.name, entry.state, entry.country].join(" "));
+      let score = -1;
+      if (n === q) score = 100;
+      else if (n.startsWith(q)) score = 80 - Math.min(20, Math.max(0, n.length - q.length));
+      else if ((" " + hay).indexOf(" " + q) !== -1) score = 40;
+      else if (hay.indexOf(q) !== -1) score = 20;
+      if (score < 0) return;
+      if (core) score += 5;
+      seen.add(id);
+      scored.push({
+        name: entry.name, state: entry.state, country: entry.country,
+        lat: entry.lat, lon: entry.lon, tz: entry.tz, dst: entry.dst,
+        label: [entry.name, entry.state, entry.country].filter(Boolean).join(", "),
+        score
+      });
+    }
+    CITIES.forEach((row) => {
+      consider({ name: row[1], state: row[2], country: row[3], lat: row[4], lon: row[5], tz: row[6], dst: row[7] }, true);
+    });
+    ATLAS_PLACES.forEach((entry) => consider(entry, false));
+    scored.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    return scored.slice(0, limit);
+  }
+
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const toRad = (d) => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+
+  function nearestPlaces(lat, lon, opts) {
+    opts = opts || {};
+    const maxKm = opts.maxKm != null ? opts.maxKm : 25;
+    const limit = opts.limit || 5;
+    const out = [];
+    function consider(entry) {
+      const km = haversineKm(lat, lon, entry.lat, entry.lon);
+      if (km > maxKm) return;
+      const lagnaDeg = Math.abs(lon - entry.lon);
+      out.push({
+        name: entry.name, state: entry.state, country: entry.country,
+        lat: entry.lat, lon: entry.lon, tz: entry.tz, dst: entry.dst,
+        km, lagnaDeg, lagnaClose: lagnaDeg < 0.1,
+        label: [entry.name, entry.state, entry.country].filter(Boolean).join(", "),
+        entry
+      });
+    }
+    CITIES.forEach((row) => {
+      consider({ name: row[1], state: row[2], country: row[3], lat: row[4], lon: row[5], tz: row[6], dst: row[7] });
+    });
+    ATLAS_PLACES.forEach(consider);
+    out.sort((a, b) => a.km - b.km);
+    return out.slice(0, limit);
+  }
+
+  function coreCities() { return CITIES.map((r) => r.slice()); }
+  function atlasSize() { return CITIES.length + ATLAS_PLACES.length; }
+
+  if (typeof globalThis !== "undefined" && globalThis.NV_ATLAS) {
+    Object.keys(globalThis.NV_ATLAS).forEach((k) => ingestAtlas(globalThis.NV_ATLAS[k]));
+  }
+
   function matchPlace(raw) {
     const rawT = String(raw || "").trim();
     if (!rawT) return null;
@@ -880,10 +1057,20 @@ window.NVAstro = (function () {
       let tz = 5.5; // coordinates without an explicit offset are assumed Indian time
       if (coordM[5] !== undefined && !isNaN(parseFloat(coordM[5])) && Math.abs(parseFloat(coordM[5])) <= 14) tz = parseFloat(coordM[5]);
       const tzGiven = coordM[5] !== undefined;
+      const nearest = nearestPlaces(lat, lon, { maxKm: 25, limit: 1 })[0];
+      const coordLabel = `${lat}°, ${lon}°` + (tzGiven ? ` · UTC${tz >= 0 ? "+" : ""}${tz}` : " · assumed UTC+5:30");
+      if (nearest && nearest.lagnaClose) {
+        return {
+          name: nearest.name, state: nearest.state, country: nearest.country,
+          lat, lon, tz, dst: nearest.dst, fromCoords: true,
+          nearestKm: nearest.km, lagnaDeg: nearest.lagnaDeg,
+          displayName: `${nearest.label} · ${coordLabel}`
+        };
+      }
       return {
         name: "Custom coordinates", state: "", country: "coordinates", lat, lon, tz,
         dst: false, fromCoords: true,
-        displayName: `${lat}°, ${lon}°` + (tzGiven ? ` · UTC${tz >= 0 ? "+" : ""}${tz}` : " · assumed UTC+5:30")
+        displayName: coordLabel
       };
     }
 
@@ -894,7 +1081,7 @@ window.NVAstro = (function () {
     for (const cand of candidates) {
       if (PLACE_LOOKUP[cand]) return Object.assign({ fromCoords: false }, PLACE_LOOKUP[cand]);
     }
-    const keys = Object.keys(PLACE_LOOKUP).sort((a, b) => b.length - a.length);
+    const keys = lookupKeysSorted();
     for (const k of keys) {
       if (s === k || s.startsWith(k + " ")) return Object.assign({ fromCoords: false }, PLACE_LOOKUP[k]);
     }
@@ -1308,6 +1495,12 @@ window.NVAstro = (function () {
     matchPlace,
     cityNames,
     cities,
+    coreCities,
+    ingestAtlas,
+    registerPlace,
+    searchPlaces,
+    nearestPlaces,
+    atlasSize,
     signOf,
     nakshatraOf,
     ayanamsaForDate,

@@ -7,6 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "start": "npm run dev",
     "build": "node scripts/build-static.cjs",
+    "atlas:build": "node scripts/build-atlas.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node smoke.test.js",
     "test:visual": "playwright test --update-snapshots=missing",

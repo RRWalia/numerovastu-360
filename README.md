@@ -245,6 +245,19 @@ birth time/place and entered home details are not posted to an app backend.
 Local report history, the practice tracker and journal remain in browser local
 storage for that device.
 
+Birthplace matching is offline-first. The default India atlas (`atlas/atlas-in.js`,
+~7,000 towns from GeoNames cities500) plus the curated world-city list in
+`astro.js` never leave the device. Matching is three-tier: packed offline
+lookup, then a nearby district within 25 km (Lagna shift under 0.1°) when
+coordinates are known, then an optional Photon lookup
+(`https://photon.komoot.io/api/?q=`) only when you click **Look up online**.
+Only the typed place name is sent, and only that city string is cached in
+`localStorage` — never coordinates or the chart. Gulf (`atlas-gcc.js`) and extra
+world (`atlas-world.js`, pop ≥ 100k) chunks stay lazy-loaded. Rebuild with
+`npm run atlas:build` (falls back to local GeoNames dumps when
+`download.geonames.org` is blocked). Packed rows stay well under 250 KB for the
+default India chunk.
+
 The public knowledge pack is separate from personal data:
 
 1. `data.js` supplies bundled schema-v2 content for instant/offline use.
@@ -259,7 +272,7 @@ configuration as well as the Dasha/Vastu mappings.
 ## Tech stack and project layout
 
 - Vanilla JavaScript (`app.js`) with a bundled curated knowledge pack (`data.js`)
-- Browser-local Vedic ephemeris (`astro.js`)
+- Browser-local Vedic ephemeris (`astro.js`) plus compact regional place atlases (`atlas/`)
 - Plain CSS with responsive and print rules (`styles.css`)
 - Vite for development and static serving
 - jsdom for deterministic engine/report smoke coverage
@@ -270,6 +283,10 @@ numerovastu-360/
 ├── index.html                         # App shell and intake form
 ├── app.js                             # Engines, renderers, routing and local state
 ├── astro.js                           # Browser-local Vedic astronomy helpers
+├── atlas/
+│   ├── atlas-in.js                    # Default India towns (compact packed rows)
+│   ├── atlas-gcc.js                   # Optional Gulf cities (lazy)
+│   └── atlas-world.js                 # Optional world cities pop ≥ 100k (lazy)
 ├── data.js                            # Bundled schema-v2 knowledge pack
 ├── i18n.js                            # English, Hindi and Gujarati labels
 ├── styles.css                         # Responsive and print presentation
@@ -279,6 +296,7 @@ numerovastu-360/
 │   ├── schema.json                    # Schema-v2 contract
 │   ├── latest.json                    # Current manifest
 │   └── packs/2.8.0.json               # Release JSON pack
+├── scripts/build-atlas.mjs            # GeoNames → compact atlas chunks
 └── scripts/build-static.cjs           # Static distribution builder
 ```
 
@@ -302,6 +320,7 @@ Vite binds to `0.0.0.0`; open the URL it prints (normally
 
 ```bash
 npm test                 # Grid, authority, pack, localisation and tab regression suite
+npm run atlas:build      # Rebuild compact India / Gulf / world place chunks
 npm run audit            # Dependency audit
 npm run build            # Rebuilds static dist/ from root sources
 npm run check            # test + audit + build

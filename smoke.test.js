@@ -18,7 +18,7 @@ const { window } = dom;
 window.scrollTo = () => {};
 window.print = () => {};
 window.requestAnimationFrame = (fn) => fn();
-window.eval(["astro.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
+window.eval(["astro.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
 
 const $ = (selector, rootNode) => (rootNode || window.document).querySelector(selector);
 const $$ = (selector, rootNode) => Array.from((rootNode || window.document).querySelectorAll(selector));
@@ -364,6 +364,16 @@ const nakUnitChecks = [
   ["world capitals resolve (spot check)", ["Naypyidaw", "Brasília", "Dodoma", "Abuja", "Minsk", "Havana", "Nuuk", "Ankara", "Sri Jayawardenepura Kotte"].every((c) => NA.matchPlace(c))],
   ["country aliases resolve (spot check)", ["Nepal", "Bhutan", "Kenya", "Peru", "Chile", "New Zealand"].every((c) => NA.matchPlace(c))],
   ["atlas entries structurally sound", NA.cities().every((r) => Array.isArray(r) && r.length === 8 && Math.abs(r[4]) <= 90 && Math.abs(r[5]) <= 180 && r[6] >= -12 && r[6] <= 14 && typeof r[7] === "boolean")],
+  ["core cityNames stay curated", NA.cityNames().length >= 600 && NA.cityNames().length < 2000],
+  ["India atlas ingested", typeof NA.atlasSize === "function" && NA.atlasSize() > 6000],
+  ["Faridabad core coords preserved", NA.matchPlace("Faridabad") && Math.abs(NA.matchPlace("Faridabad").lat - 28.4089) < 1e-4 && Math.abs(NA.matchPlace("Faridabad").lon - 77.3178) < 1e-4],
+  ["birthPlace datalist stays empty until prefix search", $("#birthPlaceList") && $("#birthPlaceList").children.length === 0],
+  ["manual lat/lon override unlocks place", (() => {
+    const p = profile({ birthPlace: "Atlantis, Somewhere", birthLat: "28.4089", birthLon: "77.3178", birthTz: "5.5" });
+    return p.astro && p.astro.tier === "full" && p.astro.place && p.astro.place.fromCoords;
+  })()],
+  ["India town Palwal resolves from compact atlas", NA.matchPlace("Palwal, Haryana, India") && NA.matchPlace("Palwal").name === "Palwal" && NA.matchPlace("Palwal").tz === 5.5],
+  ["searchPlaces prefix does not require dumping datalist", NA.searchPlaces("palwal", 5).some((h) => /palwal/i.test(h.name))],
 ];
 nakUnitChecks.forEach(([name, ok]) => check(name, ok));
 

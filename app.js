@@ -807,15 +807,194 @@
     });
   }
 
-  /* Birthplace suggestions from atlas */
-  if (window.NVAstro && $("#birthPlaceList")) {
+  /* Birthplace: prefix suggestions only (never dump the 15k atlas into the datalist). */
+  const PHOTON_CACHE_KEY = "nv-photon-places";
+  const ATLAS_CHUNKS_LOADED = { in: true, gcc: false, world: false };
+
+  function parseManualGeo(input) {
+    const lat = parseFloat(String((input && input.birthLat) || "").trim());
+    const lon = parseFloat(String((input && input.birthLon) || "").trim());
+    const tzN = parseFloat(String((input && input.birthTz) || "").trim());
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+    const tz = (Number.isFinite(tzN) && Math.abs(tzN) <= 14) ? tzN : 5.5;
+    return { lat, lon, tz };
+  }
+
+  function resolveAstroPlaceQuery(input) {
+    const geo = parseManualGeo(input);
+    if (geo) return geo.lat + ", " + geo.lon + ", " + geo.tz;
+    return String((input && input.birthPlace) || "").trim();
+  }
+
+  function guessPlaceTz(lat, lon, country) {
+    const c = String(country || "").toLowerCase();
+    if (c === "india" || c === "in" || c === "bharat") return 5.5;
+    if (window.NVAstro && typeof window.NVAstro.nearestPlaces === "function") {
+      const near = window.NVAstro.nearestPlaces(lat, lon, { maxKm: 25, limit: 1 })[0];
+      if (near && Number.isFinite(near.tz)) return near.tz;
+    }
+    return Math.round(lon / 15);
+  }
+
+  function readPhotonCache() {
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(PHOTON_CACHE_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list.filter((s) => typeof s === "string" && s.trim()) : [];
+    } catch (e) { return []; }
+  }
+
+  function rememberPhotonPlace(label) {
+    const s = String(label || "").trim();
+    if (!s) return;
+    const next = [s].concat(readPhotonCache().filter((x) => x !== s)).slice(0, 40);
+    try { window.localStorage.setItem(PHOTON_CACHE_KEY, JSON.stringify(next)); } catch (e) {}
+  }
+
+  function fillBirthPlaceList(query) {
     const list = $("#birthPlaceList");
-    window.NVAstro.cityNames().forEach((n) => {
+    if (!list || !window.NVAstro || typeof window.NVAstro.searchPlaces !== "function") return;
+    const q = String(query || "").trim();
+    list.innerHTML = "";
+    if (q.length < 2) return;
+    window.NVAstro.searchPlaces(q, 12).forEach((hit) => {
       const opt = document.createElement("option");
-      opt.value = n;
+      opt.value = hit.label;
       list.appendChild(opt);
     });
   }
+
+  function bindBirthPlaceUi() {
+    const input = $("#birthPlace");
+    const list = $("#birthPlaceList");
+    if (input) {
+      input.addEventListener("input", () => fillBirthPlaceList(input.value));
+      input.addEventListener("focus", () => fillBirthPlaceList(input.value));
+    }
+    if (list) list.innerHTML = "";
+
+    const photonBtn = $("#photonLookupBtn");
+    const results = $("#birthPlacePhotonResults");
+    if (photonBtn && input) {
+      photonBtn.addEventListener("click", () => lookupPhoton(input.value.trim()));
+    }
+
+    function hidePhotonResults() {
+      if (!results) return;
+      results.hidden = true;
+      results.innerHTML = "";
+    }
+
+    function showPhotonResults(hits, notice) {
+      if (!results) return;
+      results.innerHTML = "";
+      if (notice) {
+        const li = document.createElement("li");
+        li.className = "photon-notice";
+        li.textContent = notice;
+        results.appendChild(li);
+      }
+      hits.forEach((hit) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "photon-pick";
+        btn.textContent = hit.label;
+        btn.addEventListener("click", () => {
+          if (window.NVAstro && typeof window.NVAstro.registerPlace === "function") {
+            window.NVAstro.registerPlace({
+              name: hit.name, state: hit.state, country: hit.country,
+              lat: hit.lat, lon: hit.lon, tz: hit.tz, dst: false, source: "photon"
+            });
+          }
+          input.value = hit.label;
+          rememberPhotonPlace(hit.label);
+          fillBirthPlaceList(hit.label);
+          hidePhotonResults();
+        });
+        li.appendChild(btn);
+        results.appendChild(li);
+      });
+      results.hidden = results.childNodes.length === 0;
+    }
+
+    function lookupPhoton(q) {
+      if (!q || q.length < 2) {
+        showPhotonResults([], t("photonNeedQuery", "Type a city name first, then look up."));
+        return;
+      }
+      photonBtn.disabled = true;
+      const url = "https://photon.komoot.io/api/?q=" + encodeURIComponent(q) + "&limit=8";
+      const done = (hits, notice) => {
+        photonBtn.disabled = false;
+        showPhotonResults(hits, notice);
+      };
+      if (typeof fetch !== "function") {
+        done([], t("photonError", "Online lookup is not available in this browser."));
+        return;
+      }
+      fetch(url).then((res) => {
+        if (!res.ok) throw new Error("photon " + res.status);
+        return res.json();
+      }).then((data) => {
+        const feats = (data && data.features) || [];
+        const hits = [];
+        feats.forEach((f) => {
+          const props = f.properties || {};
+          const coords = (f.geometry && f.geometry.coordinates) || [];
+          const lon = Number(coords[0]), lat = Number(coords[1]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+          const name = props.name || q;
+          const state = props.state || props.county || "";
+          const country = props.country || "";
+          hits.push({
+            name, state, country, lat, lon,
+            tz: guessPlaceTz(lat, lon, country),
+            label: [name, state, country].filter(Boolean).join(", ")
+          });
+        });
+        done(hits, hits.length ? "" : t("photonNoResults", "No Photon matches. Try a nearby district, or enter coordinates."));
+      }).catch(() => {
+        done([], t("photonError", "Photon lookup failed. Stay offline or enter coordinates."));
+      });
+    }
+
+    function loadAtlasChunk(id, btn) {
+      if (ATLAS_CHUNKS_LOADED[id]) {
+        showToast(t("atlasAlreadyLoaded", "That atlas is already loaded."), "info");
+        return;
+      }
+      const key = id.toUpperCase();
+      if (window.NV_ATLAS && window.NV_ATLAS[key] && window.NVAstro && window.NVAstro.ingestAtlas) {
+        window.NVAstro.ingestAtlas(window.NV_ATLAS[key]);
+        ATLAS_CHUNKS_LOADED[id] = true;
+        if (typeof showToast === "function") showToast(t("atlasLoaded", "Offline atlas loaded."), "good");
+        if (input) fillBirthPlaceList(input.value);
+        return;
+      }
+      if (btn) btn.disabled = true;
+      const s = document.createElement("script");
+      s.src = "atlas/atlas-" + id + ".js";
+      s.onload = () => {
+        ATLAS_CHUNKS_LOADED[id] = true;
+        if (btn) btn.disabled = false;
+        if (typeof showToast === "function") showToast(t("atlasLoaded", "Offline atlas loaded."), "good");
+        if (input) fillBirthPlaceList(input.value);
+      };
+      s.onerror = () => {
+        if (btn) btn.disabled = false;
+        if (typeof showToast === "function") showToast(t("atlasLoadError", "Could not load that atlas chunk."), "warn");
+      };
+      document.head.appendChild(s);
+    }
+
+    const gccBtn = $("#loadAtlasGccBtn");
+    const worldBtn = $("#loadAtlasWorldBtn");
+    if (gccBtn) gccBtn.addEventListener("click", () => loadAtlasChunk("gcc", gccBtn));
+    if (worldBtn) worldBtn.addEventListener("click", () => loadAtlasChunk("world", worldBtn));
+  }
+  bindBirthPlaceUi();
 
   const selectedGoals = new Set();
   function syncGoalChips(goals) {
@@ -854,6 +1033,9 @@
     if ($("#gender")) $("#gender").value = snapshot.input.gender || "";
     if ($("#birthTime")) $("#birthTime").value = snapshot.input.birthTime || "";
     if ($("#birthPlace")) $("#birthPlace").value = snapshot.input.birthPlace || "";
+    if ($("#birthLat")) $("#birthLat").value = snapshot.input.birthLat || "";
+    if ($("#birthLon")) $("#birthLon").value = snapshot.input.birthLon || "";
+    if ($("#birthTz")) $("#birthTz").value = snapshot.input.birthTz || "";
     if ($("#brand")) $("#brand").value = snapshot.input.brand || "";
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
     if ($("#partnerDob")) $("#partnerDob").value = snapshot.input.partnerDob || "";
@@ -940,12 +1122,13 @@
     // Vedic Tier
     const birthTimeRaw = String(input.birthTime || "").trim();
     const birthPlaceRaw = String(input.birthPlace || "").trim();
+    const placeQuery = resolveAstroPlaceQuery(input);
     const hasTime = !!birthTimeRaw;
-    const hasPlace = !!birthPlaceRaw;
+    const hasPlace = !!placeQuery;
     const vedicTier = (hasTime && hasPlace) ? 2 : (hasTime || hasPlace) ? "partial" : 1;
 
     const astro = (typeof window !== "undefined" && window.NVAstro)
-      ? window.NVAstro.compute({ dob: input.dob, time: birthTimeRaw, place: birthPlaceRaw })
+      ? window.NVAstro.compute({ dob: input.dob, time: birthTimeRaw, place: placeQuery })
       : { ok: false, reason: "engine-missing" };
 
     const loShuMissingSeverity = loShuSignals.missing.map((n) => {
@@ -4701,6 +4884,9 @@
       gender: $("#gender").value,
       birthTime: $("#birthTime").value,
       birthPlace: $("#birthPlace").value.trim(),
+      birthLat: ($("#birthLat") && $("#birthLat").value.trim()) || "",
+      birthLon: ($("#birthLon") && $("#birthLon").value.trim()) || "",
+      birthTz: ($("#birthTz") && $("#birthTz").value.trim()) || "",
       brand: $("#brand").value.trim(),
       partnerName: $("#partnerName").value.trim(),
       partnerDob: $("#partnerDob").value
