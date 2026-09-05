@@ -163,6 +163,48 @@ test.describe('hybrid report browser regression', () => {
     await expect(page.locator('.timeline-anchor-nav a[href="#vastu-section"]')).toBeVisible();
   });
 
+  test('Practitioner Cockpit is a single printable consultation page', async ({ page }) => {
+    await generateCompleteReport(page);
+
+    await page.locator('#cockpit-tab').click();
+    await expect(page).toHaveURL(/#cockpit$/);
+    await expect(page.locator('#cockpit-panel')).toBeVisible();
+    await expect(page.locator('#foundation-panel')).toBeHidden();
+    await expect(page.locator('#timeline-panel')).toBeHidden();
+    await expect(page.locator('#practitioner-cockpit')).toHaveAttribute('data-authority', 'clinical-cockpit');
+    await expect(page.locator('.cockpit-sheet')).toHaveCount(1);
+    await expect(page.locator('[data-cockpit-block="triage"]')).toBeVisible();
+    await expect(page.locator('[data-cockpit-block="tier2"]')).toBeVisible();
+    await expect(page.locator('[data-cockpit-block="windows"] tr')).not.toHaveCount(0);
+
+    // No Tier-1 badge may render green while the stack is conflicting.
+    const conflictColours = await page.locator('[data-cockpit-ad-relation="enemy"] .badge').evaluateAll(
+      (nodes) => nodes.map((node) => getComputedStyle(node).color),
+    );
+    expect(conflictColours.every((colour) => colour !== 'rgb(13, 138, 62)')).toBe(true);
+
+    await page.emulateMedia({ media: 'print' });
+    const cockpitPrint = await page.evaluate(() => {
+      const sheet = document.querySelector('.cockpit-sheet');
+      const blocks = Array.from(document.querySelectorAll('.cockpit-block, .cockpit-cell'));
+      document.body.classList.add('print-cockpit');
+      const foundation = getComputedStyle(document.querySelector('#foundation-panel')).display;
+      const cockpit = getComputedStyle(document.querySelector('#cockpit-panel')).display;
+      const toolbar = getComputedStyle(document.querySelector('.cockpit-toolbar')).display;
+      document.body.classList.remove('print-cockpit');
+      return {
+        sheet: !!sheet,
+        breaks: blocks.map((block) => getComputedStyle(block).breakInside),
+        foundation, cockpit, toolbar,
+      };
+    });
+    expect(cockpitPrint.sheet).toBe(true);
+    expect(cockpitPrint.breaks.every((value) => value !== 'auto')).toBe(true);
+    expect(cockpitPrint.foundation).toBe('none');
+    expect(cockpitPrint.cockpit).not.toBe('none');
+    expect(cockpitPrint.toolbar).toBe('none');
+  });
+
   test('print/PDF exposes both modules and the normally collapsed comparison', async ({ page }) => {
     await generateCompleteReport(page);
     await page.emulateMedia({ media: 'print' });
@@ -170,16 +212,19 @@ test.describe('hybrid report browser regression', () => {
     const printState = await page.evaluate(() => {
       const foundation = document.querySelector('#foundation-panel');
       const timeline = document.querySelector('#timeline-panel');
+      const cockpit = document.querySelector('#cockpit-panel');
       const details = document.querySelector('details.advanced-vedic-comparison');
       const detailBody = details && details.querySelector('.details-body');
       return {
         foundation: getComputedStyle(foundation).display,
         timeline: getComputedStyle(timeline).display,
+        cockpit: getComputedStyle(cockpit).display,
         detailBody: detailBody && getComputedStyle(detailBody).display,
       };
     });
     expect(printState.foundation).not.toBe('none');
     expect(printState.timeline).not.toBe('none');
+    expect(printState.cockpit).not.toBe('none');
     expect(printState.detailBody).not.toBe('none');
   });
 });

@@ -147,6 +147,45 @@ const waliaEvents = Object.fromEntries(waliaDasha.events.map((e) => [e.key, e]))
 check("Venus wealth windows are retained and graded rather than purged", waliaEvents.wealth.future.some((w) => w.adN === 6) && waliaEvents.wealth.future.filter((w) => w.adN === 6).every((w) => w.conversion.grade !== "high") && waliaEvents.wealth.future.filter((w) => w.adN === 3).every((w) => w.conversion.grade === "high"));
 check("event windows render a conversion-probability grade", $$('[data-window-grade="conditional"]', waliaDashaSection).length > 0 && $$('[data-window-grade="high"]', waliaDashaSection).length > 0 && /Conditional — activate the Vastu sector first/.test(waliaDashaSection.textContent) && /High probability — direct conversion/.test(waliaDashaSection.textContent));
 
+/* ---- Clinical release: formula string, Sambhandha, triage, cockpit ---- */
+const fmt = window.__NV.formatConductorBreakdown;
+check("formatConductorBreakdown maps the exact DOB digits with no string artifacts", fmt("1978-01-31", 3) === "3 + 1 + 1 + 1 + 9 + 7 + 8 = 30 → 3" && fmt("31-01-1978", 3) === "3 + 1 + 1 + 1 + 9 + 7 + 8 = 30 → 3" && fmt("31011978", 3) === "3 + 1 + 1 + 1 + 9 + 7 + 8 = 30 → 3" && !/\$/.test(fmt("1978-01-31", 3)));
+check("formatConductorBreakdown keeps intermediate reductions and single-step sums", fmt("2000-11-29", 6) === "2 + 9 + 1 + 1 + 2 = 15 → 6" && fmt("31", 4) === "3 + 1 = 4" && fmt("", 3) === "" && window.__NV.reductionChain(38).join(",") === "38,11,2");
+const conductorPlainNode = $(".root-formula-plain", conductorFormula);
+check("the printed Conductor block carries the deterministic plain-text equation", !!conductorPlainNode && conductorPlainNode.textContent === "3 + 1 + 1 + 1 + 9 + 7 + 8 = 30 → 3" && conductorPlainNode.dataset.plainFormula === conductorPlainNode.textContent && !/\+ 8 =/.test(conductorPlainNode.textContent.replace("7 + 8", "")));
+
+const sambandha = window.__NV.getDashaRelationship;
+const rahuMoon = sambandha(4, 2, 4);
+check("Rahu MD × Moon AD is a Grahan conflict and can never be green", rahuMoon.relation === "enemy" && rahuMoon.grahan === true && rahuMoon.cssClass === "badge-conflict" && rahuMoon.tone === "bad" && /Grahan/.test(rahuMoon.guidance) && sambandha(2, 4, 2).relation === "enemy" && sambandha(4, 1, 4).grahan === true);
+check("classical hostile pairs are symmetric even when a pack lists one side neutral", sambandha(3, 6, 1).relation === "enemy" && sambandha(6, 3, 1).relation === "enemy" && sambandha(9, 8, 1).relation === "enemy" && sambandha(8, 9, 1).relation === "enemy" && sambandha(1, 8, 1).relation === "enemy");
+check("only a neutral MD × AD falls back to Driver compatibility", sambandha(5, 3, 1).relation === "neutral" && sambandha(5, 3, 1).source === "driver-fallback" && sambandha(5, 3, 3).cssClass === "badge-friendly" && sambandha(5, 3, 4).cssClass === "badge-neutral" && sambandha(4, 5, 4).source === "md-ad" && sambandha(4, 5, 4).cssClass === "badge-friendly");
+check("the rendered Antardasha badge carries the Sambhandha source", adBadge.classList.contains("badge-conflict") && adBadge.dataset.sambandha === "grahan" && !adBadge.classList.contains("good") && /Grahan \(eclipse\) sub-period/.test($(".stack-badge-guidance", waliaDashaSection).textContent));
+
+const qualify = window.__NV.qualifyEventWindow;
+check("qualifyEventWindow grades instead of scrubbing natally absent significators", qualify([6, 2, 3], waliaProfile.vedicCounts, [4, 6]).natalStatus === "Absent" && qualify([6, 2, 3], waliaProfile.vedicCounts, [4, 6]).grade === "conditional" && /Vastu activation/.test(qualify([6, 2, 3], waliaProfile.vedicCounts, [4, 6]).clinicalNote) && qualify([6, 2, 3], waliaProfile.vedicCounts, [4, 3]).grade === "high" && qualify([6, 2, 3], waliaProfile.vedicCounts, [3, 6]).grade === "moderate" && qualify([6, 2], waliaProfile.vedicCounts, [4, 7]) === null);
+
+const triage = window.__NV.remedyTriage(waliaProfile, waliaDasha, fixedDate);
+check("triage prescribes exactly one acute target — the missing number that is live", triage.tier1.mode === "acute" && triage.tier1.n === 2 && /Antardasha lord 2/.test(triage.tier1.reasons.join(" ")) && triage.tier1.mantra === "Om Somaya Namah" && /27×/.test(triage.tier1.japa) && triage.tier1.day === "Monday");
+check("remaining missing numbers are demoted to environmental Tier 2 with an activation date", triage.tier2.map((x) => x.n).sort().join(",") === "5,6" && triage.tier2.every((x) => /environmental cue only/i.test(x.hold) && x.unlockLabel) && triage.withheld.length === 3 && /cannot fast 3 days in 7/.test(triage.withheld.join(" ")));
+const balancedTriage = window.__NV.remedyTriage(profile({ dob: "1987-06-25", name: "Balanced Client" }), null, fixedDate);
+check("triage degrades safely for other charts", ["acute", "environmental", "maintenance"].includes(balancedTriage.tier1.mode) && Array.isArray(balancedTriage.tier2) && balancedTriage.activeNumbers.length > 0);
+
+const cockpitData = window.__NV.practitionerCockpit(waliaProfile, fixedDate);
+check("cockpit reads the same engines as the full report", cockpitData.core.driver === 4 && cockpitData.core.conductor === 3 && cockpitData.core.loShuMissing.join(",") === "2,5,6" && cockpitData.core.vedicMissing.join(",") === "2,5,6,9" && cockpitData.core.vedicStrong.join(",") === "1,3" && cockpitData.timing.md.n === 4 && cockpitData.timing.ad.n === 2 && cockpitData.timing.pd.n === 5 && cockpitData.timing.personalYear.n === 6 && cockpitData.timing.sambandha.grahan === true && cockpitData.vastu.primary.zone === "North-West" && cockpitData.vastu.anchor.zone === "South-West");
+const cockpit = mount(window.__NV.renderPractitionerCockpit(waliaProfile, fixedDate));
+const cockpitSheet = $(".cockpit-sheet", cockpit);
+const cockpitBadge = $('[data-cockpit-ad-relation] .badge', cockpit);
+check("cockpit renders one consolidated sheet with every clinical block", !!cockpitSheet && !!$('[data-cockpit-block="timing"]', cockpit) && !!$('[data-cockpit-block="triage"]', cockpit) && !!$('[data-cockpit-block="tier2"]', cockpit) && !!$('[data-cockpit-block="windows"]', cockpit) && $$(".cockpit-cell", cockpit).length === 3 && !/undefined|NaN/.test(cockpit.textContent));
+check("cockpit shows the conflict, the sector fix and a single japa dose", cockpitBadge.classList.contains("badge-conflict") && !cockpitBadge.classList.contains("good") && /Grahan Yoga/.test(cockpitBadge.textContent) && $('[data-cockpit-block="triage"]', cockpit).dataset.tier1Number === "2" && /Om Somaya Namah/.test(cockpit.textContent) && /27×/.test(cockpit.textContent) && /North-West/.test(cockpit.textContent) && /South-West/.test(cockpit.textContent));
+check("cockpit keeps absent-significator windows visible and graded", $$("[data-cockpit-window]", cockpit).length === 5 && $$('[data-grade="conditional"]', cockpit).length > 0 && $$('[data-grade="high"]', cockpit).length > 0 && /Conditional · remedy-led/.test(cockpit.textContent) && /Requires environmental Vastu activation/.test(cockpit.textContent));
+check("cockpit prints as its own page and never splits a card", styles.includes("@page { size: A4 portrait; margin: 12mm 10mm; }") && styles.includes("body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }") && styles.includes(".cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }") && styles.includes(".badge.badge-conflict { background: var(--light-red-bg); color: #c92a36; }"));
+const waliaPlan = $("#plan-section", waliaReport);
+const waliaTriageCard = $("#remedy-triage", waliaPlan);
+check("the 40-day plan opens with a staged prescription instead of every remedy at once", !!waliaTriageCard && waliaTriageCard.dataset.tier1Number === "2" && /Om Somaya Namah/.test(waliaTriageCard.textContent) && $$('[data-triage-tier="2"]', waliaTriageCard).length === 2 && /Deliberately withheld this cycle/.test(waliaTriageCard.textContent) && $$('.priority-item[data-triage-tier="1"]', waliaPlan).length === 1 && $$('.priority-item[data-triage-tier="2"]', waliaPlan).length === 2 && /Tier 2 · hold/.test(waliaPlan.textContent));
+
+const waliaCockpitPanel = $("#cockpit-panel", waliaReport);
+check("cockpit is a first-class report module", !!waliaCockpitPanel && waliaCockpitPanel.getAttribute("role") === "tabpanel" && !!$("#practitioner-cockpit", waliaCockpitPanel) && window.__NV.reportModuleFromHash("#cockpit") === "cockpit" && window.__NV.reportModuleFromHash("#practitioner-cockpit") === "cockpit" && window.__NV.reportModuleFromHash("#dasha-section") === "timeline");
+
 const waliaVedic = mount(window.__NV.renderVedicBirthComparison(waliaProfile));
 const planeCards = $$(".vedic-plane-reading", waliaVedic);
 const planeByKey = Object.fromEntries(planeCards.map((c) => [c.dataset.vedicPlane, c]));
@@ -180,7 +219,7 @@ $("#entrance").value = "SW";
 $("#kitchen").value = "NE";
 $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
 check("onboarding opens Foundation by default", !$("#reportView").classList.contains("hidden") && $("#foundation-tab").getAttribute("aria-selected") === "true" && !$("#foundation-panel").hidden && $("#timeline-panel").hidden);
-check("module tabs expose accessible semantics", $(".module-tabs").getAttribute("role") === "tablist" && $$("[role=tab]").length === 2 && $("#foundation-panel").getAttribute("role") === "tabpanel" && $("#timeline-panel").getAttribute("aria-labelledby") === "timeline-tab");
+check("module tabs expose accessible semantics", $(".module-tabs").getAttribute("role") === "tablist" && $$("[role=tab]").length === 3 && $("#foundation-panel").getAttribute("role") === "tabpanel" && $("#timeline-panel").getAttribute("aria-labelledby") === "timeline-tab" && $("#cockpit-panel").getAttribute("aria-labelledby") === "cockpit-tab" && $("#cockpit-panel").hidden);
 $("#timeline-tab").click();
 check("Timeline tab updates selection, panels and URL hash", window.location.hash === "#timeline" && $("#timeline-tab").getAttribute("aria-selected") === "true" && !$("#timeline-panel").hidden && $("#foundation-panel").hidden);
 $("#timeline-tab").dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
@@ -188,6 +227,12 @@ check("tab keyboard navigation returns to Foundation", window.location.hash === 
 window.location.hash = "#dasha-section";
 window.dispatchEvent(new window.HashChangeEvent("hashchange"));
 check("deep Dasha hash activates Timeline before navigating", !$("#timeline-panel").hidden && $("#timeline-tab").getAttribute("aria-selected") === "true" && window.__NV.reportModuleFromHash("#vastu-section") === "timeline");
+$("#cockpit-tab").click();
+check("Cockpit tab opens the one-page practitioner sheet", window.location.hash === "#cockpit" && $("#cockpit-tab").getAttribute("aria-selected") === "true" && !$("#cockpit-panel").hidden && $("#timeline-panel").hidden && $("#foundation-panel").hidden && !!$("#cockpit-panel .cockpit-sheet"));
+$("#printCockpitBtn").click();
+check("cockpit print button narrows the print job to the cockpit page", window.document.body.classList.contains("print-cockpit"));
+window.document.body.classList.remove("print-cockpit");
+$("#foundation-tab").click();
 const liveReport = $("#reportRoot").innerHTML;
 check("full hybrid report has no undefined or NaN leakage", !liveReport.includes("undefined") && !liveReport.includes("NaN") && liveReport.includes("Lo Shu Blueprint") && liveReport.includes("Dasha Timeline"));
 

@@ -7,6 +7,7 @@ It intentionally keeps two traditions separate:
 
 - **Foundation · Lo Shu** answers *“What patterns do I work with?”*
 - **Timeline · Vedic Dasha** answers *“What is active now, and when does it change?”*
+- **Cockpit · Practitioner** answers *“What do I actually do in this consultation?”*
 
 Enter a name, date of birth and optional home details to generate a report. No
 personal details are sent to an application server.
@@ -28,6 +29,17 @@ catch-all source of truth.
 | Vedic Ank Kundali | A **birth-grid-only** advanced comparison using `3–1–9 / 6–7–5 / 2–8–4`, with qualitative readings of the three Vedic planes |
 | Timeline | Independent proportional Dasha stack, dates, current/next periods, life-event windows and active Vastu zone |
 | Release data | Schema v2 / knowledge pack v2.8.0 |
+
+### Clinical release additions
+
+| Area | Behaviour |
+| --- | --- |
+| Bhagyank formula | `formatConductorBreakdown()` builds the printed equation from the raw DOB digits (no regex surgery on a formatted label), so no digit can be dropped or replaced by an artifact. Zeros are filtered for the classical display; the sum is unchanged. |
+| Dasha relationship | `getDashaRelationship(md, ad, driver)` judges the Antardasha against its **host Mahadasha** (classical *Sambhandha*). Grahan pairs (Rahu–Moon, Rahu–Sun) and Sun–Saturn, Mars–Saturn, Jupiter–Venus are hostile in both directions and can never render a green badge. Only a genuinely neutral MD × AD falls back to Driver compatibility. |
+| Remedy triage | `remedyTriage()` prescribes **one acute target** — the missing number that is live in the Dasha stack or Personal Year — and demotes the rest to Tier 2 environmental cues with the date they activate. |
+| Event windows | `qualifyEventWindow()` grades windows High / Moderate / Conditional instead of hiding them when a significator is natally absent. |
+| Practitioner Cockpit | A third report module: one printable A4 consultation sheet with identity, both grids, the live stack, triage and graded windows. |
+| Print resilience | `@page { size: A4 portrait; margin: 12mm 10mm; }` plus `break-inside: avoid` on every remedy/kit/cockpit card; “Print this page” narrows the job to the cockpit alone. |
 
 ## Product map
 
@@ -64,6 +76,26 @@ Timeline is the time-based roadmap. It contains:
 
 The Active Vastu Zone is chosen from the active Dasha lords and the Vedic
 planetary compass map. It is never inferred from a Lo Shu cell position.
+
+### Cockpit · Practitioner
+
+A single printable page (`#practitioner-cockpit`) for use during a consultation:
+
+- identity band — name, DOB, birth time, place with coordinates, Lagna and
+  Nakshatra when Tier 2 is unlocked;
+- core row — Driver/Conductor, name total, Lo Shu missing/excess, Vedic
+  absent/strong;
+- current timing — Mahadasha, Antardasha (with the Sambhandha verdict and any
+  Grahan Yoga), Pratyantar and the Personal-Year transit;
+- clinical triage — the active planetary conflict, the urgent spatial
+  prescription (primary sub-zone plus anchor zone) and the single japa target
+  with a completable dose;
+- Tier 2 latent leaks, each with its hold instruction and activation date;
+- graded event windows;
+- ruled consultation-notes space.
+
+The cockpit recalculates nothing. It reads the same engines as the full report,
+so the two can never disagree.
 
 ### Advanced Vedic comparison
 
@@ -174,13 +206,21 @@ replace the current Dasha-selected active zone.
 ## Accessibility, URL state and print
 
 - The module switcher uses `tablist`, `tab` and `tabpanel` semantics.
-- Arrow keys move between Foundation and Timeline tabs.
-- `#foundation`, `#timeline`, `#dasha-section`, `#timing-section` and
-  `#vastu-section` activate the owning module before scrolling.
+- Arrow keys move between the Foundation, Timeline and Cockpit tabs.
+- `#foundation`, `#timeline`, `#cockpit`, `#dasha-section`, `#timing-section`,
+  `#vastu-section` and `#practitioner-cockpit` activate the owning module
+  before scrolling.
 - On narrow screens, module and Timeline anchor navigation remain horizontally
   reachable rather than wrapping into inaccessible controls.
-- In print/PDF media, both report modules and the normally closed advanced
-  comparison are expanded in report order.
+- In print/PDF media, all three report modules and the normally closed advanced
+  comparison are expanded in report order, on A4 portrait with 12mm/10mm
+  margins; remedy, kit and cockpit cards never split across a page.
+- The cockpit’s “Print this page” button adds `body.print-cockpit`, which
+  narrows the print job to the single consultation sheet and is always removed
+  afterwards.
+- On screen only, report sections use `content-visibility: auto` so mobile
+  devices no longer lay out all 40+ pages on first render; print media keeps
+  full layout.
 - English, Hindi and Gujarati distinguish Lo Shu, Vedic comparison, Vedic
   Dasha and Feng Shui/Kua labels.
 

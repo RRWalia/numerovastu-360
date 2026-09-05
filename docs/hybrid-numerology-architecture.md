@@ -162,6 +162,14 @@ Report
     ├── Life-event windows with conversion-probability grades
     ├── Dynamic Active Vastu Zone + Dual-Zone pairing (AD primary, MD anchor)
     └── Fixed Home Vastu Context
+└── Cockpit · Practitioner (one printable A4 page)
+    ├── Identity band (name, DOB, birth time, place + coordinates, Lagna, Nakshatra)
+    ├── Core row (Driver/Conductor, name total, Lo Shu missing/excess, Vedic absent/strong)
+    ├── Current timing (MD, AD + Sambhandha verdict, PD, Personal Year)
+    ├── Clinical triage (active conflict, urgent spatial Rx, single japa target)
+    ├── Tier 2 latent leaks with activation dates
+    ├── Graded event windows
+    └── Consultation notes + disclaimer
 ```
 
 The broad personal-year material is labelled as a non-Dasha reflection context.
@@ -169,12 +177,41 @@ It never changes active Dasha dates, event windows or the active Vastu zone.
 The Dasha section separately treats the Personal Year as the *annual transit
 engine* the active stack operates through: it phrases guidance, never dates.
 
-### Dasha stack badges
+### Dasha stack badges — classical Sambhandha
 
 The Mahadasha card is badged against the native (Driver ↔ MD lord). The
 Antardasha card is badged against the **Mahadasha lord** (MD × AD sambandha),
-because that is the operative relationship of the period. Rahu (4) × Moon (2)
-is always Conflicting (eclipse axis), matching the Compatibility table.
+because that is the operative relationship of the period: the guest runs inside
+the host's house and climate.
+
+`getDashaRelationship(mdLord, adLord, driver)` is the single decision point,
+used by the Antardasha badge, the Pratyantar micro-forecast rows (PD judged
+inside its AD) and the cockpit:
+
+| Rule | Result |
+| --- | --- |
+| Grahan pairs 4×2, 2×4, 4×1, 1×4 | `enemy`, `grahan: true`, `badge-conflict` |
+| Symmetric hostile pairs 1×8, 9×8, 3×6 (both directions) | `enemy`, `badge-conflict` |
+| Pack relation `enemy` | `enemy`, `badge-conflict` |
+| Pack relation `friendly` | `friendly`, `badge-friendly` |
+| Genuinely neutral MD × AD | falls back to Driver ↔ AD; friendly ⇒ `badge-friendly`, else `badge-neutral` |
+
+A conflicting stack can never render a green badge, so the badge, the
+predictive synthesis and the Compatibility table cannot contradict each other.
+
+### Remedial triage
+
+`remedyTriage(profile, timeline, refDate)` stages the prescription:
+
+| Tier | Selection | Prescription |
+| --- | --- | --- |
+| Tier 1 (acute) | The Lo Shu missing number that is live in the stack — AD (weight 4) > Personal Year (3) > PD (2) > MD (1) | One beej mantra at a completable dose (27× daily), one weekly discipline, one colour, one sector |
+| Tier 1 (environmental) | No missing number is live | No japa; work the active AD sector only |
+| Tier 2 (latent) | Every other missing number | Colour/habit cue only, plus the exact Antardasha or Personal Year at which it becomes Tier 1 |
+
+The full remedy library is untouched — triage decides only what the client is
+asked to do this cycle, and the withheld list states what was intentionally not
+prescribed (extra mantras, extra fasts, stacked gemstones).
 
 ### Natal strength and event windows
 
@@ -187,6 +224,11 @@ is expected to convert:
 | High — direct conversion | The triggering Antardasha lord is present in the Vedic birth grid |
 | Moderate | AD lord absent, but the Mahadasha lord is a present significator |
 | Conditional | Both triggering lords absent; needs the AD lord's Vastu sector activated first |
+
+`qualifyEventWindow(significators, natalCounts, [md, ad])` returns the same
+grading as a standalone, testable function (`natalStatus`, `probability`,
+`clinicalNote`) and is what the cockpit prints. A natal void never scrubs a
+window: it downgrades it to remedy-dependent.
 
 If an event's classical age band has already closed, the next significator
 windows (15-year look-ahead) are shown as *late windows* instead of an empty
@@ -238,9 +280,17 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
 - Anchors activate the owner panel before scrolling.
 - The narrow-screen module and Timeline-anchor controls remain horizontally
   scrollable/reachable.
-- English, Hindi and Gujarati label Foundation, Timeline and Advanced Vedic
-  Comparison separately.
-- Print/PDF CSS exposes both module panels and expands closed advanced Vedic
+- English, Hindi and Gujarati label Foundation, Timeline, Cockpit and Advanced
+  Vedic Comparison separately.
+- `@page { size: A4 portrait; margin: 12mm 10mm; }` fixes the sheet geometry for
+  client PDF printers; remedy, kit, phase, priority and cockpit cards carry
+  `break-inside: avoid` so no prescription card splits across pages.
+- The cockpit's "Print this page" button toggles `body.print-cockpit`, which
+  limits the print job to the consultation sheet and is always cleared again.
+- On screen only, `.rsection` uses `content-visibility: auto` with an intrinsic
+  size hint so the 40+ page DOM no longer locks the mobile main thread on first
+  render; print media keeps every section laid out.
+- Print/PDF CSS exposes all three module panels and expands closed advanced Vedic
   content so exports are complete. Compatibility is allowed to flow between
   meaningful blocks, while its overview/header, reflection intro and each
   relationship row stay together to prevent orphaned headings or blank shells.
@@ -259,7 +309,11 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
 - schema/pack validation and canonical Vastu mappings;
 - English/Hindi/Gujarati labels, tabs/hash handling, mobile CSS and print CSS;
 - Compatibility overview/row print-break safeguards and no empty partner-kit
-  placeholders.
+  placeholders;
+- the deterministic Bhagyank equation string (`formatConductorBreakdown`), the
+  Sambhandha matrix (`getDashaRelationship`), natal-weighted window grading
+  (`qualifyEventWindow`), the staged prescription (`remedyTriage`) and the
+  one-page cockpit (data, markup, tab wiring and cockpit-only print CSS).
 
 `tests/visual/report-print.visual.spec.js` runs the hybrid report in Chromium
 and verifies Foundation defaults, real tab/hash behavior, relational

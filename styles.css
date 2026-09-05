@@ -429,6 +429,14 @@ body {
 }
 
 .rsection { display: flex; flex-direction: column; gap: 16px; animation: rise 300ms var(--ease-out) both; }
+/* The report is a 40+ page DOM tree. On screen (never in print, where every
+   section must be laid out) we let the browser skip layout/paint for sections
+   that are still off-viewport, which removes the main-thread lock mobile
+   devices hit on first render. The size hint keeps the scrollbar stable. */
+@media screen {
+  .rsection { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+  .rsection:first-child, #summary-section, #core-profile, .cockpit-section { content-visibility: visible; }
+}
 .rsection:nth-child(2) { animation-delay: 50ms; }
 .rsection:nth-child(3) { animation-delay: 100ms; }
 .rsection-title { font-size: 16px; font-weight: 500; line-height: 24px; display: flex; align-items: center; gap: 8px; }
@@ -1055,10 +1063,114 @@ body {
 }
 .astro-foot strong { color: var(--label-secondary); }
 
+/* ---------- Sambhandha badge semantics ----------
+   badge-conflict must never render green, whatever palette class it is
+   paired with; badge-friendly / badge-neutral simply document intent. */
+.badge.badge-conflict { background: var(--light-red-bg); color: #c92a36; }
+.badge.badge-friendly { background: var(--light-green-bg); color: #0d8a3e; }
+.badge.badge-neutral { background: var(--kimi-blue-10); color: #0f63c9; }
+.stack-badge-guidance { color: var(--label-tertiary); }
+.root-formula-plain {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--label-secondary);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.triage-card { border-left: 3px solid var(--kimi-blue, #0f63c9); }
+.triage-flag { margin-left: auto; align-self: flex-start; }
+.priority-item[data-triage-tier="2"] { opacity: 0.92; }
+
+/* ---------- Practitioner Clinical Cockpit (one printable page) ---------- */
+.cockpit-section { gap: 12px; }
+.cockpit-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cockpit-stamp { font-size: 12px; color: var(--label-tertiary); }
+.cockpit-sheet {
+  border: 1px solid var(--separator);
+  border-radius: var(--r-md);
+  background: var(--bg-primary);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.cockpit-head { border-bottom: 2px solid var(--label-primary); padding-bottom: 8px; }
+.cockpit-identity { font-size: 14px; line-height: 21px; color: var(--label-primary); }
+.cockpit-kicker { margin-top: 4px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
+.cockpit-grid { display: grid; gap: 10px; }
+.cockpit-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cockpit-cell, .cockpit-block {
+  border: 1px solid var(--separator);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.cockpit-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--label-tertiary);
+  margin-bottom: 4px;
+}
+.cockpit-fact { font-size: 13px; line-height: 19px; color: var(--label-primary); }
+.cockpit-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cockpit-list.numbered { counter-reset: cockpit-step; }
+.cockpit-list li { font-size: 13px; line-height: 19px; color: var(--label-primary); break-inside: avoid; }
+.cockpit-list.numbered li::before {
+  counter-increment: cockpit-step;
+  content: counter(cockpit-step) ". ";
+  font-weight: 700;
+  color: var(--label-secondary);
+}
+.cockpit-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: var(--r-xs);
+  background: var(--fill-f1);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+.cockpit-tag.warn { background: var(--light-orange-bg); color: #a05c00; }
+.cockpit-dev { color: var(--label-secondary); }
+.cockpit-hold { color: #a05c00; }
+.cockpit-unlock { color: var(--label-tertiary); }
+.cockpit-why { margin-top: 6px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
+.cockpit-mini { font-size: 11px; line-height: 15px; color: var(--label-tertiary); }
+.cockpit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cockpit-table th, .cockpit-table td {
+  border-bottom: 1px solid var(--separator);
+  padding: 5px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.cockpit-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-tertiary); }
+.cockpit-table tr { break-inside: avoid; page-break-inside: avoid; }
+.cockpit-foot { display: flex; flex-direction: column; gap: 8px; }
+.cockpit-notes { display: flex; flex-direction: column; gap: 10px; }
+.cockpit-rule { display: block; border-bottom: 1px dashed var(--separator); height: 14px; }
+.cockpit-disclaimer { font-size: 10px; line-height: 15px; color: var(--label-tertiary); }
+@media (max-width: 760px) {
+  .cockpit-grid.three { grid-template-columns: 1fr; }
+}
+
 /* ---------- Print (Save/Print Report) ---------- */
+@page { size: A4 portrait; margin: 12mm 10mm; }
 @media print {
-  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav, .module-tabs, .timeline-anchor-nav { display: none !important; }
+  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav, .module-tabs, .timeline-anchor-nav, .cockpit-toolbar { display: none !important; }
   .report-module-panel[hidden] { display: flex !important; }
+  /* Remedy cards, kits and grids must never be split down the middle of a
+     client PDF: keep each prescription block atomic. */
+  .kit-card, .kit-row, .ritual-card, .phase-card, .priority-item, .goal-block,
+  .num-card, .plane-card, .arrow-card, .tier, .summary-card, .cockpit-cell,
+  .cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }
+  .card-grid, .kit, .plane-cards, .arrow-grid, .cockpit-grid { break-inside: auto; page-break-inside: auto; }
   .report-module-panel { gap: 20px; margin-top: 18px; }
   .module-panel-heading { background: #fff; border-color: #ddd; }
   .advanced-vedic-comparison:not([open]) > .details-body { display: flex !important; }
@@ -1118,4 +1230,20 @@ body {
   .tracker-cell.done { background: #e6f4ea; border-color: #16a34a; color: #111; }
   .tracker-cell.next { box-shadow: none; }
   .btn { display: none; }
+  /* The cockpit is a one-page consultation sheet: flat ink, tight leading. */
+  .triage-card { border-left: 3px solid #111; }
+  .cockpit-sheet { border: 1px solid #999; padding: 0; gap: 8px; }
+  .cockpit-cell, .cockpit-block { border: 1px solid #ccc; }
+  .cockpit-head { border-bottom: 2px solid #111; }
+  .cockpit-identity { font-size: 12px; line-height: 17px; color: #111; }
+  .cockpit-fact, .cockpit-list li { font-size: 11px; line-height: 16px; color: #111; }
+  .cockpit-table { font-size: 10px; }
+  .cockpit-rule { border-bottom: 1px dashed #999; }
+  /* "Print this page" narrows the job to the cockpit alone. */
+  body.print-cockpit .report-hero,
+  body.print-cockpit #foundation-panel,
+  body.print-cockpit #timeline-panel,
+  body.print-cockpit .cockpit-panel-heading { display: none !important; }
+  body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }
+  body.print-cockpit .cockpit-section { margin: 0; }
 }
