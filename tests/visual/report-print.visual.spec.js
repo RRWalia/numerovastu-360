@@ -70,6 +70,9 @@ async function generateCompleteReport(page) {
   await expect(page.locator('#reportRoot')).toContainText('Northstar Summary');
   await expect(page.locator('#reportRoot')).toContainText('Your first three moves');
   await expect(page.locator('#reportRoot')).toContainText('Core Numerology Profile');
+  await expect(page.locator('#vedic-grid-section')).toContainText('Your Vedic Numerology Grid');
+  await expect(page.locator('#vedic-grid-section .vedic-plane-card')).toHaveCount(3);
+  await expect(page.locator('#vedic-grid-section .vedic-cell')).toHaveCount(27);
   await expect(page.locator('#reportRoot')).toContainText('Astro-Identity Snapshot');
   await expect(page.locator('#reportRoot')).toContainText('Vastu Dosh Scan');
   await page.evaluate(() => window.scrollTo(0, 0));

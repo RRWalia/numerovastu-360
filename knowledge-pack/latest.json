@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.6.0",
-  "packUrl": "knowledge-pack/packs/2.6.0.json",
-  "notes": "Adds the Numerology Dasha layer (Ank Jyotish) — the classical proportional 45-year cycle: Mahadasha themes, activated events, cautions and the planet-to-Vastu-zone micro-remedy for numbers 1-9 (in English, Hindi and Gujarati), plus life-event window definitions (marriage, going abroad, career peak, property, wealth) with their classical significator lords, support lords and age bands."
+  "latestVersion": "2.7.0",
+  "packUrl": "knowledge-pack/packs/2.7.0.json",
+  "notes": "Introduces the Vedic Numerology Grid (Ank Kundali): Vedic planetary layout 3-1-9 / 6-7-5 / 2-8-4, three horizontal planes, zero and century filtering, and transparent Moolank/Bhagyank plotting."
 }

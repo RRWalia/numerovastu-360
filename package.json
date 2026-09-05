@@ -2,7 +2,7 @@
   "name": "numerovastu-360",
   "private": true,
   "version": "2.7.0",
-  "description": "Numerology & Vastu Remedy Engine — Loshu Grid, name/mobile analysis, remedies",
+  "description": "Numerology & Vastu Remedy Engine — Vedic Numerology Grid, name/mobile analysis, remedies",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "start": "npm run dev",

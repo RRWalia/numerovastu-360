@@ -18,7 +18,95 @@
   }
   const digitSum = (str) => str.replace(/\D/g, "").split("").reduce((a, d) => a + Number(d), 0);
   const digitsOf = (str) => str.replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
+  const VEDIC_GRID_LAYOUT = [[3, 1, 9], [6, 7, 5], [2, 8, 4]];
+  const DEFAULT_VEDIC_PLANES = [
+    { key: "practical", cells: [3, 1, 9], element: "Fire", governs: "Vision, executive drive, leadership and proactive execution." },
+    { key: "materialistic", cells: [6, 7, 5], element: "Air", governs: "Wealth accumulation, luxury, analytical thinking, business acumen and networking." },
+    { key: "emotional", cells: [2, 8, 4], element: "Water", governs: "Intuition, emotional balance, perseverance, discipline and systematic planning." }
+  ];
   const KARMIC_DEBT_POOL = [13, 14, 16, 19];
+
+  /* Vedic Ank Kundali input is deliberately filtered differently from a
+     Lo Shu chart. Keep this as a small, pure function so every part of the
+     report (remedies, name support and dasha weighting) reads the same birth
+     grid and the calculation can be independently audited. */
+  function calendarInteger(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.abs(Math.trunc(n)) : 0;
+  }
+
+  function calendarText(value, width) {
+    const raw = String(value === undefined || value === null ? "" : value).replace(/\D/g, "");
+    const fallback = String(calendarInteger(value));
+    return (raw || fallback).padStart(width, "0");
+  }
+
+  function nonZeroCalendarDigits(text) {
+    return String(text).split("").filter((d) => d !== "0").map(Number);
+  }
+
+  function generateVedicGrid(day, month, year) {
+    const dayNumber = calendarInteger(day);
+    const monthNumber = calendarInteger(month);
+    const yearNumber = calendarInteger(year);
+    const dayText = calendarText(day, 2);
+    const monthText = calendarText(month, 2);
+    const yearText = calendarText(year, 4);
+    const yearTailText = yearText.slice(-2);
+    const centuryText = yearText.slice(0, -2);
+
+    // Moolank is the reduced birth day. Bhagyank intentionally uses the full
+    // DOB calculation (including the century) even though century digits are
+    // not placed into the 9-cell natal matrix.
+    const rulingNo = reduce(dayNumber);
+    const destinyNo = reduce(dayNumber + monthNumber + yearNumber);
+    const destinyDigitSum = digitSum(`${dayText}${monthText}${yearText}`);
+
+    const dayDigits = nonZeroCalendarDigits(dayText);
+    const monthDigits = nonZeroCalendarDigits(monthText);
+    const yearDigits = nonZeroCalendarDigits(yearTailText);
+    const nonZeroDayValue = dayDigits.length ? Number(dayDigits.join("")) : null;
+    const dayDeduplicated = nonZeroDayValue === rulingNo;
+
+    const entries = [];
+    const add = (source, values) => values.forEach((number) => entries.push({ source, number }));
+    // A one-digit day (including 10/20/30 after zero removal) is represented
+    // by the ruling number once, never as a duplicated raw-day digit.
+    if (!dayDeduplicated) add("day", dayDigits);
+    add("month", monthDigits);
+    add("year", yearDigits);
+    add("ruling", [rulingNo]);
+    add("destiny", [destinyNo]);
+
+    const counts = {};
+    for (let i = 1; i <= 9; i++) counts[i] = 0;
+    entries.forEach(({ number }) => { if (number >= 1 && number <= 9) counts[number]++; });
+
+    const zeroCount = (text) => (String(text).match(/0/g) || []).length;
+    return {
+      layout: VEDIC_GRID_LAYOUT.map((row) => row.slice()),
+      entries,
+      digits: entries.map(({ number }) => number),
+      counts,
+      rulingNo,
+      destinyNo,
+      driver: rulingNo,
+      conductor: destinyNo,
+      sourceDigits: { day: dayDigits, month: monthDigits, year: yearDigits },
+      raw: { day: dayText, month: monthText, year: yearText, yearTail: yearTailText, century: centuryText },
+      excluded: {
+        zeros: { day: zeroCount(dayText), month: zeroCount(monthText), year: zeroCount(yearText) },
+        century: centuryText,
+        dayDeduplicated,
+        nonZeroDayValue
+      },
+      calculations: {
+        rulingDigitSum: digitSum(dayText),
+        destinyDigitSum,
+        destinyCalendarSum: dayNumber + monthNumber + yearNumber
+      }
+    };
+  }
 
   function relation(a, b) {
     if (a === b) return "friendly"; // a planet is never its own enemy
@@ -104,8 +192,8 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.5.0";
-  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-08-31";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.7.0";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-05";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
     lang: "nv_lang",
@@ -117,7 +205,7 @@
     contributionEnabled: "nv360.contributionEnabled.v1",
     contributionOutbox: "nv360.contributionOutbox.v1"
   };
-  const SECTION = { core: 1, traits: 2, loshu: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
+  const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
 
   const state = {
     lang: "en",
@@ -165,11 +253,15 @@
     const base = window.DB || {};
     const pack = getI18nPack() || {};
     const merged = Object.assign({}, base, pack);
-    if (merged.planes && base.planes) {
-      merged.planes = merged.planes.map((pl, i) => Object.assign({}, base.planes[i], pl, { cells: base.planes[i] ? base.planes[i].cells : pl.cells }));
-    }
-    if (merged.arrows && base.arrows) {
-      merged.arrows = merged.arrows.map((ar, i) => Object.assign({}, base.arrows[i], ar, { line: base.arrows[i] ? base.arrows[i].line : ar.line }));
+    // The language pack still contains older translated line data for
+    // backwards-compatible content packs. The live natal chart is always the
+    // canonical Vedic Ank Kundali supplied by the active base pack, never a
+    // translated Lo Shu layout.
+    if (base.vedicGrid) {
+      merged.vedicGrid = base.vedicGrid;
+      delete merged.planes;
+      delete merged.arrows;
+      delete merged.loshuLayout;
     }
     return merged;
   }
@@ -283,9 +375,25 @@
     if (!pack.db || typeof pack.db !== "object") errs.push("missing db object");
     else {
       const db = pack.db;
-      ["numbers", "traits", "planes", "vastu", "crystals", "careers", "personalYear"].forEach((k) => {
+      ["numbers", "traits", "vedicGrid", "vastu", "crystals", "careers", "personalYear"].forEach((k) => {
         if (!db[k] || typeof db[k] !== "object") errs.push(`db.${k} missing or invalid`);
       });
+      if (db.vedicGrid) {
+        const layout = db.vedicGrid.layout;
+        const cells = Array.isArray(layout) ? layout.flat() : [];
+        const canonicalCells = VEDIC_GRID_LAYOUT.flat();
+        if (!Array.isArray(layout) || layout.length !== 3 || layout.some((row) => !Array.isArray(row) || row.length !== 3) || cells.join(",") !== canonicalCells.join(",")) {
+          errs.push("db.vedicGrid.layout must be the canonical 3–1–9 / 6–7–5 / 2–8–4 template");
+        }
+        const validPlanes = Array.isArray(db.vedicGrid.planes) && db.vedicGrid.planes.length === DEFAULT_VEDIC_PLANES.length &&
+          db.vedicGrid.planes.every((plane, index) => plane && plane.key === DEFAULT_VEDIC_PLANES[index].key &&
+            Array.isArray(plane.cells) && plane.cells.join(",") === DEFAULT_VEDIC_PLANES[index].cells.join(","));
+        if (!validPlanes) errs.push("db.vedicGrid.planes must define the canonical Practical, Materialistic and Emotional horizontal planes");
+        const filtering = db.vedicGrid.filtering;
+        if (!filtering || ["zeros", "century", "dateDeduplication", "calculations"].some((key) => typeof filtering[key] !== "string")) {
+          errs.push("db.vedicGrid.filtering must document zero, century, date de-duplication and calculation rules");
+        }
+      }
       if (db.numbers) {
         for (let i = 1; i <= 9; i++) {
           if (!db.numbers[i]) errs.push(`db.numbers[${i}] missing`);
@@ -572,15 +680,11 @@
   /* ---------------- core engine ---------------- */
   function computeProfile(input) {
     const [y, m, d] = input.dob.split("-").map(Number);
-    const driver = reduce(d);
+    const vedicGrid = generateVedicGrid(d, m, y);
+    const driver = vedicGrid.rulingNo;
     const dobCompound = digitSum(input.dob);
-    const conductor = reduce(dobCompound);
-
-    // Loshu counts: DOB digits + driver + conductor (0s excluded)
-    const counts = {};
-    for (let i = 1; i <= 9; i++) counts[i] = 0;
-    const dd = String(d).padStart(2, "0"), mm = String(m).padStart(2, "0"), yyyy = String(y);
-    [...digitsOf(dd), ...digitsOf(mm), ...digitsOf(yyyy), driver, conductor].forEach((n) => counts[n]++);
+    const conductor = vedicGrid.destinyNo;
+    const counts = vedicGrid.counts;
     const missing = Object.keys(counts).filter((k) => counts[k] === 0).map(Number);
     const repeated = Object.keys(counts).filter((k) => counts[k] >= 3).map(Number);
     const weak = Object.keys(counts).filter((k) => counts[k] === 1).map(Number);
@@ -641,6 +745,7 @@
       name: input.name,
       day: d, month: m, year: y,
       driver, conductor, counts, missing, repeated, weak, missingSeverity,
+      vedicGrid,
       dobCompound, karmicDebts,
       doshaProfile: buildDoshaProfile({ driver, conductor, counts, repeated, missing, missingSeverity }),
       deityProfile: buildDeityProfile({ driver, conductor, counts, repeated, missing, missingSeverity }),
@@ -721,7 +826,7 @@
 
   /* Optional grid-filling spellings for an ALREADY-harmonious name.
      These never "correct" anything — they consciously fill a number that is
-     missing from the Lo Shu grid, stay non-enemy to both Driver and Conductor,
+     missing from the Vedic birth grid, stay non-enemy to both Driver and Conductor,
      and never add to a number the person already has in excess. */
   function buildOptionalSpellings(p) {
     const db = getActiveDB();
@@ -1108,7 +1213,7 @@
 
   /* Cross-check an event window against the person's own chart: the lord
      that triggers the event is strengthened by friendship with the Driver /
-     Conductor and by presence in the Loshu grid, weakened by enmity or by
+     Conductor and by presence in the Vedic birth grid, weakened by enmity or by
      being a missing number. Returns 0 when no primary lord is active. */
   function scoreEventWindow(ev, mdN, adN, p) {
     let s = 0;
@@ -1444,7 +1549,7 @@
 
       if (missingFocus.length) {
         const pNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
-        moves.push({ title: `कमजोर कड़ी को मजबूत करें — ${pNames}`, detail: `यह अंक आपके लो-शू ग्रिड में अनुपस्थित हैं और आपके मुख्य लक्ष्यों को प्रभावित करते हैं। इन्हें दैनिक साधना में प्राथमिकता दें।` });
+        moves.push({ title: `कमजोर कड़ी को मजबूत करें — ${pNames}`, detail: `यह अंक आपके वैदिक जन्म-ग्रिड में अनुपस्थित हैं और आपके मुख्य लक्ष्यों को प्रभावित करते हैं। इन्हें दैनिक साधना में प्राथमिकता दें।` });
       } else {
         moves.push({ title: "संतुलित ग्रिड की सुरक्षा", detail: "सभी नौ अंक मौजूद हैं — आपको केवल नियमित साधना से सभी ग्रहों की ऊर्जा बनाए रखनी है।" });
       }
@@ -1480,7 +1585,7 @@
 
       if (missingFocus.length) {
         const pNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
-        moves.push({ title: `નબળી કડીને બળવાન બનાવો — ${pNames}`, detail: `આ અંકો તમારા લો-શુ ગ્રીડમાં ખૂટે છે અને તમારા મુખ્ય લક્ષ્યોને અસર કરે છે. આને દૈનિક સાધનામાં પ્રાથમિકતા આપો.` });
+        moves.push({ title: `નબળી કડીને બળવાન બનાવો — ${pNames}`, detail: `આ અંકો તમારા વૈદિક જન્મ-ગ્રિડમાં ખૂટે છે અને તમારા મુખ્ય લક્ષ્યોને અસર કરે છે. આને દૈનિક સાધનામાં પ્રાથમિકતા આપો.` });
       } else {
         moves.push({ title: "સંતુલિત ગ્રીડની જાળવણી", detail: "બધા જ નવ અંકો હાજર છે — તમારે માત્ર નિયમિત સાધનાથી બધા ગ્રહોની ઊર્જા જાળવી રાખવાની છે." });
       }
@@ -1518,7 +1623,7 @@
         const planetNames = missingFocus.slice(0, 2).map((n) => `${esc(db.numbers[n].planet.split(" ")[0])} (${n})`).join(" + ");
         moves.push({
           title: `Seal the leak — power up ${planetNames}`,
-          detail: `${missingFocus.length > 1 ? "These numbers are" : "This number is"} missing from your Lo Shu grid and directly ${missingFocus.length > 1 ? "gate" : "gates"} your chosen focus areas. ${missingFocus.length > 1 ? "They headline" : "It headlines"} your daily ritual.`
+          detail: `${missingFocus.length > 1 ? "These numbers are" : "This number is"} missing from your Vedic birth grid and directly ${missingFocus.length > 1 ? "gate" : "gates"} your chosen focus areas. ${missingFocus.length > 1 ? "They headline" : "It headlines"} your daily ritual.`
         });
       } else {
         moves.push({
@@ -1907,7 +2012,7 @@
     if (lang === "hi") {
       if (missingIt && !isDriver && !isConductor) {
         return `<div class="harmony-note judge-note">
-          <strong>राशि व अंक सामंजस्य — महत्वपूर्ण संयोग:</strong> आपकी वैदिक सूर्य राशि ${esc(p.zodiac)} के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> हैं — और अंक ${ruler} आपके <strong>लो-शू ग्रिड में अनुपस्थित है</strong>। दो स्वतंत्र प्रणालियां एक ही कमी की ओर संकेत कर रही हैं। नीचे दिए गए राशि किट का प्रयोग करें: <strong>${esc(crystal)}</strong> धारण करें और <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) का जाप करें ताकि अंक ${ruler} की ऊर्जा को बल मिले।
+          <strong>राशि व अंक सामंजस्य — महत्वपूर्ण संयोग:</strong> आपकी वैदिक सूर्य राशि ${esc(p.zodiac)} के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> हैं — और अंक ${ruler} आपकी <strong>वैदिक जन्म-अंक कुंडली में अनुपस्थित है</strong>। दो स्वतंत्र प्रणालियां एक ही कमी की ओर संकेत कर रही हैं। नीचे दिए गए राशि किट का प्रयोग करें: <strong>${esc(crystal)}</strong> धारण करें और <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) का जाप करें ताकि अंक ${ruler} की ऊर्जा को बल मिले।
         </div>`;
       }
       if (isDriver || isConductor || repeatedIt) {
@@ -1916,14 +2021,14 @@
         </div>`;
       }
       return `<div class="harmony-note judge-note">
-        <strong>राशि व अंक सामंजस्य परीक्षण:</strong> आपकी वैदिक सूर्य राशि के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> आपके लो-शू ग्रिड में मौजूद हैं, इसलिए राशि और ग्रिड सहज रूप से तालमेल बिठाते हैं।
+        <strong>राशि व अंक सामंजस्य परीक्षण:</strong> आपकी वैदिक सूर्य राशि के स्वामी <strong>${esc(planetName)} (अंक ${ruler})</strong> आपकी वैदिक जन्म-अंक कुंडली में मौजूद हैं, इसलिए राशि और ग्रिड सहज रूप से तालमेल बिठाते हैं।
       </div>`;
     }
 
     if (lang === "gu") {
       if (missingIt && !isDriver && !isConductor) {
         return `<div class="harmony-note judge-note">
-          <strong>રાશિ અને અંક સુમેળ — મહત્વપૂર્ણ સંયોગ:</strong> તમારી વૈદિક સૂર્ય રાશિ ${esc(p.zodiac)} ના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> છે — અને અંક ${ruler} તમારા <strong>લો-શુ ગ્રીડમાં ખૂટે છે</strong>. બે સ્વતંત્ર પદ્ધતિઓ એક જ ઉણપ દર્શાવે છે. નીચે આપેલા રાશિ કિટનો ઉપયોગ કરો: <strong>${esc(crystal)}</strong> ધારણ કરો અને <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) નો જાપ કરો જેથી અંક ${ruler} ની ઊર્જા મજબૂત બને.
+          <strong>રાશિ અને અંક સુમેળ — મહત્વપૂર્ણ સંયોગ:</strong> તમારી વૈદિક સૂર્ય રાશિ ${esc(p.zodiac)} ના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> છે — અને અંક ${ruler} તમારી <strong>વૈદિક જન્મ અંક કુંડળીમાં ખૂટે છે</strong>. બે સ્વતંત્ર પદ્ધતિઓ એક જ ઉણપ દર્શાવે છે. નીચે આપેલા રાશિ કિટનો ઉપયોગ કરો: <strong>${esc(crystal)}</strong> ધારણ કરો અને <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) નો જાપ કરો જેથી અંક ${ruler} ની ઊર્જા મજબૂત બને.
         </div>`;
       }
       if (isDriver || isConductor || repeatedIt) {
@@ -1932,22 +2037,22 @@
         </div>`;
       }
       return `<div class="harmony-note judge-note">
-        <strong>રાશિ અને અંક સુમેળ પરીક્ષણ:</strong> તમારી વૈદિક સૂર્ય રાશિના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> તમારા લો-શુ ગ્રીડમાં હાજર છે, તેથી રાશિ અને ગ્રીડ સહજ રીતે મેળ ખાય છે.
+        <strong>રાશિ અને અંક સુમેળ પરીક્ષણ:</strong> તમારી વૈદિક સૂર્ય રાશિના સ્વામી <strong>${esc(planetName)} (અંક ${ruler})</strong> તમારી વૈદિક જન્મ અંક કુંડળીમાં હાજર છે, તેથી રાશિ અને ગ્રીડ સહજ રીતે મેળ ખાય છે.
       </div>`;
     }
 
     if (missingIt && !isDriver && !isConductor) {
       return `<div class="harmony-note">
-        <strong>Cross-system harmony — an important overlap:</strong> your Vedic Sun sign ${esc(p.zodiac)} is ruled by <strong>${esc(planetName)} (number ${ruler})</strong> — and number ${ruler} is <strong>missing from your Lo Shu grid</strong>. Two independent systems are pointing at the same gap, which makes this the highest-leverage remedy of your chart. The sign kit below doubles as a targeted balancer: wear <strong>${esc(crystal)}</strong> and chant <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) to consciously strengthen number-${ruler} energy — it is reinforced nowhere else in your grid.
+        <strong>Cross-system harmony — an important overlap:</strong> your Vedic Sun sign ${esc(p.zodiac)} is ruled by <strong>${esc(planetName)} (number ${ruler})</strong> — and number ${ruler} is <strong>missing from your Vedic birth grid</strong>. Two independent systems are pointing at the same gap, which makes this the highest-leverage remedy of your chart. The sign kit below doubles as a targeted balancer: wear <strong>${esc(crystal)}</strong> and chant <strong><span class="mantra">${esc(z.dev)}</span></strong> (${esc(z.pron)}) to consciously strengthen number-${ruler} energy — it is reinforced nowhere else in your grid.
       </div>`;
     }
     if (isDriver || isConductor || repeatedIt) {
       return `<div class="harmony-note">
-        <strong>Cross-system harmony — a reinforcing overlap:</strong> the planet ruling your Vedic Sun sign — <strong>${esc(planetName)} (number ${ruler})</strong> — is ${isDriver ? "your <strong>Driver (Moolank)</strong>" : isConductor ? "your <strong>Conductor (Bhagyank)</strong>" : "a <strong>repeated number in your Lo Shu grid</strong>"}. The zodiac layer and your grid reinforce each other, so sign-based remedies will amplify a number that already works hard in your chart.
+        <strong>Cross-system harmony — a reinforcing overlap:</strong> the planet ruling your Vedic Sun sign — <strong>${esc(planetName)} (number ${ruler})</strong> — is ${isDriver ? "your <strong>Driver (Moolank)</strong>" : isConductor ? "your <strong>Conductor (Bhagyank)</strong>" : "a <strong>repeated number in your Vedic birth grid</strong>"}. The zodiac layer and your grid reinforce each other, so sign-based remedies will amplify a number that already works hard in your chart.
       </div>`;
     }
     return `<div class="harmony-note">
-      <strong>Cross-system harmony check:</strong> your Vedic Sun sign's ruler — <strong>${esc(planetName)} (number ${ruler})</strong> — is present in your Lo Shu grid, so the zodiac and grid layers align comfortably. Treat the sign kit below as a supportive layer rather than a corrective one.
+      <strong>Cross-system harmony check:</strong> your Vedic Sun sign's ruler — <strong>${esc(planetName)} (number ${ruler})</strong> — is present in your Vedic birth grid, so the zodiac and grid layers align comfortably. Treat the sign kit below as a supportive layer rather than a corrective one.
     </div>`;
   }
 
@@ -2391,63 +2496,148 @@
     </div>`;
   }
 
-  function renderGridCells(counts) {
+  function vedicGridConfig(db) {
+    const configured = (db && db.vedicGrid) || {};
+    const sameCells = (actual, expected) => Array.isArray(actual) && actual.join(",") === expected.join(",");
+    const layout = Array.isArray(configured.layout) && configured.layout.length === 3 &&
+      configured.layout.every((row) => Array.isArray(row) && row.length === 3) &&
+      sameCells(configured.layout.flat(), VEDIC_GRID_LAYOUT.flat())
+      ? configured.layout
+      : VEDIC_GRID_LAYOUT;
+    const planes = Array.isArray(configured.planes) && configured.planes.length === DEFAULT_VEDIC_PLANES.length &&
+      configured.planes.every((plane, i) => plane && plane.key === DEFAULT_VEDIC_PLANES[i].key && sameCells(plane.cells, DEFAULT_VEDIC_PLANES[i].cells))
+      ? configured.planes
+      : DEFAULT_VEDIC_PLANES;
+    return { layout, planes, filtering: configured.filtering || {} };
+  }
+
+  function vedicGridCopy(lang) {
+    const copy = {
+      en: {
+        introTitle: "What is the Vedic Numerology Grid?",
+        intro: "This Ank Kundali follows classical Vedic planetary rulerships — not the Chinese Lo Shu magic square. Its three horizontal rows are elemental planes for practical, material and emotional expression.",
+        contrast: "Vedic template: 3–1–9 / 6–7–5 / 2–8–4. The century is used in the Destiny calculation but is not plotted in the natal grid.",
+        present: "Present", repeated: "Repeated (excess)", missing: "Missing (weak)",
+        numbersTitle: "Your Numbers at a Glance", weak: "Weak", completeGrid: "none — complete grid",
+        numbersNote: "Green cells are present in your chart. Empty cells are missing planetary energies that can be consciously strengthened.",
+        practical: "Practical Plane", materialistic: "Materialistic Plane", emotional: "Emotional Plane",
+        rows: ["Top horizontal plane", "Middle horizontal plane", "Bottom horizontal plane"],
+        planeGoverns: { practical: "Governs vision, executive drive, leadership and proactive execution.", materialistic: "Governs wealth accumulation, luxury, analytical thinking, business acumen and networking.", emotional: "Governs intuition, emotional balance, perseverance, discipline and systematic planning." },
+        complete: "All three planetary energies are represented in this plane.",
+        partialPrefix: "Present", supportPrefix: "Support", empty: "All three energies in this plane need deliberate support.",
+        plottedTitle: "How your birth grid was plotted", source: "Source", plotted: "Plotted digits", treatment: "Vedic treatment",
+        day: "Birth day", month: "Birth month", year: "Birth year", ruling: "Ruling Number (Moolank)", destiny: "Destiny Number (Bhagyank)",
+        dayDedup: "Its non-zero value matches the Ruling Number, so it is entered once as the Ruling Number.",
+        dayKept: "Its non-zero digits are plotted individually because this is a compound date.",
+        monthTreatment: "Zeros are removed before plotting.",
+        yearTreatment: "Only the final two year digits are plotted; century digits {century} are excluded.",
+        rulingTreatment: "Always added after DOB filtering.", destinyTreatment: "Calculated from the complete DOB and always added.",
+        rulesTitle: "Vedic plotting rules", zeroRule: "Remove every 0; zero has no independent planetary cell.",
+        centuryRule: "Exclude the century identifier from the plotted grid (for example, 19 or 20).",
+        dateRule: "Do not plot a single non-zero date digit twice when it already is the Moolank.",
+        calculationTitle: "Core calculations", finalDigits: "Final plotted set", formulaRuling: "Ruling Number", formulaDestiny: "Destiny Number",
+        nameGridTitle: "Name Energy Grid", nameGridDesc: "Your name's Chaldean letter values, shown in the same Vedic template. Chaldean letter values do not include 9.",
+        combinedGridTitle: "Combined Vedic Grid (DOB + Name)", combinedGridDesc: "Your filtered Vedic birth-grid digits plus your name values — the blended energy you project into the world.",
+        missingTitle: "Missing Numbers — Quick Balancers", completeTitle: "Complete grid", completeText: "All nine numbers are present — a rare, well-balanced chart. Maintain the planetary rhythm with your weekly practices.",
+        repeatText: "Repeated 3+ times:"
+      },
+      hi: {
+        introTitle: "वैदिक अंक कुंडली क्या है?",
+        intro: "यह अंक कुंडली शास्त्रीय वैदिक ग्रह-अधिपत्य पर आधारित है — चीनी लो-शू मैजिक स्क्वेयर पर नहीं। इसकी तीन क्षैतिज पंक्तियां व्यावहारिक, भौतिक और भावनात्मक अभिव्यक्ति के तात्त्विक तल हैं।",
+        contrast: "वैदिक क्रम: ३–१–९ / ६–७–५ / २–८–४। शताब्दी अंक भाग्यांक की गणना में रहते हैं, पर जन्म-ग्रिड में नहीं रखे जाते।",
+        present: "उपस्थित", repeated: "पुनरावृत्त (अधिक)", missing: "अनुपस्थित (निर्बल)",
+        numbersTitle: "आपके अंक एक नजर में", weak: "निर्बल", completeGrid: "कोई नहीं — पूर्ण ग्रिड",
+        numbersNote: "हरे खाने आपके चार्ट में उपस्थित हैं। खाली खाने वे ग्रहीय ऊर्जाएं हैं जिन्हें सचेत रूप से मजबूत किया जा सकता है।",
+        practical: "व्यावहारिक तल", materialistic: "भौतिक तल", emotional: "भावनात्मक तल",
+        rows: ["ऊपरी क्षैतिज तल", "मध्य क्षैतिज तल", "निचला क्षैतिज तल"],
+        planeGoverns: { practical: "दृष्टि, कार्यकारी शक्ति, नेतृत्व और सक्रिय कार्यान्वयन का तल।", materialistic: "धन संचय, विलास, विश्लेषण, व्यवसाय-बुद्धि और नेटवर्किंग का तल।", emotional: "अंतर्ज्ञान, भावनात्मक संतुलन, धैर्य, अनुशासन और व्यवस्थित योजना का तल।" },
+        complete: "इस तल की तीनों ग्रहीय ऊर्जाएं उपस्थित हैं।", partialPrefix: "उपस्थित", supportPrefix: "सहारा दें", empty: "इस तल की तीनों ऊर्जाओं को सजग सहारा चाहिए।",
+        plottedTitle: "आपकी जन्म-अंक कुंडली कैसे बनी", source: "स्रोत", plotted: "रखे गए अंक", treatment: "वैदिक नियम",
+        day: "जन्म दिन", month: "जन्म माह", year: "जन्म वर्ष", ruling: "मूलांक", destiny: "भाग्यांक",
+        dayDedup: "शून्य हटाने पर इसका मान मूलांक के समान है, इसलिए इसे मूलांक के रूप में केवल एक बार रखा गया है।",
+        dayKept: "यह संयुक्त तारीख है, इसलिए इसके शून्य-रहित अंक अलग-अलग रखे गए हैं।",
+        monthTreatment: "रखने से पहले शून्य हटा दिए गए हैं।", yearTreatment: "केवल वर्ष के अंतिम दो अंक रखे गए हैं; शताब्दी अंक {century} हटाए गए हैं।",
+        rulingTreatment: "DOB छानने के बाद हमेशा जोड़ा जाता है।", destinyTreatment: "पूर्ण जन्मतिथि से निकाला जाता है और हमेशा जोड़ा जाता है।",
+        rulesTitle: "वैदिक प्लॉटिंग नियम", zeroRule: "हर ० हटाएं; ० का अपना कोई ग्रहीय खाना नहीं है।", centuryRule: "प्लॉटेड ग्रिड से शताब्दी पहचान (जैसे १९ या २०) हटाएं।", dateRule: "जब एक गैर-शून्य दिनांक अंक पहले से मूलांक हो, उसे दो बार न रखें।",
+        calculationTitle: "मुख्य गणनाएं", finalDigits: "अंतिम प्लॉटेड अंक", formulaRuling: "मूलांक", formulaDestiny: "भाग्यांक",
+        nameGridTitle: "नाम ऊर्जा ग्रिड", nameGridDesc: "आपके नाम के चाल्डियन अक्षर-मूल्य, उसी वैदिक क्रम में। चाल्डियन अक्षर-मूल्यों में ९ नहीं होता।",
+        combinedGridTitle: "संयुक्त वैदिक ग्रिड (जन्म + नाम)", combinedGridDesc: "छाने गए वैदिक जन्म-ग्रिड अंक और नाम-मूल्य — वह संयुक्त ऊर्जा जो आप दुनिया के सामने रखते हैं।",
+        missingTitle: "अनुपस्थित अंक — त्वरित संतुलन उपाय", completeTitle: "पूर्ण ग्रिड", completeText: "सभी नौ अंक उपस्थित हैं — यह एक दुर्लभ, संतुलित चार्ट है। साप्ताहिक साधना से ग्रहीय लय बनाए रखें।", repeatText: "३+ बार दोहराए गए अंक:"
+      },
+      gu: {
+        introTitle: "વૈદિક અંક કુંડળી શું છે?",
+        intro: "આ અંક કુંડળી શાસ્ત્રીય વૈદિક ગ્રહ-અધિપત્યને અનુસરે છે — ચીની લો-શુ મેજિક સ્ક્વેરને નહીં। તેની ત્રણ આડી હરોળો વ્યવહારુ, ભૌતિક અને ભાવનાત્મક અભિવ્યક્તિના તાત્ત્વિક સ્તરો છે।",
+        contrast: "વૈદિક ક્રમ: ૩–૧–૯ / ૬–૭–૫ / ૨–૮–૪। સદીના અંકો ભાગ્યાંકની ગણતરીમાં રહે છે, પણ જન્મ-ગ્રિડમાં મૂકાતા નથી।",
+        present: "હાજર", repeated: "પુનરાવર્તિત (વધારે)", missing: "ગેરહાજર (નબળો)",
+        numbersTitle: "તમારા અંકો એક નજરે", weak: "નબળો", completeGrid: "કોઈ નહીં — સંપૂર્ણ ગ્રિડ",
+        numbersNote: "લીલા ખાના તમારા ચાર્ટમાં હાજર છે। ખાલી ખાના તે ગ્રહીય ઊર્જાઓ છે જેને સભાનતાથી મજબૂત કરી શકાય છે।",
+        practical: "વ્યવહારુ સ્તર", materialistic: "ભૌતિક સ્તર", emotional: "ભાવનાત્મક સ્તર",
+        rows: ["ઉપરનો આડો સ્તર", "મધ્ય આડો સ્તર", "નીચેનો આડો સ્તર"],
+        planeGoverns: { practical: "દૃષ્ટિ, કાર્યકારી શક્તિ, નેતૃત્વ અને સક્રિય અમલનું સ્તર।", materialistic: "ધન સંચય, વૈભવ, વિશ્લેષણ, વ્યવસાય-કુશળતા અને નેટવર્કિંગનું સ્તર।", emotional: "અંતઃપ્રજ્ઞા, ભાવનાત્મક સંતુલન, ખંત, શિસ્ત અને વ્યવસ્થિત આયોજનનું સ્તર।" },
+        complete: "આ સ્તરની ત્રણેય ગ્રહીય ઊર્જાઓ હાજર છે।", partialPrefix: "હાજર", supportPrefix: "સહારો", empty: "આ સ્તરની ત્રણેય ઊર્જાઓને સભાન સહારો જોઈએ।",
+        plottedTitle: "તમારી જન્મ અંક કુંડળી કેવી રીતે બની", source: "સ્ત્રોત", plotted: "મૂકેલા અંકો", treatment: "વૈદિક નિયમ",
+        day: "જન્મ દિવસ", month: "જન્મ મહિનો", year: "જન્મ વર્ષ", ruling: "મૂળાંક", destiny: "ભાગ્યાંક",
+        dayDedup: "શૂન્ય કાઢ્યા પછી તેનો માન મૂળાંક જેટલો છે, તેથી તેને મૂળાંક તરીકે માત્ર એકવાર મૂકવામાં આવ્યો છે।",
+        dayKept: "આ સંયુક્ત તારીખ છે, તેથી તેના શૂન્ય-રહિત અંકો અલગ-અલગ મૂકાયા છે।",
+        monthTreatment: "મૂકતા પહેલાં શૂન્ય કાઢી નાખ્યા છે।", yearTreatment: "વર્ષના માત્ર છેલ્લા બે અંકો મૂકાયા છે; સદીના અંકો {century} કાઢી નાખ્યા છે।",
+        rulingTreatment: "DOB છાન્યા પછી હંમેશા ઉમેરાય છે।", destinyTreatment: "સંપૂર્ણ જન્મતારીખથી ગણાય છે અને હંમેશા ઉમેરાય છે।",
+        rulesTitle: "વૈદિક પ્લોટિંગ નિયમો", zeroRule: "દરેક ૦ કાઢી નાખો; ૦નું પોતાનું કોઈ ગ્રહીય ખાનું નથી।", centuryRule: "પ્લોટેડ ગ્રિડમાંથી સદીની ઓળખ (જેમ કે ૧૯ અથવા ૨૦) દૂર કરો।", dateRule: "જ્યારે એક શૂન્ય-રહિત તારીખ અંક પહેલેથી મૂળાંક હોય, તેને બે વાર ન મૂકો।",
+        calculationTitle: "મુખ્ય ગણતરીઓ", finalDigits: "અંતિમ પ્લોટેડ અંકો", formulaRuling: "મૂળાંક", formulaDestiny: "ભાગ્યાંક",
+        nameGridTitle: "નામ ઊર્જા ગ્રિડ", nameGridDesc: "તમારા નામના ચાલ્ડિયન અક્ષર-મૂલ્યો, એ જ વૈદિક ક્રમમાં। ચાલ્ડિયન અક્ષર-મૂલ્યોમાં ૯ નથી।",
+        combinedGridTitle: "સંયુક્ત વૈદિક ગ્રિડ (જન્મ + નામ)", combinedGridDesc: "છાનેલા વૈદિક જન્મ-ગ્રિડ અંકો અને નામ-મૂલ્યો — તમે દુનિયા સમક્ષ રજૂ કરો તેવી સંયુક્ત ઊર્જા।",
+        missingTitle: "ખૂટતા અંકો — સરળ સંતુલન ઉપાયો", completeTitle: "સંપૂર્ણ ગ્રિડ", completeText: "બધા નવ અંકો હાજર છે — આ દુર્લભ, સંતુલિત ચાર્ટ છે। સાપ્તાહિક સાધનાથી ગ્રહીય લય જાળવો।", repeatText: "૩+ વખત પુનરાવર્તિત અંકો:"
+      }
+    };
+    return copy[lang] || copy.en;
+  }
+
+  function renderVedicGridCells(counts) {
     const db = getActiveDB();
-    const layout = (window.DB && window.DB.loshuLayout) || [[4,9,2],[3,5,7],[8,1,6]];
+    const copy = vedicGridCopy(getLang());
+    const layout = vedicGridConfig(db).layout;
     return layout.flat().map((n) => {
       const c = counts[n] || 0;
       const cls = c === 0 ? "missing" : c >= 3 ? "present multi" : "present";
       const digits = c > 0 ? Array(c).fill(n).map((x) => `<span>${x}</span>`).join("") : `<span>${n}</span>`;
-      return `<div class="loshu-cell ${cls}" title="${n} — ${esc(db.numbers[n].planet)}: ${c} occurrence(s)">
+      return `<div class="vedic-cell ${cls}" data-grid-number="${n}" data-missing-label="${esc(copy.missing)}" title="${n} — ${esc(db.numbers[n].planet)}: ${c} occurrence(s)">
         <div class="digits">${digits}</div>
-        ${c > 0 ? `<div class="cnt">${db.numbers[n].planet.split(" ")[0]}</div>` : ""}
+        ${c > 0 ? `<div class="cnt">${esc(db.numbers[n].planet.split(" ")[0])}</div>` : ""}
       </div>`;
     }).join("");
   }
 
-  function renderLoshu(p) {
+  function renderVedicGrid(p) {
     const db = getActiveDB();
     const lang = getLang();
-    const cells = renderGridCells(p.counts);
+    const copy = vedicGridCopy(lang);
+    const config = vedicGridConfig(db);
+    const grid = p.vedicGrid || generateVedicGrid(p.day, p.month, p.year);
+    const cells = renderVedicGridCells(p.counts);
+    const numberList = (numbers) => numbers.length ? numbers.join(", ") : "—";
 
-    const planeCards = db.planes.map((pl) => {
-      const present = pl.cells.filter((n) => p.counts[n] > 0);
-      const absent = pl.cells.filter((n) => p.counts[n] === 0);
-      const chips = pl.cells.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
-      const badge = present.length === 3 ? `<span class="badge good">${t("active", "Active")}</span>`
-        : present.length === 2 ? `<span class="badge warn">${t("partial", "Partial")}</span>`
-        : `<span class="badge bad">${t("weak", "Weak")}</span>`;
-      let title, reading;
-      if (present.length === 3) {
-        title = lang === "hi" ? `पूर्ण ${pl.name}` : lang === "gu" ? `સંપૂર્ણ ${pl.name}` : `Complete ${pl.name}`;
-        reading = lang === "hi" ? `आपके पास पूर्ण ${pl.name} है — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} एक साथ काम करते हैं। ${pl.complete}`
-          : lang === "gu" ? `તમારી પાસે સંપૂર્ણ ${pl.name} છે — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} સાથે મળીને કામ કરે છે. ${pl.complete}`
-          : `You have the full ${pl.name.toLowerCase()} — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} work together. ${pl.complete}`;
-      } else if (present.length === 0) {
-        title = lang === "hi" ? `${pl.name} — पूर्णतः अनुपस्थित` : lang === "gu" ? `${pl.name} — સંપૂર્ણ ગેરહાજર` : `${pl.name} — Fully Missing`;
-        reading = lang === "hi" ? `इस तल की तीनों ऊर्जाओं — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — को साधना से मजबूत करें। ${absent.map((n) => pl.roles[n].fix).join("; ")}.`
-          : lang === "gu" ? `આ સ્તરની ત્રણેય ઊર્જાઓ — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — ને સાધનાથી મજબૂત કરો. ${absent.map((n) => pl.roles[n].fix).join("; ")}.`
-          : `All three energies of this plane — ${pl.cells.map((n) => pl.roles[n].label).join(", ")} — need deliberate support. ${absent.map((n) => pl.roles[n].fix[0].toUpperCase() + pl.roles[n].fix.slice(1)).join("; ")}.`;
-      } else {
-        const presTxt = present.map((n) => pl.roles[n].label).join(" and ");
-        const absTxt = absent.map((n) => pl.roles[n].label).join(" and ");
-        title = present.length === 1
-          ? (lang === "hi" ? `${pl.name} — केवल ${pl.roles[present[0]].short}` : lang === "gu" ? `${pl.name} — માત્ર ${pl.roles[present[0]].short}` : `${pl.name} — Only ${pl.roles[present[0]].short}`)
-          : (lang === "hi" ? `${pl.name} — बिना ${absent.map((n) => pl.roles[n].short).join(" व ")}` : lang === "gu" ? `${pl.name} — વગર ${absent.map((n) => pl.roles[n].short).join(" અને ")}` : `${pl.name} — Without ${absent.map((n) => pl.roles[n].short).join(" & ")}`);
-        const cons = absent.map((n) => pl.roles[n].con).join("; ");
-        const fixes = absent.map((n) => pl.roles[n].fix).join("; ");
-        reading = lang === "hi" ? `आपके ${pl.name} में ${presTxt} मौजूद है, किंतु ${absTxt} निर्बल है। यह ${cons} के रूप में दिख सकता है। उपाय: ${fixes}.`
-          : lang === "gu" ? `તમારા ${pl.name} માં ${presTxt} હાજર છે, પરંતુ ${absTxt} નબળું છે. આ ${cons} ના રૂપમાં દેખાઈ શકે છે. ઉપાય: ${fixes}.`
-          : `You have ${presTxt} in your ${pl.name.toLowerCase()}, but ${absTxt} ${absent.length > 1 ? "are" : "is"} weaker here. This can show up as ${cons}. Your remedy: ${fixes}.`;
-      }
-      return `<div class="card plane-card">
-        <div class="goal-head">
-          <div class="card-title">${esc(title)}</div>
-          ${badge}
-        </div>
-        <div class="card-sub">${esc(pl.zone)}</div>
+    const planeCards = config.planes.map((plane, index) => {
+      const present = plane.cells.filter((n) => p.counts[n] > 0);
+      const absent = plane.cells.filter((n) => p.counts[n] === 0);
+      const chips = plane.cells.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const name = copy[plane.key] || plane.name || plane.key;
+      const governs = (copy.planeGoverns && copy.planeGoverns[plane.key]) || plane.governs || "";
+      const badge = present.length === 3
+        ? `<span class="badge good">${lang === "hi" ? "पूर्ण" : lang === "gu" ? "પૂર્ણ" : "Complete"}</span>`
+        : present.length === 0
+          ? `<span class="badge bad">${lang === "hi" ? "सहारा चाहिए" : lang === "gu" ? "સહારો જોઈએ" : "Needs support"}</span>`
+          : `<span class="badge warn">${lang === "hi" ? "आंशिक" : lang === "gu" ? "આંશિક" : "Partial"}</span>`;
+      const reading = present.length === 3
+        ? copy.complete
+        : present.length === 0
+          ? copy.empty
+          : `${copy.partialPrefix}: ${numberList(present)}. ${copy.supportPrefix}: ${numberList(absent)}.`;
+      const roleLine = plane.cells.map((n) => `${n} · ${db.numbers[n].planet}`).join("  |  ");
+      return `<div class="card plane-card vedic-plane-card">
+        <div class="goal-head"><div class="card-title">${esc(name)}</div>${badge}</div>
+        <div class="card-sub">${esc(copy.rows[index] || "")} · ${esc(plane.element || "")} · ${plane.cells.join(" – ")}</div>
         <div class="plane-chips">${chips}</div>
-        <div class="kit-value plane-about">${esc(pl.about)}</div>
+        <div class="kit-value plane-about">${esc(governs)}</div>
+        <div class="card-sub vedic-role-line">${esc(roleLine)}</div>
         <div class="kit-value">${esc(reading)}</div>
       </div>`;
     }).join("");
@@ -2459,8 +2649,7 @@
       const badge = sev
         ? (sev.critical ? `<span class="badge bad">${t("critical", "Critical")}</span>` : `<span class="badge warn">Echoed by ${sev.echoedBy.join(", ")}</span>`)
         : "";
-      return `
-      <div class="kit-row">
+      return `<div class="kit-row">
         <div class="kit-ico"><strong>${n}</strong></div>
         <div class="kit-body">
           <div class="kit-label">${esc(db.numbers[n].planet)} — ${lang === "hi" ? "निर्बल / अनुपस्थित" : lang === "gu" ? "નિર્બળ / ખૂટતો અંક" : "weak / missing"} ${badge}</div>
@@ -2469,75 +2658,73 @@
       </div>`;
     }).join("");
 
-    const arrowCards = db.arrows.map((ar) => {
-      const present = ar.line.filter((n) => p.counts[n] > 0).length;
-      const state = present === 3 ? "strong" : present === 0 ? "missing" : "partial";
-      const badge = state === "strong" ? `<span class="badge good">${t("strong", "Strong")}</span>`
-        : state === "partial" ? `<span class="badge warn">${t("partial", "Partial")}</span>`
-        : `<span class="badge bad">${t("frustrated", "Frustrated")}</span>`;
-      const chips = ar.line.map((n) => `<span class="plane-chip ${p.counts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
-      const reading = state === "strong" ? ar.present : (state === "partial" ? (lang === "hi" ? `आंशिक रूप से उपस्थित — पूरी रेखा नहीं बनी है। ${ar.missing}` : lang === "gu" ? `આંશિક રીતે હાજર — પૂરી રેખા બની નથી. ${ar.missing}` : `Only partially present — the full line is not formed. ${ar.missing}`) : ar.missing);
-      return `<div class="card arrow-card">
-        <div class="goal-head">
-          <div class="card-title">${esc(ar.name)}</div>
-          ${badge}
-        </div>
-        <div class="card-sub">${esc(ar.axis)}</div>
-        <div class="plane-chips">${chips}</div>
-        <div class="kit-value">${esc(reading)}</div>
-      </div>`;
-    }).join("");
-
-    const loshuExplanation = lang === "hi"
-      ? "३×३ का एक ऊर्जा ग्रिड जो आपकी जन्मतिथि में मौजूद, निर्बल या अनुपस्थित ऊर्जाओं का नक्शा बनाता है। १ से ९ तक का प्रत्येक अंक एक निश्चित स्थान पर बैठता है। प्रत्येक पंक्ति, कॉलम और विकर्ण एक 'तल' (Plane) बन जाता है — जो आपकी सोच, भावनाओं, इच्छाशक्ति और भौतिक जीवन के बारे में सटीक जानकारी देता है।"
-      : lang === "gu"
-        ? "૩×૩ નો એક પ્રાચીન ઊર્જા ગ્રીડ જે તમારી જન્મ તારીખમાં હાજર, નિર્બળ કે ખૂટતી ઊર્જાઓનો નકશો બનાવે છે. ૧ થી ૯ સુધીનો દરેક અંક એક નિશ્ચિત ખાનામાં બેસે છે. દરેક હરોળ, સ્તંભ અને કર્ણ એક 'સ્તર' (Plane) બની જાય છે — જે તમારી વિચારસરણી, લાગણીઓ, મનોબળ અને વ્યવહારિક જીવન વિશે સચોટ માહિતી આપે છે."
-        : "A 3×3 grid that maps which energies are present, weak, or missing in your birth. Every number from 1 to 9 sits in a fixed cell. When we plot the digits of your date of birth (along with your Mulank and Bhagyank) onto that grid, each row, column, and diagonal becomes a <strong>plane</strong> — an energy line that tells us something specific about your mind, emotions, will, and material life. Below, each of the 8 planes is interpreted based on exactly which of its required numbers you have.";
+    const formulaDigits = `${grid.raw.day}${grid.raw.month}${grid.raw.year}`.split("").join(" + ");
+    const rulingFormula = grid.raw.day.split("").join(" + ");
+    const dayTreatment = grid.excluded.dayDeduplicated ? copy.dayDedup : copy.dayKept;
+    const sourceRows = [
+      [copy.day, grid.excluded.dayDeduplicated ? "—" : numberList(grid.sourceDigits.day), dayTreatment],
+      [copy.month, numberList(grid.sourceDigits.month), copy.monthTreatment],
+      [copy.year, numberList(grid.sourceDigits.year), copy.yearTreatment.replace("{century}", grid.raw.century || "—")],
+      [copy.ruling, String(p.driver), copy.rulingTreatment],
+      [copy.destiny, String(p.conductor), copy.destinyTreatment]
+    ].map(([source, digits, treatment]) => `<tr><td><strong>${esc(source)}</strong></td><td>${esc(digits)}</td><td>${esc(treatment)}</td></tr>`).join("");
 
     return `
-    <section class="rsection" id="loshu-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.loshu}</span>${t("secLoshu", "Your Loshu Grid — the 8 Planes, Fully Analysed")}</h2>
-      <div class="card">
-        <div class="card-title">${lang === "hi" ? "लो-शू ग्रिड क्या है?" : lang === "gu" ? "લો-શુ ગ્રીડ શું છે?" : "What is the Loshu Grid?"}</div>
-        <div class="kit-value">${loshuExplanation}</div>
+    <section class="rsection" id="vedic-grid-section">
+      <h2 class="rsection-title"><span class="idx">${SECTION.grid}</span>${t("secVedicGrid", "Your Vedic Numerology Grid (Ank Kundali)")}</h2>
+      <div class="card vedic-grid-intro">
+        <div class="card-title">${copy.introTitle}</div>
+        <div class="kit-value">${copy.intro}</div>
+        <div class="judge-note">${copy.contrast}</div>
       </div>
-      <div class="loshu-wrap">
+      <div class="vedic-grid-wrap">
         <div>
-          <div class="loshu-grid" role="img" aria-label="Loshu grid visualization">${cells}</div>
-          <div class="loshu-legend" style="margin-top:8px">
-            <span><i class="dot g"></i>${t("present", "Present")}</span>
-            <span><i class="dot y"></i>${lang === "hi" ? "दोहराया गया (अधिक)" : lang === "gu" ? "પુનરાવર્તિત (વધારાનું)" : "Repeated (excess)"}</span>
-            <span><i class="dot w"></i>${lang === "hi" ? "अनुपस्थित (निर्बल)" : lang === "gu" ? "ગેરહાજર (નિર્બળ)" : "Missing (weak)"}</span>
+          <div class="vedic-grid" role="img" aria-label="Vedic Numerology Grid visualization">${cells}</div>
+          <div class="vedic-legend" style="margin-top:8px">
+            <span><i class="dot g"></i>${copy.present}</span>
+            <span><i class="dot y"></i>${copy.repeated}</span>
+            <span><i class="dot w"></i>${copy.missing}</span>
           </div>
         </div>
         <div class="card">
-          <div class="card-title">${lang === "hi" ? "आपके अंक एक नजर में" : lang === "gu" ? "તમારા અંકો એક નજરે" : "Your Numbers at a Glance"}</div>
-          <div class="kit-value"><span class="badge good">${t("present", "Present")}</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
-          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">${t("weak", "Weak")}</span> ${p.weak.join(", ")} <span class="card-sub">— ${lang === "hi" ? "केवल एक बार आया है, हल्के सहारे की जरूरत है।" : lang === "gu" ? "માત્ર એક વખત આવ્યો છે, હળવા ટેકાની જરૂર છે." : "appears only once, so it needs light support."}</span></div>` : ""}
-          <div class="kit-value"><span class="badge bad">${t("missing", "Missing")}</span> ${p.missing.length ? p.missing.join(", ") : (lang === "hi" ? "कोई नहीं — पूर्ण ग्रिड" : lang === "gu" ? "કોઈ નહીં — સંપૂર્ણ ગ્રીડ" : "none — complete grid")}</div>
-          <div class="card-sub">${lang === "hi" ? "हरे रंग के खाने आपके चार्ट में मौजूद हैं। खाली खाने वे ऊर्जाएं हैं जिन्हें मजबूत करने की आवश्यकता है।" : lang === "gu" ? "લીલા રંગના ખાના તમારા ચાર્ટમાં હાજર છે. ખાલી ખાના તે ઊર્જાઓ છે જેને બળવાન બનાવવાની જરૂર છે." : "Green cells are present in your chart. Empty cells are missing energies — they mark the planets that need strengthening."}</div>
+          <div class="card-title">${copy.numbersTitle}</div>
+          <div class="kit-value"><span class="badge good">${copy.present}</span> ${Object.keys(p.counts).filter((k) => p.counts[k] > 0).join(", ")}</div>
+          ${p.weak.length ? `<div class="kit-value"><span class="badge warn">${copy.weak}</span> ${p.weak.join(", ")} <span class="card-sub">— ${lang === "hi" ? "केवल एक बार आया है, इसलिए हल्का सहारा चाहिए।" : lang === "gu" ? "માત્ર એક વાર આવ્યો છે, તેથી હળવો સહારો જોઈએ।" : "appears only once, so it needs light support."}</span></div>` : ""}
+          <div class="kit-value"><span class="badge bad">${copy.missing}</span> ${p.missing.length ? p.missing.join(", ") : copy.completeGrid}</div>
+          <div class="card-sub">${copy.numbersNote}</div>
         </div>
       </div>
       <div class="plane-cards">${planeCards}</div>
       <div class="card">
-        <div class="card-title">${lang === "hi" ? "आपके लो-शू ग्रिड के ८ तीर" : lang === "gu" ? "તમારા લો-શુ ગ્રીડના ૮ તીર" : "The 8 Arrows of Your Loshu Grid"}</div>
-        <div class="card-sub">${lang === "hi" ? "प्रत्येक रेखा का शास्त्रीय तीर नाम। तीनों अंक मौजूद होने पर तीर मजबूत होता है; पूरी तरह खाली होने पर इसे साधना से मजबूत करना होता है।" : lang === "gu" ? "દરેક રેખાનું શાસ્ત્રીય તીર નામ. ત્રણેય અંક હાજર હોય તો તીર મજબૂત બને છે; ખાલી હોય તો તેને સાધનાથી મજબૂત કરવું પડે છે." : 'The classical "arrow" names for each line. An arrow with all three numbers is strong; a fully empty arrow is a frustrated / confused energy to consciously build.'}</div>
+        <div class="card-title">${copy.calculationTitle}</div>
+        <div class="vedic-calculation-grid">
+          <div><span class="kit-label">${copy.formulaRuling} · Moolank</span><div class="vedic-formula">${rulingFormula} = ${grid.calculations.rulingDigitSum} → <strong>${p.driver}</strong></div></div>
+          <div><span class="kit-label">${copy.formulaDestiny} · Bhagyank</span><div class="vedic-formula">${formulaDigits} = ${grid.calculations.destinyDigitSum} → <strong>${p.conductor}</strong></div></div>
+          <div><span class="kit-label">${copy.finalDigits}</span><div class="vedic-formula">${grid.digits.join(" · ") || "—"}</div></div>
+        </div>
       </div>
-      <div class="plane-cards">${arrowCards}</div>
+      <div class="card">
+        <div class="card-title">${copy.plottedTitle}</div>
+        <div class="table-scroll"><table class="rtable"><tr><th>${copy.source}</th><th>${copy.plotted}</th><th>${copy.treatment}</th></tr>${sourceRows}</table></div>
+      </div>
+      <div class="card">
+        <div class="card-title">${copy.rulesTitle}</div>
+        <div class="kit-value"><strong>1.</strong> ${copy.zeroRule}<br><strong>2.</strong> ${copy.centuryRule}<br><strong>3.</strong> ${copy.dateRule}</div>
+      </div>
       <div class="card-grid two">
         <div class="card">
-          <div class="card-title">${lang === "hi" ? "नाम ग्रिड (Name Grid)" : lang === "gu" ? "નામ ગ્રીડ (Name Grid)" : "Name Grid"}</div>
-          <div class="loshu-grid" role="img" aria-label="Name-based Loshu grid">${renderGridCells(p.nameCounts)}</div>
-          <div class="card-sub">${lang === "hi" ? "आपके नाम के अक्षरों के चालडियन मान। ध्यान दें: चालडियन पद्धति में ९ का अंक नहीं होता, इसलिए वह खाना खाली रहता है।" : lang === "gu" ? "તમારા નામના અક્ષરોના ચાલ્ડિયન મૂલ્યો. નોંધ: ચાલ્ડિયન પદ્ધતિમાં ૯ નો અંક નથી હોતો, તેથી તે ખાનું ખાલી રહે છે." : "The Chaldean values of your name's letters, plotted the same way. Note: the Chaldean system has no value 9, so that cell stays empty in the name grid."}</div>
+          <div class="card-title">${copy.nameGridTitle}</div>
+          <div class="vedic-grid" role="img" aria-label="Name-based Vedic Numerology Grid">${renderVedicGridCells(p.nameCounts)}</div>
+          <div class="card-sub">${copy.nameGridDesc}</div>
         </div>
         <div class="card">
-          <div class="card-title">${lang === "hi" ? "संयुक्त ग्रिड (जन्म + नाम)" : lang === "gu" ? "સંયુક્ત ગ્રીડ (જન્મ + નામ)" : "Combined Grid (DOB + Name)"}</div>
-          <div class="loshu-grid" role="img" aria-label="Combined Loshu grid">${renderGridCells(p.combinedCounts)}</div>
-          <div class="card-sub">${lang === "hi" ? "जन्मतिथि और नाम के अंकों का कुल योग — वह संयुक्त ऊर्जा जो आप दुनिया के सामने पेश करते हैं।" : lang === "gu" ? "જન્મ તારીખ અને નામના અંકોનો કુલ સરવાળો — તે સંયુક્ત ઊર્જા જે તમે દુનિયા સમક્ષ પ્રસ્તુત કરો છો." : "Birth digits and name values together — the blended energy you project into the world."}</div>
+          <div class="card-title">${copy.combinedGridTitle}</div>
+          <div class="vedic-grid" role="img" aria-label="Combined Vedic Numerology Grid">${renderVedicGridCells(p.combinedCounts)}</div>
+          <div class="card-sub">${copy.combinedGridDesc}</div>
         </div>
       </div>
-      ${p.missing.length ? `<div class="card"><div class="card-title">${lang === "hi" ? "अनुपस्थित अंक — त्वरित संतुलन उपाय" : lang === "gu" ? "ખૂટતા અંકો — સરળ સંતુલન ઉપાયો" : "Missing Numbers — Quick Balancers"}</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">${lang === "hi" ? "पूर्ण ग्रिड" : lang === "gu" ? "સંપૂર્ણ ગ્રીડ" : "Complete grid"}</span> ${lang === "hi" ? "सभी नौ अंक मौजूद हैं — यह एक दुर्लभ और संतुलित चार्ट है। साप्ताहिक दिनचर्या से ग्रहों की ऊर्जा बनाए रखें।" : lang === "gu" ? "બધા જ નવ અંકો હાજર છે — આ એક દુર્લભ અને સંતુલિત ચાર્ટ છે. સાપ્તાહિક નિયમોથી ગ્રહોની ઊર્જા જાળવી રાખો." : "All nine numbers are present — a rare, well-balanced chart. Maintain your planets with the weekly rhythm in your Priority Plan."}</div></div>`}
-      ${p.repeated.length ? `<div class="rsection-desc">${lang === "hi" ? `३+ बार दोहराए गए अंक: <strong>${p.repeated.join(", ")}</strong>` : lang === "gu" ? `૩+ વખત પુનરાવર્તિત અંકો: <strong>${p.repeated.join(", ")}</strong>` : `Repeated 3+ times: <strong>${p.repeated.join(", ")}</strong>`}</div>${renderExcessEnergyCard(p)}` : ""}
+      ${p.missing.length ? `<div class="card"><div class="card-title">${copy.missingTitle}</div><div class="kit">${missingFixes}</div></div>` : `<div class="card"><div class="kit-value"><span class="badge good">${copy.completeTitle}</span> ${copy.completeText}</div></div>`}
+      ${p.repeated.length ? `<div class="rsection-desc">${copy.repeatText} <strong>${p.repeated.join(", ")}</strong></div>${renderExcessEnergyCard(p)}` : ""}
     </section>`;
   }
 
@@ -2689,15 +2876,15 @@
     const weakSection = p.missing.length
       ? `<section class="rsection" id="remedy-section">
           <h2 class="rsection-title"><span class="idx">${SECTION.weak}</span>${t("secWeak", "Weak Planet Remedy Kits")}</h2>
-          <p class="rsection-desc">${lang === "hi" ? "लो-शू ग्रिड में अनुपस्थित ग्रहों के पूर्ण उपाय किट (मूलांक व भाग्यांक के ग्रह पहले से सहयोगी हैं)।" : lang === "gu" ? "લો-શુ ગ્રીડમાં ખૂટતા ગ્રહોના સંપૂર્ણ ઉપાય કિટ (મૂળાંક અને ભાગ્યાંકના ગ્રહો પહેલેથી સહયોગી છે)." : `Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.`}</p>
+          <p class="rsection-desc">${lang === "hi" ? "वैदिक जन्म-ग्रिड में अनुपस्थित ग्रहों के पूर्ण उपाय किट (मूलांक व भाग्यांक के ग्रह पहले से सहयोगी हैं)।" : lang === "gu" ? "વૈદિક જન્મ-ગ્રિડમાં ખૂટતા ગ્રહોના સંપૂર્ણ ઉપાય કિટ (મૂળાંક અને ભાગ્યાંકના ગ્રહો પહેલેથી સહયોગી છે)." : `Full remedy kits for the planets missing from your grid${weakNums.length !== p.missing.length ? " (your Driver/Conductor planets are inherently supported)" : ""}.`}</p>
           <div class="card-grid two">${p.missing.slice(0, 4).map((n) => kitCard(n)).join("")}</div>
-          ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.loshu}.</p>` : ""}
+          ${p.missing.length > 4 ? `<p class="rsection-desc">+ ${p.missing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.grid}.</p>` : ""}
         </section>` : "";
 
     const z = db.zodiac[p.zodiac] || {};
     const zodiacSection = `<section class="rsection" id="vedic-section">
       <h2 class="rsection-title"><span class="idx">${SECTION.zodiac}</span>${t("secZodiac", "Your Vedic Zodiac Power Kit — {sign}").replace("{sign}", esc(p.zodiac))}</h2>
-      <p class="rsection-desc">This is your <strong>Vedic Sun Sign (Surya Rashi)</strong> — the sidereal / Nirayana position using the <strong>Lahiri ayanamsa</strong> (the fixed sky sits ~24° behind the Western tropical zodiac due to precession). Your date of birth alone is enough to compute it, and it stays the primary Vedic reference in this report. Western tropical reference: <strong>${esc(p.zodiacTropical)}</strong> ${p.zodiac !== p.zodiacTropical ? `(your tropical Sun would fall in ${esc(p.zodiacTropical)} — the sidereal sign is usually the one before it; we always follow the Vedic / Lahiri position).` : "(in this case the two systems agree)."} Numerology (Driver, Conductor, Lo Shu Grid) remains the engine of this report — the sign layer tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
+      <p class="rsection-desc">This is your <strong>Vedic Sun Sign (Surya Rashi)</strong> — the sidereal / Nirayana position using the <strong>Lahiri ayanamsa</strong> (the fixed sky sits ~24° behind the Western tropical zodiac due to precession). Your date of birth alone is enough to compute it, and it stays the primary Vedic reference in this report. Western tropical reference: <strong>${esc(p.zodiacTropical)}</strong> ${p.zodiac !== p.zodiacTropical ? `(your tropical Sun would fall in ${esc(p.zodiacTropical)} — the sidereal sign is usually the one before it; we always follow the Vedic / Lahiri position).` : "(in this case the two systems agree)."} Numerology (Driver, Conductor, Vedic Numerology Grid) remains the engine of this report — the sign layer tunes which crystals, intentions and affirmations resonate most strongly with you.</p>
       <div class="card">
         <div class="goal-head">
           <div class="card-title">${esc(p.zodiac)} — ${esc(z.element)} sign, ruled by ${esc(db.numbers[z.ruler].planet)}</div>
@@ -2731,7 +2918,7 @@
         ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Loshu grid:"}</div>
+            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Vedic birth grid:"}</div>
                ${spellingTableHtml(nameSug.variants)}
                <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.missing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
@@ -2740,7 +2927,7 @@
                  <div class="card-title">${lang === "hi" ? "वैकल्पिक वृद्धि (Optional Enhancement)" : lang === "gu" ? "વૈકલ્પિક ઉન્નતિ (Optional Enhancement)" : "Optional Enhancement"}</div>
                  <span class="badge info">${lang === "hi" ? "केवल वैकल्पिक — कोई बदलाव आवश्यक नहीं" : lang === "gu" ? "માત્ર વૈકલ્પિક — કોઈ ફેરફાર જરૂરી નથી" : "Optional only — no change required"}</span>
                </div>
-               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो-शू ग्रिड में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો-શુ ગ્રીડમાં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess.`}</div>
+               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके वैदिक जन्म-ग्रिड में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા વૈદિક જન્મ-ગ્રિડમાં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Vedic birth grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess.`}</div>
                ${spellingTableHtml(nameSug.optional.variants)}
                <div class="card-sub">${lang === "hi" ? "वैकल्पिक: यदि चाहें तो नई स्पेलिंग को ४० दिनों तक रोज २१ बार लिखें और पहले गैर-कानूनी प्रोफाइल पर उपयोग करें — कोई कानूनी बदलाव आवश्यक नहीं।" : lang === "gu" ? "વૈકલ્પિક: જો ઇચ્છો તો નવી સ્પેલિંગ ૪૦ દિવસ સુધી રોજ ૨૧ વખત લખો અને પહેલાં બિન-કાનૂની પ્રોફાઇલ પર વાપરો — કોઈ કાનૂની ફેરફાર જરૂરી નથી." : `Optional: if you wish to activate it, write the new spelling 21 times daily for 40 days and use it on non-legal profiles first — no legal change is required.`}</div>
              </div>` : ""}`}
@@ -3035,7 +3222,7 @@
         ${stackCard}
         ${ladderCard}
         ${eventsCard}
-        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो में हम कारक ग्रह की आपके मूलांक-भाग्यांक से मित्रता और ग्रिड में उपस्थिति भी जोड़ते हैं — इसलिए यही विंडो हर व्यक्ति के लिए अलग शक्ति रखती है।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડોમાં અમે કારક ગ્રહની તમારા મૂળાંક-ભાગ્યાંક સાથેની મિત્રતા અને ગ્રીડમાં હાજરી પણ ઉમેરીએ છીએ — તેથી એક જ વિન્ડો દરેક વ્યક્તિ માટે અલગ શક્તિ ધરાવે છે." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. For event windows we additionally weigh the significator's friendship with your Driver/Conductor and its presence in your Loshu grid — which is why the same window carries different strength for different people." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो में हम कारक ग्रह की आपके मूलांक-भाग्यांक से मित्रता और ग्रिड में उपस्थिति भी जोड़ते हैं — इसलिए यही विंडो हर व्यक्ति के लिए अलग शक्ति रखती है।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડોમાં અમે કારક ગ્રહની તમારા મૂળાંક-ભાગ્યાંક સાથેની મિત્રતા અને ગ્રીડમાં હાજરી પણ ઉમેરીએ છીએ — તેથી એક જ વિન્ડો દરેક વ્યક્તિ માટે અલગ શક્તિ ધરાવે છે." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. For event windows we additionally weigh the significator's friendship with your Driver/Conductor and its presence in your Vedic birth grid — which is why the same window carries different strength for different people." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
       </section>`;
     })();
 
@@ -3329,7 +3516,7 @@
         <nav class="report-nav" aria-label="Quick report navigation">
           <a href="#summary-section">${t("navSummary", "Summary")}</a>
           <a href="#core-profile">${t("navProfile", "Profile")}</a>
-          <a href="#loshu-section">${t("navLoshu", "Loshu Grid")}</a>
+          <a href="#vedic-grid-section">${t("navVedicGrid", "Vedic Grid")}</a>
           <a href="#vedic-section">${t("navVedic", "Vedic Sign")}</a>
           <a href="#timing-section">${t("navTiming", "Timing")}</a>
           <a href="#dasha-section">${t("navDasha", "Dasha")}</a>
@@ -3363,7 +3550,7 @@
         ${deityCard(p)}
       </section>
       ${traitsSection}
-      ${renderLoshu(p)}
+      ${renderVedicGrid(p)}
       ${weakSection}
       ${zodiacSection}
       ${nameSection}
@@ -3666,11 +3853,12 @@
 
   /* expose for smoke tests and external control */
   window.__NV = {
-    computeProfile, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
+    computeProfile, generateVedicGrid, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, relation, chaldeanValue, validatePack,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
-    renderReport, showReport, showIntake, getActiveDB
+    renderVedicGrid, renderReport, showReport, showIntake, getActiveDB,
+    vedicGridLayout: VEDIC_GRID_LAYOUT.map((row) => row.slice())
   };
 })();

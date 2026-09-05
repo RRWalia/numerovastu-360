@@ -548,13 +548,13 @@ body {
 .badge.bad  { background: var(--light-red-bg); color: #c92a36; }
 .badge.info { background: var(--kimi-blue-10); color: #0f63c9; }
 
-/* Loshu grid */
-.loshu-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.loshu-grid {
+/* Vedic Numerology Grid / Ank Kundali */
+.vedic-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.vedic-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
   width: 100%; max-width: 300px; flex: none;
 }
-.loshu-cell {
+.vedic-cell {
   aspect-ratio: 1;
   border-radius: var(--r-md);
   background: var(--bg-primary);
@@ -563,19 +563,19 @@ body {
   transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease;
   position: relative;
 }
-.loshu-cell .digits { font-size: 20px; font-weight: 600; line-height: 1; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
-.loshu-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
-.loshu-cell.present { background: var(--light-green-bg); border-color: transparent; }
-.loshu-cell.present.multi { background: var(--light-yellow-bg); }
-.loshu-cell.missing { background: var(--bg-primary); }
-.loshu-cell.missing .digits { color: var(--label-quaternary); }
-.loshu-cell.missing::after {
-  content: "missing"; position: absolute; bottom: 6px;
+.vedic-cell .digits { font-size: 20px; font-weight: 600; line-height: 1; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+.vedic-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
+.vedic-cell.present { background: var(--light-green-bg); border-color: transparent; }
+.vedic-cell.present.multi { background: var(--light-yellow-bg); }
+.vedic-cell.missing { background: var(--bg-primary); }
+.vedic-cell.missing .digits { color: var(--label-quaternary); }
+.vedic-cell.missing::after {
+  content: attr(data-missing-label); position: absolute; bottom: 6px;
   font-size: 10px; line-height: 14px; color: var(--danger); font-weight: 500;
 }
-.loshu-cell:hover { transform: scale(1.02); }
-.loshu-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--label-secondary); }
-.loshu-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.vedic-cell:hover { transform: scale(1.02); }
+.vedic-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--label-secondary); }
+.vedic-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .dot { width: 10px; height: 10px; border-radius: var(--r-xxs); display: inline-block; }
 .dot.g { background: var(--light-green-bg); border: 1px solid rgba(22,196,86,.35); }
 .dot.y { background: var(--light-yellow-bg); border: 1px solid rgba(200,160,0,.35); }
@@ -613,6 +613,10 @@ body {
 .rtable tr:last-child td { border-bottom: none; }
 .rtable tr.hl-row td { background: var(--light-green-bg); }
 .table-scroll { overflow-x: auto; border: 0.5px solid var(--separator); border-radius: var(--r-lg); background: var(--bg-primary); }
+.vedic-calculation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
+.vedic-formula { margin-top: 4px; font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 21px; color: var(--label-secondary); }
+.vedic-formula strong { color: var(--label-primary); }
+.vedic-role-line { font-size: 12px; line-height: 18px; }
 
 /* Goal plan */
 .goal-block { display: flex; flex-direction: column; gap: 12px; }
@@ -685,7 +689,7 @@ body {
 .tier-body { min-width: 0; }
 .tier-body strong { color: var(--label-primary); }
 
-/* Cross-system harmony note (zodiac ruler vs Lo Shu grid) — warm gold accent */
+/* Cross-system harmony note (zodiac ruler vs Vedic birth grid) — warm gold accent */
 .harmony-note {
   margin-top: 4px; padding: 12px 14px;
   background: var(--light-yellow-bg); border-left: 3px solid var(--amber);
@@ -862,8 +866,8 @@ body {
   .status-row .btn, .engagement-item .btn, .mini-form .btn { width: 100%; }
   .field-row { flex-direction: column; gap: 16px; }
   .form-block { padding: 16px; }
-  .loshu-wrap { flex-direction: column; }
-  .loshu-grid { max-width: 100%; }
+  .vedic-grid-wrap { flex-direction: column; }
+  .vedic-grid { max-width: 100%; }
   .adopt-release { grid-template-columns: 1fr; }
   .summary-shell { padding: 18px; border-radius: 18px; }
   .summary-title { font-size: 22px; line-height: 31px; }
@@ -985,7 +989,7 @@ body {
   .summary-label { color: #666; }
   .summary-step { background: #eee; color: #111; }
   .summary-shell strong, .summary-actions strong, .summary-actions .mantra { color: #111; }
-  .card, .priority-item, .table-scroll, .loshu-cell, .phase-card { border: 1px solid #ddd; }
+  .card, .priority-item, .table-scroll, .vedic-cell, .phase-card { border: 1px solid #ddd; }
   .ritual-card { background: #fff; }
   .phase-badge { background: #eee; color: #111; }
   .cadence-daily, .cadence-weekly, .cadence-once { background: #eee; color: #111; }

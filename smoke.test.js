@@ -55,7 +55,7 @@ const checks = [
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
   ["app version badge", $("#appBadge").textContent === "App v2.7.0 · Meeus engine"],
   ["build badge", $("#buildBadge").textContent === "Build 2026-09-05"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.6.0")],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.7.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -68,15 +68,16 @@ const checks = [
   ["green wording", report.includes("Green cells are present")],
   ["driver = 2", report.includes('num-value">2<')],
   ["conductor = 8", report.includes('num-value">8<')],
-  ["loshu grid rendered (3 grids × 9)", (report.match(/loshu-cell/g) || []).length === 27],
+  ["Vedic grid rendered (3 grids × 9)", (report.match(/vedic-cell/g) || []).length === 27],
   ["core nature section", report.includes("Core Nature") && report.includes("Two numbers shape your nature")],
   ["strengths & shadows", report.includes("Amplify These") && report.includes("Watch These")],
   ["adopt & release", report.includes("Adopt") && report.includes("Release")],
   ["how-we-judge notes", (report.match(/How we judge this/g) || []).length >= 2],
-  ["8 plane cards", (report.match(/card plane-card/g) || []).length === 8],
-  ["plane badges", report.includes("Active") || report.includes("Partial") || report.includes("Weak")],
-  ["golden & silver rajyoga", report.includes("Golden Rajyoga") && report.includes("Silver Rajyoga")],
-  ["plane chips", (report.match(/plane-chip/g) || []).length >= 24],
+  ["three Vedic horizontal plane cards", (report.match(/vedic-plane-card/g) || []).length === 3],
+  ["Vedic plane names and elements", report.includes("Practical Plane") && report.includes("Materialistic Plane") && report.includes("Emotional Plane") && report.includes("Fire") && report.includes("Air") && report.includes("Water")],
+  ["Vedic layout order", [...report.matchAll(/data-grid-number="(\d)"/g)].slice(0, 9).map((m) => m[1]).join(",") === "3,1,9,6,7,5,2,8,4"],
+  ["Vedic plane chips", (report.match(/class="plane-chip /g) || []).length === 9],
+  ["transparent Vedic filtering rules", report.includes("Vedic plotting rules") && report.includes("Only the final two year digits are plotted")],
   ["missing numbers section", report.includes("Missing Numbers")],
   ["name section", report.includes("Name Analysis")],
   ["mobile section", report.includes("Mobile Number Vibration")],
@@ -128,19 +129,16 @@ const checks = [
   ["report nav includes plan", report.includes(">40-Day Plan</a>")],
   ["smartwatch caution", report.includes("Rahu (4) energy")],
   ["no undefined leaks", !report.includes("undefined")],
-  ["excess energy card title", report.includes("Excess Energy") && report.includes("Channel It")],
-  ["excess energy repeated number rendered", report.includes("repeated 3×") && report.includes("Moon (Chandra)")],
-  ["excess energy overshoot + channel labels", report.includes("When it overshoots:") && report.includes("Channel it:")],
-  ["excess energy guidance (no more fuel)", report.includes("give it direction, not more fuel")],
+  ["date de-duplication prevents a phantom excess reading", !report.includes("Excess Energy")],
   ["ayurvedic dosha card renders", report.includes("Ayurvedic Dosha Layer") && report.includes('id="dosha-card"')],
   ["dosha blend from Driver + Conductor", report.includes("Blended constitution") && report.includes("Kapha–Vata") && report.includes("Vata")],
-  ["dosha aggravation cross-ref in excess energy", report.includes("Dosha view:") && report.includes("repeated 3×")],
+  ["no dosha aggravation shown without a 3+ Vedic repetition", !report.includes("Dosha view:")],
   ["dosha-aware 40-day plan line", report.includes("Dosha-aware rhythm:") && report.includes("anchor the morning ritual")],
   ["dosha disclaimer on card", report.includes("traditional wellness guidance") && report.includes("not a substitute for professional medical advice")],
   ["deity protection card renders", report.includes("Deity Protection Layer — Your Ishta Devta") && report.includes('id="deity-card"')],
   ["deity card names both guardian deities", report.includes("Lord Shiva") && report.includes("Shri Hanuman")],
   ["deity card shows classical mantras", report.includes("Om Namah Shivaya") && report.includes("Hum Hanumante Namah")],
-  ["deity aggravation cross-ref in excess energy", report.includes("Deity view:") && report.includes("2 (Moon) → Lord Shiva")],
+  ["no deity aggravation shown without a 3+ Vedic repetition", !report.includes("Deity view:")],
   ["deity chant line in 40-day plan", report.includes("Ishta Devta chant:") && report.includes("11× in the early morning on an empty stomach")],
   ["deity disclaimer on card", report.includes("traditional spiritual guidance") && report.includes("family tradition")],
   ["no NaN leaks", !report.includes("NaN")],
@@ -149,6 +147,37 @@ const checks = [
 let fail = 0;
 window.Element.prototype.scrollIntoView = window.Element.prototype.scrollIntoView || (() => {});
 checks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Vedic Ank Kundali engine: exercise the supplied canonical example and each
+// DOB filtering rule independently of the browser rendering path.
+const vedicExample = window.__NV.generateVedicGrid(30, 6, 1986);
+const malformedVedicPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedVedicPack.db.vedicGrid.layout = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
+const compoundDayGrid = window.__NV.generateVedicGrid(25, 12, 1999);
+const zeroDayGrid = window.__NV.generateVedicGrid(10, 10, 2010);
+const repeatedVedicProfile = window.__NV.computeProfile({
+  name: "Repeat Probe", dob: "2022-02-22", mobile: "9876543210", goals: ["Money"],
+  entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
+});
+const vedicExampleProfile = window.__NV.computeProfile({
+  name: "Vedic Example", dob: "1986-06-30", mobile: "9876543210", goals: ["Money"],
+  entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
+});
+const vedicExampleReport = window.__NV.renderReport(vedicExampleProfile);
+const repeatedVedicReport = window.__NV.renderReport(repeatedVedicProfile);
+const vedicGridChecks = [
+  ["bundled Vedic knowledge pack validates and rejects a Lo Shu layout", window.__NV.validatePack(window.__NV_BUNDLED_PACK).ok && !window.__NV.validatePack(malformedVedicPack).ok],
+  ["Vedic template is 3-1-9 / 6-7-5 / 2-8-4", JSON.stringify(vedicExample.layout) === JSON.stringify([[3, 1, 9], [6, 7, 5], [2, 8, 4]]) && JSON.stringify(window.__NV.getActiveDB().vedicGrid.layout) === JSON.stringify([[3, 1, 9], [6, 7, 5], [2, 8, 4]])],
+  ["30/06/1986 Moolank and Bhagyank are 3 and 6", vedicExample.rulingNo === 3 && vedicExample.destinyNo === 6],
+  ["30/06/1986 plots exactly 3×1, 6×3 and 8×1", vedicExample.counts[3] === 1 && vedicExample.counts[6] === 3 && vedicExample.counts[8] === 1 && Object.entries(vedicExample.counts).filter(([, c]) => c).length === 3],
+  ["zeros, century and single-date duplicate are excluded", vedicExample.excluded.dayDeduplicated && vedicExample.raw.century === "19" && vedicExample.digits.join(",") === "6,8,6,3,6"],
+  ["compound dates retain their digits before Moolank", !compoundDayGrid.excluded.dayDeduplicated && compoundDayGrid.sourceDigits.day.join(",") === "2,5" && compoundDayGrid.rulingNo === 7],
+  ["10/10/2010 de-duplicates the one non-zero day digit", zeroDayGrid.excluded.dayDeduplicated && zeroDayGrid.counts[1] === 3 && zeroDayGrid.counts[5] === 1],
+  ["profile uses Vedic counts rather than raw full-year digits", vedicExampleProfile.counts[3] === 1 && vedicExampleProfile.counts[6] === 3 && vedicExampleProfile.counts[8] === 1 && vedicExampleProfile.counts[1] === 0 && vedicExampleProfile.vedicGrid.digits.join(",") === "6,8,6,3,6"],
+  ["example report makes calculations and filtering auditable", vedicExampleReport.includes("3 + 0 = 3 → <strong>3</strong>") && vedicExampleReport.includes("3 + 0 + 0 + 6 + 1 + 9 + 8 + 6 = 33 → <strong>6</strong>") && vedicExampleReport.includes("century digits 19 are excluded")],
+  ["3+ repetition still triggers excess, dosha and deity guidance", repeatedVedicProfile.counts[2] === 5 && repeatedVedicProfile.repeated.includes(2) && repeatedVedicProfile.doshaProfile.aggravated.some((a) => a.n === 2 && a.count === 5) && repeatedVedicProfile.deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count === 5) && repeatedVedicReport.includes("Excess Energy") && repeatedVedicReport.includes("Dosha view:") && repeatedVedicReport.includes("Deity view:")]
+];
+vedicGridChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // 40-day tracker interactions: toggle, persist, reset (first profile still on screen)
 const qsa = (s) => Array.from(window.document.querySelectorAll(s));
@@ -182,9 +211,9 @@ const hindiChecks = [
   ["Hindi report hero title", rHi.includes("समाधान रिपोर्ट — Priya Sharma")],
   ["Hindi northstar summary", rHi.includes("मुख्य मार्गदर्शक सारांश") && rHi.includes("आपके पहले तीन कदम") && rHi.includes("आगे का रास्ता")],
   ["Hindi 40-day activation plan", rHi.includes("४०-दिवसीय") && rHi.includes("आपकी दैनिक मुख्य साधना") && rHi.includes("साप्ताहिक क्रम")],
-  ["Hindi Loshu grid title", rHi.includes("आपका लो-शू ग्रिड — ८ तलों का संपूर्ण विश्लेषण")],
-  ["Hindi Golden & Silver Rajyoga", rHi.includes("स्वर्ण राजयोग") && rHi.includes("रजत राजयोग")],
-  ["Hindi planet name in grid", rHi.includes("चन्द्रमा") || rHi.includes("शनि")],
+  ["Hindi Vedic grid title", rHi.includes("आपकी वैदिक अंक कुंडली — ३ तलों का विश्लेषण")],
+  ["Hindi Vedic three planes", rHi.includes("व्यावहारिक तल") && rHi.includes("भौतिक तल") && rHi.includes("भावनात्मक तल")],
+  ["Hindi Vedic template", rHi.includes("३–१–९ / ६–७–५ / २–८–४")],
   ["Hindi weak number remedy", rHi.includes("निर्बल ग्रह") || rHi.includes("कमजोर कड़ी को मजबूत करें")],
   ["Hindi watch advice", rHi.includes("घड़ी") && (rHi.includes("धातु") || rHi.includes("डायल"))],
   ["Hindi Vastu dosh", rHi.includes("वास्तु दोष")],
@@ -193,10 +222,10 @@ const hindiChecks = [
   ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
   ["Hindi dasha section", rHi.includes("दशा समय-रेखा") && rHi.includes("महादशा") && rHi.includes("अंतर्दशा") && rHi.includes("प्रत्यंतर दशा")],
   ["Hindi ayurvedic dosha card", rHi.includes("आयुर्वेदिक दोष स्तर") && rHi.includes("मिश्रित प्रकृति")],
-  ["Hindi dosha cross-ref + plan line", rHi.includes("दोष-दृष्टि") && rHi.includes("दोष-लय")],
+  ["Hindi dosha plan line", rHi.includes("दोष-लय")],
   ["Hindi dosha disclaimer", rHi.includes("पारंपरिक") && rHi.includes("पेशेवर चिकित्सा सलाह")],
   ["Hindi deity protection card", rHi.includes("देव-संरक्षण स्तर — आपका इष्ट देवता") && rHi.includes("इष्ट-देव मंत्र:")],
-  ["Hindi deity cross-ref + disclaimer", rHi.includes("देव-दृष्टि:") && rHi.includes("पारंपरिक आध्यात्मिक मार्गदर्शन") && rHi.includes("गुरु की आज्ञा")],
+  ["Hindi deity disclaimer", rHi.includes("पारंपरिक आध्यात्मिक मार्गदर्शन") && rHi.includes("गुरु की आज्ञा")],
   ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
   ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
   ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
@@ -212,9 +241,9 @@ const gujaratiChecks = [
   ["Gujarati report hero title", rGu.includes("ઉપાય રિપોર્ટ — Priya Sharma")],
   ["Gujarati northstar summary", rGu.includes("મુખ્ય માર્ગદર્શક સારાંશ") && rGu.includes("તમારા પ્રથમ ત્રણ પગલાં") && rGu.includes("આગળનો માર્ગ")],
   ["Gujarati 40-day activation plan", rGu.includes("૪૦ દિવસની") && rGu.includes("તમારી દૈનિક મુખ્ય સાધના") && rGu.includes("સાપ્તાહિક ક્રમ")],
-  ["Gujarati Loshu grid title", rGu.includes("તમારો લો-શુ ગ્રીડ — ૮ સ્તરોનું સંપૂર્ણ વિશ્લેષણ")],
-  ["Gujarati Golden & Silver Rajyoga", rGu.includes("સુવર્ણ રાજયોગ") && rGu.includes("રજત રાજયોગ")],
-  ["Gujarati planet name in grid", rGu.includes("ચંદ્ર") || rGu.includes("શનિ")],
+  ["Gujarati Vedic grid title", rGu.includes("તમારી વૈદિક અંક કુંડળી — ૩ સ્તરોનું વિશ્લેષણ")],
+  ["Gujarati Vedic three planes", rGu.includes("વ્યવહારુ સ્તર") && rGu.includes("ભૌતિક સ્તર") && rGu.includes("ભાવનાત્મક સ્તર")],
+  ["Gujarati Vedic template", rGu.includes("૩–૧–૯ / ૬–૭–૫ / ૨–૮–૪")],
   ["Gujarati weak number remedy", rGu.includes("નિર્બળ ગ્રહ") || rGu.includes("નબળી કડીને બળવાન બનાવો")],
   ["Gujarati watch advice", (rGu.includes("કાંડા ઘડિયાળ") || rGu.includes("ઘડિયાળ")) && (rGu.includes("ધાતુ") || rGu.includes("ડાયલ"))],
   ["Gujarati Vastu dosh", rGu.includes("વાસ્તુ દોષ")],
@@ -223,10 +252,10 @@ const gujaratiChecks = [
   ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],
   ["Gujarati dasha section", rGu.includes("દશા સમય-રેખા") && rGu.includes("મહાદશા") && rGu.includes("અંતર્દશા") && rGu.includes("પ્રત્યંતર દશા")],
   ["Gujarati ayurvedic dosha card", rGu.includes("આયુર્વેદિક દોષ સ્તર") && rGu.includes("મિશ્ર પ્રકૃતિ")],
-  ["Gujarati dosha cross-ref + plan line", rGu.includes("દોષ-દૃષ્ટિ") && rGu.includes("દોષ-લય")],
+  ["Gujarati dosha plan line", rGu.includes("દોષ-લય")],
   ["Gujarati dosha disclaimer", rGu.includes("પરંપરાગત") && rGu.includes("વ્યાવસાયિક તબીબી સલાહ")],
   ["Gujarati deity protection card", rGu.includes("દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા") && rGu.includes("ઈષ્ટ-દેવ મંત્ર:")],
-  ["Gujarati deity cross-ref + disclaimer", rGu.includes("દેવ-દૃષ્ટિ:") && rGu.includes("પરંપરાગત આધ્યાત્મિક માર્ગદર્શન") && rGu.includes("ગુરુની આજ્ઞા")],
+  ["Gujarati deity disclaimer", rGu.includes("પરંપરાગત આધ્યાત્મિક માર્ગદર્શન") && rGu.includes("ગુરુની આજ્ઞા")],
 ];
 gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
@@ -358,7 +387,7 @@ const doshaProfile = window.__NV.computeProfile({
 }).doshaProfile;
 const doshaProfileChecks = [
   ["doshaProfile blended from driver + conductor", doshaProfile.driverNumber === 2 && doshaProfile.conductorNumber === 8 && doshaProfile.primary === "Vata"],
-  ["doshaProfile flags repeated 3+ as aggravation", doshaProfile.aggravated.some((a) => a.n === 2 && a.count >= 3)],
+  ["doshaProfile flags Vedic repeated 3+ as aggravation", repeatedVedicProfile.doshaProfile.aggravated.some((a) => a.n === 2 && a.count === 5)],
   ["doshaProfile exposes balanced/support gaps", typeof doshaProfile.counts.pitta === "number" && Array.isArray(doshaProfile.underSupported) && Array.isArray(doshaProfile.missingDosha)],
 ];
 doshaProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -380,7 +409,7 @@ const deityProfile = window.__NV.computeProfile({
 }).deityProfile;
 const deityProfileChecks = [
   ["deityProfile pairs driver + conductor deities", deityProfile.driverNumber === 2 && deityProfile.conductorNumber === 8 && deityProfile.driverDeity.god.en === "Lord Shiva" && deityProfile.conductorDeity.god.en === "Shri Hanuman" && deityProfile.sameDeity === false],
-  ["deityProfile flags repeated 3+ with its guardian", deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count >= 3 && a.god.en === "Lord Shiva")],
+  ["deityProfile flags Vedic repeated 3+ with its guardian", repeatedVedicProfile.deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count === 5 && a.god.en === "Lord Shiva")],
   ["deityProfile exposes missing/under-supported gaps", Array.isArray(deityProfile.missingDeity) && Array.isArray(deityProfile.underSupported)],
 ];
 deityProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
@@ -619,9 +648,9 @@ $("#watchType").value = "none";
 $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
 const r4 = $("#reportRoot").innerHTML;
 const checks4 = [
-  ["8 arrow cards", (r4.match(/card arrow-card/g) || []).length === 8],
-  ["arrow names present", ["Arrow of Determination", "Arrow of Intellect", "Arrow of Spirituality", "Arrow of Prosperity", "Arrow of Planning", "Arrow of Emotions", "Arrow of Practicality", "Arrow of Activity"].every((n) => r4.includes(n))],
-  ["arrow state badges", r4.includes("Strong") || r4.includes("Partial") || r4.includes("Frustrated")],
+  ["three Vedic plane cards", (r4.match(/vedic-plane-card/g) || []).length === 3],
+  ["Vedic grid has no Lo Shu arrow analysis", !r4.includes("Arrow of Determination") && !r4.includes("Golden Rajyoga")],
+  ["Vedic plane state badges", r4.includes("Complete") || r4.includes("Partial") || r4.includes("Needs support")],
   ["yantra in remedy kits", r4.includes("Yantra") && r4.includes("Surya Yantra")],
   ["weak tier shown", r4.includes(">Weak</span>")],
   ["missing severity badge", r4.includes("Critical") || r4.includes("Echoed by")],
@@ -740,7 +769,7 @@ $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }))
 const r5 = $("#reportRoot").innerHTML;
 const checks5 = [
   ["name compound meaning shown", r5.includes("Compound Number")],
-  ["name grid & combined grid", r5.includes("Name Grid") && r5.includes("Combined Grid")],
+  ["name grid & combined Vedic grid", r5.includes("Name Energy Grid") && r5.includes("Combined Vedic Grid")],
   ["brand section rendered", r5.includes("Business / Brand Name") && r5.includes("Shree Balaji Textiles")],
   ["brand compound/master shown", r5.includes("Chaldean total")],
   ["study room analysed", r5.includes("Study Room")],

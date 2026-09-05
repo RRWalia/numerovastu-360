@@ -167,89 +167,62 @@ var DB = {
     avoid:   { 2:"Smartwatches with constant pinging; if used, set silver/white minimal watch-face, metallic strap, and Do-Not-Disturb at night", 8:"Flimsy plastic watches — weakens structure", 1:"Overly dark or blacked-out dials", 5:"Overly busy dials that scatter Mercury focus" }
   },
 
-  /* ---- Loshu grid layout (positions of numbers 1-9) ---- */
-  loshuLayout: [
-    [4, 9, 2],
-    [3, 5, 7],
-    [8, 1, 6]
-  ],
-
-  /* ---- The 8 planes of the Loshu grid, fully analysed ----
-     Each plane: zone, about (generic meaning), per-cell role
-     (short label, consequence when weak, fix), complete-text. */
-  planes: [
-    { name: "Mental Plane", zone: "Top row of the Lo Shu Grid", cells: [4, 9, 2],
-      about: "This plane describes your thinking pattern — how you plan, judge, decide, and turn an idea into a practical direction. A strong mental plane does not simply mean intelligence; it shows whether your mind naturally connects planning, confidence, and grounded judgement. A weak or missing pattern does not mean you cannot think well, but it usually means you need external structure, written planning, or better decision systems to avoid scattered or delayed choices.",
-      roles: {
-        4: { short: "Planning", label: "planning & structure", con: "deciding first and structuring later, which can create avoidable reversals", fix: "write the goal, risk, cost, and next three steps before every major choice" },
-        9: { short: "Action", label: "decisive action & confidence", con: "hesitation at the exact moment a decision is needed", fix: "practise small, quick decisions daily to rebuild decision confidence" },
-        2: { short: "Grounding", label: "grounded judgement", con: "judgements made on emotion or urgency rather than ground facts", fix: "pause before concluding and test decisions against facts and one trusted advisor" }
+  /* ---- Vedic Numerology Grid / Ank Kundali ----
+     This is intentionally not the Chinese Lo Shu magic square. The fixed
+     placement follows the Vedic planetary rulership clusters and the three
+     horizontal planes used by this report. */
+  vedicGrid: {
+    name: "Vedic Numerology Grid (Ank Kundali)",
+    layout: [
+      [3, 1, 9],
+      [6, 7, 5],
+      [2, 8, 4]
+    ],
+    planes: [
+      {
+        key: "practical",
+        name: "Practical Plane",
+        element: "Fire",
+        cells: [3, 1, 9],
+        governs: "Vision, executive drive, leadership and proactive execution.",
+        roles: {
+          3: "Guru — vision and wise direction",
+          1: "Surya — leadership and executive drive",
+          9: "Mangal — courage and proactive execution"
+        }
       },
-      complete: "Planning, confidence, and grounded judgement work together — this supports clear strategy, confident decisions, and the ability to explain your reasoning. A strong advisory and leadership mind. Guard against over-analysis; even the best mind must eventually decide." },
-
-    { name: "Emotional Plane", zone: "Middle row of the Lo Shu Grid", cells: [3, 5, 7],
-      about: "This plane describes your emotional processing — how you feel, express, absorb, regulate, and set boundaries. It is not only about being emotional; it shows whether feelings become clear communication, stable self-understanding, and mature limits. A weaker pattern can still give warmth or sensitivity, but the person may need more deliberate reflection before reacting, sharing, or closing themselves off.",
-      roles: {
-        3: { short: "Expression", label: "emotional expression & growth", con: "appearing composed and controlled outside while feelings stay unexpressed — over time this can turn into distance or quiet resentment", fix: "create a safe method of expression — honest conversations, writing, therapy-style reflection, or creative work" },
-        5: { short: "Grounding", label: "emotional grounding", con: "emotions that swing before they settle, especially under pressure", fix: "practise centring rituals — breathwork, journaling, or time near water" },
-        7: { short: "Boundaries", label: "boundaries & refinement", con: "porous boundaries — absorbing other people's moods and problems as your own", fix: "define what you will and will not accept, and communicate it calmly and early" }
+      {
+        key: "materialistic",
+        name: "Materialistic Plane",
+        element: "Air",
+        cells: [6, 7, 5],
+        governs: "Wealth accumulation, luxury, analytical thinking, business acumen and networking.",
+        roles: {
+          6: "Shukra — wealth, luxury and value",
+          7: "Ketu — analysis, research and discernment",
+          5: "Budh — business, communication and networking"
+        }
       },
-      complete: "Feelings flow into words cleanly, you read others well, and relationships receive both warmth and mature limits. This is a strong pattern for partnerships, caregiving, public-facing work, and team harmony." },
-
-    { name: "Practical Plane", zone: "Bottom row of the Lo Shu Grid", cells: [8, 1, 6],
-      about: "This plane describes your material execution — how you handle work, money, resources, delivery, and real-world results. A strong practical plane usually supports converting ability into visible outcomes. A weaker pattern does not mean failure; it means the person may need stronger systems, partners, deadlines, distribution habits, or financial discipline so effort does not remain incomplete or unmonetised.",
-      roles: {
-        8: { short: "Resources", label: "responsibility & resource handling", con: "effort that stays incomplete or unmonetised despite hard work", fix: "build systems — budgets, checklists, deadlines — that carry work to completion" },
-        1: { short: "Ownership", label: "drive & personal ownership", con: "waiting for direction instead of owning outcomes end-to-end", fix: "take single-point ownership of one outcome at a time" },
-        6: { short: "Finish Quality", label: "quality & refinement of output", con: "rushed output that undersells your real ability", fix: "define a finish standard before starting and deliver to it" }
-      },
-      complete: "Resources, ownership, and execution quality work together — a strong pattern for business, career growth, property, operations, and money management. You naturally ask 'how will this actually work?' The area to manage is becoming too outcome-focused; do not let productivity dry out your inner life." },
-
-    { name: "Thought Plane", zone: "Left column of the Lo Shu Grid", cells: [4, 3, 8],
-      about: "This plane describes long-form thinking — how you learn, analyse, connect ideas, and build understanding over time. It is different from quick intelligence. It shows whether your thoughts naturally become structured insight, deep study, and useful strategy. When this plane is weak, the person may still be smart, but thinking often improves when it is written down, discussed with the right people, and tested against real-world outcomes.",
-      roles: {
-        4: { short: "Ideas", label: "idea generation", con: "repeating known frames instead of questioning whether the strategy itself needs change", fix: "capture ideas the moment they appear — a notes habit turns sparks into strategy" },
-        3: { short: "Learning", label: "learning & knowledge growth", con: "skill growth that plateaus because new inputs stop arriving", fix: "schedule one new input every week — a book, course, or mentor conversation" },
-        8: { short: "Depth", label: "mental endurance & depth", con: "giving up on hard problems just before the breakthrough", fix: "schedule periodic zoom-outs: review assumptions and check that effort is going in the right direction" }
-      },
-      complete: "Ideas, learning, and depth reinforce each other — you can master complex subjects and convert study into strategy. This supports advisory roles, research, teaching, and any field where understanding compounds." },
-
-    { name: "Will Plane", zone: "Middle column of the Lo Shu Grid", cells: [9, 5, 1],
-      about: "This plane describes willpower — how you push through resistance, stay steady under pressure, and adjust when circumstances change. It is not only about aggression or ambition; it shows whether your drive has stamina and flexibility. When this plane is weak, motivation may come in waves, so external accountability, public commitments, routines, and pressure-based deadlines become especially important.",
-      roles: {
-        9: { short: "Drive", label: "drive & pushing power", con: "strong intentions without force behind them when resistance appears", fix: "use physical training, sport, or competition to build healthy pushing power" },
-        5: { short: "Steadiness", label: "steadiness & adaptability", con: "motivation that wavers whenever conditions change", fix: "anchor yourself with fixed routines that hold you steady through change" },
-        1: { short: "Direction", label: "self-belief & direction", con: "drive that depends on others' approval or borrowed goals", fix: "write your own direction down — self-chosen goals feed this plane" }
-      },
-      complete: "You can start with force, continue with patience, and change tactics when the situation demands — useful for entrepreneurship, sports, leadership, crisis work, and long projects. Strong will can also push past healthy limits; pair ambition with recovery and honest review points." },
-
-    { name: "Action Plane", zone: "Right column of the Lo Shu Grid", cells: [2, 7, 6],
-      about: "This plane describes follow-through — how you take intention and convert it into disciplined, finished action. It shows patience, boundaries, standards, and the ability to complete work cleanly. A weaker action plane can create delay, overthinking, poor finish, or difficulty enforcing limits, even when the person has good ideas or strong desire. The solution is usually clearer rules, smaller deadlines, and a defined finish standard.",
-      roles: {
-        2: { short: "Patience", label: "patience & grounding in action", con: "over-editing, checking, or holding back instead of completing — hidden perfection does not produce results", fix: "work to practical deadlines and minimum-viable standards — decide what is good enough for the current stage" },
-        7: { short: "Standards", label: "standards & limits", con: "unclear limits, so work expands endlessly past its useful size", fix: "set clear rules for when to stop refining and ship" },
-        6: { short: "Completion", label: "finish quality", con: "many things started, few cleanly finished", fix: "define 'done' before you start, and close tasks fully before opening new ones" }
-      },
-      complete: "Intentions reliably become finished work — patience, standards, and finish quality combine into a reputation for clean delivery. This supports operations, craftsmanship, and any role where the last 10% decides the value." },
-
-    { name: "Golden Rajyoga", zone: "Diagonal of the Lo Shu Grid (4 – 5 – 6)", cells: [4, 5, 6],
-      about: "This diagonal is read as an opportunity-to-output pattern. It shows whether a person can notice openings, stabilise them into a workable structure, and refine them into something valuable. It is useful for business, career growth, freelancing, branding, sales, and opportunity conversion. It does not guarantee wealth by itself; it shows the natural support for converting chances into organised and presentable results.",
-      roles: {
-        4: { short: "Opportunity", label: "spotting fresh opportunities", con: "comfort with known formats while faster-moving openings pass unnoticed", fix: "scan your market weekly — competitors, customer behaviour, new platforms, changing prices" },
-        5: { short: "Structure", label: "structuring what you find", con: "opportunities that stay informal and leak value before they crystallise", fix: "give every opportunity a structure: owner, timeline, and budget" },
-        6: { short: "Refinement", label: "refining results into value", con: "results delivered plain when they could be packaged premium", fix: "polish before you present — packaging converts work into value" }
-      },
-      complete: "Opportunity spotting, structure, and refinement connect into a strong wealth-conversion pattern — business, sales, branding, and career growth all benefit directly. Once you identify the right opening, your ability to structure and refine converts it well." },
-
-    { name: "Silver Rajyoga", zone: "Diagonal of the Lo Shu Grid (8 – 5 – 2)", cells: [8, 5, 2],
-      about: "This diagonal is read as a material-stability and asset-consolidation pattern. It is connected with property, savings, resource management, patience, and grounded progress. It does not mean instant money. It shows whether the person naturally understands holding, managing, protecting, and slowly building material security. When weak, property or asset growth may still happen, but it usually needs deliberate planning and disciplined external systems.",
-      roles: {
-        8: { short: "Assets", label: "asset & resource structure", con: "assets held without structure, documentation, or protection", fix: "formalise your assets — documentation, insurance, and clear ownership" },
-        5: { short: "Management", label: "balanced management", con: "money and resources handled reactively instead of on a rhythm", fix: "review money and resources on a fixed monthly rhythm" },
-        2: { short: "Patience", label: "patience & continuity", con: "becoming too controlling or pressure-driven when dealing with assets", fix: "let assets mature — add patience, relationship sensitivity, and gradual planning instead of pressure" }
-      },
-      complete: "Asset sense, balanced management, and patience combine into steady material security — property, savings, and long-term holdings grow well under your hand. This is the classic wealth-consolidation diagonal." }
-  ],
+      {
+        key: "emotional",
+        name: "Emotional Plane",
+        element: "Water",
+        cells: [2, 8, 4],
+        governs: "Intuition, emotional balance, perseverance, discipline and systematic planning.",
+        roles: {
+          2: "Chandra — intuition and emotional balance",
+          8: "Shani — perseverance and discipline",
+          4: "Rahu — adaptive, systematic planning"
+        }
+      }
+    ],
+    filtering: {
+      zeros: "Remove every 0 before plotting; zero has no independent planetary cell.",
+      century: "Plot only the final two digits of the birth year; century digits are generational rather than natal influences.",
+      dateDeduplication: "When the non-zero birth-date digit already equals the Ruling Number (1–9, 10, 20 or 30), plot it once as the Ruling Number rather than twice.",
+      calculations: "Always add the Ruling Number (Moolank) and Destiny Number (Bhagyank) after filtering the DOB digits."
+    }
+  },
 
   /* ---- Core nature per Mulank: traits, strengths & shadows ----
      Mulank = visible day-to-day personality; the same signature set
@@ -330,38 +303,6 @@ var DB = {
     4: "Rahu Yantra", 5: "Budh Yantra", 6: "Shukra Yantra",
     7: "Ketu Yantra", 8: "Shani Yantra", 9: "Mangal Yantra"
   },
-
-  /* ---- The 8 Arrows of the Loshu grid (Chaldean "arrow" framing) ----
-     Same 8 lines as the planes above, but under the classical "arrow" names
-     practitioners and clients search for. When all three numbers of an arrow
-     are present the arrow is "strong"; when they are all missing the arrow is
-     "frustrated/confused" (a recognised weakness in classical practice). */
-  arrows: [
-    { name: "Arrow of Planning", line: [4, 9, 2], axis: "Top row (4-9-2)",
-      present: "You think before you act — you plan, weigh options and move with a clear strategy. Strong for business, study and any long project.",
-      missing: "Arrow of Confusion — decisions come impulsively or too late. Use written plans, cost/benefit checks and a decision checklist before acting." },
-    { name: "Arrow of Emotions", line: [3, 5, 7], axis: "Middle row (3-5-7)",
-      present: "You feel deeply and express it well — warmth, empathy and intuition flow naturally, making you naturally good with people.",
-      missing: "Arrow of Emotional Restlessness — feelings get bottled up or swing under pressure. Practise daily expression, journaling and centring rituals." },
-    { name: "Arrow of Practicality", line: [8, 1, 6], axis: "Bottom row (8-1-6)",
-      present: "You convert ideas into real results — money, work and delivery come naturally. Strong material, career and business instincts.",
-      missing: "Arrow of Frustration — effort does not convert into results. Install systems: budgets, deadlines and checklists that carry work to completion." },
-    { name: "Arrow of Intellect", line: [4, 3, 8], axis: "Left column (4-3-8)",
-      present: "A strong analytical mind — you learn deeply, connect ideas and master complex subjects over time.",
-      missing: "Arrow of Shallow Thinking — learning plateaus and known patterns repeat. Feed the mind weekly with books, courses or a mentor conversation." },
-    { name: "Arrow of Determination", line: [9, 5, 1], axis: "Middle column (1-5-9)",
-      present: "You push through resistance with steady will and self-belief — a natural leader who finishes what they start.",
-      missing: "Arrow of Wavering Will — motivation comes in waves. Anchor yourself with fixed routines, public commitments and physical training." },
-    { name: "Arrow of Activity", line: [2, 7, 6], axis: "Right column (2-7-6)",
-      present: "You finish what you start — patience, standards and follow-through combine into reliable, clean delivery.",
-      missing: "Arrow of Unfinished Work — many things started, few completed. Define 'done' before you begin and close tasks fully." },
-    { name: "Arrow of Prosperity", line: [4, 5, 6], axis: "Diagonal (4-5-6)",
-      present: "Opportunity meets structure and polish — you convert chances into wealth, branding and recognition.",
-      missing: "Openings slip past or leak value. Scan your market weekly and give every opportunity an owner, timeline and budget." },
-    { name: "Arrow of Spirituality", line: [8, 5, 2], axis: "Diagonal (8-5-2)",
-      present: "Inner calm and patience — you hold steady, build assets slowly and stay grounded under stress.",
-      missing: "Restlessness and money-pressure. Let assets mature; add patience and a fixed monthly review of money and resources." }
-  ],
 
   /* ---- Kua number (Feng Shui personal directions) ----
      NOTE: this is a Chinese / Feng Shui system, NOT classical Vastu Shastra.
@@ -1236,7 +1177,7 @@ var DB = {
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 1,
-  packVersion: "2.6.0",
+  packVersion: "2.7.0",
   generatedAt: "2026-09-05T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
