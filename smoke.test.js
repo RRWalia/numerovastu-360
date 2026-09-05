@@ -73,7 +73,7 @@ check("Lo Shu restores eight familiar planes and arrows", $$(".loshu-plane-card"
 
 /* ---- Vedic advanced comparison: one birth grid, collapsed, no remedy list ---- */
 const vedicMarkup = mount(window.__NV.renderVedicBirthComparison(mappingProfile));
-check("advanced Vedic comparison is collapsed by default", !!$("details.advanced-vedic-comparison", vedicMarkup) && !$("details.advanced-vedic-comparison", vedicMarkup).open);
+check("advanced Vedic comparison is expanded so the birth grid prints in the PDF", !!$("details.advanced-vedic-comparison", vedicMarkup) && $("details.advanced-vedic-comparison", vedicMarkup).open);
 check("advanced Vedic comparison renders only its Birth Grid", $$(".vedic-grid", vedicMarkup).length === 1 && $$(".vedic-cell", vedicMarkup).length === 9 && !vedicMarkup.textContent.includes("Vedic Name Grid") && !vedicMarkup.textContent.includes("Combined Vedic Grid"));
 check("advanced Vedic cells keep Vedic coordinates and strength framing", $$(".vedic-cell", vedicMarkup).map((cell) => cell.dataset.gridNumber).join(",") === "3,1,9,6,7,5,2,8,4" && vedicMarkup.textContent.includes("Planetary Strength Indicators") && vedicMarkup.textContent.includes("not a missing-number remedy obligation"));
 
@@ -104,7 +104,10 @@ const expectedZone = window.__NV.getActiveDB().dasha[activeLord].zone.en;
 check("Ayurvedic constitution derives only from Driver/Conductor", same(authorityProfile.doshaProfile, alteredGridProfile.doshaProfile) && !("aggravated" in authorityProfile.doshaProfile) && !("underSupported" in authorityProfile.doshaProfile));
 check("guardian deities derive only from Driver/Conductor", same(authorityProfile.deityProfile, alteredGridProfile.deityProfile) && !("repeatedDeity" in authorityProfile.deityProfile) && !("underSupported" in authorityProfile.deityProfile));
 check("Lo Shu alone chooses 40-day practice, lifestyle and remedial crystals", basePractice.targetN !== alteredPractice.targetN && !same(basePractice.daily, alteredPractice.daily) && same(basePractice.powerDays, alteredPractice.powerDays) && baseCrystals.remedyNumbers.join(",") === authorityProfile.loShuMissing.join(",") && alteredCrystals.remedyNumbers.length === 0 && alteredCrystals.picks.length === 0);
-check("Dasha timing and event windows ignore both grid data sets", same(baseDasha.current, alteredDasha.current) && same(baseDasha.events.map((event) => event.future), alteredDasha.events.map((event) => event.future)));
+const stripGrade = (events) => events.map((event) => event.future.map((w) => Object.assign({}, w, { conversion: null })));
+const gradesOf = (events) => events.flatMap((event) => event.future.map((w) => w.conversion.grade));
+check("Dasha timing and event windows ignore both grid data sets", same(baseDasha.current, alteredDasha.current) && same(baseDasha.upcoming, alteredDasha.upcoming) && same(stripGrade(baseDasha.events), stripGrade(alteredDasha.events)));
+check("natal strength grades conversion probability without deleting windows", gradesOf(alteredDasha.events).every((g) => g === "conditional") && gradesOf(baseDasha.events).some((g) => g !== "conditional") && gradesOf(baseDasha.events).length === gradesOf(alteredDasha.events).length);
 check("active Vastu Zone follows the active Dasha lord", authorityReport.includes('data-dasha-vastu-zone="active"') && authorityReport.includes(`its sector is the <strong>${expectedZone}</strong>`) && authorityReport.includes("Active Vastu Zone: Prioritise this sector now"));
 check("Vastu context visibly belongs to Timeline and does not set active zone", !!$("#timeline-panel #vastu-section", authorityReportDom) && !$("#foundation-panel #vastu-section", authorityReportDom) && $("#vastu-section", authorityReportDom).getAttribute("data-authority") === "home-vastu-context" && $("#vastu-section", authorityReportDom).textContent.includes("selected only from the current Dasha lords"));
 check("rendered authority walls are explicit", authorityReport.includes('data-remedy-authority="lo-shu"') && authorityReport.includes('data-authority="driver-conductor"') && authorityReport.includes('id="dasha-section" data-authority="dasha"') && authorityReport.includes("Kua number is a Feng Shui (Chinese) system") && authorityReport.includes("They do not choose or change Lo Shu remedy targets"));
@@ -112,6 +115,44 @@ check("compatibility reflection is relational rather than a second remedy plan",
 check("aligned pairs still receive strengths, watchfulness and a communication cue", !!alignedCompatibilitySection && alignedCompatibilitySection.textContent.includes("Mutual strengths") && alignedCompatibilitySection.textContent.includes("Potential blind spots") && alignedCompatibilitySection.textContent.includes("Communication cue:") && $$(".compatibility-cue", alignedCompatibilitySection).length === 1 && $$(".kit-card", alignedCompatibilitySection).length === 0 && $$(".kit-row", alignedCompatibilitySection).every((row) => row.textContent.trim().length > 0));
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
 check("40-day practice excludes static Vastu, dosha and deity prescriptions", !$("#plan-section", authorityReportDom).textContent.includes("Vastu correction") && !$("#plan-section", authorityReportDom).textContent.includes("Dosha-aware rhythm") && !$("#plan-section", authorityReportDom).textContent.includes("Ishta Devta chant"));
+
+/* ---- PR #20 follow-up: formula display, MD×AD badge, plane readings, roadmap ---- */
+const waliaProfile = profile({ name: "Randeep Walia", dob: "1978-01-31", goals: ["Career"], gender: "male", birthTime: "", birthPlace: "", partnerName: "", partnerDob: "" });
+const waliaLoShu = mount(window.__NV.renderLoShuGrid(waliaProfile));
+const waliaFormulas = $$(".root-formula", waliaLoShu);
+const conductorFormula = waliaFormulas[1];
+const conductorDigits = $$(".root-digit", conductorFormula).map((el) => el.textContent).join("");
+check("31/01/1978 Conductor formula prints every DOB digit, including the leading 3 and the 0", waliaProfile.driver === 4 && waliaProfile.conductor === 3 && conductorDigits === "31011978" && conductorFormula.dataset.digitSum === "30" && conductorFormula.dataset.root === "3" && $(".root-total", conductorFormula).textContent === "30" && $(".root-result", conductorFormula).textContent === "3");
+check("root formulas are grouped by day / month / year and never use a monospace digit string", $$(".root-group", conductorFormula).length === 3 && $$(".root-group", waliaFormulas[0]).length === 1 && !$(".vedic-formula", waliaLoShu) && !/\$/.test(conductorFormula.textContent) && /Calendar check: 31 \+ 1 \+ 1978 = 2010 → 3/.test(waliaLoShu.textContent));
+check("reduction chain keeps every intermediate step", same(window.__NV.reductionChain(30), [30, 3]) && same(window.__NV.reductionChain(38), [38, 11, 2]) && same(window.__NV.reductionChain(4), [4]));
+
+const waliaDasha = window.__NV.dashaTimeline(waliaProfile, fixedDate);
+const waliaReport = mount(window.__NV.renderReport(waliaProfile));
+const waliaDashaSection = $("#dasha-section", waliaReport);
+const adBadge = $('[data-stack-badge="md-ad"] .badge', waliaDashaSection);
+check("Rahu MD + Moon AD is the reference stack on 2026-09-05", waliaDasha.current.md.n === 4 && waliaDasha.current.ad.n === 2 && waliaDasha.current.pd.n === 5 && waliaDasha.current.pdDaysLeft <= 6);
+check("Antardasha badge reflects the MD × AD relationship, not Driver × AD", !!adBadge && adBadge.dataset.mdAdRelation === "enemy" && adBadge.classList.contains("bad") && /Challenging/.test(adBadge.textContent) && !/Friendly to you/.test($('[data-stack-badge="md-ad"]', waliaDashaSection).textContent) && $(".predictive-synthesis", waliaDashaSection).dataset.mdAdRelation === "enemy");
+check("Dual-Zone pairing is derived from the active lords rather than hard-coded", $("[data-dual-zone]", waliaDashaSection).dataset.dualZone === "2-4" && /North-West/.test($("[data-dual-zone]", waliaDashaSection).textContent) && /South-West/.test($("[data-dual-zone]", waliaDashaSection).textContent));
+
+const micro = $(".dasha-micro-forecast", waliaDashaSection);
+const microRows = $$("tr[data-micro-period]", micro);
+check("rolling 90-day Pratyantar micro-forecast follows the current sub-period", !!micro && microRows.length >= 3 && microRows[0].classList.contains("hl-row") && microRows[0].dataset.microPeriod === "5" && microRows[1].dataset.microPeriod === "6" && $$("th", micro).length === 4 && /Vastu micro-action/.test(micro.textContent));
+check("micro-forecast crosses into the next Antardasha and names it", waliaDasha.upcoming.some((u) => u.adChange && u.adN === 3) && waliaDasha.current.nextAd && waliaDasha.current.nextAd.n === 3 && $("[data-next-antardasha]", micro).dataset.nextAntardasha === "3" && /Next: Venus \(6\) takes over from/.test(waliaDashaSection.textContent));
+check("next-horizon roadmap ignores grid data", same(window.__NV.dashaTimeline(Object.assign({}, waliaProfile, { vedicCounts: alteredGridProfile.vedicCounts, loShuCounts: alteredGridProfile.loShuCounts }), fixedDate).upcoming, waliaDasha.upcoming));
+
+const transit = $(".dasha-transit-synthesis", waliaDashaSection);
+check("Personal Year is synthesised with the active Dasha stack", !!transit && transit.dataset.personalYear === "6" && waliaDasha.current.personalYear === 6 && /Personal Year 6/.test(transit.textContent) && /Rahu–Moon stack/.test(transit.textContent) && /Defer/.test(transit.textContent) && /25 Oct 2026/.test(transit.textContent));
+
+const waliaEvents = Object.fromEntries(waliaDasha.events.map((e) => [e.key, e]));
+check("Venus wealth windows are retained and graded rather than purged", waliaEvents.wealth.future.some((w) => w.adN === 6) && waliaEvents.wealth.future.filter((w) => w.adN === 6).every((w) => w.conversion.grade !== "high") && waliaEvents.wealth.future.filter((w) => w.adN === 3).every((w) => w.conversion.grade === "high"));
+check("event windows render a conversion-probability grade", $$('[data-window-grade="conditional"]', waliaDashaSection).length > 0 && $$('[data-window-grade="high"]', waliaDashaSection).length > 0 && /Conditional — activate the Vastu sector first/.test(waliaDashaSection.textContent) && /High probability — direct conversion/.test(waliaDashaSection.textContent));
+
+const waliaVedic = mount(window.__NV.renderVedicBirthComparison(waliaProfile));
+const planeCards = $$(".vedic-plane-reading", waliaVedic);
+const planeByKey = Object.fromEntries(planeCards.map((c) => [c.dataset.vedicPlane, c]));
+check("Vedic planes receive qualitative readings", planeCards.length === 3 && planeByKey.practical.dataset.planeState === "partial" && /Jupiter \(3\)/.test(planeByKey.practical.textContent) && /Without Mars \(9\)/.test(planeByKey.practical.textContent) && /without Venus \(6\)/i.test(planeByKey.materialistic.textContent) && /without Mercury \(5\)/i.test(planeByKey.materialistic.textContent) && /Without Moon \(2\)/.test(planeByKey.emotional.textContent));
+const emptyMaterial = window.__NV.vedicPlaneReadings(Object.assign({}, waliaProfile, { vedicCounts: Object.assign({}, waliaProfile.vedicCounts, { 7: 0 }) }), "en");
+check("empty and complete plane states get dedicated sentences", emptyMaterial.find((pl) => pl.key === "materialistic").state === "empty" && /empty Material Plane/i.test(emptyMaterial.find((pl) => pl.key === "materialistic").reading) && window.__NV.vedicPlaneReadings(alteredGridProfile, "en").every((pl) => pl.state === "empty") && !/Vedic remedy/.test(waliaVedic.textContent));
 
 /* ---- Pack shape and canonical mappings ---- */
 const validPack = window.__NV.validatePack(window.__NV_BUNDLED_PACK);

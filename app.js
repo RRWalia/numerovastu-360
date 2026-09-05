@@ -409,6 +409,35 @@
     return `${input.name || "anonymous"}|${input.dob || ""}`;
   }
 
+  /* Full reduction chain for a total, e.g. 30 → [30, 3], 38 → [38, 11, 2].
+     Used so printed formulas never skip an intermediate step. */
+  function reductionChain(total) {
+    const chain = [Math.abs(Number(total)) || 0];
+    while (chain[chain.length - 1] > 9) {
+      chain.push(String(chain[chain.length - 1]).split("").reduce((a, d) => a + Number(d), 0));
+    }
+    return chain;
+  }
+
+  /* Root-number equation rendered as explicit, grouped digit tokens. Every
+     digit (including 0) is its own <span>, groups are separated by a visible
+     divider and the result is stated in words. This is intentionally not a
+     monospace digit string: PDF renderers/OCR mis-read mono zeros as 8 and
+     a wrapped leading "3 +" as "$". */
+  function rootFormulaMarkup(groups, digitSum, root, lang) {
+    const digitTokens = (digits) => String(digits).split("").map((d) => `<span class="root-digit">${d}</span>`).join(`<span class="root-op">+</span>`);
+    const groupMarkup = groups.map((g) => `<span class="root-group" aria-label="${esc(g.label)}"><span class="root-group-label">${esc(g.label)}</span><span class="root-group-digits">${digitTokens(g.digits)}</span></span>`).join(`<span class="root-op root-op-group">+</span>`);
+    // Intermediate totals only (e.g. 38 → 11); the final root is the bold result.
+    const intermediate = reductionChain(digitSum).slice(0, -1);
+    const steps = intermediate.length
+      ? intermediate.map((v, i) => `${i === 0 ? "" : `<span class="root-arrow">→</span>`}<span class="${i === 0 ? "root-total" : "root-step"}">${v}</span>`).join("") + `<span class="root-arrow">→</span>`
+      : "";
+    const words = intermediate.length
+      ? (lang === "hi" ? `सभी अंकों का योग ${digitSum}, जो ${root} में सिमटता है` : lang === "gu" ? `બધા અંકોનો સરવાળો ${digitSum}, જે ${root} માં સંકોચાય છે` : `all digits add to ${digitSum}, which reduces to ${root}`)
+      : (lang === "hi" ? `अंकों का योग सीधे ${root} है` : lang === "gu" ? `અંકોનો સરવાળો સીધો ${root} છે` : `the digits add directly to ${root}`);
+    return `<div class="root-formula" data-digit-sum="${digitSum}" data-root="${root}"><div class="root-formula-line">${groupMarkup}<span class="root-op">=</span>${steps}<strong class="root-result">${root}</strong></div><div class="root-formula-words">${words}</div></div>`;
+  }
+
   function normalizePack(raw, source) {
     if (!raw || typeof raw !== "object") return null;
     const db = raw.db || window.DB || {};
@@ -1320,18 +1349,37 @@
      the active Mahadasha/Antardasha lords and the event's Dasha definition;
      neither Lo Shu nor Vedic-grid counts can strengthen, weaken or reroute a
      prediction window. */
-  function scoreEventWindow(ev, mdN, adN, p) {
+  function scoreEventWindow(ev, mdN, adN) {
+    // Timing score uses only the Dasha lords. Natal strength is NOT folded in
+    // here: a missing significator must never delete a window (that produced
+    // the all-or-nothing bug where Venus wealth/marriage windows vanished for
+    // charts with 6 absent). Natal presence is reported separately as a
+    // conversion-probability grade via natalConversion().
     let s = 0;
-    // Natal presence changes confidence without changing the timing window.
-    // Missing significators are conditional; present ones receive support.
-    const counts = p && p.vedicCounts ? p.vedicCounts : {};
-    const strength = (n) => counts[n] > 1 ? 1 : counts[n] === 1 ? 0.5 : -0.5;
-    s += strength(adN) + strength(mdN);
     if (ev.primary.includes(adN)) s += 3;
     if (ev.primary.includes(mdN)) s += 2;
     if (ev.support.includes(adN)) s += 1.5;
     if (ev.support.includes(mdN)) s += 1;
     return s;
+  }
+
+  /* Conversion-probability grade for an event window. The window itself is
+     timing (Dasha authority); this grade only says how directly it is likely
+     to convert, based on whether the significator lords that make the window
+     are present in the Vedic birth grid.
+       high        – the triggering AD lord is present natally (direct conversion)
+       moderate    – AD lord absent but the MD lord (a significator) is present
+       conditional – both triggering lords absent natally; needs the Vastu
+                     sector of the AD lord activated before realisation */
+  function natalConversion(ev, mdN, adN, p) {
+    const counts = p && p.vedicCounts ? p.vedicCounts : {};
+    const present = (n) => (counts[n] || 0) > 0;
+    const isSig = (n) => ev.primary.includes(n) || ev.support.includes(n);
+    const adPresent = present(adN);
+    const mdPresent = present(mdN) && isSig(mdN);
+    const grade = adPresent ? "high" : mdPresent ? "moderate" : "conditional";
+    const missing = [adN, mdN].filter((n, i, a) => a.indexOf(n) === i && isSig(n) && !present(n));
+    return { grade, adPresent, mdPresent, missing };
   }
 
   function dashaTimeline(p, refDate) {
@@ -1364,6 +1412,37 @@
     const adProgress = Math.max(0, Math.min(100, Math.round(((nowMs - ad.startMs) / (ad.endMs - ad.startMs)) * 100)));
     const pdDaysLeft = Math.max(0, Math.ceil((pd.endMs - nowMs) / 86400000));
 
+    // Next-horizon roadmap: the current Pratyantar plus every Pratyantar that
+    // starts inside the next ~90 days, crossing Antardasha (and, if needed,
+    // Mahadasha) boundaries so the reader always sees what takes over next.
+    const horizonMs = nowMs + 90 * 86400000;
+    const mdIdx = mahadashas.indexOf(md);
+    const adIdx = ads.indexOf(ad);
+    // Flatten the Antardasha sequence from the current one forward, across
+    // the Mahadasha boundary when needed, so the roadmap never dead-ends.
+    const adRun = [];
+    ads.slice(adIdx).forEach((a) => adRun.push({ seg: a, mdN: md.n, sameAd: a === ad }));
+    if (mdIdx + 1 < mahadashas.length) {
+      const nm = mahadashas[mdIdx + 1];
+      buildAntardashas(nm.n, nm.startMs).forEach((a) => adRun.push({ seg: a, mdN: nm.n, sameAd: false }));
+    }
+    const upcoming = [];
+    for (const { seg: adSeg, mdN, sameAd } of adRun) {
+      if (adSeg.startMs > horizonMs) break;
+      const list = buildPratyantars(adSeg);
+      list.forEach((seg, i) => {
+        if (seg.endMs <= nowMs || seg.startMs > horizonMs) return;
+        upcoming.push({
+          n: seg.n, startMs: seg.startMs, endMs: seg.endMs, mdN, adN: adSeg.n,
+          adStartMs: adSeg.startMs, adEndMs: adSeg.endMs,
+          current: nowMs >= seg.startMs && nowMs < seg.endMs,
+          adChange: !sameAd && i === 0
+        });
+      });
+    }
+    const nextAdRun = adRun[1] || null;
+    const nextAd = nextAdRun ? { n: nextAdRun.seg.n, startMs: nextAdRun.seg.startMs, endMs: nextAdRun.seg.endMs, mdN: nextAdRun.mdN } : null;
+
     // Life-event windows: scan every AD segment across life against the
     // classical Dasha lords, then keep the best upcoming windows (plus the
     // strongest past one for validation).
@@ -1377,9 +1456,10 @@
         buildAntardashas(m.n, m.startMs).forEach((a) => {
           const midAge = ((a.startMs + a.endMs) / 2 - birthMs) / DASHA_YEAR_MS;
           if (midAge < ev.band[0] || midAge > ev.band[1]) return;
-          const score = scoreEventWindow(ev, m.n, a.n, p);
+          const score = scoreEventWindow(ev, m.n, a.n);
           if (score >= 3) windows.push({
             mdN: m.n, adN: a.n, score,
+            conversion: natalConversion(ev, m.n, a.n, p),
             startMs: a.startMs, endMs: a.endMs,
             fromAge: Math.floor((a.startMs - birthMs) / DASHA_YEAR_MS),
             toAge: Math.ceil((a.endMs - birthMs) / DASHA_YEAR_MS),
@@ -1388,12 +1468,50 @@
           });
         });
       });
-      const future = windows.filter((w) => !w.past).sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 3).sort((x, y) => x.startMs - y.startMs);
+      // Keep the strongest upcoming windows by Dasha score alone; a
+      // conditional (natal-absent) window is still shown, only graded lower.
+      let future = windows.filter((w) => !w.past).sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 3).sort((x, y) => x.startMs - y.startMs);
       const pastBest = windows.filter((w) => w.past).sort((x, y) => y.score - x.score)[0] || null;
-      return { key, def: ev, future, pastBest };
+      // If the classical age band has already closed, do not leave the event
+      // blank: surface the next significator windows beyond the band (next
+      // 15 years) and flag them as late windows so nothing is silently purged.
+      const ageNow = (nowMs - birthMs) / DASHA_YEAR_MS;
+      let bandClosed = false;
+      if (!future.length && ageNow > ev.band[1]) {
+        bandClosed = true;
+        const late = [];
+        mahadashas.forEach((m) => {
+          buildAntardashas(m.n, m.startMs).forEach((a) => {
+            if (a.endMs < nowMs || a.startMs > nowMs + 15 * DASHA_YEAR_MS) return;
+            const score = scoreEventWindow(ev, m.n, a.n);
+            if (score >= 3) late.push({
+              mdN: m.n, adN: a.n, score, beyondBand: true,
+              conversion: natalConversion(ev, m.n, a.n, p),
+              startMs: a.startMs, endMs: a.endMs,
+              fromAge: Math.floor((a.startMs - birthMs) / DASHA_YEAR_MS),
+              toAge: Math.ceil((a.endMs - birthMs) / DASHA_YEAR_MS),
+              past: false, active: nowMs >= a.startMs && nowMs < a.endMs
+            });
+          });
+        });
+        future = late.sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 2).sort((x, y) => x.startMs - y.startMs);
+      }
+      return { key, def: ev, future, pastBest, bandClosed };
     });
 
-    return { birthMs, mahadashas, current: { md, ad, pd, adProgress, pdDaysLeft }, events };
+    // Personal Year is the annual transit engine the Dasha operates through.
+    // It is computed here (not in timingAnalysis) so the Dasha section can
+    // synthesise it against the active MD/AD without touching timing dates.
+    const nowDate = new Date(nowMs);
+    const personalYear = reduce(p.day + p.month + reduce(nowDate.getFullYear()));
+
+    return {
+      birthMs,
+      mahadashas,
+      current: { md, ad, pd, adProgress, pdDaysLeft, nextAd, personalYear, year: nowDate.getFullYear() },
+      upcoming,
+      events
+    };
   }
 
   function watchSpec(p) {
@@ -2243,7 +2361,18 @@
         <div class="kit-value">${esc(db.missingFix[n] || "Build a steady, practical habit around this quality.")}</div>
       </div></div>`;
     }).join("");
-    const formulaDigits = `${grid.raw.day}${grid.raw.month}${grid.raw.year}`.split("").join(" + ");
+    // Render the two root calculations as grouped, labelled equations rather
+    // than a single monospace digit string. Monospace zero glyphs (dotted /
+    // slashed) print poorly in PDF and OCR as 8, and a wrapped "3 +" was read
+    // as "$" — see the 31/01/1978 report bug. Grouping by day / month / year
+    // also makes the day–month boundary unambiguous.
+    const conductorFormula = rootFormulaMarkup([
+      { label: copy.day, digits: grid.raw.day },
+      { label: copy.month, digits: grid.raw.month },
+      { label: copy.year, digits: grid.raw.year }
+    ], grid.calculations.destinyDigitSum, p.conductor, lang);
+    const driverFormula = rootFormulaMarkup([{ label: copy.day, digits: grid.raw.day }], grid.calculations.rulingDigitSum, p.driver, lang);
+    const calendarCheck = `${Number(grid.raw.day)} + ${Number(grid.raw.month)} + ${Number(grid.raw.year)} = ${grid.calculations.destinyCalendarSum} → ${reductionChain(grid.calculations.destinyCalendarSum).slice(1).join(" → ") || grid.calculations.destinyCalendarSum}`;
     const sourceRows = [
       [copy.day, numberList(grid.sourceDigits.day), "All non-zero day digits"],
       [copy.month, numberList(grid.sourceDigits.month), "All non-zero month digits"],
@@ -2270,7 +2399,7 @@
       </div>
       <div class="card"><div class="card-title">${lang === "hi" ? "लो शू प्लॉटिंग नियम" : lang === "gu" ? "લો શુ પ્લોટિંગ નિયમો" : "Lo Shu plotting rules"}</div>
         <div class="kit-value"><strong>1.</strong> ${esc(config.plotting.zeros || "Remove every 0 before plotting.")}<br><strong>2.</strong> ${esc(config.plotting.year || "Plot all non-zero digits of the full birth date, including century digits.")}<br><strong>3.</strong> ${esc(config.plotting.calculations || "Add Driver and Conductor after the raw DOB digits.")}</div>
-        <div class="vedic-calculation-grid"><div><span class="kit-label">${copy.driver}</span><div class="vedic-formula">${grid.raw.day.split("").join(" + ")} = ${grid.calculations.rulingDigitSum} → <strong>${p.driver}</strong></div></div><div><span class="kit-label">${copy.conductor}</span><div class="vedic-formula">${formulaDigits} = ${grid.calculations.destinyDigitSum} → <strong>${p.conductor}</strong></div></div></div>
+        <div class="vedic-calculation-grid"><div><span class="kit-label">${copy.driver}</span>${driverFormula}</div><div><span class="kit-label">${copy.conductor}</span>${conductorFormula}<div class="card-sub root-formula-check">${lang === "hi" ? "कैलेंडर जांच" : lang === "gu" ? "કેલેન્ડર ચકાસણી" : "Calendar check"}: ${calendarCheck}</div></div></div>
       </div>
       <div class="card"><div class="card-title">${lang === "hi" ? "आपकी जन्म-पट्टिका कैसे बनी" : lang === "gu" ? "તમારી જન્મ-પટ્ટિકા કેવી રીતે બની" : "How your Lo Shu Birth Grid was plotted"}</div><div class="table-scroll"><table class="rtable"><tr><th>${copy.source}</th><th>${copy.plotted}</th><th>${copy.treatment}</th></tr>${sourceRows}</table></div></div>
       <div class="card-grid two loshu-secondary-grids">
@@ -2286,11 +2415,107 @@
 
   function vedicGridCopy(lang) {
     const copy = {
-      en: { title: "Vedic Birth Grid — Planetary Strength Indicators", intro: "An advanced comparison only. This birth-only Ank Kundali uses filtered DOB plotting and the Vedic layout 3–1–9 / 6–7–5 / 2–8–4.", present: "Present indicator", repeated: "Concentrated indicator", weak: "Single indicator", missing: "Absent indicator", note: "These indicators describe a separate Vedic lens. An absent or repeated indicator is not a missing-number remedy obligation and does not create another checklist.", source: "Source", plotted: "Plotted digits", treatment: "Vedic treatment", day: "Birth day", month: "Birth month", year: "Birth year", ruling: "Ruling Number", destiny: "Destiny Number" },
-      hi: { title: "वैदिक जन्म ग्रिड — ग्रह-शक्ति संकेतक", intro: "केवल उन्नत तुलना। यह जन्म-अंक कुंडली छाने हुए DOB नियमों और ३–१–९ / ६–७–५ / २–८–४ वैदिक क्रम का उपयोग करती है।", present: "उपस्थित संकेतक", repeated: "सघन संकेतक", weak: "एकल संकेतक", missing: "अनुपस्थित संकेतक", note: "ये अलग वैदिक दृष्टि के संकेतक हैं। अनुपस्थित या दोहराया संकेतक missing-number remedy obligation नहीं बनाता और दूसरी checklist नहीं देता।", source: "स्रोत", plotted: "रखे गए अंक", treatment: "वैदिक नियम", day: "जन्म दिन", month: "जन्म माह", year: "जन्म वर्ष", ruling: "मूलांक", destiny: "भाग्यांक" },
-      gu: { title: "વૈદિક જન્મ ગ્રિડ — ગ્રહ-શક્તિ સંકેતકો", intro: "માત્ર ઉન્નત તુલના. આ જન્મ-અંક કુંડળી છાનેલા DOB નિયમો અને ૩–૧–૯ / ૬–૭–૫ / ૨–૮–૪ વૈદિક ક્રમ વાપરે છે.", present: "હાજર સંકેતક", repeated: "સઘન સંકેતક", weak: "એકલ સંકેતક", missing: "ગેરહાજર સંકેતક", note: "આ અલગ વૈદિક દૃષ્ટિના સંકેતકો છે. ગેરહાજર અથવા પુનરાવર્તિત સંકેતક missing-number remedy obligation બનતો નથી અને બીજી checklist આપતો નથી.", source: "સ્ત્રોત", plotted: "મૂકેલા અંકો", treatment: "વૈદિક નિયમ", day: "જન્મ દિવસ", month: "જન્મ મહિનો", year: "જન્મ વર્ષ", ruling: "મૂલાંક", destiny: "ભાગ્યાંક" }
+      en: { title: "Vedic Birth Grid — Planetary Strength Indicators", intro: "An advanced comparison only. This birth-only Ank Kundali uses filtered DOB plotting and the Vedic layout 3–1–9 / 6–7–5 / 2–8–4.", present: "Present indicator", repeated: "Concentrated indicator", weak: "Single indicator", missing: "Absent indicator", note: "These indicators describe a separate Vedic lens. An absent or repeated indicator is not a missing-number remedy obligation and does not create another checklist.", source: "Source", plotted: "Plotted digits", treatment: "Vedic treatment", day: "Birth day", month: "Birth month", year: "Birth year", ruling: "Ruling Number", destiny: "Destiny Number", planesTitle: "What the three Vedic planes say", planesIntro: "Each horizontal row of the Ank Kundali is a plane. Read it by which planetary indicators are present — this is interpretation of natal strength, not a remedy list.", planeComplete: "Fully active", planePartial: "Partly active", planeEmpty: "Empty plane", planeActive: "Active indicators", planeAbsent: "Absent indicators" },
+      hi: { title: "वैदिक जन्म ग्रिड — ग्रह-शक्ति संकेतक", intro: "केवल उन्नत तुलना। यह जन्म-अंक कुंडली छाने हुए DOB नियमों और ३–१–९ / ६–७–५ / २–८–४ वैदिक क्रम का उपयोग करती है।", present: "उपस्थित संकेतक", repeated: "सघन संकेतक", weak: "एकल संकेतक", missing: "अनुपस्थित संकेतक", note: "ये अलग वैदिक दृष्टि के संकेतक हैं। अनुपस्थित या दोहराया संकेतक missing-number remedy obligation नहीं बनाता और दूसरी checklist नहीं देता।", source: "स्रोत", plotted: "रखे गए अंक", treatment: "वैदिक नियम", day: "जन्म दिन", month: "जन्म माह", year: "जन्म वर्ष", ruling: "मूलांक", destiny: "भाग्यांक", planesTitle: "तीन वैदिक तल क्या कहते हैं", planesIntro: "अंक कुंडली की हर क्षैतिज पंक्ति एक तल है। इसे उपस्थित ग्रह-संकेतकों से पढ़ें — यह जन्म-बल की व्याख्या है, उपाय-सूची नहीं।", planeComplete: "पूर्ण सक्रिय", planePartial: "आंशिक सक्रिय", planeEmpty: "रिक्त तल", planeActive: "सक्रिय संकेतक", planeAbsent: "अनुपस्थित संकेतक" },
+      gu: { title: "વૈદિક જન્મ ગ્રિડ — ગ્રહ-શક્તિ સંકેતકો", intro: "માત્ર ઉન્નત તુલના. આ જન્મ-અંક કુંડળી છાનેલા DOB નિયમો અને ૩–૧–૯ / ૬–૭–૫ / ૨–૮–૪ વૈદિક ક્રમ વાપરે છે.", present: "હાજર સંકેતક", repeated: "સઘન સંકેતક", weak: "એકલ સંકેતક", missing: "ગેરહાજર સંકેતક", note: "આ અલગ વૈદિક દૃષ્ટિના સંકેતકો છે. ગેરહાજર અથવા પુનરાવર્તિત સંકેતક missing-number remedy obligation બનતો નથી અને બીજી checklist આપતો નથી.", source: "સ્ત્રોત", plotted: "મૂકેલા અંકો", treatment: "વૈદિક નિયમ", day: "જન્મ દિવસ", month: "જન્મ મહિનો", year: "જન્મ વર્ષ", ruling: "મૂલાંક", destiny: "ભાગ્યાંક", planesTitle: "ત્રણ વૈદિક તલ શું કહે છે", planesIntro: "અંક કુંડળીની દરેક આડી હરોળ એક તલ છે. તેને હાજર ગ્રહ-સંકેતકોથી વાંચો — આ જન્મ-બળનું અર્થઘટન છે, ઉપાય-યાદી નહીં.", planeComplete: "પૂર્ણ સક્રિય", planePartial: "આંશિક સક્રિય", planeEmpty: "ખાલી તલ", planeActive: "સક્રિય સંકેતકો", planeAbsent: "ગેરહાજર સંકેતકો" }
     };
     return copy[lang] || copy.en;
+  }
+
+  /* Qualitative reading of the three Vedic planes (Practical/Fire 3-1-9,
+     Materialistic/Air 6-7-5, Emotional/Water 2-8-4). Produces 1–2 sentences
+     per plane from the present/absent indicator pattern. This is a strength
+     lens only — it never mints remedy obligations (Lo Shu owns those). */
+  const VEDIC_PLANE_READINGS = {
+    practical: {
+      complete: { en: "Vision (3), initiative (1) and courage (9) are all present — you can conceive a goal, take the first step and push it through. Execution is a natural strength; guard against doing everything yourself.", hi: "दृष्टि (3), पहल (1) और साहस (9) तीनों उपस्थित — लक्ष्य सोचना, पहला कदम और पूरा करना सहज है। सब कुछ स्वयं करने की प्रवृत्ति से बचें।", gu: "દૃષ્ટિ (3), પહેલ (1) અને હિંમત (9) ત્રણેય હાજર — લક્ષ્ય વિચારવું, પહેલું પગલું અને પૂર્ણ કરવું સહજ છે. બધું જાતે કરવાની વૃત્તિથી બચો." },
+      empty: { en: "No Fire indicators — direction, initiative and follow-through all have to be borrowed from structure, mentors or partners rather than felt from within. Decide slowly, then commit to written plans.", hi: "कोई अग्नि-संकेतक नहीं — दिशा, पहल और निष्पादन ढांचे, गुरु या साथी से लेने पड़ते हैं। धीरे निर्णय लें, फिर लिखित योजना पर टिकें।", gu: "કોઈ અગ્નિ-સંકેતક નથી — દિશા, પહેલ અને અમલ માળખા, ગુરુ કે ભાગીદાર પાસેથી લેવા પડે છે. ધીમે નિર્ણય લો, પછી લેખિત યોજનાને વળગી રહો." },
+      partial: {
+        en: {
+          3: "Jupiter (3) present gives you the vision and the wisdom to choose the right direction",
+          1: "Sun (1) present gives you executive drive — you naturally take charge and initiate",
+          9: "Mars (9) present gives you the courage to act and the stamina to finish"
+        },
+        absent: {
+          3: "without Jupiter (3) the plane acts before it has a philosophy — seek an adviser before big pivots",
+          1: "without Sun (1) the plane lacks a self-starter — momentum depends on external deadlines",
+          9: "without Mars (9) energy fades before completion — break goals into short sprints"
+        }
+      }
+    },
+    materialistic: {
+      complete: { en: "Venus (6), Ketu (7) and Mercury (5) are all present — value-sense, discernment and commercial communication work together. Wealth tends to compound through networks and negotiation.", hi: "शुक्र (6), केतु (7) और बुध (5) तीनों उपस्थित — मूल्य-बोध, विवेक और व्यापारिक संवाद साथ चलते हैं। धन नेटवर्क और मोल-भाव से बढ़ता है।", gu: "શુક્ર (6), કેતુ (7) અને બુધ (5) ત્રણેય હાજર — મૂલ્ય-બોધ, વિવેક અને વ્યાપારિક સંવાદ સાથે ચાલે છે. ધન નેટવર્ક અને વાટાઘાટથી વધે છે." },
+      empty: { en: "An empty Material Plane: money, luxury and deal-making are not instinctive — wealth comes through the Practical or Emotional planes (effort, discipline, timing) rather than through charm or trading. Expect Venus and Mercury Dasha windows to convert conditionally, after remedy activation.", hi: "रिक्त भौतिक तल: धन, विलास और सौदेबाज़ी सहज नहीं — संपत्ति व्यावहारिक या भावनात्मक तल (श्रम, अनुशासन, समय) से आती है। शुक्र-बुध दशा-विंडो उपाय-सक्रियण के बाद सशर्त फलित होती हैं।", gu: "ખાલી ભૌતિક તલ: ધન, વૈભવ અને સોદાબાજી સહજ નથી — સંપત્તિ વ્યવહારુ કે ભાવનાત્મક તલ (શ્રમ, શિસ્ત, સમય) થી આવે છે. શુક્ર-બુધ દશા-વિન્ડો ઉપાય-સક્રિયકરણ પછી શરતી ફળે છે." },
+      partial: {
+        en: {
+          6: "Venus (6) present gives an eye for value, comfort and relationships that pay",
+          7: "Ketu (7) present gives analytical detachment — you can research and evaluate before spending",
+          5: "Mercury (5) present gives commercial fluency — deals, contracts and networks come naturally"
+        },
+        absent: {
+          6: "without Venus (6) wealth is earned but not easily enjoyed or attracted — relationship-led income needs deliberate cultivation",
+          7: "without Ketu (7) financial decisions can lack scrutiny — always sleep on large commitments",
+          5: "without Mercury (5) negotiation and salesmanship are learned skills, not reflexes — use written terms"
+        }
+      }
+    },
+    emotional: {
+      complete: { en: "Moon (2), Saturn (8) and Rahu (4) are all present — intuition, perseverance and systematic planning reinforce each other. You feel deeply and still build patiently.", hi: "चंद्र (2), शनि (8) और राहु (4) तीनों उपस्थित — अंतर्ज्ञान, धैर्य और व्यवस्थित योजना एक-दूसरे को बल देते हैं।", gu: "ચંદ્ર (2), શનિ (8) અને રાહુ (4) ત્રણેય હાજર — અંતઃસ્ફુરણા, ધીરજ અને વ્યવસ્થિત આયોજન એકબીજાને બળ આપે છે." },
+      empty: { en: "No Water indicators — emotional regulation, patience and long-range planning are the growth edge. Decisions arrive fast and are felt later; build routines that slow the reaction.", hi: "कोई जल-संकेतक नहीं — भावनात्मक संतुलन, धैर्य और दीर्घ योजना विकास-क्षेत्र हैं। निर्णय जल्दी होते हैं, अनुभूति बाद में; प्रतिक्रिया धीमी करने वाली दिनचर्या बनाएं।", gu: "કોઈ જળ-સંકેતક નથી — ભાવનાત્મક સંતુલન, ધીરજ અને લાંબા ગાળાનું આયોજન વિકાસ-ક્ષેત્ર છે. નિર્ણયો ઝડપી થાય છે, અનુભૂતિ પછી; પ્રતિક્રિયા ધીમી કરે તેવી દિનચર્યા બનાવો." },
+      partial: {
+        en: {
+          2: "Moon (2) present gives intuition and the ability to read people and rooms",
+          8: "Saturn (8) present gives perseverance — you outlast obstacles others abandon",
+          4: "Rahu (4) present gives systematic, unconventional planning and a tolerance for disruption"
+        },
+        absent: {
+          2: "without Moon (2) feelings are processed slowly or rationalised — nurture the sensitive side deliberately, especially in Moon sub-periods",
+          8: "without Saturn (8) discipline is situational — external accountability keeps long projects alive",
+          4: "without Rahu (4) you prefer the known path — sudden change unsettles more than it should"
+        }
+      }
+    }
+  };
+
+  function vedicPlaneReadings(p, lang) {
+    const db = getActiveDB();
+    const config = vedicGridConfig(db);
+    const counts = p.vedicCounts || {};
+    return config.planes.map((plane) => {
+      const key = plane.key;
+      const text = VEDIC_PLANE_READINGS[key] || {};
+      const cells = plane.cells.slice();
+      const present = cells.filter((n) => counts[n] > 0);
+      const absent = cells.filter((n) => !(counts[n] > 0));
+      const roles = plane.roles || {};
+      const roleOf = (n) => (typeof roles[n] === "string" ? roles[n] : (roles[n] && (roles[n].label || roles[n].short)) || `${db.numbers[n].planet.split(" ")[0]} (${n})`);
+      const state = present.length === cells.length ? "complete" : present.length === 0 ? "empty" : "partial";
+      let reading;
+      if (state === "complete") reading = loc(text.complete, lang) || (text.complete && text.complete.en) || "";
+      else if (state === "empty") reading = loc(text.empty, lang) || (text.empty && text.empty.en) || "";
+      else {
+        // Partial planes are composed sentence-by-sentence so the wording
+        // always matches the exact present/absent pattern of this chart.
+        const partial = text.partial || { en: {}, absent: {} };
+        const strong = present.filter((n) => counts[n] > 1);
+        const presentClauses = present.map((n) => partial.en[n]).filter(Boolean);
+        const absentClauses = absent.map((n) => partial.absent[n]).filter(Boolean);
+        const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+        const strongNote = strong.length ? ` ${strong.map((n) => `${db.numbers[n].planet.split(" ")[0]} (${n})`).join(" and ")} appear${strong.length === 1 ? "s" : ""} more than once, so th${strong.length === 1 ? "at quality is concentrated" : "ose qualities are concentrated"} — lean on ${strong.length === 1 ? "it" : "them"}.` : "";
+        const planetList = (list) => list.map((n) => `${db.numbers[n].planet.split(" ")[0]} (${n})`).join(", ");
+        reading = lang === "hi"
+          ? `${planetList(present)} उपस्थित — इस तल की ये शक्तियां सहज हैं। ${planetList(absent)} अनुपस्थित — इन गुणों को सचेत अभ्यास और सहयोग से विकसित करना होगा।`
+          : lang === "gu"
+            ? `${planetList(present)} હાજર — આ તલની આ શક્તિઓ સહજ છે. ${planetList(absent)} ગેરહાજર — આ ગુણો સભાન અભ્યાસ અને સહયોગથી વિકસાવવા પડશે.`
+            : `${cap(presentClauses.join("; "))}.${strongNote} ${cap(absentClauses.join("; "))}.`.replace(/\s+/g, " ").trim();
+      }
+      return {
+        key, name: plane.name || key, element: plane.element || "", governs: plane.governs || "", cells, state,
+        present, absent, reading,
+        presentRoles: present.map((n) => `${roleOf(n)}${counts[n] > 1 ? ` ×${counts[n]}` : ""}`),
+        absentRoles: absent.map(roleOf)
+      };
+    });
   }
 
   function renderVedicGridCells(counts) {
@@ -2318,6 +2543,21 @@
       [copy.destiny, String(p.conductor), lang === "hi" ? "पूर्ण DOB से निकाला और जोड़ा" : lang === "gu" ? "પૂર્ણ DOBથી ગણીને ઉમેર્યો" : "Calculated from complete DOB and added"]
     ].map(([source, digits, treatment]) => `<tr><td><strong>${esc(source)}</strong></td><td>${esc(digits)}</td><td>${esc(treatment)}</td></tr>`).join("");
     const present = Object.keys(p.vedicCounts).filter((n) => p.vedicCounts[n] > 0).join(", ") || "—";
+    const planeReadings = vedicPlaneReadings(p, lang);
+    const planeCards = planeReadings.map((plane) => {
+      const chips = plane.cells.map((n) => `<span class="plane-chip ${p.vedicCounts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const badge = plane.state === "complete" ? `<span class="badge good">${copy.planeComplete}</span>`
+        : plane.state === "empty" ? `<span class="badge warn">${copy.planeEmpty}</span>`
+        : `<span class="badge info">${copy.planePartial}</span>`;
+      return `<article class="card plane-card vedic-plane-reading" data-vedic-plane="${plane.key}" data-plane-state="${plane.state}">
+        <div class="goal-head"><div class="card-title">${esc(plane.name)}</div>${badge}</div>
+        <div class="card-sub">${esc(plane.element)} · ${plane.cells.join(" – ")} · ${esc(plane.governs)}</div>
+        <div class="plane-chips">${chips}</div>
+        <div class="kit-value">${esc(plane.reading)}</div>
+        ${plane.presentRoles.length ? `<div class="card-sub"><strong>${copy.planeActive}:</strong> ${esc(plane.presentRoles.join(" · "))}</div>` : ""}
+        ${plane.absentRoles.length ? `<div class="card-sub"><strong>${copy.planeAbsent}:</strong> ${esc(plane.absentRoles.join(" · "))}</div>` : ""}
+      </article>`;
+    }).join("");
     return `<section class="rsection vedic-comparison-section" id="vedic-comparison-section">
       <details class="advanced-vedic-comparison" open>
         <summary><span>${t("secVedicCompare", "Advanced Vedic Comparison")}</span><span class="details-hint">${lang === "hi" ? "वैकल्पिक जन्म-ग्रिड" : lang === "gu" ? "વૈકલ્પિક જન્મ-ગ્રિડ" : "Optional birth-grid view"}</span></summary>
@@ -2328,6 +2568,8 @@
             <div class="card"><div class="card-title">${lang === "hi" ? "जन्म संकेतक एक नजर में" : lang === "gu" ? "જન્મ સંકેતકો એક નજરે" : "Birth indicators at a glance"}</div><div class="kit-value"><span class="badge good">${copy.present}</span> ${present}</div>${p.vedicWeak.length ? `<div class="kit-value"><span class="badge warn">${copy.weak}</span> ${p.vedicWeak.join(", ")}</div>` : ""}<div class="kit-value"><span class="badge info">${copy.missing}</span> ${p.vedicMissing.length ? p.vedicMissing.join(", ") : (lang === "hi" ? "कोई नहीं" : lang === "gu" ? "કોઈ નહીં" : "none")}</div></div>
           </div>
           <div class="card"><div class="card-title">${lang === "hi" ? "वैदिक जन्म ग्रिड कैसे बना" : lang === "gu" ? "વૈદિક જન્મ ગ્રિડ કેવી રીતે બન્યો" : "How the Vedic Birth Grid was plotted"}</div><div class="table-scroll"><table class="rtable"><tr><th>${copy.source}</th><th>${copy.plotted}</th><th>${copy.treatment}</th></tr>${sourceRows}</table></div></div>
+          <div class="card vedic-plane-intro"><div class="card-title">${copy.planesTitle}</div><div class="card-sub">${copy.planesIntro}</div></div>
+          <div class="plane-cards vedic-plane-cards">${planeCards}</div>
         </div>
       </details>
     </section>`;
@@ -2741,12 +2983,126 @@
       const mdInfo = dashaDB[cur.md.n] || {}, adInfo = dashaDB[cur.ad.n] || {}, pdInfo = dashaDB[cur.pd.n] || {};
       const nowLbl = lang === "hi" ? "वर्तमान" : lang === "gu" ? "હાલમાં" : "Now";
       const agesLbl2 = lang === "hi" ? "आयु" : lang === "gu" ? "ઉંમર" : "Ages";
+      /* Mahadasha badge: how the MD lord relates to the native (Driver).
+         Antardasha badge: how the AD lord relates to the MD lord that is
+         filtering it — the MD × AD sambandha. The AD badge must never be
+         judged against Driver/Conductor alone; that produced "Friendly to you"
+         on Moon AD inside a Rahu MD, directly contradicting the Grahan Yoga
+         synthesis and the Conflicting verdict shown in Compatibility. */
       const relBadgeFor = (n) => {
         const rd = relation(p.driver, n);
         return rd === "friendly" ? `<span class="badge good">${lang === "hi" ? "मित्र ग्रह" : lang === "gu" ? "મિત્ર ગ્રહ" : "Friendly to you"}</span>`
           : rd === "enemy" ? `<span class="badge warn">${lang === "hi" ? "सावधानी काल" : lang === "gu" ? "સાવધાની કાળ" : "Handle with care"}</span>`
           : `<span class="badge info">${lang === "hi" ? "तटस्थ" : lang === "gu" ? "તટસ્થ" : "Neutral"}</span>`;
       };
+      const stackRelation = relation(cur.md.n, cur.ad.n);
+      const stackBadge = stackRelation === "enemy"
+        ? `<span class="badge bad" data-md-ad-relation="enemy">${lang === "hi" ? `चुनौतीपूर्ण — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, सावधानी से साधें` : lang === "gu" ? `પડકારજનક — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, સાવચેતીથી સાધો` : `Challenging — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}: neutralise with care`}</span>`
+        : stackRelation === "friendly"
+          ? `<span class="badge good" data-md-ad-relation="friendly">${lang === "hi" ? `सहयोगी — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `સહયોગી — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Supportive — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} cooperate`}</span>`
+          : `<span class="badge info" data-md-ad-relation="neutral">${lang === "hi" ? `तटस्थ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `તટસ્થ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Neutral — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}`}</span>`;
+      const personalRel = relation(p.driver, cur.ad.n);
+      const personalNote = lang === "hi"
+        ? `(मूलांक ${p.driver} के प्रति ${personalRel === "friendly" ? "मित्र" : personalRel === "enemy" ? "शत्रु" : "सम"}, पर सक्रिय संबंध महादशा × अंतर्दशा का है)`
+        : lang === "gu"
+          ? `(મૂળાંક ${p.driver} પ્રત્યે ${personalRel === "friendly" ? "મિત્ર" : personalRel === "enemy" ? "શત્રુ" : "સમ"}, પણ સક્રિય સંબંધ મહાદશા × અંતર્દશાનો છે)`
+          : `(${personalRel === "friendly" ? "friendly" : personalRel === "enemy" ? "hostile" : "neutral"} to your Driver ${p.driver} in isolation — but the operative relationship is MD × AD)`;
+
+      /* ---- Rolling 90-day micro-forecast: the Pratyantar roadmap ---- */
+      const upcoming = dl.upcoming || [];
+      const nextPd = upcoming.find((u) => !u.current) || null;
+      const focusOf = (n) => {
+        const info = dashaDB[n] || {};
+        // "Operating focus" = the classical event set, trimmed to a short clause.
+        const ev = String(loc(info.events, lang) || "");
+        const parts = ev.split(/,\s*/).slice(0, 3);
+        return esc(parts.join(", "));
+      };
+      const microActionOf = (n) => {
+        const info = dashaDB[n] || {};
+        return `${esc(loc(info.zone, lang))} — ${esc(loc(info.zoneRemedy, lang))}`;
+      };
+      const rangeLabel = (u, i) => {
+        const from = i === 0 && u.current ? (lang === "hi" ? "अभी" : lang === "gu" ? "હમણાં" : "Now") : prettyDate(u.startMs);
+        return `${from} → ${prettyDate(u.endMs)}`;
+      };
+      // Always show the table through the first Antardasha hand-over (plus one
+      // row after it) so the reader sees what takes over; compress the rest.
+      const adChangeIdx = upcoming.findIndex((u) => u.adChange);
+      const MICRO_ROW_CAP = Math.min(8, Math.max(4, adChangeIdx >= 0 ? adChangeIdx + 2 : 4));
+      const shownUpcoming = upcoming.slice(0, MICRO_ROW_CAP);
+      const overflowUpcoming = upcoming.slice(MICRO_ROW_CAP);
+      const overflowLine = overflowUpcoming.length
+        ? `<div class="card-sub micro-forecast-overflow">${lang === "hi" ? "फिर:" : lang === "gu" ? "પછી:" : "Then:"} ${overflowUpcoming.map((u) => `${planetOf(u.n)} (${u.n}) ${prettyDate(u.startMs)} → ${prettyDate(u.endMs)}${u.adChange ? ` [${lang === "hi" ? "नई अंतर्दशा" : lang === "gu" ? "નવી અંતર્દશા" : "new AD"} ${u.adN}]` : ""}`).join(" · ")}</div>`
+        : "";
+      const microRows = shownUpcoming.map((u, i) => {
+        const adTag = u.adChange
+          ? ` <span class="badge ${relation(u.mdN, u.adN) === "enemy" ? "warn" : "info"}">${lang === "hi" ? `नई अंतर्दशा ${u.adN}` : lang === "gu" ? `નવી અંતર્દશા ${u.adN}` : `New AD ${u.adN} · ${planetOf(u.adN)}`}</span>`
+          : "";
+        const rel = relation(u.adN, u.n);
+        const relTag = rel === "enemy" ? ` <span class="badge bad">${lang === "hi" ? "टकराव" : lang === "gu" ? "ટકરાવ" : "Friction with AD"}</span>` : "";
+        return `<tr${u.current ? ' class="hl-row"' : ""} data-micro-period="${u.n}">
+          <td><strong>${rangeLabel(u, i)}</strong>${u.current ? ` <span class="badge good">${nowLbl}</span>` : ""}${adTag}</td>
+          <td><strong>${planetOf(u.n)} (${u.n})</strong>${relTag}<div class="card-sub">${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${u.mdN} · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${u.adN}</div></td>
+          <td>${focusOf(u.n)}<div class="card-sub"><em>${esc(loc((dashaDB[u.n] || {}).caution, lang))}</em></div></td>
+          <td>${microActionOf(u.n)}</td>
+        </tr>`;
+      }).join("");
+      const microForecastCard = upcoming.length ? `<div class="card dasha-micro-forecast" data-predictive-layer="pratyantar-roadmap">
+        <div class="goal-head">
+          <div class="card-title">${lang === "hi" ? "अगले ९० दिन — प्रत्यंतर सूक्ष्म-पूर्वानुमान" : lang === "gu" ? "આગામી ૯૦ દિવસ — પ્રત્યંતર સૂક્ષ્મ-આગાહી" : "Next 90 Days — Pratyantar Micro-Forecast"}</div>
+          <span class="badge info">${lang === "hi" ? "आगे की दृश्यता" : lang === "gu" ? "આગળની દૃશ્યતા" : "Forward visibility"}</span>
+        </div>
+        <div class="card-sub">${lang === "hi" ? `वर्तमान प्रत्यंतर के बाद कौन-सी ऊर्जा संभालती है — ${prettyDate(cur.pd.endMs)} के बाद का रोडमैप।` : lang === "gu" ? `વર્તમાન પ્રત્યંતર પછી કઈ ઊર્જા સંભાળે છે — ${prettyDate(cur.pd.endMs)} પછીનો રોડમેપ.` : `What takes over after the current Pratyantar ends on ${prettyDate(cur.pd.endMs)} — each shift, its operating focus and the one Vastu micro-action to make.`}</div>
+        <div class="table-scroll"><table class="rtable micro-forecast-table">
+          <tr><th>${lang === "hi" ? "अवधि" : lang === "gu" ? "સમયગાળો" : "Period dates"}</th><th>${lang === "hi" ? "उप-स्वामी" : lang === "gu" ? "ઉપ-સ્વામી" : "Sub-lord"}</th><th>${lang === "hi" ? "कार्य-केंद्र" : lang === "gu" ? "કાર્ય-કેન્દ્ર" : "Operating focus"}</th><th>${lang === "hi" ? "वास्तु सूक्ष्म-क्रिया" : lang === "gu" ? "વાસ્તુ સૂક્ષ્મ-ક્રિયા" : "Vastu micro-action"}</th></tr>
+          ${microRows}
+        </table></div>
+        ${overflowLine}
+        ${cur.nextAd ? `<div class="kit-value next-antardasha" data-next-antardasha="${cur.nextAd.n}"><strong>${lang === "hi" ? "अगली अंतर्दशा:" : lang === "gu" ? "આગામી અંતર્દશા:" : "Next Antardasha:"}</strong> ${planetOf(cur.nextAd.n)} (${cur.nextAd.n}) ${lang === "hi" ? "से" : lang === "gu" ? "થી" : "from"} ${prettyDate(cur.nextAd.startMs)} → ${prettyDate(cur.nextAd.endMs)}${cur.nextAd.mdN !== cur.md.n ? ` — ${lang === "hi" ? `नई महादशा ${cur.nextAd.mdN} (${planetOf(cur.nextAd.mdN)}) के साथ` : lang === "gu" ? `નવી મહાદશા ${cur.nextAd.mdN} (${planetOf(cur.nextAd.mdN)}) સાથે` : `opening the new Mahadasha ${cur.nextAd.mdN} (${planetOf(cur.nextAd.mdN)})`}` : ""}. ${esc(loc((dashaDB[cur.nextAd.n] || {}).theme, lang))}</div>` : ""}
+      </div>` : "";
+
+      /* ---- Personal Year × Dasha transit synthesis ---- */
+      const py = cur.personalYear;
+      const pyMeaning = (db.personalYear && db.personalYear[py]) || (window.DB && window.DB.personalYear && window.DB.personalYear[py]) || "";
+      const pyRelMd = relation(cur.md.n, py), pyRelAd = relation(cur.ad.n, py);
+      const pyAlignment = (pyRelMd === "enemy" || pyRelAd === "enemy") ? "friction" : (pyRelMd === "friendly" && pyRelAd === "friendly") ? "aligned" : "mixed";
+      const nextAdRelPy = cur.nextAd ? relation(cur.nextAd.n, py) : null;
+      const nextAdRelMd = cur.nextAd ? relation(cur.nextAd.mdN, cur.nextAd.n) : null;
+      // The next sub-period is a better window when its lord no longer fights
+      // its own Mahadasha lord (the stack stops being hostile). Whether it also
+      // befriends the Personal-Year number decides how strongly we phrase it.
+      const postWindowBetter = !!cur.nextAd && nextAdRelMd !== "enemy";
+      const postWindowHarmonious = postWindowBetter && nextAdRelPy !== "enemy";
+      const pyThemeShort = esc(String(pyMeaning).split(" — ")[0] || "");
+      const grahan = cur.md.n === 4 && cur.ad.n === 2 || cur.md.n === 2 && cur.ad.n === 4;
+      const synthesisEn = (function () {
+        const opening = `${cur.year} carries an overarching focus on ${pyThemeShort.toLowerCase()} (Personal Year ${py} · ${planetOf(py)}).`;
+        const stack = `Until ${prettyDate(cur.ad.endMs)} the ${planetOf(cur.md.n)}–${planetOf(cur.ad.n)} stack (MD ${cur.md.n} · AD ${cur.ad.n}) is the engine that year runs through`;
+        const climate = stackRelation === "enemy"
+          ? `${stack} — and because those two lords ${grahan ? "form the eclipse (Grahan) axis" : "are mutually hostile"}, expect ${grahan ? "emotional second-guessing, disturbed sleep and sudden expenses" : "delays, second-guessing and friction around exactly the Personal-Year themes"}.`
+          : stackRelation === "friendly"
+            ? `${stack} — the lords cooperate, so the Personal-Year themes can be acted on directly.`
+            : `${stack} — a neutral pairing: the Personal-Year themes advance steadily rather than dramatically.`;
+        const verdict = stackRelation === "enemy"
+          ? (postWindowBetter
+              ? `Defer the biggest Personal-Year commitments (${py === 6 ? "relationship commitments, home purchases, large comfort spending" : py === 3 ? "expansion capital, teaching or advisory launches" : py === 8 ? "career restructuring, property paperwork" : py === 9 ? "property closures and confrontations" : py === 1 ? "solo launches and public declarations" : "the irreversible decisions in this theme"}) until ${planetOf(cur.nextAd.n)} AD opens on ${prettyDate(cur.nextAd.startMs)}${postWindowHarmonious ? ", when the transit and the Dasha align harmoniously." : `, when the eclipse pressure lifts and the stack turns ${nextAdRelMd === "friendly" ? "supportive" : "neutral"}. ${planetOf(cur.nextAd.n)} does not favour ${planetOf(py)} themes outright, so move with structure and written terms rather than impulse.`}`
+              : `Take the Personal-Year themes in small, reversible steps until the ${planetOf(cur.ad.n)} sub-period closes on ${prettyDate(cur.ad.endMs)}.`)
+          : (pyAlignment === "friction"
+              ? `The Personal-Year number ${py} itself sits uneasily with the active lords — keep its themes practical and avoid over-reaching before ${prettyDate(cur.ad.endMs)}.`
+              : `Transit and Dasha point the same way — this is a window to act on the Personal-Year themes with confidence.`);
+        return `${opening} ${climate} ${verdict}`;
+      })();
+      const synthesisHi = `${cur.year} का व्यक्तिगत वर्ष ${py} (${planetOf(py)}) — ${esc(pyMeaning)} ${prettyDate(cur.ad.endMs)} तक ${planetOf(cur.md.n)}–${planetOf(cur.ad.n)} दशा-क्रम (महादशा ${cur.md.n} · अंतर्दशा ${cur.ad.n}) ही वह इंजन है जिससे यह वर्ष चलता है${stackRelation === "enemy" ? ` — दोनों स्वामी परस्पर विरोधी हैं, इसलिए भावनात्मक दुविधा और अचानक खर्च संभव हैं। बड़े निर्णय ${cur.nextAd ? `${prettyDate(cur.nextAd.startMs)} (${planetOf(cur.nextAd.n)} अंतर्दशा) के बाद` : "इस उप-काल के बाद"} लें।` : "।"}`;
+      const synthesisGu = `${cur.year} નું વ્યક્તિગત વર્ષ ${py} (${planetOf(py)}) — ${esc(pyMeaning)} ${prettyDate(cur.ad.endMs)} સુધી ${planetOf(cur.md.n)}–${planetOf(cur.ad.n)} દશા-ક્રમ (મહાદશા ${cur.md.n} · અંતર્દશા ${cur.ad.n}) એ જ એન્જિન છે જેનાથી આ વર્ષ ચાલે છે${stackRelation === "enemy" ? ` — બંને સ્વામી પરસ્પર વિરોધી છે, તેથી ભાવનાત્મક દ્વિધા અને અચાનક ખર્ચ શક્ય છે. મોટા નિર્ણયો ${cur.nextAd ? `${prettyDate(cur.nextAd.startMs)} (${planetOf(cur.nextAd.n)} અંતર્દશા) પછી` : "આ ઉપ-કાળ પછી"} લો.` : "."}`;
+      const transitSynthesisCard = `<div class="card dasha-transit-synthesis" data-predictive-layer="personal-year-transit" data-personal-year="${py}" data-alignment="${pyAlignment}">
+        <div class="goal-head">
+          <div class="card-title">${lang === "hi" ? `वार्षिक ट्रांज़िट × दशा — ${cur.year} का संश्लेषण` : lang === "gu" ? `વાર્ષિક ટ્રાન્ઝિટ × દશા — ${cur.year} નું સંશ્લેષણ` : `Annual Transit × Dasha — the ${cur.year} synthesis`}</div>
+          <span class="badge ${stackRelation === "enemy" ? "warn" : pyAlignment === "aligned" ? "good" : "info"}">${lang === "hi" ? `व्यक्तिगत वर्ष ${py}` : lang === "gu" ? `વ્યક્તિગત વર્ષ ${py}` : `Personal Year ${py} · ${planetOf(py)}`}</span>
+        </div>
+        <div class="kit-value">${lang === "hi" ? synthesisHi : lang === "gu" ? synthesisGu : synthesisEn}</div>
+        <div class="card-sub">${lang === "hi" ? "व्यक्तिगत वर्ष वार्षिक ट्रांज़िट-इंजन है; दशा तय करती है कि वह ऊर्जा कब और किस रूप में फलित होती है। तिथियां केवल दशा से आती हैं।" : lang === "gu" ? "વ્યક્તિગત વર્ષ વાર્ષિક ટ્રાન્ઝિટ-એન્જિન છે; દશા નક્કી કરે છે કે તે ઊર્જા ક્યારે અને કયા રૂપે ફળે છે. તારીખો ફક્ત દશાથી આવે છે." : "Personal Year is the annual transit engine; the Dasha decides when and in what form that energy converts. All dates above come from the Dasha alone."}</div>
+      </div>`;
 
       const stackCard = `<div class="card">
         <div class="goal-head">
@@ -2763,6 +3119,8 @@
             <div class="num-value alt">${cur.ad.n}</div>
             <div class="num-label">${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "Antardasha"} · ${planetOf(cur.ad.n)}</div>
             <div class="num-sub">${prettyDate(cur.ad.startMs)} → ${prettyDate(cur.ad.endMs)}</div>
+            <div class="num-sub" data-stack-badge="md-ad">${stackBadge}</div>
+            <div class="num-sub stack-badge-note">${personalNote}</div>
             <div class="progress-track" role="progressbar" aria-valuenow="${cur.adProgress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${cur.adProgress}%"></div></div>
             <div class="num-sub">${cur.adProgress}% ${lang === "hi" ? "पूर्ण" : lang === "gu" ? "પૂર્ણ" : "elapsed"}</div>
           </div>
@@ -2770,6 +3128,7 @@
             <div class="num-value" style="font-size:26px">${cur.pd.n}</div>
             <div class="num-label">${lang === "hi" ? "प्रत्यंतर दशा" : lang === "gu" ? "પ્રત્યંતર દશા" : "Pratyantar Dasha"} · ${planetOf(cur.pd.n)}</div>
             <div class="num-sub">${cur.pdDaysLeft} ${lang === "hi" ? "दिन शेष" : lang === "gu" ? "દિવસ બાકી" : "days remaining"} (${lang === "hi" ? "तक" : lang === "gu" ? "સુધી" : "until"} ${prettyDate(cur.pd.endMs)})</div>
+            ${nextPd ? `<div class="num-sub next-horizon" data-next-pratyantar="${nextPd.n}">${lang === "hi" ? `आगे: ${planetOf(nextPd.n)} (${nextPd.n}) ${prettyDate(nextPd.startMs)} से` : lang === "gu" ? `આગળ: ${planetOf(nextPd.n)} (${nextPd.n}) ${prettyDate(nextPd.startMs)} થી` : `Next: ${planetOf(nextPd.n)} (${nextPd.n}) takes over from ${prettyDate(nextPd.startMs)}`}</div>` : ""}
           </div>
         </div>
         <div class="kit-value"><strong>${lang === "hi" ? `इस काल का स्वर — महादशा ${cur.md.n} (${planetOf(cur.md.n)}):` : lang === "gu" ? `આ સમયગાળાનો સૂર — મહાદશા ${cur.md.n} (${planetOf(cur.md.n)}):` : `The tone of this chapter — Mahadasha ${cur.md.n} (${planetOf(cur.md.n)}):`}</strong> ${esc(loc(mdInfo.theme, lang))}</div>
@@ -2778,13 +3137,18 @@
           <div class="kit-label">${lang === "hi" ? "सक्रिय वास्तु क्षेत्र: इस उप-काल में इसे साधें" : lang === "gu" ? "સક્રિય વાસ્તુ ક્ષેત્ર: આ ઉપ-કાળમાં આને સાધો" : "Active Vastu Zone: Prioritise this sector now"}</div>
           <div class="kit-value">${lang === "hi" ? `आपके वर्तमान उप-स्वामी <strong>${planetOf(cur.ad.n)} (अंतर्दशा ${cur.ad.n})</strong> का क्षेत्र <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) है। ${esc(loc(adInfo.zoneRemedy, lang))}` : lang === "gu" ? `તમારા વર્તમાન ઉપ-સ્વામી <strong>${planetOf(cur.ad.n)} (અંતર્દશા ${cur.ad.n})</strong> નું ક્ષેત્ર <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) છે. ${esc(loc(adInfo.zoneRemedy, lang))}` : `Your current sub-ruler is <strong>${planetOf(cur.ad.n)} (AD ${cur.ad.n})</strong> — its sector is the <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}). ${esc(loc(adInfo.zoneRemedy, lang))}`}</div>
           <div class="kit-value">${lang === "hi" ? `सूक्ष्म-काल के लिए: प्रत्यंतर स्वामी ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} को भी स्वच्छ रखें।` : lang === "gu" ? `સૂક્ષ્મ-કાળ માટે: પ્રત્યંતર સ્વામી ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} ને પણ સ્વચ્છ રાખો.` : `For the micro-period: Pratyantar lord ${planetOf(cur.pd.n)} — also keep the ${esc(loc(pdInfo.zone, lang))} clean and serviced.`}</div>
-          <div class="kit-value"><strong>Dual-Zone Vastu pairing:</strong> Primary Sub-Zone (Moon): keep North-West clear and decluttered. Anchor Stabilizer (Rahu): keep South-West heavily grounded with earthy tones to prevent destabilisation.</div>
+          <div class="kit-value" data-dual-zone="${cur.ad.n}-${cur.md.n}"><strong>${lang === "hi" ? "द्वि-क्षेत्र वास्तु युग्म:" : lang === "gu" ? "દ્વિ-ક્ષેત્ર વાસ્તુ જોડી:" : "Dual-Zone Vastu pairing:"}</strong> ${lang === "hi" ? `प्राथमिक उप-क्षेत्र (${planetOf(cur.ad.n)}): ${esc(loc(adInfo.zone, lang))} — ${esc(loc(adInfo.zoneRemedy, lang))} स्थिरक क्षेत्र (${planetOf(cur.md.n)}): ${esc(loc(mdInfo.zone, lang))} — ${esc(loc(mdInfo.zoneRemedy, lang))}` : lang === "gu" ? `પ્રાથમિક ઉપ-ક્ષેત્ર (${planetOf(cur.ad.n)}): ${esc(loc(adInfo.zone, lang))} — ${esc(loc(adInfo.zoneRemedy, lang))} સ્થિરક ક્ષેત્ર (${planetOf(cur.md.n)}): ${esc(loc(mdInfo.zone, lang))} — ${esc(loc(mdInfo.zoneRemedy, lang))}` : `Primary Sub-Zone (${planetOf(cur.ad.n)}, AD ${cur.ad.n}): <strong>${esc(loc(adInfo.zone, lang))}</strong> — ${esc(loc(adInfo.zoneRemedy, lang))} Anchor Stabilizer (${planetOf(cur.md.n)}, MD ${cur.md.n}): <strong>${esc(loc(mdInfo.zone, lang))}</strong> — ${esc(loc(mdInfo.zoneRemedy, lang))}${stackRelation === "enemy" ? " Because the two lords are in conflict, the anchor zone matters as much as the primary one — ground it first." : ""}`}</div>
         </div></div>
       </div>`;
 
-      const pairSynthesis = (cur.md.n === 4 && cur.ad.n === 2)
-        ? `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha"><div class="card-title">Vedic Predictive Synthesis — Grahan Yoga</div><div class="kit-value"><strong>Current Stack:</strong> Rahu MD (4) + Moon AD (2)</div><div class="kit-value">Rahu amplifies ambition and unconventional moves, but filtered through Moon's emotional lens it can produce mental restlessness, sleep volatility, vivid dreams and sudden emotional decisions.</div><div class="kit-value"><strong>Predictive Guidance:</strong> Avoid signing long-term partnership contracts during the final degrees of this sub-period; channel emotional intensity into creative, technical or research output.</div></div>`
-        : `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha"><div class="card-title">Vedic Predictive Synthesis — MD × AD</div><div class="kit-value"><strong>Current Stack:</strong> ${planetOf(cur.md.n)} MD (${cur.md.n}) + ${planetOf(cur.ad.n)} AD (${cur.ad.n}).</div><div class="kit-value">The Mahadasha sets the macro climate; the Antardasha filters it into the immediate emotional and practical decisions.</div></div>`;
+      const relWord = stackRelation === "enemy" ? "Conflicting" : stackRelation === "friendly" ? "Harmonious" : "Neutral";
+      const pairSynthesis = grahan
+        ? `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha" data-md-ad-relation="${stackRelation}"><div class="goal-head"><div class="card-title">Vedic Predictive Synthesis — Grahan Yoga</div><span class="badge bad">${relWord} · ${cur.md.n} × ${cur.ad.n}</span></div><div class="kit-value"><strong>Current Stack:</strong> ${planetOf(cur.md.n)} MD (${cur.md.n}) + ${planetOf(cur.ad.n)} AD (${cur.ad.n}) — the eclipse axis. This is the same Conflicting relationship shown for ${cur.md.n} × ${cur.ad.n} in the Compatibility section; the Antardasha badge above reflects it.</div><div class="kit-value">Rahu amplifies ambition and unconventional moves, but filtered through Moon's emotional lens it can produce mental restlessness, sleep volatility, vivid dreams and sudden emotional decisions.</div><div class="kit-value"><strong>Predictive Guidance:</strong> Avoid signing long-term partnership contracts during the final degrees of this sub-period (it closes ${prettyDate(cur.ad.endMs)}); channel emotional intensity into creative, technical or research output.${cur.nextAd ? ` The pressure lifts when ${planetOf(cur.nextAd.n)} AD (${cur.nextAd.n}) opens on ${prettyDate(cur.nextAd.startMs)}.` : ""}</div></div>`
+        : `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha" data-md-ad-relation="${stackRelation}"><div class="goal-head"><div class="card-title">Vedic Predictive Synthesis — MD × AD</div><span class="badge ${stackRelation === "enemy" ? "bad" : stackRelation === "friendly" ? "good" : "info"}">${relWord} · ${cur.md.n} × ${cur.ad.n}</span></div><div class="kit-value"><strong>Current Stack:</strong> ${planetOf(cur.md.n)} MD (${cur.md.n}) + ${planetOf(cur.ad.n)} AD (${cur.ad.n}).</div><div class="kit-value">${stackRelation === "enemy"
+            ? `The Mahadasha lord and the Antardasha lord are mutually hostile, so the ${planetOf(cur.ad.n)} themes (${esc(loc(adInfo.events, lang))}) arrive with friction: expect delays, second-guessing and the need to neutralise rather than force. ${esc(loc(adInfo.caution, lang))}`
+            : stackRelation === "friendly"
+              ? `The two lords cooperate: the ${planetOf(cur.md.n)} climate actively supports the ${planetOf(cur.ad.n)} themes (${esc(loc(adInfo.events, lang))}). Act on them directly.`
+              : `A neutral pairing: the Mahadasha sets the macro climate and the Antardasha filters it into the immediate emotional and practical decisions without either amplifying or blocking the other.`}</div></div>`;
 
       const ladderCard = `<div class="card">
         <div class="card-title">${lang === "hi" ? "जीवन-भर की महादशा सीढ़ी" : lang === "gu" ? "જીવનભરની મહાદશા સીડી" : "Lifetime Mahadasha Ladder"}</div>
@@ -2806,16 +3170,32 @@
         const windows = e.future.length
           ? e.future.map((w) => {
               const badge = w.active ? ` <span class="badge good">${lang === "hi" ? "अभी सक्रिय" : lang === "gu" ? "હમણાં સક્રિય" : "Active now"}</span>` : "";
-              const natalLabel = (p.vedicCounts && p.vedicCounts[w.adN] > 0) ? "Natal significator present — stronger conversion" : "Probability: 65% (Delayed/Conditional) — significator missing in your natal chart; activate the relevant environmental remedy before expecting liquid results.";
-              return `<div class="kit-value"><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge}<div class="card-sub">${natalLabel}</div></div>`;
+              const conv = w.conversion || natalConversion(e.def, w.mdN, w.adN, p);
+              const zoneOf = (n) => esc(loc((dashaDB[n] || {}).zone, lang));
+              const gradeBadge = conv.grade === "high"
+                ? `<span class="badge good" data-conversion="high">${lang === "hi" ? "उच्च संभावना — प्रत्यक्ष फल" : lang === "gu" ? "ઉચ્ચ સંભાવના — પ્રત્યક્ષ ફળ" : "High probability — direct conversion"}</span>`
+                : conv.grade === "moderate"
+                  ? `<span class="badge info" data-conversion="moderate">${lang === "hi" ? "मध्यम — महादशा-कारक से समर्थित" : lang === "gu" ? "મધ્યમ — મહાદશા-કારકથી સમર્થિત" : "Moderate — carried by the Mahadasha significator"}</span>`
+                  : `<span class="badge warn" data-conversion="conditional">${lang === "hi" ? "सशर्त — पहले वास्तु क्षेत्र सक्रिय करें" : lang === "gu" ? "શરતી — પહેલા વાસ્તુ ક્ષેત્ર સક્રિય કરો" : "Conditional — activate the Vastu sector first"}</span>`;
+              const natalLabel = conv.grade === "high"
+                ? (lang === "hi" ? `कारक ${w.adN} (${planetOf(w.adN)}) जन्म-ग्रिड में उपस्थित है — यह विंडो सीधे फलित हो सकती है।` : lang === "gu" ? `કારક ${w.adN} (${planetOf(w.adN)}) જન્મ-ગ્રિડમાં હાજર છે — આ વિન્ડો સીધી ફળી શકે છે.` : `Natal significator present — ${planetOf(w.adN)} (${w.adN}) sits in your Vedic birth grid, so this window can convert directly.`)
+                : conv.grade === "moderate"
+                  ? (lang === "hi" ? `अंतर्दशा-कारक ${w.adN} जन्म-ग्रिड में अनुपस्थित है, पर महादशा-कारक ${w.mdN} (${planetOf(w.mdN)}) उपस्थित है — फल आता है, थोड़ा विलंब से।` : lang === "gu" ? `અંતર્દશા-કારક ${w.adN} જન્મ-ગ્રિડમાં ગેરહાજર છે, પણ મહાદશા-કારક ${w.mdN} (${planetOf(w.mdN)}) હાજર છે — ફળ આવે છે, થોડું મોડું.` : `AD lord ${planetOf(w.adN)} (${w.adN}) is absent natally, but the Mahadasha significator ${planetOf(w.mdN)} (${w.mdN}) is present — results arrive, usually a beat later than the window opens.`)
+                  : (lang === "hi" ? `कारक ${conv.missing.join(", ")} जन्म-ग्रिड में अनुपस्थित हैं — यह विंडो तभी फलित होती है जब ${zoneOf(w.adN)} क्षेत्र को पहले सक्रिय किया जाए (उपाय: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))})।` : lang === "gu" ? `કારક ${conv.missing.join(", ")} જન્મ-ગ્રિડમાં ગેરહાજર છે — આ વિન્ડો ત્યારે જ ફળે છે જ્યારે ${zoneOf(w.adN)} ક્ષેત્રને પહેલા સક્રિય કરાય (ઉપાય: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}).` : `Significator${conv.missing.length > 1 ? "s" : ""} ${conv.missing.map((n) => `${planetOf(n)} (${n})`).join(" and ")} absent from your Vedic birth grid — the window is real but needs remedy activation of the ${zoneOf(w.adN)} sector before realisation: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}`);
+              const lateBadge = w.beyondBand ? ` <span class="badge info" data-beyond-band="true">${lang === "hi" ? `शास्त्रीय आयु-सीमा ${e.def.band[0]}–${e.def.band[1]} के बाद` : lang === "gu" ? `શાસ્ત્રીય ઉંમર-મર્યાદા ${e.def.band[0]}–${e.def.band[1]} પછી` : `Late window — beyond the classical ${e.def.band[0]}–${e.def.band[1]} age band`}</span>` : "";
+              return `<div class="kit-value" data-window-grade="${conv.grade}"${w.beyondBand ? ' data-beyond-band="true"' : ""}><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge} ${gradeBadge}${lateBadge}<div class="card-sub">${natalLabel}</div></div>`;
             }).join("")
           : `<div class="kit-value">${lang === "hi" ? "इस scan में निकट भविष्य की कोई प्रबल दशा-window नहीं है — व्यवहारिक तैयारी जारी रखें और अगला दशा संक्रमण देखें।" : lang === "gu" ? "આ scan માં નજીકના ભવિષ્યની કોઈ પ્રબળ દશા-window નથી — વ્યવહારિક તૈયારી ચાલુ રાખો અને આગળનું દશા પરિવર્તન જુઓ." : "No strong upcoming Dasha window appears in this scan — keep practical preparation steady and watch the next Dasha transition."}</div>`;
+        const bandLine = e.bandClosed
+          ? `<div class="card-sub" data-band-closed="true">${lang === "hi" ? `इस घटना की शास्त्रीय आयु-सीमा (${e.def.band[0]}–${e.def.band[1]}) बीत चुकी है; ऊपर की विंडो देर-से आने वाले कारक-काल हैं — विंडो हटाई नहीं गई, केवल वर्गीकृत की गई है।` : lang === "gu" ? `આ ઘટનાની શાસ્ત્રીય ઉંમર-મર્યાદા (${e.def.band[0]}–${e.def.band[1]}) વીતી ગઈ છે; ઉપરની વિન્ડો મોડેથી આવતા કારક-કાળ છે — વિન્ડો કાઢી નથી, માત્ર વર્ગીકૃત કરી છે.` : `The classical age band for this event (${e.def.band[0]}–${e.def.band[1]}) has closed, so these are late significator windows — shown and graded rather than purged. Read them as renewal or second-commitment periods.`}</div>`
+          : "";
         const pastLine = e.pastBest
           ? `<div class="card-sub">${lang === "hi" ? `पिछली प्रबल विंडो: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (आयु ${e.pastBest.fromAge}–${e.pastBest.toAge}) — मिलान करें कि उस दौर में क्या घटा था।` : lang === "gu" ? `ગત પ્રબળ વિન્ડો: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ઉંમર ${e.pastBest.fromAge}–${e.pastBest.toAge}) — તે સમયગાળામાં શું બન્યું હતું તે સરખાવો.` : `Strongest past window: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ages ${e.pastBest.fromAge}–${e.pastBest.toAge}) — cross-check what actually happened then; it is your personal proof of how this cycle speaks.`}</div>`
           : "";
         return `<div class="kit-row"><div class="kit-ico">${e.def.icon || "★"}</div><div class="kit-body">
           <div class="kit-label">${lbl}</div>
           ${windows}
+          ${bandLine}
           ${pastLine}
         </div></div>`;
       }).join("");
@@ -2830,7 +3210,9 @@
         <h2 class="rsection-title"><span class="idx">${SECTION.dasha}</span>${t("secDasha", "Dasha Timeline — Life Event Windows")}</h2>
         <p class="rsection-desc">${lang === "hi" ? "अंक-ज्योतिष की दशा प्रणाली: जन्म से आपका मूलांक अपनी महादशा शुरू करता है (अंक = वर्ष), फिर क्रम ९ अंकों में घूमता है। हर महादशा के भीतर अंतर्दशा और प्रत्यंतर दशा उसी अनुपात में चलती हैं — यही बताता है कि कौन-सा ग्रह अभी आपके जीवन का 'ऑपरेटिंग सिस्टम' चला रहा है।" : lang === "gu" ? "અંક-જ્યોતિષની દશા પ્રણાલી: જન્મથી તમારો મૂળાંક પોતાની મહાદશા શરૂ કરે છે (અંક = વર્ષ), પછી ક્રમ ૯ અંકોમાં ફરે છે. દરેક મહાદશાની અંદર અંતર્દશા અને પ્રત્યંતર દશા એ જ પ્રમાણમાં ચાલે છે — એ જ બતાવે છે કે કયો ગ્રહ અત્યારે તમારા જીવનની 'ઓપરેટિંગ સિસ્ટમ' ચલાવે છે." : "The Ank Jyotish dasha system: from birth, your Moolank opens its own Mahadasha (number = years), then the sequence walks the 9 numbers in order. Inside every Mahadasha run proportional Antardashas and Pratyantar dashas — together they show which planet is running your life's operating system right now."}</p>
         ${stackCard}
+        ${microForecastCard}
         ${pairSynthesis}
+        ${transitSynthesisCard}
         ${ladderCard}
         ${eventsCard}
         <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो केवल सक्रिय महादशा-अंतर्दशा के कारक ग्रहों से बनती है; लो शू और वैदिक जन्म-ग्रिड इन्हें नहीं बदलते।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડો ફક્ત સક્રિય મહાદશા-અંતર્દશાના કારક ગ્રહોથી બને છે; લો શુ અને વૈદિક જન્મ-ગ્રિડ તેને બદલતા નથી." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. Event windows use only the active Mahadasha–Antardasha significator pattern; neither Lo Shu nor Vedic birth-grid counts can change them." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
@@ -3561,7 +3943,7 @@
     mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
-    masterNumber, reduce, relation, chaldeanValue, validatePack,
+    masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,

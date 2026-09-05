@@ -150,18 +150,47 @@ Report
 │   ├── Driver + Conductor profile, dosha and deity baseline
 │   ├── Lo Shu Birth / Name / Combined grids
 │   ├── Lo Shu planes, arrows, missing kits and repeated channeling
-│   ├── Advanced Vedic Comparison (closed; birth grid only)
+│   ├── Advanced Vedic Comparison (open so it prints; birth grid + three plane readings)
 │   ├── Supporting identity / career / colour / Kua features
 │   └── Lo Shu 40-day activation plan + separate Driver/Conductor power-day reference
 └── Timeline · Vedic Dasha
     ├── Long-range Personal-Year Context (explicitly non-Dasha)
-    ├── Current Dasha stack, dates and life-event windows
-    ├── Dynamic Active Vastu Zone
+    ├── Current Dasha stack (MD × AD relationship badge, next Pratyantar)
+    ├── Next 90 Days — Pratyantar micro-forecast (crosses the AD boundary)
+    ├── MD × AD predictive synthesis (Grahan Yoga when 4 × 2)
+    ├── Annual Transit × Dasha synthesis (Personal Year read through the stack)
+    ├── Life-event windows with conversion-probability grades
+    ├── Dynamic Active Vastu Zone + Dual-Zone pairing (AD primary, MD anchor)
     └── Fixed Home Vastu Context
 ```
 
 The broad personal-year material is labelled as a non-Dasha reflection context.
 It never changes active Dasha dates, event windows or the active Vastu zone.
+The Dasha section separately treats the Personal Year as the *annual transit
+engine* the active stack operates through: it phrases guidance, never dates.
+
+### Dasha stack badges
+
+The Mahadasha card is badged against the native (Driver ↔ MD lord). The
+Antardasha card is badged against the **Mahadasha lord** (MD × AD sambandha),
+because that is the operative relationship of the period. Rahu (4) × Moon (2)
+is always Conflicting (eclipse axis), matching the Compatibility table.
+
+### Natal strength and event windows
+
+Event windows are found and ranked by the Dasha lords alone. The Vedic birth
+grid never adds or removes a window; it only grades how directly each window
+is expected to convert:
+
+| Grade | Rule |
+| --- | --- |
+| High — direct conversion | The triggering Antardasha lord is present in the Vedic birth grid |
+| Moderate | AD lord absent, but the Mahadasha lord is a present significator |
+| Conditional | Both triggering lords absent; needs the AD lord's Vastu sector activated first |
+
+If an event's classical age band has already closed, the next significator
+windows (15-year look-ahead) are shown as *late windows* instead of an empty
+card.
 
 ## 6. Data contract and release safety
 
@@ -223,7 +252,7 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
 - independent canonical Lo Shu and Vedic calculations, including century and
   direct-date filtering differences;
 - Lo Shu Name/Combined coordinate mapping;
-- advanced Vedic birth-only/collapsed behavior;
+- advanced Vedic birth-only behavior (printable, with plane readings, no remedy list);
 - Dasha and Vastu timing independence from both grids;
 - all authority boundaries, including Lo Shu-only 40-day/crystal selection and
   non-prescriptive Compatibility output;
