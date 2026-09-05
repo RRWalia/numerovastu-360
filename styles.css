@@ -686,6 +686,21 @@ body {
 .vedic-calculation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
 .vedic-formula { margin-top: 4px; font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 21px; color: var(--label-secondary); }
 .vedic-formula strong { color: var(--label-primary); }
+/* Root-number equations: grouped, proportional-font digit tokens (never a
+   monospace digit string — mono zeros print/OCR as 8 in PDFs). */
+.root-formula { margin-top: 6px; font-family: var(--font); font-variant-numeric: lining-nums tabular-nums; color: var(--label-secondary); }
+.root-formula-line { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; column-gap: 2px; font-size: 13px; line-height: 20px; }
+.root-group { display: inline-flex; flex-direction: column; align-items: center; padding: 2px 6px; border-radius: var(--r-xs); background: var(--fill-f1); }
+.root-group-label { font-size: 10px; line-height: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--label-tertiary); }
+.root-group-digits { display: inline-flex; align-items: center; white-space: nowrap; }
+.root-digit { display: inline-block; min-width: 12px; text-align: center; font-weight: 600; color: var(--label-primary); }
+.root-op { display: inline-block; padding: 0 3px; color: var(--label-tertiary); }
+.root-op-group { padding: 0 6px; font-weight: 600; }
+.root-total, .root-step { font-weight: 600; color: var(--label-primary); white-space: nowrap; }
+.root-arrow { padding: 0 4px; color: var(--label-tertiary); }
+.root-result { font-size: 16px; color: var(--label-primary); }
+.root-formula-words { margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--label-tertiary); }
+.root-formula-check { margin-top: 6px; font-variant-numeric: lining-nums tabular-nums; }
 .vedic-role-line { font-size: 12px; line-height: 18px; }
 
 /* Goal plan */
@@ -1089,6 +1104,13 @@ body {
   .summary-step { background: #eee; color: #111; }
   .summary-shell strong, .summary-actions strong, .summary-actions .mantra { color: #111; }
   .card, .priority-item, .table-scroll, .vedic-cell, .phase-card { border: 1px solid #ddd; }
+  /* Root equations must survive PDF rasterisation: keep each group on one
+     line, no background fill that could swallow a digit, plain black ink. */
+  .root-formula, .root-formula-line { break-inside: avoid; page-break-inside: avoid; }
+  .root-group { background: #fff; border: 1px solid #ddd; }
+  .root-digit, .root-total, .root-step, .root-result { color: #111; }
+  .root-op, .root-arrow, .root-group-label, .root-formula-words { color: #555; }
+  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading { break-inside: avoid-page; page-break-inside: avoid; }
   .ritual-card { background: #fff; }
   .phase-badge { background: #eee; color: #111; }
   .cadence-daily, .cadence-weekly, .cadence-once { background: #eee; color: #111; }

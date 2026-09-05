@@ -25,7 +25,7 @@ catch-all source of truth.
 | Foundation grid | Classic Lo Shu `4–9–2 / 3–5–7 / 8–1–6` |
 | Grid plotting | Every non-zero digit from the full `DD-MM-YYYY`, including century digits, then Moolank and Bhagyank |
 | Lo Shu views | Birth, Name and Combined grids; eight planes; eight arrows; present, repeated and missing signals |
-| Vedic Ank Kundali | A collapsed, **birth-grid-only** advanced comparison using `3–1–9 / 6–7–5 / 2–8–4` |
+| Vedic Ank Kundali | A **birth-grid-only** advanced comparison using `3–1–9 / 6–7–5 / 2–8–4`, with qualitative readings of the three Vedic planes |
 | Timeline | Independent proportional Dasha stack, dates, current/next periods, life-event windows and active Vastu zone |
 | Release data | Schema v2 / knowledge pack v2.8.0 |
 
@@ -41,7 +41,7 @@ Foundation is the initial personality and practice dashboard. It includes:
 - missing-number remedy kits and repeated-number channeling;
 - Lo Shu-led mantras, affirmations, crystals, Rudraksha and habits;
 - a Lo Shu-led 40-day activation tracker;
-- a collapsed **Advanced Vedic Comparison** for the Vedic birth grid only.
+- an **Advanced Vedic Comparison** for the Vedic birth grid only (expanded so it prints), with one interpretive card per Vedic plane.
 
 The Name and Combined grids use the same Lo Shu coordinates as the Birth Grid.
 They do **not** create Vedic Name or Vedic Combined grids.
@@ -50,9 +50,14 @@ They do **not** create Vedic Name or Vedic Combined grids.
 
 Timeline is the time-based roadmap. It contains:
 
-- active Mahadasha, Antardasha and Pratyantar Dasha;
+- active Mahadasha, Antardasha and Pratyantar Dasha, with the Antardasha badged
+  by its relationship to the Mahadasha lord;
+- a rolling 90-day Pratyantar micro-forecast (including the next Antardasha);
+- an Annual Transit × Dasha synthesis reading the Personal Year through the stack;
 - current-period dates, progress and upcoming transitions;
-- Dasha-led life-event opportunity windows;
+- Dasha-led life-event opportunity windows, each graded High / Moderate /
+  Conditional by whether its significators are present in the Vedic birth grid
+  (natal strength grades conversion; it never deletes a window);
 - the exact callout **“Active Vastu Zone: Prioritise this sector now”**;
 - a fixed home-placement context scan, clearly distinguished from the dynamic
   Dasha zone.
