@@ -1193,93 +1193,444 @@ var DB = {
   /* ---- Deity Protection Layer (classical number → ishta devta map) ----
      Every birth number 1–9 carries a guardian deity (ishta devta) in the
      Hindu tradition; knowing and keeping one's own ishta is itself a shield.
-     Each entry: god (trilingual name), the classical mantra (Devanagari +
-     IAST), the primary chant, the 108× round, offerings (naivedya), everyday
-     support materials and a protection note. Framed strictly as traditional
+     Each entry: archetypes / god (trilingual name), the classical mantra (Devanagari +
+     IAST), cadence & day, offerings (naivedya), everyday support materials,
+     presentation copy, and protection note. Framed strictly as traditional
      spiritual guidance — the reader's own family tradition and guru's
      instruction always take priority. */
   deity: {
-    1: {
-      god: { en: "Lord Surya", hi: "भगवान सूर्य", gu: "ભગવાન સૂર્ય" },
-      mantra: "ॐ मित्राय नमः (Om Mitraya Namah)",
-      primaryChant: { en: "11× each morning, facing the rising sun, before work", hi: "सुबह सूर्य की ओर मुख करके, कार्य शुरू करने से पहले 11×", gu: "સવારે સૂર્ય તરફ મોં કરીને, કામ શરૂ કરતાં પહેલાં 11×" },
-      weeklyChant: { en: "108× on Sundays", hi: "रविवार को 108×", gu: "રવિવારે 108×" },
-      offerings: { en: "Water, honey or jaggery offered to the sun (Surya arghya)", hi: "सूर्य को जल, शहद या गुड़ (सूर्य अर्घ्य)", gu: "સૂર્યને જળ, મધ કે ગોળ (સૂર્ય અર્ઘ્ય)" },
-      support: { en: "Wheat, jaggery or copper; wear saffron on Sundays", hi: "गेहूं, गुड़ या तांबा; रविवार को केसरिया पहनें", gu: "ઘઉં, ગોળ કે તાંબું; રવિવારે કેસરી પહેરો" },
-      protectionNote: { en: "Surya guards the authority and confidence behind this number — when recognition, status or self-belief feels blocked, the morning sun-facing chant steadies the field first.", hi: "सूर्य इस अंक के पीछे के अधिकार और आत्मविश्वास की रक्षा करते हैं — मान, स्थिति या आत्म-विश्वास रुका लगे तो सुबह की सूर्य-मुखी साधना पहले ही मयदान को स्थिर कर देती है।", gu: "સૂર્ય આ અંક પાછળના અધિકાર અને આત્મવિશ્વાસની રક્ષા કરે છે — માન, સ્થિતિ કે આત્મ-વિશ્વાસ અટકેલો લાગે તો સવારની સૂર્ય-મુખી સાધના પહેલાં જ મેદાનને સ્થિર કરી દે છે." }
-    },
-    2: {
-      god: { en: "Lord Shiva", hi: "भगवान शिव", gu: "ભગવાન શિવ" },
-      mantra: "ॐ नमः शिवाय (Om Namah Shivaya)",
-      primaryChant: { en: "11× in the early morning on an empty stomach", hi: "सुबह उठते ही, खाली पेट 11×", gu: "સવારે ઉઠતાં જ, ખાલી પેટે 11×" },
-      weeklyChant: { en: "108× on Mondays", hi: "सोमवार को 108×", gu: "સોમવારે 108×" },
-      offerings: { en: "Milk, white flowers and bilva leaves", hi: "दूध, सफेद फूल और बिल्व पत्ती", gu: "દૂધ, સફેદ ફૂલ અને બિલ્વ પાન" },
-      support: { en: "Milk, white flowers or white cloth; wear white on Mondays", hi: "दूध, सफेद फूल या सफेद कपड़ा; सोमवार को सफेद पहनें", gu: "દૂધ, સફેદ ફૂલ કે સફેદ કાપડ; સોમવારે સફેદ પહેરો" },
-      protectionNote: { en: "Shiva protects the Moon's calm — when emotions, sleep or the household mood run rough, the five-syllable chant steadies the mind first, and the chart follows.", hi: "शिव चंद्र की शांति की रक्षा करते हैं — भावनाएं, नींद या घर का मूड खराब हो तो पाँच-अक्षरी मंत्र पहले मन को स्थिर करता है, फिर पूरा चार्ट।", gu: "શિવ ચંદ્રની શાંતિની રક્ષા કરે છે — લાગણીઓ, ઊંઘ કે ઘરનો મૂડ ખરાબ થાય તો પાંચ-અક્ષરિય મંત્ર પહેલાં મનને સ્થિર કરે છે, પછી આખું ચાર્ટ." }
-    },
-    3: {
-      god: { en: "Lord Vishnu", hi: "भगवान विष्णु", gu: "ભગવાન વિષ્ણુ" },
-      mantra: "ॐ नमो भगवते वासुदेवाय (Om Namo Bhagavate Vasudevaya)",
-      primaryChant: { en: "11× before study, advice or any new commitment", hi: "अध्ययन, सलाह या किसी नए वादे से पहले 11×", gu: "અભ્યાસ, સલાહ કે કોઈ નવા વચન પહેલાં 11×" },
-      weeklyChant: { en: "108× on Thursdays", hi: "गुरुवार को 108×", gu: "ગુરુવારે 108×" },
-      offerings: { en: "Tulsi leaves, yellow flowers and honey (panak)", hi: "तुलसी पत्ती, पीले फूल और शहद (पनाक)", gu: "તુલસી પાન, પીળા ફૂલ અને મધ (પનાક)" },
-      support: { en: "Yellow flowers, tulsi or yellow cloth; give books or sweets on Thursdays", hi: "पीले फूल, तुलसी या पीला कपड़ा; गुरुवार को पुस्तकें या मिठाई दान करें", gu: "પીળા ફૂલ, તુલસી કે પીળું કાપડ; ગુરુવારે પુસ્તકો કે મિઠાઈ દાન કરો" },
-      protectionNote: { en: "Vishnu sustains the Guru's dharma and reputation — when wealth, faith or a respected position feels shaken, this chant holds what has already been built.", hi: "विष्णु गुरु के धर्म और मान-सम्मान की रक्षा करते हैं — धन, विश्वास या सम्मानित स्थिति हिलती लगे तो यह मंत्र बना-बसाए हुए को सहारा देता है।", gu: "વિષ્ણુ ગુરુના ધર્મ અને માન-સન્માનની રક્ષા કરે છે — ધન, વિશ્વાસ કે સન્માનિત સ્થિતિ હિલતી લાગે તો આ મંત્ર બનાવેલાને સહારો આપે છે." }
-    },
-    4: {
-      god: { en: "Maa Durga", hi: "माँ दुर्गा", gu: "મા દુર્ગા" },
-      mantra: "ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
-      primaryChant: { en: "11× whenever plans feel confusing or sudden", hi: "जब भी योजनाएं भ्रमपूर्ण या अचानक लगे, 11×", gu: "જ્યારેય યોજનાઓ ગૂંચવાડભર્યી કે અચાનક લાગે, 11×" },
-      weeklyChant: { en: "108× on Saturdays (Rahu's day)", hi: "शनिवार को (राहु का वार) 108×", gu: "શનિવારે (રાહુનો વાર) 108×" },
-      offerings: { en: "Kumkum, red flowers and a diya of sesame oil", hi: "कुंकुम, लाल फूल और तिल के तेल की दीया", gu: "કુંકમ, લાલ ફૂલ અને તલના તેલનો દીવો" },
-      support: { en: "Kumkum, red flowers or red cloth; wear red on Rahu's day", hi: "कुंकुम, लाल फूल या लाल कपड़ा; राहु के वार लाल पहनें", gu: "કુંકમ, લાલ ફૂલ કે લાલ કાપડ; રાહુના વાર લાલ પહેરો" },
-      protectionNote: { en: "Durga is the shield against Rahu's illusions — sudden distractions, wrong decisions and restless tech loops break against her protection.", hi: "दुर्गा राहु के भ्रम की कवच हैं — अचानक उठने वाला विचलन, गलत निर्णय और बेचैन तकनीकी चक्र उनकी रक्षा से टूटते हैं।", gu: "દુર્ગા રાહુના ભ્રમનું કવચ છે — અચાનક ઊભું થતું વિચલન, ખોટા નિર્ણય અને બેચેન ટેક ચક્ર તેની રક્ષાથી તૂટી જાય છે." }
-    },
-    5: {
-      god: { en: "Lord Ganesha", hi: "श्री गणेश", gu: "શ્રી ગણેશ" },
-      mantra: "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)",
-      primaryChant: { en: "11× before starting work", hi: "कार्य शुरू करने से पहले 11×", gu: "કામ શરૂ કરતાં પહેલાં 11×" },
-      weeklyChant: { en: "108× on Wednesdays", hi: "बुधवार को 108×", gu: "બુધવારે 108×" },
-      offerings: { en: "Modak or laddoo with a tuft of durva grass", hi: "दुर्वा के साथ मोदक या लड्डू", gu: "દુર્વડ સાથે મોદક કે લડ્ડુ" },
-      support: { en: "Green mung dal; keep a dedicated pen and notebook (stationery) for Ganesha", hi: "हरा मूंग; गणेश की समर्पित स्टेशनरी (नई पेन और डायरी) रखें", gu: "લીલું મગ; ગણેશ માટે સમર્પિત સ્ટેશનરી (નવી પેન અને ડાયરી) રાખો" },
-      protectionNote: { en: "Ganesha removes the Mercury mind's obstacles — before meetings, writing, travel or any new start, the 11× chant clears the path; the Wednesday 108× keeps the whole week's doors open.", hi: "गणेश बुध-मन के रुकावटें हटाते हैं — बैठक, लेखन, यात्रा या किसी नई शुरुआत से पहले 11× जाप राह साफ करता है; बुधवार का 108× पूरे सप्ताह के दरवाज़े खुले रखता है।", gu: "ગણેશ બુધ-મનના અવરોધો દૂર કરે છે — બેઠક, લેખન, મુસાફરી કે કોઈ નવી શરૂઆત પહેલાં 11× જાપ રાહ સ્વચ્છ કરે છે; બુધવારનું 108× આખા સપ્તાહના દરવાજા ખુલ્લા રાખે છે." }
-    },
-    6: {
-      god: { en: "Maa Lakshmi", hi: "माँ लक्ष्मी", gu: "મા લક્ષ્મી" },
-      mantra: "ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)",
-      primaryChant: { en: "11× before handling money or signing anything", hi: "धन संभालने या हस्ताक्षर करने से पहले 11×", gu: "ધન સંભાળવા કે હસ્તાક્ષર કરતાં પહેલાં 11×" },
-      weeklyChant: { en: "108× on Fridays", hi: "शुक्रवार को 108×", gu: "શુક્રવારે 108×" },
-      offerings: { en: "White flowers and milk sweets; keep a diya lit on Fridays", hi: "सफेद फूल और दूध की मिठाई; शुक्रवार को दीया जलाएं", gu: "સફેદ ફૂલ અને દૂધની મિઠાઈ; શુક્રવારે દીવો પ્રગટાવો" },
-      support: { en: "Sugar, milk or white cloth; donate sweets on Fridays", hi: "चিনি, दूध या सफेद कपड़ा; शुक्रवार को मिठाई दान करें", gu: "ચણી, દૂધ કે સફેદ કાપડ; શુક્રવારે મિઠાઈ દાન કરો" },
-      protectionNote: { en: "Lakshmi protects the Venus stream of money and relationships — the pre-transaction chant keeps deals clean and partnerships from turning sharp.", hi: "लक्ष्मी शुक्र के धन और रिश्तों की धारा की रक्षा करती हैं — लेन-देन से पहले का जाप सौदे साफ और साझेदारी को कड़वाहट से बचाता है।", gu: "લક્ષ્મી શુક્રના ધન અને સંબંધોની ધારાની રક્ષા કરે છે — વેપાર પહેલાંનો જાપ સોદા સ્વચ્છ અને સાझेદારીને તીક્ષ્ણ થવાથી બચાવે છે." }
-    },
-    7: {
-      god: { en: "Shri Hanuman", hi: "श्री हनुमान", gu: "શ્રી હનુમાન" },
-      mantra: "ॐ हं हनुमन्तये नमः (Hum Hanumante Namah)",
-      primaryChant: { en: "11× whenever the mind drifts into confusion or fear", hi: "जब भी मन भ्रम या भय में उठे, 11×", gu: "જ્યારેય મન ભ્રમ કે ભયમાં ઊઠે, 11×" },
-      weeklyChant: { en: "108× (or one Chalisa) on Saturdays", hi: "शनिवार को 108× (या एक चालीसा)", gu: "શનિવારે 108× (કે એક ચાલીસા)" },
-      offerings: { en: "Sesame (til) and sesame oil; a red tilak for the devotee", hi: "तिल और तिल का तेल; भक्त को लाल तिलक", gu: "તલ અને તલનું તેલ; ભકતને લાલ તિલક" },
-      support: { en: "Sesame, sesame oil or iron; honour the humble on Saturdays", hi: "तिल, तिल का तेल या लोहा; शनिवार को झुके हुए का सत्कार करें", gu: "તલ, તલનું તેલ કે લોખંડ; શનિવારે નમ્ર વ્યક્તિનું સ્વાગત કરો" },
-      protectionNote: { en: "Hanuman guards the Ketu shadow — sudden losses, hidden enemies and spiritual confusion retreat before his courage; the Chalisa is this number's strongest shield.", hi: "हनुमान केतु की छाया की रक्षा करते हैं — अचानक हानि, छुपे शत्रु और आध्यात्मिक भ्रम उनके साहस से पीछे हटते हैं; चालीसा इस अंक का सबसे मज़बूत कवच है।", gu: "હનુમાન કેતુની છાયાની રક્ષા કરે છે — અચાનક હાનિ, છુપા શત્રુ અને આધ્યાત્મિક ભ્રમ તેમના સાહસથી પાછા હટી જાય છે; ચાલીસા આ અંકનું સૌથી મજબૂત કવચ છે." }
-    },
-    8: {
-      god: { en: "Shri Hanuman", hi: "श्री हनुमान", gu: "શ્રી હનુમાન" },
-      mantra: "ॐ हं हनुमन्तये नमः (Hum Hanumante Namah)",
-      primaryChant: { en: "11× before hard work, delays or any legal matter", hi: "कठिन काम, विलंब या किसी कानूनी मामले से पहले 11×", gu: "કઠોર કામ, વિલંબ કે કોઈ કાનૂની મસલા પહેલાં 11×" },
-      weeklyChant: { en: "108× (or one Chalisa) on Saturdays", hi: "शनिवार को 108× (या एक चालीसा)", gu: "શનિવારે 108× (કે એક ચાલીસા)" },
-      offerings: { en: "Black sesame (til), sesame oil and a diya", hi: "काला तिल, तिल का तेल और दीया", gu: "કાળું તલ, તલનું તેલ અને દીવો" },
-      support: { en: "Black sesame, oil or iron; serve workers and elders on Saturdays", hi: "काला तिल, तेल या लोहा; शनिवार को मजदूरों और बड़ों की सेवा करें", gu: "કાળું તલ, તેલ કે લોખંડ; શનિવારે કામદારો અને વડીલોની સેવા કરો" },
-      protectionNote: { en: "Hanuman carries the Saturn load — delays, discipline and heavy obligations turn into steady progress when this number chants before effort; the Saturday 108× keeps the karmic debt light.", hi: "हनुमान शनि का बोझ संभालते हैं — विलंब, अनुशासन और भारी दायित्व तब स्थिर प्रगति बनते हैं जब यह अंक परिश्रम से पहले जपा जाए; शनिवार का 108× कर्म-देय हल्का रखता है।", gu: "હનુમાન શનિનો બોજ સંભાળે છે — વિલંબ, શિસ્ત અને ભારે ફરજ ત્યારે સ્થિર પ્રગતિ બને છે જ્યારે આ અંક પરિશ્રમ પહેલાં જપાતો હોય; શનિવારનું 108× જાપ કર્મ-દેય હળવું રાખે છે." }
-    },
-    9: {
-      god: { en: "Maa Durga", hi: "माँ दुर्गा", gu: "મા દુર્ગા" },
-      mantra: "ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
-      primaryChant: { en: "11× on Tuesdays", hi: "मंगलवार को 11×", gu: "મંગળવારે 11×" },
-      weeklyChant: { en: "108× during Navaratri and Durga Ashtami (nine nights and the eighth day)", hi: "नवरात्रि और दुर्गा अष्टमी में 108× (नौ रातें और आठवीं तिथि)", gu: "નવરાત્રિ અને દુર્ગા અષ્ટમીમાં 108× (નવ રાત અને આઠમી તિથિ)" },
-      offerings: { en: "Red flowers, kumkum and red cloth; jaggery and coconut as bhog", hi: "लाल फूल, कुंकुम और लाल कपड़ा; गुड़ और नारियल भोग", gu: "લાલ ફૂલ, કુંકમ અને લાલ કાપડ; ગોળ અને નારિયેળ ભોગ" },
-      support: { en: "Jaggery, coconut or red cloth; donate on Tuesdays and Durga Ashtami", hi: "गुड़, नारियल या लाल कपड़ा; मंगलवार और दुर्गा अष्टमी को दान करें", gu: "ગોળ, નારિયેળ કે લાલ કાપડ; મંગળવાર અને દુર્ગા અષ્ટમીએ દાન કરો" },
-      protectionNote: { en: "Durga is the warrior-shield of the Mars energy — courage in confrontation, protection from enemies and safe completion of bold moves; the Tuesday 11× keeps the fire in the hand, not in the heart.", hi: "दुर्गा मंगल ऊर्जा की योद्धा-कवच हैं — सामने आने पर साहस, शत्रुओं से रक्षा और साहसिक कदमों का सुरक्षित समापन; मंगलवार का 11× अग्नि को हथियार में रखता है, दिल में नहीं।", gu: "દુર્ગા મંગળ ઊર્જાનું યોધ્ધા-કવચ છે — સામ ન આવવામાં સાહસ, શત્રુઓથી રક્ષણ અને હિંમતભર્યા પગલાંનું સુરક્ષિત સમાપન; મંગળવારનું 11× અગ્નિને હાથમાં રાખે છે, હૃદયમાં નહીં." }
-    }
+      "1": {
+          "archetypes": {
+              "en": "Surya Narayana / Lord Rama",
+              "hi": "सूर्य नारायण / भगवान राम",
+              "gu": "સૂર્ય નારાયણ / ભગવાન રામ"
+          },
+          "god": {
+              "en": "Surya Narayana / Lord Rama",
+              "hi": "सूर्य नारायण / भगवान राम",
+              "gu": "સૂર્ય નારાયણ / ભગવાન રામ"
+          },
+          "mantra": "ॐ घृणिः सूर्याय नमः (Om Ghrinih Suryaya Namah)",
+          "cadence": {
+              "en": "11× at sunrise · 108× on Sundays",
+              "hi": "सूर्योदय पर 11× · रविवार को 108×",
+              "gu": "સૂર્યોદય સમયે 11× · રવિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× at sunrise",
+              "hi": "सूर्योदय पर 11×",
+              "gu": "સૂર્યોદય સમયે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Sundays",
+              "hi": "रविवार को 108×",
+              "gu": "રવિવારે 108×"
+          },
+          "offerings": {
+              "en": "Fresh water in a copper vessel (Arghya), red flowers, jaggery, or wheat",
+              "hi": "तांबे के पात्र में ताजा जल (अर्घ्य), लाल फूल, गुड़ या गेहूं",
+              "gu": "તાંબાના પાત્રમાં તાજું જળ (અર્ઘ્ય), લાલ ફૂલ, ગોળ કે ઘઉં"
+          },
+          "support": {
+              "en": "Fresh water in a copper vessel (Arghya), red flowers, jaggery, or wheat",
+              "hi": "तांबे के पात्र में ताजा जल (अर्घ्य), लाल फूल, गुड़ या गेहूं",
+              "gu": "તાંબાના પાત્રમાં તાજું જળ (અર્ઘ્ય), લાલ ફૂલ, ગોળ કે ઘઉં"
+          },
+          "presentationCopy": {
+              "en": "Surya Narayana (The cosmic source of vitality, executive vision, and soul illumination) or Lord Rama (The embodiment of uncompromising integrity and rightful authority; ideal for leadership clarity and father-figure harmony).",
+              "hi": "सूर्य नारायण (जीवन-ऊर्जा, कार्यकारी दृष्टि और आत्म-प्रकाश का स्रोत) या भगवान राम (अखंड सत्यनिष्ठा और न्यायसंगत अधिकार का प्रतीक; नेतृत्व स्पष्टता और पिता-तुल्य सामंजस्य के लिए उपयुक्त)।",
+              "gu": "સૂર્ય નારાયણ (જીવન-ઊર્જા, કારોબારી દ્રષ્ટિ અને આત્મ-પ્રકાશનો સ્ત્રોત) અથવા ભગવાન રામ (અખંડ સત્યનિષ્ઠા અને ન્યાયસંગત અધિકારનું પ્રતીક; નેતૃત્વ સ્પષ્ટતા અને પિતા-તુલ્ય સુમેળ માટે યોગ્ય)."
+          },
+          "protectionNote": {
+              "en": "Surya Narayana (The cosmic source of vitality, executive vision, and soul illumination) or Lord Rama (The embodiment of uncompromising integrity and rightful authority; ideal for leadership clarity and father-figure harmony).",
+              "hi": "सूर्य नारायण (जीवन-ऊर्जा, कार्यकारी दृष्टि और आत्म-प्रकाश का स्रोत) या भगवान राम (अखंड सत्यनिष्ठा और न्यायसंगत अधिकार का प्रतीक; नेतृत्व स्पष्टता और पिता-तुल्य सामंजस्य के लिए उपयुक्त)।",
+              "gu": "સૂર્ય નારાયણ (જીવન-ઊર્જા, કારોબારી દ્રષ્ટિ અને આત્મ-પ્રકાશનો સ્ત્રોત) અથવા ભગવાન રામ (અખંડ સત્યનિષ્ઠા અને ન્યાયસંગત અધિકારનું પ્રતીક; નેતૃત્વ સ્પષ્ટતા અને પિતા-તુલ્ય સુમેળ માટે યોગ્ય)."
+          }
+      },
+      "2": {
+          "archetypes": {
+              "en": "Lord Shiva (Chandrashekhara) / Goddess Gauri (Parvati)",
+              "hi": "भगवान शिव (चंद्रशेखर) / देवी गौरी (पार्वती)",
+              "gu": "ભગવાન શિવ (ચંદ્રશેખર) / દેવી ગૌરી (પાર્વતી)"
+          },
+          "god": {
+              "en": "Lord Shiva (Chandrashekhara) / Goddess Gauri (Parvati)",
+              "hi": "भगवान शिव (चंद्रशेखर) / देवी गौरी (पार्वती)",
+              "gu": "ભગવાન શિવ (ચંદ્રશેખર) / દેવી ગૌરી (પાર્વતી)"
+          },
+          "mantra": "ॐ नमः शिवाय (Om Namah Shivaya)",
+          "cadence": {
+              "en": "11× morning on an empty stomach · 108× on Mondays",
+              "hi": "सुबह खाली पेट 11× · सोमवार को 108×",
+              "gu": "સવારે ખાલી પેટે 11× · સોમવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× morning on an empty stomach",
+              "hi": "सुबह खाली पेट 11×",
+              "gu": "સવારે ખાલી પેટે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Mondays",
+              "hi": "सोमवार को 108×",
+              "gu": "સોમવારે 108×"
+          },
+          "offerings": {
+              "en": "Pure water, raw milk, white flowers, and bilva leaves",
+              "hi": "शुद्ध जल, कच्चा दूध, सफेद फूल और बिल्व पत्र",
+              "gu": "શુદ્ધ જળ, કાચું દૂધ, સફેદ ફૂલ અને બિલ્વ પત્ર"
+          },
+          "support": {
+              "en": "Pure water, raw milk, white flowers, and bilva leaves",
+              "hi": "शुद्ध जल, कच्चा दूध, सफेद फूल और बिल्व पत्र",
+              "gu": "શુદ્ધ જળ, કાચું દૂધ, સફેદ ફૂલ અને બિલ્વ પત્ર"
+          },
+          "presentationCopy": {
+              "en": "Lord Shiva (Wears the crescent moon; stabilizes fluctuating emotions, anxiety, and disturbed sleep) or Goddess Gauri (The nurturer of emotional maturity, intuitive calm, and maternal peace).",
+              "hi": "भगवान शिव (चंद्रमा को धारण करते हैं; उतार-चढ़ाव वाली भावनाओं, चिंता और अशांत नींद को स्थिर करते हैं) या देवी गौरी (भावनात्मक परिपक्वता, सहज शांति और मातृ शांति का पोषण करने वाली)।",
+              "gu": "ભગવાન શિવ (ચંદ્ર ધારણ કરે છે; ચંચળ લાગણીઓ, ચિંતા અને અશાંત ઊંઘને સ્થિર કરે છે) અથવા દેવી ગૌરી (ભાવનાત્મક પરિપક્વતા, સાહજિક શાંતિ અને માતૃ શાંતિનું પોષણ કરનાર)."
+          },
+          "protectionNote": {
+              "en": "Lord Shiva (Wears the crescent moon; stabilizes fluctuating emotions, anxiety, and disturbed sleep) or Goddess Gauri (The nurturer of emotional maturity, intuitive calm, and maternal peace).",
+              "hi": "भगवान शिव (चंद्रमा को धारण करते हैं; उतार-चढ़ाव वाली भावनाओं, चिंता और अशांत नींद को स्थिर करते हैं) या देवी गौरी (भावनात्मक परिपक्वता, सहज शांति और मातृ शांति का पोषण करने वाली)।",
+              "gu": "ભગવાન શિવ (ચંદ્ર ધારણ કરે છે; ચંચળ લાગણીઓ, ચિંતા અને અશાંત ઊંઘને સ્થિર કરે છે) અથવા દેવી ગૌરી (ભાવનાત્મક પરિપક્વતા, સાહજિક શાંતિ અને માતૃ શાંતિનું પોષણ કરનાર)."
+          }
+      },
+      "3": {
+          "archetypes": {
+              "en": "Lord Vishnu / Lord Dakshinamurthy",
+              "hi": "भगवान विष्णु / भगवान दक्षिणामूर्ति",
+              "gu": "ભગવાન વિષ્ણુ / ભગવાન દક્ષિણામૂર્તિ"
+          },
+          "god": {
+              "en": "Lord Vishnu / Lord Dakshinamurthy",
+              "hi": "भगवान विष्णु / भगवान दक्षिणामूर्ति",
+              "gu": "ભગવાન વિષ્ણુ / ભગવાન દક્ષિણામૂર્તિ"
+          },
+          "mantra": "ॐ नमो भगवते वासुदेवाय (Om Namo Bhagavate Vasudevaya)",
+          "cadence": {
+              "en": "11× before study, teaching, or major decisions · 108× on Thursdays",
+              "hi": "अध्ययन, शिक्षण या बड़े निर्णयों से पहले 11× · गुरुवार को 108×",
+              "gu": "અભ્યાસ, શિક્ષણ કે મોટા નિર્ણયો પહેલાં 11× · ગુરુવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× before study, teaching, or major decisions",
+              "hi": "अध्ययन, शिक्षण या बड़े निर्णयों से पहले 11×",
+              "gu": "અભ્યાસ, શિક્ષણ કે મોટા નિર્ણયો પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Thursdays",
+              "hi": "गुरुवार को 108×",
+              "gu": "ગુરુવારે 108×"
+          },
+          "offerings": {
+              "en": "Chana dal, yellow flowers, turmeric, tulsi leaves, and panak (honey water)",
+              "hi": "चना दाल, पीले फूल, हल्दी, तुलसी पत्र और पनाक (शहद-जल)",
+              "gu": "ચણા દાળ, પીળાં ફૂલ, હળદર, તુલસી પત્ર અને પનાક (મધ-જળ)"
+          },
+          "support": {
+              "en": "Chana dal, yellow flowers, turmeric, tulsi leaves, and panak (honey water)",
+              "hi": "चना दाल, पीले फूल, हल्दी, तुलसी पत्र और पनाक (शहद-जल)",
+              "gu": "ચણા દાળ, પીળાં ફૂલ, હળદર, તુલસી પત્ર અને પનાક (મધ-જળ)"
+          },
+          "presentationCopy": {
+              "en": "Lord Vishnu (Sustainer of dharma, ethical expansion, and long-term reputation) or Lord Dakshinamurthy (The supreme teacher; bestows advisory mastery, academic depth, and spiritual counsel).",
+              "hi": "भगवान विष्णु (धर्म, नैतिक विस्तार और दीर्घकालिक प्रतिष्ठा के पालक) या भगवान दक्षिणामूर्ति (परम गुरु; सलाहकार दक्षता, अकादमिक गहराई और आध्यात्मिक मार्गदर्शन प्रदान करते हैं)।",
+              "gu": "ભગવાન વિષ્ણુ (ધર્મ, નૈતિક વિસ્તાર અને લાંબા ગાળાની પ્રતિષ્ઠાના પાલક) અથવા ભગવાન દક્ષિણામૂર્તિ (પરમ ગુરુ; સલાહકાર ક્ષમતા, શૈક્ષણિક ઊંડાણ અને આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Lord Vishnu (Sustainer of dharma, ethical expansion, and long-term reputation) or Lord Dakshinamurthy (The supreme teacher; bestows advisory mastery, academic depth, and spiritual counsel).",
+              "hi": "भगवान विष्णु (धर्म, नैतिक विस्तार और दीर्घकालिक प्रतिष्ठा के पालक) या भगवान दक्षिणामूर्ति (परम गुरु; सलाहकार दक्षता, अकादमिक गहराई और आध्यात्मिक मार्गदर्शन प्रदान करते हैं)।",
+              "gu": "ભગવાન વિષ્ણુ (ધર્મ, નૈતિક વિસ્તાર અને લાંબા ગાળાની પ્રતિષ્ઠાના પાલક) અથવા ભગવાન દક્ષિણામૂર્તિ (પરમ ગુરુ; સલાહકાર ક્ષમતા, શૈક્ષણિક ઊંડાણ અને આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે)."
+          }
+      },
+      "4": {
+          "archetypes": {
+              "en": "Maa Durga / Lord Bhairava",
+              "hi": "माँ दुर्गा / भगवान भैरव",
+              "gu": "મા દુર્ગા / ભગવાન ભૈરવ"
+          },
+          "god": {
+              "en": "Maa Durga / Lord Bhairava",
+              "hi": "माँ दुर्गा / भगवान भैरव",
+              "gu": "મા દુર્ગા / ભગવાન ભૈરવ"
+          },
+          "mantra": "ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
+          "cadence": {
+              "en": "11× when plans feel erratic or overwhelming · 108× on Saturdays",
+              "hi": "जब योजनाएं अनियंत्रित या भारी लगें तब 11× · शनिवार को 108×",
+              "gu": "જ્યારે યોજનાઓ અનિયંત્રિત કે ભારે લાગે ત્યારે 11× · શનિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× when plans feel erratic or overwhelming",
+              "hi": "जब योजनाएं अनियंत्रित या भारी लगें तब 11×",
+              "gu": "જ્યારે યોજનાઓ અનિયંત્રિત કે ભારે લાગે ત્યારે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Saturdays",
+              "hi": "शनिवार को 108×",
+              "gu": "શનિવારે 108×"
+          },
+          "offerings": {
+              "en": "Kumkum, red flowers, sesame oil lamp, or feeding stray dogs",
+              "hi": "कुंकुम, लाल फूल, तिल के तेल का दीपक, या गली के कुत्तों को भोजन",
+              "gu": "કુંકમ, લાલ ફૂલ, તલના તેલનો દીવો, કે શેરીના શ્વાનોને ભોજન"
+          },
+          "support": {
+              "en": "Kumkum, red flowers, sesame oil lamp, or feeding stray dogs",
+              "hi": "कुंकुम, लाल फूल, तिल के तेल का दीपक, या गली के कुत्तों को भोजन",
+              "gu": "કુંકમ, લાલ ફૂલ, તલના તેલનો દીવો, કે શેરીના શ્વાનોને ભોજન"
+          },
+          "presentationCopy": {
+              "en": "Maa Durga (The supreme shield against illusions, sudden shocks, and mental obsessions) or Lord Bhairava (The master of time; dissolves chronic fear, overthinking, and erratic disruptive patterns).",
+              "hi": "माँ दुर्गा (भ्रम, अचानक आघात और मानसिक जुनून के खिलाफ सर्वोच्च ढाल) या भगवान भैरव (काल के स्वामी; पुराने भय, अधिक सोचने और अनियमित विघटनकारी पैटर्न को समाप्त करते हैं)।",
+              "gu": "મા દુર્ગા (ભ્રમ, અચાનક આંચકા અને માનસિક વળગણ સામે સર્વોચ્ચ ઢાલ) અથવા ભગવાન ભૈરવ (કાળના સ્વામી; જૂના ભય, વધુ પડતા વિચાર અને અનિયમિત વિક્ષેપકારક પેટર્નને ઓગાળી દે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Durga (The supreme shield against illusions, sudden shocks, and mental obsessions) or Lord Bhairava (The master of time; dissolves chronic fear, overthinking, and erratic disruptive patterns).",
+              "hi": "माँ दुर्गा (भ्रम, अचानक आघात और मानसिक जुनून के खिलाफ सर्वोच्च ढाल) या भगवान भैरव (काल के स्वामी; पुराने भय, अधिक सोचने और अनियमित विघटनकारी पैटर्न को समाप्त करते हैं)।",
+              "gu": "મા દુર્ગા (ભ્રમ, અચાનક આંચકા અને માનસિક વળગણ સામે સર્વોચ્ચ ઢાલ) અથવા ભગવાન ભૈરવ (કાળના સ્વામી; જૂના ભય, વધુ પડતા વિચાર અને અનિયમિત વિક્ષેપકારક પેટર્નને ઓગાળી દે છે)."
+          }
+      },
+      "5": {
+          "archetypes": {
+              "en": "Lord Ganesha / Lord Vishnu",
+              "hi": "भगवान गणेश / भगवान विष्णु",
+              "gu": "ભગવાન ગણેશ / ભગવાન વિષ્ણુ"
+          },
+          "god": {
+              "en": "Lord Ganesha / Lord Vishnu",
+              "hi": "भगवान गणेश / भगवान विष्णु",
+              "gu": "ભગવાન ગણેશ / ભગવાન વિષ્ણુ"
+          },
+          "mantra": "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)",
+          "cadence": {
+              "en": "11× before commercial negotiations, writing, or calculations · 108× on Wednesdays",
+              "hi": "व्यापारिक बातचीत, लेखन या गणना से पहले 11× · बुधवार को 108×",
+              "gu": "વેપારી વાતચીત, લેખન કે ગણતરી પહેલાં 11× · બુધવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× before commercial negotiations, writing, or calculations",
+              "hi": "व्यापारिक बातचीत, लेखन या गणना से पहले 11×",
+              "gu": "વેપારી વાતચીત, લેખન કે ગણતરી પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Wednesdays",
+              "hi": "बुधवार को 108×",
+              "gu": "બુધવારે 108×"
+          },
+          "offerings": {
+              "en": "Fresh green Durva grass, modak, green moong, or stationery donation",
+              "hi": "ताजी हरी दुर्वा घास, मोदक, हरा मूंग, या स्टेशनरी दान",
+              "gu": "તાજી લીલી દૂર્વા, મોદક, લીલા મગ, કે સ્ટેશનરી દાન"
+          },
+          "support": {
+              "en": "Fresh green Durva grass, modak, green moong, or stationery donation",
+              "hi": "ताजी हरी दुर्वा घास, मोदक, हरा मूंग, या स्टेशनरी दान",
+              "gu": "તાજી લીલી દૂર્વા, મોદક, લીલા મગ, કે સ્ટેશનરી દાન"
+          },
+          "presentationCopy": {
+              "en": "Lord Ganesha (The master of Buddhi and intellect; removes commercial bottlenecks and sharpens communication through Wednesday Durva offerings) or Lord Vishnu (Sustainer of clear analytical intellect and fair business enterprise).",
+              "hi": "भगवान गणेश (बुद्धि और विवेक के स्वामी; बुधवार को दुर्वा अर्पण से व्यावसायिक बाधाओं को दूर करते हैं और संचार को तेज करते हैं) या भगवान विष्णु (स्पष्ट विश्लेषणात्मक बुद्धि और निष्पक्ष व्यापार उद्यम के पालक)।",
+              "gu": "ભગવાન ગણેશ (બુદ્ધિ અને વિવેકના સ્વામી; બુધવારે દૂર્વા અર્પણથી વ્યાપારી અવરોધો દૂર કરે છે અને સંવાદ તેજ કરે છે) અથવા ભગવાન વિષ્ણુ (સ્પષ્ટ વિશ્લેષણાત્મક બુદ્ધિ અને નિષ્પક્ષ વેપારના પાલક)."
+          },
+          "protectionNote": {
+              "en": "Lord Ganesha (The master of Buddhi and intellect; removes commercial bottlenecks and sharpens communication through Wednesday Durva offerings) or Lord Vishnu (Sustainer of clear analytical intellect and fair business enterprise).",
+              "hi": "भगवान गणेश (बुद्धि और विवेक के स्वामी; बुधवार को दुर्वा अर्पण से व्यावसायिक बाधाओं को दूर करते हैं और संचार को तेज करते हैं) या भगवान विष्णु (स्पष्ट विश्लेषणात्मक बुद्धि और निष्पक्ष व्यापार उद्यम के पालक)।",
+              "gu": "ભગવાન ગણેશ (બુદ્ધિ અને વિવેકના સ્વામી; બુધવારે દૂર્વા અર્પણથી વ્યાપારી અવરોધો દૂર કરે છે અને સંવાદ તેજ કરે છે) અથવા ભગવાન વિષ્ણુ (સ્પષ્ટ વિશ્લેષણાત્મક બુદ્ધિ અને નિષ્પક્ષ વેપારના પાલક)."
+          }
+      },
+      "6": {
+          "archetypes": {
+              "en": "Maa Lakshmi / Goddess Katyayani",
+              "hi": "माँ लक्ष्मी / देवी कात्यायनी",
+              "gu": "મા લક્ષ્મી / દેવી કાત્યાયની"
+          },
+          "god": {
+              "en": "Maa Lakshmi / Goddess Katyayani",
+              "hi": "माँ लक्ष्मी / देवी कात्यायनी",
+              "gu": "મા લક્ષ્મી / દેવી કાત્યાયની"
+          },
+          "mantra": "ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)",
+          "cadence": {
+              "en": "11× morning before work · 108× on Fridays",
+              "hi": "सुबह काम से पहले 11× · शुक्रवार को 108×",
+              "gu": "સવારે કામ પહેલાં 11× · શુક્રવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× morning before work",
+              "hi": "सुबह काम से पहले 11×",
+              "gu": "સવારે કામ પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Fridays",
+              "hi": "शुक्रवार को 108×",
+              "gu": "શુક્રવારે 108×"
+          },
+          "offerings": {
+              "en": "White or pink flowers (rose/lotus), kheer, white sweets, and fine natural scents",
+              "hi": "सफेद या गुलाबी फूल (गुलाब/कमल), खीर, सफेद मिठाई और प्राकृतिक सुगंध",
+              "gu": "સફેદ કે ગુલાબી ફૂલ (ગુલાબ/કમળ), ખીર, સફેદ મીઠાઈ અને કુદરતી સુગંધ"
+          },
+          "support": {
+              "en": "White or pink flowers (rose/lotus), kheer, white sweets, and fine natural scents",
+              "hi": "सफेद या गुलाबी फूल (गुलाब/कमल), खीर, सफेद मिठाई और प्राकृतिक सुगंध",
+              "gu": "સફેદ કે ગુલાબી ફૂલ (ગુલાબ/કમળ), ખીર, સફેદ મીઠાઈ અને કુદરતી સુગંધ"
+          },
+          "presentationCopy": {
+              "en": "Maa Lakshmi (The bestower of refined prosperity, artistic excellence, and material comfort) or Goddess Katyayani (The Shakti archetype that harmonizes marriage, balances desire, and nurtures self-worth).",
+              "hi": "माँ लक्ष्मी (परिष्कृत समृद्धि, कलात्मक उत्कृष्टता और भौतिक सुख की प्रदाता) या देवी कात्यायनी (शक्ति स्वरूप जो विवाह में सामंजस्य लाती हैं, इच्छाओं को संतुलित करती हैं और आत्म-सम्मान को पोषित करती हैं)।",
+              "gu": "મા લક્ષ્મી (શુદ્ધ સમૃદ્ધિ, કલાત્મક ઉત્કૃષ્ટતા અને ભૌતિક સુખ પ્રદાતા) અથવા દેવી કાત્યાયની (શક્તિ સ્વરૂપ જે લગ્નમાં સુમેળ લાવે છે, ઇચ્છાઓને સંતુલિત કરે છે અને આત્મ-સન્માનનું પોષણ કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Lakshmi (The bestower of refined prosperity, artistic excellence, and material comfort) or Goddess Katyayani (The Shakti archetype that harmonizes marriage, balances desire, and nurtures self-worth).",
+              "hi": "माँ लक्ष्मी (परिष्कृत समृद्धि, कलात्मक उत्कृष्टता और भौतिक सुख की प्रदाता) या देवी कात्यायनी (शक्ति स्वरूप जो विवाह में सामंजस्य लाती हैं, इच्छाओं को संतुलित करती हैं और आत्म-सम्मान को पोषित करती हैं)।",
+              "gu": "મા લક્ષ્મી (શુદ્ધ સમૃદ્ધિ, કલાત્મક ઉત્કૃષ્ટતા અને ભૌતિક સુખ પ્રદાતા) અથવા દેવી કાત્યાયની (શક્તિ સ્વરૂપ જે લગ્નમાં સુમેળ લાવે છે, ઇચ્છાઓને સંતુલિત કરે છે અને આત્મ-સન્માનનું પોષણ કરે છે)."
+          }
+      },
+      "7": {
+          "archetypes": {
+              "en": "Lord Ganesha / Shri Hanuman",
+              "hi": "भगवान गणेश / श्री हनुमान",
+              "gu": "ભગવાન ગણેશ / શ્રી હનુમાન"
+          },
+          "god": {
+              "en": "Lord Ganesha / Shri Hanuman",
+              "hi": "भगवान गणेश / श्री हनुमान",
+              "gu": "ભગવાન ગણેશ / શ્રી હનુમાન"
+          },
+          "mantra": "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)",
+          "cadence": {
+              "en": "11× when facing isolation or mental confusion · 108× on Tuesdays or Saturdays",
+              "hi": "अकेलेपन या मानसिक भ्रम के समय 11× · मंगलवार या शनिवार को 108×",
+              "gu": "એકલતા કે માનસિક મૂંઝવણ વખતે 11× · મંગળવારે કે શનિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× when facing isolation or mental confusion",
+              "hi": "अकेलेपन या मानसिक भ्रम के समय 11×",
+              "gu": "એકલતા કે માનસિક મૂંઝવણ વખતે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Tuesdays or Saturdays",
+              "hi": "मंगलवार या शनिवार को 108×",
+              "gu": "મંગળવારે કે શનિવારે 108×"
+          },
+          "offerings": {
+              "en": "21 Durva blades, red tilak, modak, or sesame oil lamp",
+              "hi": "21 दुर्वा दल, लाल तिलक, मोदक, या तिल के तेल का दीपक",
+              "gu": "21 દૂર્વા દળ, લાલ તિલક, મોદક, કે તલના તેલનો દીવો"
+          },
+          "support": {
+              "en": "21 Durva blades, red tilak, modak, or sesame oil lamp",
+              "hi": "21 दुर्वा दल, लाल तिलक, मोदक, या तिल के तेल का दीपक",
+              "gu": "21 દૂર્વા દળ, લાલ તિલક, મોદક, કે તલના તેલનો દીવો"
+          },
+          "presentationCopy": {
+              "en": "Lord Ganesha (Classical Ketu Adhidevata; balances headless detachment with profound discernment and spiritual breakthrough) or Shri Hanuman (The protector against hidden fears, ungrounded drifts, and sudden uncertainty).",
+              "hi": "भगवान गणेश (शास्त्रीय केतु अधिदेवता; विरक्ति को गहन विवेक और आध्यात्मिक अंतर्दृष्टि से संतुलित करते हैं) या श्री हनुमान (छिपे हुए भय, दिशाहीन भटकाव और अचानक अनिश्चितता से रक्षा करने वाले)।",
+              "gu": "ભગવાન ગણેશ (શાસ્ત્રીય કેતુ અધિદેવતા; અલિપ્તતાને ઊંડા વિવેક અને આધ્યાત્મિક સફળતા સાથે સંતુલિત કરે છે) અથવા શ્રી હનુમાન (છૂપા ભય, આધારહીન ભટકાવ અને અચાનક અનિશ્ચિતતા સામે રક્ષક)."
+          },
+          "protectionNote": {
+              "en": "Lord Ganesha (Classical Ketu Adhidevata; balances headless detachment with profound discernment and spiritual breakthrough) or Shri Hanuman (The protector against hidden fears, ungrounded drifts, and sudden uncertainty).",
+              "hi": "भगवान गणेश (शास्त्रीय केतु अधिदेवता; विरक्ति को गहन विवेक और आध्यात्मिक अंतर्दृष्टि से संतुलित करते हैं) या श्री हनुमान (छिपे हुए भय, दिशाहीन भटकाव और अचानक अनिश्चितता से रक्षा करने वाले)।",
+              "gu": "ભગવાન ગણેશ (શાસ્ત્રીય કેતુ અધિદેવતા; અલિપ્તતાને ઊંડા વિવેક અને આધ્યાત્મિક સફળતા સાથે સંતુલિત કરે છે) અથવા શ્રી હનુમાન (છૂપા ભય, આધારહીન ભટકાવ અને અચાનક અનિશ્ચિતતા સામે રક્ષક)."
+          }
+      },
+      "8": {
+          "archetypes": {
+              "en": "Shri Hanuman / Lord Shiva (Mahakaal)",
+              "hi": "श्री हनुमान / भगवान शिव (महाकाल)",
+              "gu": "શ્રી હનુમાન / ભગવાન શિવ (મહાકાલ)"
+          },
+          "god": {
+              "en": "Shri Hanuman / Lord Shiva (Mahakaal)",
+              "hi": "श्री हनुमान / भगवान शिव (महाकाल)",
+              "gu": "શ્રી હનુમાન / भगवान शिव (महाकाल)"
+          },
+          "mantra": "ॐ शं शनैश्चराय नमः (Om Sham Shanaischaraya Namah) or Hanuman Chalisa",
+          "cadence": {
+              "en": "11× morning · 108× (or 1 Chalisa recital) on Saturdays",
+              "hi": "सुबह 11× · शनिवार को 108× (या 1 चालीसा पाठ)",
+              "gu": "સવારે 11× · શનિવારે 108× (કે 1 ચાલીસા પાઠ)"
+          },
+          "primaryChant": {
+              "en": "11× morning",
+              "hi": "सुबह 11×",
+              "gu": "સવારે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× (or 1 Chalisa recital) on Saturdays",
+              "hi": "शनिवार को 108× (या 1 चालीसा पाठ)",
+              "gu": "શનિવારે 108× (કે 1 ચાલીસા પાઠ)"
+          },
+          "offerings": {
+              "en": "Mustard oil lamp, black sesame seeds, and blue/dark flowers",
+              "hi": "सरसों के तेल का दीपक, काले तिल और नीले/गहरे रंग के फूल",
+              "gu": "સરસવના તેલનો દીવો, કાળા તલ અને વાદળી/ઘેરા રંગના ફૂલ"
+          },
+          "support": {
+              "en": "Mustard oil lamp, black sesame seeds, and blue/dark flowers",
+              "hi": "सरसों के तेल का दीपक, काले तिल और नीले/गहरे रंग के फूल",
+              "gu": "સરસવના તેલનો દીવો, કાળા તલ અને વાદળી/ઘેરા રંગના ફૂલ"
+          },
+          "presentationCopy": {
+              "en": "Shri Hanuman (The traditional protective shield against Saturnine strain, debt-loops, and delays) or Lord Shiva (The supreme lord of karma; anchors unyielding perseverance, justice, and structural stability).",
+              "hi": "श्री हनुमान (शनि जनित तनाव, कर्ज के चक्र और देरी के खिलाफ पारंपरिक रक्षा कवच) या भगवान शिव (कर्म के सर्वोच्च स्वामी; अडिग दृढ़ता, न्याय और संरचनात्मक स्थिरता को स्थापित करते हैं)।",
+              "gu": "શ્રી હનુમાન (શનિના તણાવ, દેવાના ચક્ર અને વિલંબ સામે પરંપરાગત રક્ષણાત્મક ઢાલ) અથવા ભગવાન શિવ (કર્મનું સર્વોચ્ચ સ્વામી; અડગ દ્રઢતા, ન્યાય અને માળખાકીય સ્થિરતા સ્થાપિત કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Shri Hanuman (The traditional protective shield against Saturnine strain, debt-loops, and delays) or Lord Shiva (The supreme lord of karma; anchors unyielding perseverance, justice, and structural stability).",
+              "hi": "श्री हनुमान (शनि जनित तनाव, कर्ज के चक्र और देरी के खिलाफ पारंपरिक रक्षा कवच) या भगवान शिव (कर्म के सर्वोच्च स्वामी; अडिग दृढ़ता, न्याय और संरचनात्मक स्थिरता को स्थापित करते हैं)।",
+              "gu": "શ્રી હનુમાન (શનિના તણાવ, દેવાના ચક્ર અને વિલંબ સામે પરંપરાગત રક્ષણાત્મક ઢાલ) અથવા ભગવાન શિવ (કર્મનું સર્વોચ્ચ સ્વામી; અડગ દ્રઢતા, ન્યાય અને માળખાકીય સ્થિરતા સ્થાપિત કરે છે)."
+          }
+      },
+      "9": {
+          "archetypes": {
+              "en": "Maa Durga / Shri Hanuman (Lord Kartikeya)",
+              "hi": "माँ दुर्गा / श्री हनुमान (भगवान कार्तिकेय)",
+              "gu": "મા દુર્ગા / શ્રી હનુમાન (ભગવાન કાર્તિકેય)"
+          },
+          "god": {
+              "en": "Maa Durga / Shri Hanuman (Lord Kartikeya)",
+              "hi": "माँ दुर्गा / श्री हनुमान (भगवान कार्तिकेय)",
+              "gu": "મા દુર્ગા / શ્રી હનુમાન (ભગવાન કાર્તિકેય)"
+          },
+          "mantra": "ॐ हं हनुमते नमः (Om Hum Hanumate Namah) or ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
+          "cadence": {
+              "en": "11× for courage before physical effort or confrontation · 108× on Tuesdays",
+              "hi": "शारीरिक परिश्रम या मुकाबले से पहले साहस के लिए 11× · मंगलवार को 108×",
+              "gu": "શારીરિક શ્રમ કે મુકાબલા પહેલાં હિંમત માટે 11× · મંગળવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× for courage before physical effort or confrontation",
+              "hi": "शारीरिक परिश्रम या मुकाबले से पहले साहस के लिए 11×",
+              "gu": "શારીરિક શ્રમ કે મુકાબલા પહેલાં હિંમત માટે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Tuesdays",
+              "hi": "मंगलवार को 108×",
+              "gu": "મંગળવારે 108×"
+          },
+          "offerings": {
+              "en": "Red sindoor, jasmine oil lamp, jaggery with roasted gram, and red hibiscus",
+              "hi": "लाल सिंदूर, चमेली के तेल का दीपक, गुड़ के साथ भुना चना और लाल गुड़हल फूल",
+              "gu": "લાલ સિંદૂર, ચમેલીના તેલનો દીવો, ગોળ સાથે શેકેલા ચણા અને લાલ જાસૂદનું ફૂલ"
+          },
+          "support": {
+              "en": "Red sindoor, jasmine oil lamp, jaggery with roasted gram, and red hibiscus",
+              "hi": "लाल सिंदूर, चमेली के तेल का दीपक, गुड़ के साथ भुना चना और लाल गुड़हल फूल",
+              "gu": "લાલ સિંદૂર, ચમેલીના તેલનો દીવો, ગોળ સાથે શેકેલા ચણા અને લાલ જાસૂદનું ફૂલ"
+          },
+          "presentationCopy": {
+              "en": "Maa Durga (The Navadurga archetype governing Martian fire, victorious combat, and protective armor) or Shri Hanuman / Lord Kartikeya (Channels aggressive, restless energy into disciplined physical courage, competitive triumph, and property protection).",
+              "hi": "माँ दुर्गा (नवदुर्गा स्वरूप जो मंगल की अग्नि, विजयी संघर्ष और सुरक्षा कवच का संचालन करती हैं) या श्री हनुमान / भगवान कार्तिकेय (आक्रामक, अशांत ऊर्जा को अनुशासित शारीरिक साहस, प्रतिस्पर्धी विजय और संपत्ति संरक्षण में बदलते हैं)।",
+              "gu": "મા દુર્ગા (નવદુર્ગા સ્વરૂપ જે મંગળની અગ્નિ, વિજયી સંઘર્ષ અને રક્ષણાત્મક કવચનું નિયંત્રણ કરે છે) અથવા શ્રી હનુમાન / ભગવાન કાર્તિકેય (આક્રમક, અશાંત ઊર્જાને શિસ્તબદ્ધ શારીરિક હિંમત, સ્પર્ધાત્મક વિજય અને મિલકત સંરક્ષણમાં રૂપાંતરિત કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Durga (The Navadurga archetype governing Martian fire, victorious combat, and protective armor) or Shri Hanuman / Lord Kartikeya (Channels aggressive, restless energy into disciplined physical courage, competitive triumph, and property protection).",
+              "hi": "माँ दुर्गा (नवदुर्गा स्वरूप जो मंगल की अग्नि, विजयी संघर्ष और सुरक्षा कवच का संचालन करती हैं) या श्री हनुमान / भगवान कार्तिकेय (आक्रामक, अशांत ऊर्जा को अनुशासित शारीरिक साहस, प्रतिस्पर्धी विजय और संपत्ति संरक्षण में बदलते हैं)।",
+              "gu": "મા દુર્ગા (નવદુર્ગા સ્વરૂપ જે મંગળની અગ્નિ, વિજયી સંઘર્ષ અને રક્ષણાત્મક કવચનું નિયંત્રણ કરે છે) અથવા શ્રી હનુમાન / ભગવાન કાર્તિકેય (આક્રમક, અશાંત ઊર્જાને શિસ્તબદ્ધ શારીરિક હિંમત, સ્પર્ધાત્મક વિજય અને મિલકત સંરક્ષણમાં રૂપાંતરિત કરે છે)."
+          }
+      }
   },
 
   /* ---- Karmic Debt numbers (13 / 14 / 16 / 19) ----
