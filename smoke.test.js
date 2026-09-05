@@ -1,427 +1,181 @@
-/* Smoke test: load the app in jsdom, submit the intake form (PDF example
-   DOB 20/08/2005), and verify the report renders all sections in English, Hindi, and Gujarati.
-
-   The Vedic ephemeris (astro.js) is a self-contained Meeus port — no
-   vendor bundle, no window.Astronomy. Its reference-chart values are
-   validated below against independently computed VSOP87/astronomy-engine
-   constants (recorded to 7 decimals) and against a brute-force
-   horizon/meridian search. */
+/* Hybrid release smoke suite.
+   Exercises the two intentionally separate grid engines, authority boundaries,
+   Dasha/Vastu timing, accessible module tabs, localisation and print/mobile
+   hooks in jsdom. */
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
 
 const root = __dirname;
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
-const astroJs = fs.readFileSync(path.join(root, "astro.js"), "utf8");
-const dataJs = fs.readFileSync(path.join(root, "data.js"), "utf8");
-const i18nJs = fs.readFileSync(path.join(root, "i18n.js"), "utf8");
-const appJs = fs.readFileSync(path.join(root, "app.js"), "utf8");
-
+const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
+const html = read("index.html");
+const styles = read("styles.css");
+const schema = JSON.parse(read("knowledge-pack/schema.json"));
+const latestManifest = JSON.parse(read("knowledge-pack/latest.json"));
+const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.8.0.json"));
 const dom = new JSDOM(html, { runScripts: "outside-only", url: "http://localhost/" });
 const { window } = dom;
-
-// jsdom lacks scrollTo / print
 window.scrollTo = () => {};
 window.print = () => {};
+window.requestAnimationFrame = (fn) => fn();
+window.eval(["astro.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
 
-// eval the scripts in the same order index.html loads them, so the
-// top-level lexical bindings (NVAstro, DB, I18N) are visible to app.js
-// (mirrors <script> scoping)
-window.eval(astroJs + "\n;\n" + dataJs + "\n;\n" + i18nJs + "\n;\n" + appJs);
+const $ = (selector, rootNode) => (rootNode || window.document).querySelector(selector);
+const $$ = (selector, rootNode) => Array.from((rootNode || window.document).querySelectorAll(selector));
+let failed = 0;
+function check(name, value) {
+  const ok = !!value;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}`);
+  if (!ok) failed++;
+}
+function same(value, expected) { return JSON.stringify(value) === JSON.stringify(expected); }
+function profile(overrides) {
+  return window.__NV.computeProfile(Object.assign({
+    name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", vehicle: "HR51AB1234",
+    goals: ["Money", "Career"], entrance: "SW", kitchen: "NE", bedroom: "SW", toilet: "NW",
+    study: "E", staircase: "W", watchType: "smart", gender: "female", birthTime: "14:05", birthPlace: "New Delhi, India"
+  }, overrides || {}));
+}
+function mount(markup) {
+  const node = window.document.createElement("div");
+  node.innerHTML = markup;
+  return node;
+}
 
-const $ = (s) => window.document.querySelector(s);
-const $$ = (s) => Array.from(window.document.querySelectorAll(s));
+/* ---- Independent calculation engines ---- */
+const loShu = window.__NV.generateLoShuGrid(30, 6, 1986);
+const vedic = window.__NV.generateVedicGrid(30, 6, 1986);
+const loShuZeroDay = window.__NV.generateLoShuGrid(10, 10, 2000);
+const vedicZeroDay = window.__NV.generateVedicGrid(10, 10, 2000);
+const vedic19 = window.__NV.generateVedicGrid(19, 2, 2000);
+const vedic28 = window.__NV.generateVedicGrid(28, 2, 2000);
 
-// fill the form
+check("classic Lo Shu layout is canonical", same(window.__NV.loShuGridLayout, [[4, 9, 2], [3, 5, 7], [8, 1, 6]]));
+check("advanced Vedic layout is canonical", same(window.__NV.vedicGridLayout, [[3, 1, 9], [6, 7, 5], [2, 8, 4]]));
+check("Lo Shu 30-06-1986 keeps all full-date digits and both roots", loShu.digits.join(",") === "3,6,1,9,8,6,3,6" && loShu.counts[3] === 2 && loShu.counts[6] === 3 && loShu.counts[1] === 1 && loShu.counts[9] === 1 && loShu.counts[8] === 1);
+check("Lo Shu includes century digits and does not de-duplicate direct dates", loShu.raw.year === "1986" && loShu.sourceDigits.year.join(",") === "1,9,8,6" && loShuZeroDay.sourceDigits.day.join(",") === "1" && loShuZeroDay.counts[1] === 3);
+check("Vedic 30-06-1986 retains filtered historical fixture", vedic.counts[3] === 1 && vedic.counts[6] === 3 && vedic.counts[8] === 1 && Object.values(vedic.counts).filter(Boolean).length === 3 && vedic.digits.join(",") === "6,8,6,3,6");
+check("Vedic grid excludes century and de-duplicates direct date input", vedic.excluded.dayDeduplicated && vedic.raw.century === "19" && vedic.sourceDigits.year.join(",") === "8,6" && vedicZeroDay.excluded.dayDeduplicated && vedicZeroDay.counts[1] === 2 && vedicZeroDay.counts[4] === 1);
+check("Vedic grid preserves compound-day raw digits and separate Moolank", !vedic19.excluded.dayDeduplicated && vedic19.counts[1] === 2 && vedic19.counts[9] === 1 && vedic19.counts[5] === 1 && !vedic28.excluded.dayDeduplicated && vedic28.counts[2] === 2 && vedic28.counts[8] === 1 && vedic28.counts[1] === 1 && vedic28.counts[5] === 1);
+
+/* ---- Explicit profile namespaces and Lo Shu name/combined coordinates ---- */
+const mappingProfile = profile({ name: "ACE", dob: "2000-01-10", goals: ["Money"] });
+const loShuMarkup = mount(window.__NV.renderLoShuGrid(mappingProfile));
+const loShuGrids = $$(".loshu-grid", loShuMarkup);
+const cellMap = (grid, selector) => Object.fromEntries($$(selector, grid).map((cell) => [cell.dataset.gridNumber, cell]));
+const nameCells = cellMap(loShuGrids[1], ".loshu-cell");
+const combinedCells = cellMap(loShuGrids[2], ".loshu-cell");
+check("profile exposes system-scoped grid fields only", mappingProfile.loShuCounts && mappingProfile.vedicCounts && mappingProfile.loShuMissing && mappingProfile.vedicMissing && mappingProfile.loShuNameCounts && mappingProfile.loShuCombinedCounts && !("counts" in mappingProfile) && !("missing" in mappingProfile));
+check("Lo Shu renderer retains Birth, Name and Combined grids", loShuGrids.length === 3 && $$(".loshu-cell", loShuMarkup).length === 27);
+check("Lo Shu Name grid coordinates follow 4-9-2 / 3-5-7 / 8-1-6", $$(".loshu-cell", loShuGrids[1]).map((cell) => cell.dataset.gridNumber).join(",") === "4,9,2,3,5,7,8,1,6" && ["1", "3", "5"].every((number) => nameCells[number].classList.contains("present")));
+check("Lo Shu Combined grid adds name counts by number key", mappingProfile.loShuNameCounts[1] === 1 && mappingProfile.loShuNameCounts[3] === 1 && mappingProfile.loShuNameCounts[5] === 1 && mappingProfile.loShuCombinedCounts[1] === mappingProfile.loShuCounts[1] + mappingProfile.loShuNameCounts[1] && combinedCells["1"].classList.contains("multi") && combinedCells["3"].classList.contains("present") && !combinedCells["3"].classList.contains("multi"));
+check("Lo Shu restores eight familiar planes and arrows", $$(".loshu-plane-card", loShuMarkup).length === 8 && $$(".arrow-card", loShuMarkup).length === 8 && loShuMarkup.textContent.includes("Mental Plane") && loShuMarkup.textContent.includes("Arrow of Planning"));
+
+/* ---- Vedic advanced comparison: one birth grid, collapsed, no remedy list ---- */
+const vedicMarkup = mount(window.__NV.renderVedicBirthComparison(mappingProfile));
+check("advanced Vedic comparison is collapsed by default", !!$("details.advanced-vedic-comparison", vedicMarkup) && !$("details.advanced-vedic-comparison", vedicMarkup).open);
+check("advanced Vedic comparison renders only its Birth Grid", $$(".vedic-grid", vedicMarkup).length === 1 && $$(".vedic-cell", vedicMarkup).length === 9 && !vedicMarkup.textContent.includes("Vedic Name Grid") && !vedicMarkup.textContent.includes("Combined Vedic Grid"));
+check("advanced Vedic cells keep Vedic coordinates and strength framing", $$(".vedic-cell", vedicMarkup).map((cell) => cell.dataset.gridNumber).join(",") === "3,1,9,6,7,5,2,8,4" && vedicMarkup.textContent.includes("Planetary Strength Indicators") && vedicMarkup.textContent.includes("not a missing-number remedy obligation"));
+
+/* ---- Authority boundaries ---- */
+const authorityProfile = profile({ dob: "1986-06-30" });
+const alteredGridProfile = Object.assign({}, authorityProfile, {
+  loShuCounts: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 9])),
+  loShuMissing: [], loShuRepeated: [1, 2, 3], loShuWeak: [], loShuMissingSeverity: [],
+  vedicCounts: Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, 0])),
+  vedicMissing: [1, 2, 3, 4, 5, 6, 7, 8, 9], vedicRepeated: [], vedicWeak: []
+});
+const authorityReport = window.__NV.renderReport(authorityProfile);
+const authorityReportDom = mount(authorityReport);
+const partnerAuthorityProfile = profile({ dob: "1986-06-30", partnerName: "Arjun Patel", partnerDob: "2000-04-04" });
+const partnerAuthorityReportDom = mount(window.__NV.renderReport(partnerAuthorityProfile));
+const compatibilityAuthoritySection = $("#compatibility-section", partnerAuthorityReportDom);
+const alignedPartnerProfile = profile({ partnerName: "Meera Shah", partnerDob: "1990-08-05" });
+const alignedCompatibilitySection = $("#compatibility-section", mount(window.__NV.renderReport(alignedPartnerProfile)));
+const basePractice = window.__NV.activationPlan(authorityProfile);
+const alteredPractice = window.__NV.activationPlan(alteredGridProfile);
+const baseCrystals = window.__NV.crystalGuide(authorityProfile);
+const alteredCrystals = window.__NV.crystalGuide(alteredGridProfile);
+const fixedDate = "2026-09-05T12:00:00Z";
+const baseDasha = window.__NV.dashaTimeline(authorityProfile, fixedDate);
+const alteredDasha = window.__NV.dashaTimeline(alteredGridProfile, fixedDate);
+const activeLord = baseDasha.current.ad.n;
+const expectedZone = window.__NV.getActiveDB().dasha[activeLord].zone.en;
+check("Ayurvedic constitution derives only from Driver/Conductor", same(authorityProfile.doshaProfile, alteredGridProfile.doshaProfile) && !("aggravated" in authorityProfile.doshaProfile) && !("underSupported" in authorityProfile.doshaProfile));
+check("guardian deities derive only from Driver/Conductor", same(authorityProfile.deityProfile, alteredGridProfile.deityProfile) && !("repeatedDeity" in authorityProfile.deityProfile) && !("underSupported" in authorityProfile.deityProfile));
+check("Lo Shu alone chooses 40-day practice, lifestyle and remedial crystals", basePractice.targetN !== alteredPractice.targetN && !same(basePractice.daily, alteredPractice.daily) && same(basePractice.powerDays, alteredPractice.powerDays) && baseCrystals.remedyNumbers.join(",") === authorityProfile.loShuMissing.join(",") && alteredCrystals.remedyNumbers.length === 0 && alteredCrystals.picks.length === 0);
+check("Dasha timing and event windows ignore both grid data sets", same(baseDasha.current, alteredDasha.current) && same(baseDasha.events.map((event) => event.future), alteredDasha.events.map((event) => event.future)));
+check("active Vastu Zone follows the active Dasha lord", authorityReport.includes('data-dasha-vastu-zone="active"') && authorityReport.includes(`its sector is the <strong>${expectedZone}</strong>`) && authorityReport.includes("Active Vastu Zone: Prioritise this sector now"));
+check("Vastu context visibly belongs to Timeline and does not set active zone", !!$("#timeline-panel #vastu-section", authorityReportDom) && !$("#foundation-panel #vastu-section", authorityReportDom) && $("#vastu-section", authorityReportDom).getAttribute("data-authority") === "home-vastu-context" && $("#vastu-section", authorityReportDom).textContent.includes("selected only from the current Dasha lords"));
+check("rendered authority walls are explicit", authorityReport.includes('data-remedy-authority="lo-shu"') && authorityReport.includes('data-authority="driver-conductor"') && authorityReport.includes('id="dasha-section" data-authority="dasha"') && authorityReport.includes("Kua number is a Feng Shui (Chinese) system") && authorityReport.includes("They do not choose or change Lo Shu remedy targets"));
+check("compatibility reflection is relational rather than a second remedy plan", !!compatibilityAuthoritySection && !!$(".compatibility-overview", compatibilityAuthoritySection) && !!$("#compatibility-reflection", compatibilityAuthoritySection) && !!$(".compatibility-strengths", compatibilityAuthoritySection) && $$(".compatibility-blind-spot", compatibilityAuthoritySection).length > 0 && $$(".compatibility-cue", compatibilityAuthoritySection).length > 0 && $$(".kit-row", compatibilityAuthoritySection).every((row) => row.textContent.trim().length > 0) && $$(".kit-card", compatibilityAuthoritySection).length === 0 && !$("#compat-remedies", compatibilityAuthoritySection) && !compatibilityAuthoritySection.textContent.includes("Couple remedy") && !compatibilityAuthoritySection.textContent.includes("run both partners' kits") && compatibilityAuthoritySection.textContent.includes("does not add crystals, Rudraksha, affirmations, lifestyle obligations or a second 40-day plan"));
+check("aligned pairs still receive strengths, watchfulness and a communication cue", !!alignedCompatibilitySection && alignedCompatibilitySection.textContent.includes("Mutual strengths") && alignedCompatibilitySection.textContent.includes("Potential blind spots") && alignedCompatibilitySection.textContent.includes("Communication cue:") && $$(".compatibility-cue", alignedCompatibilitySection).length === 1 && $$(".kit-card", alignedCompatibilitySection).length === 0 && $$(".kit-row", alignedCompatibilitySection).every((row) => row.textContent.trim().length > 0));
+check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
+check("40-day practice excludes static Vastu, dosha and deity prescriptions", !$("#plan-section", authorityReportDom).textContent.includes("Vastu correction") && !$("#plan-section", authorityReportDom).textContent.includes("Dosha-aware rhythm") && !$("#plan-section", authorityReportDom).textContent.includes("Ishta Devta chant"));
+
+/* ---- Pack shape and canonical mappings ---- */
+const validPack = window.__NV.validatePack(window.__NV_BUNDLED_PACK);
+const malformedLoShu = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedLoShu.db.loShuGrid.layout = [[3, 1, 9], [6, 7, 5], [2, 8, 4]];
+const malformedVedic = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedVedic.db.vedicGrid.layout = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
+const malformedDasha = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedDasha.db.dasha[7].zone.en = "North-East";
+const legacySchemaPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+legacySchemaPack.schemaVersion = 1;
+const missingDashaPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+delete missingDashaPack.db.dasha;
+check("hybrid knowledge pack validates and schema requires both grids plus Dasha", validPack.ok && schema.properties.schemaVersion.minimum === 2 && schema.properties.db.required.includes("loShuGrid") && schema.properties.db.required.includes("vedicGrid") && schema.properties.db.required.includes("dasha"));
+check("serialized 2.8.0 release pack exactly matches the bundled hybrid pack", same(serializedReleasePack, window.__NV_BUNDLED_PACK) && window.__NV.validatePack(serializedReleasePack).ok && latestManifest.latestVersion === "2.8.0" && latestManifest.packUrl === "knowledge-pack/packs/2.8.0.json");
+check("validator rejects crossed grids, malformed Dasha zones and legacy hybrid pack shapes", !window.__NV.validatePack(malformedLoShu).ok && !window.__NV.validatePack(malformedVedic).ok && !window.__NV.validatePack(malformedDasha).ok && !window.__NV.validatePack(legacySchemaPack).ok && !window.__NV.validatePack(missingDashaPack).ok);
+check("canonical Vastu and Dasha mappings remain Vedic and independent of layouts", window.__NV_BUNDLED_PACK.db.vastu.directions.NE.planet === 3 && window.__NV_BUNDLED_PACK.db.vastu.directions.SW.planet === 4 && window.__NV_BUNDLED_PACK.db.dasha[7].zone.en === "North-East / Center Axis");
+
+/* ---- End-to-end report, semantic tabs and URL/hash behavior ---- */
 $("#fullName").value = "Priya Sharma";
 $("#dob").value = "2005-08-20";
 $("#mobile").value = "9876543210";
-$("#vehicle").value = "HR51AB1234";
-$("#birthTime").value = "14:05";
-$("#birthPlace").value = "New Delhi, India";
 $("#goalChips .chip[data-goal='Money']").click();
-$("#goalChips .chip[data-goal='Career']").click();
 $("#entrance").value = "SW";
 $("#kitchen").value = "NE";
-$("#bedroom").value = "SW";
-$("#toilet").value = "NW";
-$("#watchType").value = "smart";
-
 $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+check("onboarding opens Foundation by default", !$("#reportView").classList.contains("hidden") && $("#foundation-tab").getAttribute("aria-selected") === "true" && !$("#foundation-panel").hidden && $("#timeline-panel").hidden);
+check("module tabs expose accessible semantics", $(".module-tabs").getAttribute("role") === "tablist" && $$("[role=tab]").length === 2 && $("#foundation-panel").getAttribute("role") === "tabpanel" && $("#timeline-panel").getAttribute("aria-labelledby") === "timeline-tab");
+$("#timeline-tab").click();
+check("Timeline tab updates selection, panels and URL hash", window.location.hash === "#timeline" && $("#timeline-tab").getAttribute("aria-selected") === "true" && !$("#timeline-panel").hidden && $("#foundation-panel").hidden);
+$("#timeline-tab").dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+check("tab keyboard navigation returns to Foundation", window.location.hash === "#foundation" && $("#foundation-tab").getAttribute("aria-selected") === "true" && !$("#foundation-panel").hidden);
+window.location.hash = "#dasha-section";
+window.dispatchEvent(new window.HashChangeEvent("hashchange"));
+check("deep Dasha hash activates Timeline before navigating", !$("#timeline-panel").hidden && $("#timeline-tab").getAttribute("aria-selected") === "true" && window.__NV.reportModuleFromHash("#vastu-section") === "timeline");
+const liveReport = $("#reportRoot").innerHTML;
+check("full hybrid report has no undefined or NaN leakage", !liveReport.includes("undefined") && !liveReport.includes("NaN") && liveReport.includes("Lo Shu Blueprint") && liveReport.includes("Dasha Timeline"));
 
-const report = $("#reportRoot").innerHTML;
-const checks = [
-  ["report visible", !$("#reportView").classList.contains("hidden")],
-  ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.7.0 · Meeus engine"],
-  ["build badge", $("#buildBadge").textContent === "Build 2026-09-05"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.6.0")],
-  ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
-  ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
-  ["northstar summary links to plan", report.includes('href="#plan-section"')],
-  ["no summary/plan duplication", (() => {
-    const summaryPart = report.slice(report.indexOf('id="summary-section"'), report.indexOf('id="core-profile"'));
-    const summaryClean = !summaryPart.includes("Strengthen <strong>") && !summaryPart.includes("observe your Driver day") && !summaryPart.includes("Wear the aligned watch spec");
-    const onceEach = (report.match(/observe your Driver day/g) || []).length === 1 && (report.match(/Wear the aligned watch spec/g) || []).length === 1;
-    return summaryClean && onceEach;
-  })()],
-  ["green wording", report.includes("Green cells are present")],
-  ["driver = 2", report.includes('num-value">2<')],
-  ["conductor = 8", report.includes('num-value">8<')],
-  ["loshu grid rendered (3 grids × 9)", (report.match(/loshu-cell/g) || []).length === 27],
-  ["core nature section", report.includes("Core Nature") && report.includes("Two numbers shape your nature")],
-  ["strengths & shadows", report.includes("Amplify These") && report.includes("Watch These")],
-  ["adopt & release", report.includes("Adopt") && report.includes("Release")],
-  ["how-we-judge notes", (report.match(/How we judge this/g) || []).length >= 2],
-  ["8 plane cards", (report.match(/card plane-card/g) || []).length === 8],
-  ["plane badges", report.includes("Active") || report.includes("Partial") || report.includes("Weak")],
-  ["golden & silver rajyoga", report.includes("Golden Rajyoga") && report.includes("Silver Rajyoga")],
-  ["plane chips", (report.match(/plane-chip/g) || []).length >= 24],
-  ["missing numbers section", report.includes("Missing Numbers")],
-  ["name section", report.includes("Name Analysis")],
-  ["mobile section", report.includes("Mobile Number Vibration")],
-  ["vehicle section", report.includes("Vehicle Number Vibration")],
-  ["vehicle number analysed", report.includes("HR51AB1234")],
-  ["colors section", report.includes("Lucky Colours") && report.includes("Day-wise Dressing")],
-  ["career section", report.includes("Best Fields")],
-  ["timing section", report.includes("Favourable Years") && report.includes("Personal Year")],
-  ["dasha section renders", report.includes('id="dasha-section"') && report.includes("Dasha Timeline — Life Event Windows")],
-  ["dasha active stack + methodology badge", report.includes("Your Active Dasha Stack") && report.includes("Classical Proportional (45-Yr)")],
-  ["dasha nested stack levels", report.includes("Mahadasha ·") && report.includes("Antardasha ·") && report.includes("Pratyantar Dasha ·")],
-  ["dasha lifetime ladder", report.includes("Lifetime Mahadasha Ladder")],
-  ["dasha life-event windows", report.includes("Life-Event Windows") && report.includes("Marriage &amp; committed partnership") && report.includes("Going abroad — travel or settlement")],
-  ["dasha active vastu zone callout", report.includes("Active Vastu zone")],
-  ["dasha nav link", report.includes('href="#dasha-section"')],
-  ["karmic debt card renders (clean slate)", report.includes("Karmic Debt Check") && report.includes("Clean slate")],
-  ["pinnacle & challenge card renders", report.includes("Four Life Phases") && report.includes("Pinnacle") && report.includes("Challenge")],
-  ["pinnacle phase ages (20/08/2005 -> first ends 36-8=28)", report.includes("Ages 0–28") && report.includes("Ages 47+")],
-  ["current pinnacle phase highlighted", report.includes('id="pinnacles-card"') && (report.match(/hl-row/g) || []).length >= 2],
-  ["evolving chart section", report.includes("Your Evolving Chart") && report.includes("Lucky-year timing vs what you actually did")],
-  ["anonymous scaffold shown", report.includes("Anonymous contribution scaffold")],
-  ["zodiac section (Leo for 20/08)", report.includes("Zodiac Power Kit") && report.includes("Leo")],
-  ["zodiac card in core profile", report.includes("Sun Sign")],
-  ["vedic sun sign + surya rashi label", report.includes("Vedic Sun Sign") && report.includes("Surya Rashi")],
-  ["sidereal / lahiri wording", report.includes("Sidereal") && report.includes("Lahiri")],
-  ["western tropical reference shown", report.includes("Western tropical reference") && report.includes("Leo")],
-  ["birth time shown in hero", report.includes("Born 2:05 PM, New Delhi, India")],
-  ["vedic tier 2 unlocked badge", report.includes("Tier 2 · Unlocked")],
-  ["chandra rashi + nakshatra + lagna disclosure", report.includes("Chandra Rashi") && report.includes("Nakshatra") && report.includes("Lagna")],
-  ["astro-identity snapshot card", report.includes("Astro-Identity Snapshot")],
-  ["snapshot full chart cells", (report.match(/astro-cell/g) || []).length === 4],
-  ["snapshot nakshatra strip", report.includes("Nakshatra of the Moon")],
-  ["snapshot moon + lagna + midheaven labels", report.includes("Moon · Chandra Rashi") && report.includes("Lagna (Ascendant)") && report.includes("Midheaven (MC)")],
-  ["snapshot ayanamsa footnote", report.includes("Lahiri (Chitrapaksha) ayanamsa")],
-  ["hero pill unlocked", report.includes("Vedic chart unlocked")],
-  ["cross-system harmony note (ruler missing)", report.includes("Cross-system harmony") && report.includes("number 1 is")],
-  ["crystal companion section", report.includes("Crystal Companion Guide")],
-  ["selenite ritual", report.includes("Selenite")],
-  ["short mantra in kits", report.includes("Wish-Paper Affirmation") && report.includes("Daily Short Mantra")],
-  ["watch section", report.includes("Watch &amp; Wearable Remedy")],
-  ["vastu section", report.includes("Vastu Dosh Scan")],
-  ["SW entrance dosh detected", report.includes("Southwest entrance")],
-  ["kitchen NE dosh detected", report.includes("Kitchen (fire)")],
-  ["goal plans", report.includes("Money — Remedy Plan") && report.includes("Career — Remedy Plan")],
-  ["40-day activation plan", report.includes("Your 40-Day Activation Plan") && report.includes("Daily Core Ritual") && report.includes("Weekly Rhythm")],
-  ["plan phases rendered", report.includes("Days 1–7") && report.includes("Days 8–21") && report.includes("Days 22–40") && report.includes("Day 40+")],
-  ["plan cadence chips", report.includes("cadence-daily") && report.includes("cadence-weekly") && report.includes("cadence-once")],
-  ["40-day tracker grid", (report.match(/data-plan-day="/g) || []).length === 40 && report.includes("40-Day Tracker")],
-  ["report nav includes plan", report.includes(">40-Day Plan</a>")],
-  ["smartwatch caution", report.includes("Rahu (4) energy")],
-  ["no undefined leaks", !report.includes("undefined")],
-  ["excess energy card title", report.includes("Excess Energy") && report.includes("Channel It")],
-  ["excess energy repeated number rendered", report.includes("repeated 3×") && report.includes("Moon (Chandra)")],
-  ["excess energy overshoot + channel labels", report.includes("When it overshoots:") && report.includes("Channel it:")],
-  ["excess energy guidance (no more fuel)", report.includes("give it direction, not more fuel")],
-  ["ayurvedic dosha card renders", report.includes("Ayurvedic Dosha Layer") && report.includes('id="dosha-card"')],
-  ["dosha blend from Driver + Conductor", report.includes("Blended constitution") && report.includes("Kapha–Vata") && report.includes("Vata")],
-  ["dosha aggravation cross-ref in excess energy", report.includes("Dosha view:") && report.includes("repeated 3×")],
-  ["dosha-aware 40-day plan line", report.includes("Dosha-aware rhythm:") && report.includes("anchor the morning ritual")],
-  ["dosha disclaimer on card", report.includes("traditional wellness guidance") && report.includes("not a substitute for professional medical advice")],
-  ["deity protection card renders", report.includes("Deity Protection Layer — Your Ishta Devta") && report.includes('id="deity-card"')],
-  ["deity card names both guardian deities", report.includes("Lord Shiva") && report.includes("Shri Hanuman")],
-  ["deity card shows classical mantras", report.includes("Om Namah Shivaya") && report.includes("Hum Hanumante Namah")],
-  ["deity aggravation cross-ref in excess energy", report.includes("Deity view:") && report.includes("2 (Moon) → Lord Shiva")],
-  ["deity chant line in 40-day plan", report.includes("Ishta Devta chant:") && report.includes("11× in the early morning on an empty stomach")],
-  ["deity disclaimer on card", report.includes("traditional spiritual guidance") && report.includes("family tradition")],
-  ["no NaN leaks", !report.includes("NaN")],
-];
+/* ---- Localisation plus static responsive/print safeguards ---- */
+for (const language of ["hi", "gu"]) {
+  window.__NV.setLanguage(language);
+  const report = $("#reportRoot").innerHTML;
+  const localizedCompatibility = $("#compatibility-section", mount(window.__NV.renderReport(partnerAuthorityProfile)));
+  const terms = language === "hi"
+    ? ["परस्पर शक्तियां", "संभावित सावधानी-बिंदु", "संवाद संकेत:"]
+    : ["પરસ્પર શક્તિઓ", "સંભવિત સાવચેતીનો મુદ્દો", "સંવાદ સંકેત:"];
+  check(`${language} labels localise both modules and advanced comparison`, $("#foundation-tab").textContent.trim().length > 0 && $("#timeline-tab").textContent.trim().length > 0 && report.includes(language === "hi" ? "उन्नत वैदिक तुलना" : "ઉન્નત વૈદિક તુલના") && report.includes(language === "hi" ? "लो शू ब्लूप्रिंट" : "લો શુ બ્લૂપ્રિન્ટ") && !report.includes("undefined") && !report.includes("NaN"));
+  check(`${language} compatibility retains strengths, blind spots and communication cues`, !!localizedCompatibility && terms.every((term) => localizedCompatibility.textContent.includes(term)) && !localizedCompatibility.textContent.includes("undefined") && !localizedCompatibility.textContent.includes("NaN"));
+}
+check("mobile timeline navigation remains horizontally reachable", /@media \(max-width: 640px\)/.test(styles) && /\.report-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles) && /\.timeline-anchor-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles));
+check("print/PDF expands both panels and the collapsed Vedic comparison", /@media print/.test(styles) && /\.report-module-panel\[hidden\] \{ display: flex !important; \}/.test(styles) && /\.advanced-vedic-comparison:not\(\[open\]\) > \.details-body \{ display: flex !important; \}/.test(styles));
+check("Compatibility print layout keeps its overview and relational rows together", styles.includes("#compatibility-section { display: block; break-inside: auto; page-break-inside: auto; }") && styles.includes("#compatibility-section > * + * { margin-top: 16px; }") && styles.includes("#compatibility-section .compatibility-overview,") && styles.includes("#compatibility-section .compatibility-reflection-intro,") && styles.includes("#compatibility-section .kit-row,") && styles.includes("break-inside: avoid-page;") && styles.includes("#compatibility-section #compatibility-reflection { display: block; break-inside: auto; page-break-inside: auto; }"));
 
-let fail = 0;
-window.Element.prototype.scrollIntoView = window.Element.prototype.scrollIntoView || (() => {});
-checks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 40-day tracker interactions: toggle, persist, reset (first profile still on screen)
-const qsa = (s) => Array.from(window.document.querySelectorAll(s));
-qsa('[data-plan-day="1"]')[0].click();
-qsa('[data-plan-day="2"]')[0].click();
-let live = $("#reportRoot").innerHTML;
-const trackerChecks = [
-  ["tracker toggles two days", live.includes(">2/40<") && (live.match(/aria-pressed="true"/g) || []).length === 2],
-  ["tracker highlights next day", live.includes("Day 3 is next")],
-  ["tracker reset button appears", live.includes("data-plan-reset")],
-];
-qsa('[data-plan-day="1"]')[0].click();
-live = $("#reportRoot").innerHTML;
-trackerChecks.push(["tracker untoggles a day", live.includes(">1/40<") && live.includes("Day 1 is next")]);
-qsa('[data-plan-reset]')[0].click();
-live = $("#reportRoot").innerHTML;
-trackerChecks.push(["tracker resets cycle", live.includes(">0/40<") && !live.includes("data-plan-reset")]);
-qsa('[data-plan-day="7"]')[0].click();
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-live = $("#reportRoot").innerHTML;
-trackerChecks.push(["tracker persists across re-submit", live.includes(">1/40<") && live.includes('data-plan-day="7" aria-pressed="true"')]);
-trackerChecks.push(["tracker store is local-only", (() => { try { const s = JSON.parse(window.localStorage.getItem("nv360.plan.v1") || "{}"); const k = Object.keys(s)[0]; return !!k && Array.isArray(s[k].days); } catch { return false; } })()]);
-trackerChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// Multi-language validation: Hindi (hi) & Gujarati (gu)
-// 1. Switch to Hindi via UI and verify report
-$('[data-lang="hi"]').click();
-const rHi = $("#reportRoot").innerHTML;
-const hindiChecks = [
-  ["Hindi lang active", window.__NV.getLang() === "hi"],
-  ["Hindi report hero title", rHi.includes("समाधान रिपोर्ट — Priya Sharma")],
-  ["Hindi northstar summary", rHi.includes("मुख्य मार्गदर्शक सारांश") && rHi.includes("आपके पहले तीन कदम") && rHi.includes("आगे का रास्ता")],
-  ["Hindi 40-day activation plan", rHi.includes("४०-दिवसीय") && rHi.includes("आपकी दैनिक मुख्य साधना") && rHi.includes("साप्ताहिक क्रम")],
-  ["Hindi Loshu grid title", rHi.includes("आपका लो-शू ग्रिड — ८ तलों का संपूर्ण विश्लेषण")],
-  ["Hindi Golden & Silver Rajyoga", rHi.includes("स्वर्ण राजयोग") && rHi.includes("रजत राजयोग")],
-  ["Hindi planet name in grid", rHi.includes("चन्द्रमा") || rHi.includes("शनि")],
-  ["Hindi weak number remedy", rHi.includes("निर्बल ग्रह") || rHi.includes("कमजोर कड़ी को मजबूत करें")],
-  ["Hindi watch advice", rHi.includes("घड़ी") && (rHi.includes("धातु") || rHi.includes("डायल"))],
-  ["Hindi Vastu dosh", rHi.includes("वास्तु दोष")],
-  ["Hindi no undefined leaks", !rHi.includes("undefined")],
-  ["Hindi no NaN leaks", !rHi.includes("NaN")],
-  ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
-  ["Hindi dasha section", rHi.includes("दशा समय-रेखा") && rHi.includes("महादशा") && rHi.includes("अंतर्दशा") && rHi.includes("प्रत्यंतर दशा")],
-  ["Hindi ayurvedic dosha card", rHi.includes("आयुर्वेदिक दोष स्तर") && rHi.includes("मिश्रित प्रकृति")],
-  ["Hindi dosha cross-ref + plan line", rHi.includes("दोष-दृष्टि") && rHi.includes("दोष-लय")],
-  ["Hindi dosha disclaimer", rHi.includes("पारंपरिक") && rHi.includes("पेशेवर चिकित्सा सलाह")],
-  ["Hindi deity protection card", rHi.includes("देव-संरक्षण स्तर — आपका इष्ट देवता") && rHi.includes("इष्ट-देव मंत्र:")],
-  ["Hindi deity cross-ref + disclaimer", rHi.includes("देव-दृष्टि:") && rHi.includes("पारंपरिक आध्यात्मिक मार्गदर्शन") && rHi.includes("गुरु की आज्ञा")],
-  ["Hindi intake form localized (label)", $('label[for="fullName"] span').textContent.includes("पूरा नाम")],
-  ["Hindi intake form localized (placeholder)", $("#fullName").getAttribute("placeholder").includes("राहुल शर्मा")],
-  ["Hindi error text localized", $("#err-mobile").textContent.includes("कम से कम ८ अंक")],
-  ["Hindi goal chips localized", $('#goalChips .chip[data-goal="Money"]').textContent.includes("धन")],
-];
-hindiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 2. Switch to Gujarati via UI and verify report
-$('[data-lang="gu"]').click();
-const rGu = $("#reportRoot").innerHTML;
-const gujaratiChecks = [
-  ["Gujarati lang active", window.__NV.getLang() === "gu"],
-  ["Gujarati report hero title", rGu.includes("ઉપાય રિપોર્ટ — Priya Sharma")],
-  ["Gujarati northstar summary", rGu.includes("મુખ્ય માર્ગદર્શક સારાંશ") && rGu.includes("તમારા પ્રથમ ત્રણ પગલાં") && rGu.includes("આગળનો માર્ગ")],
-  ["Gujarati 40-day activation plan", rGu.includes("૪૦ દિવસની") && rGu.includes("તમારી દૈનિક મુખ્ય સાધના") && rGu.includes("સાપ્તાહિક ક્રમ")],
-  ["Gujarati Loshu grid title", rGu.includes("તમારો લો-શુ ગ્રીડ — ૮ સ્તરોનું સંપૂર્ણ વિશ્લેષણ")],
-  ["Gujarati Golden & Silver Rajyoga", rGu.includes("સુવર્ણ રાજયોગ") && rGu.includes("રજત રાજયોગ")],
-  ["Gujarati planet name in grid", rGu.includes("ચંદ્ર") || rGu.includes("શનિ")],
-  ["Gujarati weak number remedy", rGu.includes("નિર્બળ ગ્રહ") || rGu.includes("નબળી કડીને બળવાન બનાવો")],
-  ["Gujarati watch advice", (rGu.includes("કાંડા ઘડિયાળ") || rGu.includes("ઘડિયાળ")) && (rGu.includes("ધાતુ") || rGu.includes("ડાયલ"))],
-  ["Gujarati Vastu dosh", rGu.includes("વાસ્તુ દોષ")],
-  ["Gujarati no undefined leaks", !rGu.includes("undefined")],
-  ["Gujarati no NaN leaks", !rGu.includes("NaN")],
-  ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],
-  ["Gujarati dasha section", rGu.includes("દશા સમય-રેખા") && rGu.includes("મહાદશા") && rGu.includes("અંતર્દશા") && rGu.includes("પ્રત્યંતર દશા")],
-  ["Gujarati ayurvedic dosha card", rGu.includes("આયુર્વેદિક દોષ સ્તર") && rGu.includes("મિશ્ર પ્રકૃતિ")],
-  ["Gujarati dosha cross-ref + plan line", rGu.includes("દોષ-દૃષ્ટિ") && rGu.includes("દોષ-લય")],
-  ["Gujarati dosha disclaimer", rGu.includes("પરંપરાગત") && rGu.includes("વ્યાવસાયિક તબીબી સલાહ")],
-  ["Gujarati deity protection card", rGu.includes("દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા") && rGu.includes("ઈષ્ટ-દેવ મંત્ર:")],
-  ["Gujarati deity cross-ref + disclaimer", rGu.includes("દેવ-દૃષ્ટિ:") && rGu.includes("પરંપરાગત આધ્યાત્મિક માર્ગદર્શન") && rGu.includes("ગુરુની આજ્ઞા")],
-];
-gujaratiChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 3. Switch back to English
-$('[data-lang="en"]').click();
-const rEn = $("#reportRoot").innerHTML;
-const englishChecks = [
-  ["English lang active", window.__NV.getLang() === "en"],
-  ["English report hero title", rEn.includes("Remedy Report — Priya Sharma")],
-  ["English northstar summary", rEn.includes("Northstar Summary")],
-  ["English 40-day plan", rEn.includes("Your 40-Day Activation Plan")],
-  ["English no undefined leaks", !rEn.includes("undefined")],
-  ["English no NaN leaks", !rEn.includes("NaN")],
-];
-englishChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// second profile: name correction path with an enemy name number
-$("#editBtn").click();
-$("#fullName").value = "Rahul"; // chaldean 17 -> 8 (enemy of driver 2 & conductor... check)
-$("#dob").value = "2010-10-15";  // driver 6, conductor 1
-$("#mobile").value = "9999999999";
-$("#birthTime").value = ""; $("#birthPlace").value = ""; // clear Vedic Tier-2 fields
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r2 = $("#reportRoot").innerHTML;
-const checks2 = [
-  ["driver 6 / conductor 1", r2.includes('num-value">6<') && r2.includes('num-value">1<')],
-  ["name verdict shown", r2.includes("Name Number")],
-  ["spelling suggestions rendered", r2.includes("Recommended spellings") || r2.includes("no spelling change needed") || r2.includes("vibrates in harmony") || r2.includes("Consult a numerologist")],
-  ["vastu empty state", r2.includes("No direction details")],
-  ["harmony note present (aligns comfortably branch)", r2.includes("Cross-system harmony") && r2.includes("align comfortably")],
-  ["tier 2 unlock-now wording (no birth details)", r2.includes("Tier 2 · Unlock now")],
-  ["reduced snapshot card with unlock prompt", r2.includes("Astro-Identity Snapshot") && r2.includes("Unlock the full snapshot") && (r2.match(/astro-cell/g) || []).length === 1],
-  ["no undefined leaks", !r2.includes("undefined")],
-];
-checks2.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// third case: Meher Afrose 01/05/1979 — practitioner example.
-// Missing 6 must be compensatable by a sound-preserving spelling
-// (e.g. MMeher-style doubling), and no variant may drop letters.
-$("#editBtn").click();
-$("#fullName").value = "Meher Afrose";
-$("#dob").value = "1979-05-01";
-$("#mobile").value = "9812345678";
-$("#vehicle").value = "";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r3 = $("#reportRoot").innerHTML;
-const sug3 = window.__NV.nameSuggestions(window.__NV.computeProfile({
-  name: "Meher Afrose", dob: "1979-05-01", mobile: "9812345678",
-  goals: ["Money"], entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
-}));
-const has6 = sug3.variants && sug3.variants.some((v) => v.reduced === 6);
-const noDrops = sug3.variants && sug3.variants.every((v) => v.text.replace(/\s/g, "").length >= "MeherAfrose".length);
-const soundOnly = sug3.variants && sug3.variants.every((v) => !/drop/i.test(v.change));
-const checks3 = [
-  ["driver 1 / conductor 5", r3.includes('num-value">1<') && r3.includes('num-value">5<')],
-  ["missing-6 compensation suggested", !!has6],
-  ["no letter drops in variants", !!noDrops && !!soundOnly],
-  ["why-it-helps column", r3.includes("Why it helps")],
-  ["vehicle empty state", r3.includes("Choosing a Lucky Vehicle Number")],
-  ["no undefined leaks", !r3.includes("undefined")],
-];
-checks3.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-if (sug3.variants) console.log("  Meher variants:", sug3.variants.map((v) => `${v.text} (${v.compound}->${v.reduced})`).join(" | "));
-
-// 3b: optional grid-filling spellings — name ALREADY harmonious (D6 C4, missing 2/3/7/8).
-$("#editBtn").click();
-$("#fullName").value = "Nayan Laxmichand Shah";
-$("#dob").value = "1990-06-15";
-$("#mobile").value = "9876543210";
-$("#vehicle").value = "";
-// Toggle Money off then back on so the shared goal-chip state is unchanged for
-// the downstream reference-chart block (which clicks Career and needs ≥1 goal).
-$("#goalChips .chip[data-goal='Money']").click();
-$("#goalChips .chip[data-goal='Money']").click();
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r3b = $("#reportRoot").innerHTML;
-const p3b = window.__NV.computeProfile({
-  name: "Nayan Laxmichand Shah", dob: "1990-06-15", mobile: "9876543210",
-  goals: ["Money"], entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", watchType: "none", vehicle: ""
-});
-const sug3b = window.__NV.nameSuggestions(p3b);
-const opt3b = window.__NV.buildOptionalSpellings(p3b);
-const optVariantFillsMissing = opt3b.variants.length > 0 && opt3b.variants.every((v) => p3b.missing.includes(v.reduced));
-const optNonEnemy = opt3b.variants.every((v) => window.__NV.relation(p3b.driver, v.reduced) !== "enemy" && window.__NV.relation(p3b.conductor, v.reduced) !== "enemy");
-const optNotRepeated = opt3b.variants.every((v) => !p3b.repeated.includes(v.reduced));
-const optHarmonious = sug3b.needed === false;
-const checks3b = [
-  ["harmonious name needs no correction", optHarmonious],
-  ["optional spellings fill a genuinely missing number", !!optVariantFillsMissing],
-  ["optional spellings stay non-enemy to Driver & Conductor", !!optNonEnemy],
-  ["optional spellings never add to an excessive number", !!optNotRepeated],
-  ["optional enhancement card rendered", r3b.includes("Optional Enhancement") && r3b.includes("Optional only")],
-  ["optional why-it-helps uses 'optional:' framing", r3b.includes("optional: fills your missing number")],
-  ["no undefined leaks", !r3b.includes("undefined")],
-  ["no NaN leaks", !r3b.includes("NaN")],
-];
-checks3b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-if (opt3b.variants) console.log("  Optional variants:", opt3b.variants.map((v) => `${v.text} (${v.compound}->${v.reduced}, fills ${v.targetN})`).join(" | "));
-
-// 3c: excess-energy knowledge content — present for all nine numbers.
-const ee = window.__NV.getActiveDB().excessEnergy || {};
-const eeChecks = [
-  ["excessEnergy data has 9 numbers", Object.keys(ee).length === 9],
-  ["each number has en overshoot + channel", [1,2,3,4,5,6,7,8,9].every((n) => ee[n] && ee[n].overshoot && ee[n].overshoot.en && ee[n].channel && ee[n].channel.en)],
-  ["each number has hindi + gujarati channel", [1,2,3,4,5,6,7,8,9].every((n) => ee[n] && ee[n].channel.hi && ee[n].channel.gu)],
-  ["excessEnergy data in active DB via getActiveDB", window.__NV.getActiveDB().excessEnergy === ee],
-];
-eeChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 3d: Ayurvedic dosha content + pure compute function.
-const doshaDb = window.__NV.getActiveDB().dosha || {};
-const doshaChecks = [
-  ["dosha data has 9 numbers", Object.keys(doshaDb).length === 9],
-  ["each number has dominant + en/hi/gu nature", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].dominant && doshaDb[n].nature && doshaDb[n].nature.en && doshaDb[n].nature.hi && doshaDb[n].nature.gu)],
-  ["each number has en/hi/gu aggravation + balancingFoods", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].aggravation.en && doshaDb[n].aggravation.hi && doshaDb[n].aggravation.gu && doshaDb[n].balancingFoods.en && doshaDb[n].balancingFoods.hi && doshaDb[n].balancingFoods.gu)],
-  ["each number has routine + mantraLinkedNote", [1,2,3,4,5,6,7,8,9].every((n) => doshaDb[n] && doshaDb[n].routine.en && doshaDb[n].routine.hi && doshaDb[n].routine.gu && doshaDb[n].mantraLinkedNote.en && doshaDb[n].mantraLinkedNote.hi && doshaDb[n].mantraLinkedNote.gu)],
-];
-doshaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-const doshaProfile = window.__NV.computeProfile({
-  name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", goals: ["Money", "Career"],
-  entrance: "SW", kitchen: "NE", bedroom: "SW", toilet: "NW", watchType: "smart", vehicle: "HR51AB1234"
-}).doshaProfile;
-const doshaProfileChecks = [
-  ["doshaProfile blended from driver + conductor", doshaProfile.driverNumber === 2 && doshaProfile.conductorNumber === 8 && doshaProfile.primary === "Vata"],
-  ["doshaProfile flags repeated 3+ as aggravation", doshaProfile.aggravated.some((a) => a.n === 2 && a.count >= 3)],
-  ["doshaProfile exposes balanced/support gaps", typeof doshaProfile.counts.pitta === "number" && Array.isArray(doshaProfile.underSupported) && Array.isArray(doshaProfile.missingDosha)],
-];
-doshaProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 3e: Deity protection layer (ishta devta) content + pure compute function.
-const deityDb = window.__NV.getActiveDB().deity || {};
-const deityChecks = [
-  ["deity data has 9 numbers", Object.keys(deityDb).length === 9],
-  ["each deity has trilingual god + classical mantra", [1,2,3,4,5,6,7,8,9].every((n) => deityDb[n] && deityDb[n].god && deityDb[n].god.en && deityDb[n].god.hi && deityDb[n].god.gu && typeof deityDb[n].mantra === "string" && deityDb[n].mantra.length > 10)],
-  ["each deity has trilingual chant + offerings + support + protection note", [1,2,3,4,5,6,7,8,9].every((n) => deityDb[n] && ["primaryChant", "weeklyChant", "offerings", "support", "protectionNote"].every((k) => deityDb[n][k] && deityDb[n][k].en && deityDb[n][k].hi && deityDb[n][k].gu))],
-  ["mulank 5 maps to Lord Ganesha with pinned practice", deityDb[5].god.en === "Lord Ganesha" && deityDb[5].mantra.includes("Ganapataye") && deityDb[5].primaryChant.en.includes("11×") && deityDb[5].weeklyChant.en.includes("Wednesdays") && deityDb[5].offerings.en.includes("Modak")],
-  ["bhagyank 9 maps to Maa Durga with pinned practice", deityDb[9].god.en === "Maa Durga" && deityDb[9].mantra.includes("Durgaye") && deityDb[9].primaryChant.en.includes("Tuesdays") && deityDb[9].weeklyChant.en.includes("Navaratri")],
-];
-deityChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-const deityProfile = window.__NV.computeProfile({
-  name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", goals: ["Money", "Career"],
-  entrance: "SW", kitchen: "NE", bedroom: "SW", toilet: "NW", watchType: "smart", vehicle: "HR51AB1234"
-}).deityProfile;
-const deityProfileChecks = [
-  ["deityProfile pairs driver + conductor deities", deityProfile.driverNumber === 2 && deityProfile.conductorNumber === 8 && deityProfile.driverDeity.god.en === "Lord Shiva" && deityProfile.conductorDeity.god.en === "Shri Hanuman" && deityProfile.sameDeity === false],
-  ["deityProfile flags repeated 3+ with its guardian", deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count >= 3 && a.god.en === "Lord Shiva")],
-  ["deityProfile exposes missing/under-supported gaps", Array.isArray(deityProfile.missingDeity) && Array.isArray(deityProfile.underSupported)],
-];
-deityProfileChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// fourth block: engine functions (kua + compatibility)
+/* ---- Vedic ephemeris guardrail (restored): Meeus engine vs VSOP87 ----
+   astro.js is a self-contained port of Jean Meeus ("Astronomical Algorithms")
+   with no vendor bundle and no window.Astronomy. The blocks below pin it to
+   independently computed VSOP87/astronomy-engine constants (recorded to 7
+   decimals), cross-validate the ascendant/MC formulas against a brute-force
+   horizon/meridian search (a different maths path), and verify the reference
+   chart renders end-to-end. Ported verbatim from the pre-hybrid suite; only
+   the reporter call was adapted to this file's check() helper. */
 const NV = window.__NV;
-const kuaCases = [
-  ["male", 1985, 6], ["female", 1985, 9], ["male", 2005, 4], ["female", 2005, 2],
-  ["male", 1950, 2], ["female", 1990, 8], ["male", 2000, 9], ["female", 2000, 6]
-];
-const kuaChecks = kuaCases.map(([g, y, exp]) => [`kua ${g} ${y} = ${exp}`, NV.kuaNumber(g, y) === exp]);
-kuaChecks.push(["kua null when no gender", NV.kuaNumber("", 1990) === null]);
-kuaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-const pa = NV.computeProfile({ name: "A", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
-const pb = NV.computeProfile({ name: "B", dob: "1990-04-15", mobile: "", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
-const comp = NV.compatibility(pa, pb);
-const compChecks = [
-  ["compatibility 4 pairs", comp.pairs.length === 4],
-  ["compatibility score bounded", comp.score >= 0 && comp.score <= 100],
-  ["compatibility verdict present", ["Strong", "Good", "Workable", "Challenging"].includes(comp.verdict)],
-  ["compatibility tallies sum to 4", comp.friendly + comp.neutral + comp.enemy === 4],
-];
-compChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// compatibility bridge remedies (engine)
-const pc = NV.computeProfile({ name: "C", dob: "2000-01-01", mobile: "", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
-const compC = NV.compatibility(pa, pc); // 2/7 vs 1/1 -> two enemy pairs (7 vs 1)
-const cRemC = NV.compatRemedies(pa, pc, compC);
-const cRem = NV.compatRemedies(pa, pb, comp);
-const F = window.DB.friendship;
-const bridgeOk = (rem, profA, profB) => rem.bridges.every((br) => [profA.driver, profA.conductor, profB.driver, profB.conductor].every((m) => F[m].enemies.indexOf(br.n) === -1));
-const remedyChecks = [
-  ["compatRemedies conflicts match enemy count", cRemC.conflicts.length === compC.enemy],
-  ["conflicting pair has bridge guidance", cRemC.conflicts.every((c) => c.friction && c.bridge && c.friction.en && c.bridge.en)],
-  ["conflicting pair names planets", cRemC.conflicts.every((c) => typeof c.planetA === "string" && typeof c.planetB === "string")],
-  ["bridge numbers non-enemy to all four numbers", bridgeOk(cRemC, pa, pc) && bridgeOk(cRem, pa, pb)],
-  ["bridge numbers ranked 1..9, max 3", cRemC.bridges.length <= 3 && cRemC.bridges.every((b) => b.n >= 1 && b.n <= 9)],
-  ["clean pairing -> no conflicts, neutral plan", cRem.conflicts.length === comp.enemy && cRem.neutralLinks === comp.neutral],
-];
-remedyChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+window.Element.prototype.scrollIntoView = window.Element.prototype.scrollIntoView || (() => {});
+window.__NV.setLanguage("en"); // harbour: localisation loop above ends in Gujarati; astro assertions need English strings
 
 // Vedic precision tiers + birth-time formatting (progressive disclosure engine)
 const baseInput = { name: "T", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" };
@@ -441,7 +195,7 @@ const vedicChecks = [
   ["astro sun-only when no birth details", pTier1.astro && pTier1.astro.tier === "sun"],
   ["astro sun-only when partial (time only)", pTierPartial.astro && pTierPartial.astro.tier === "sun"],
 ];
-vedicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+vedicChecks.forEach(([name, ok]) => check(name, ok));
 
 /* ---- Vedic ephemeris engine (astro.js): tables, matching, reference chart ---- */
 const NA = window.NVAstro;
@@ -470,7 +224,7 @@ const nakUnitChecks = [
   ["country aliases resolve (spot check)", ["Nepal", "Bhutan", "Kenya", "Peru", "Chile", "New Zealand"].every((c) => NA.matchPlace(c))],
   ["atlas entries structurally sound", NA.cities().every((r) => Array.isArray(r) && r.length === 8 && Math.abs(r[4]) <= 90 && Math.abs(r[5]) <= 180 && r[6] >= -12 && r[6] <= 14 && typeof r[7] === "boolean")],
 ];
-nakUnitChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+nakUnitChecks.forEach(([name, ok]) => check(name, ok));
 
 // Reference chart: Randeep Walia, 05/08/1976 (dd/mm), 20:15 IST, Faridabad.
 // Independently verified expectations: Sun tropical Leo 13°17′ / sidereal
@@ -500,7 +254,7 @@ const refChecks = [
   ["ref ΔT(1976) ≈ 47 s", Math.abs((NA.astroMoment(1976, 8, 5, 14.75).jdTt - NA.astroMoment(1976, 8, 5, 14.75).jdUtc) * 86400 - 47.095) < 2],
   ["vendored engine removed (no window.Astronomy)", typeof window.Astronomy === "undefined"],
 ];
-refChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+refChecks.forEach(([name, ok]) => check(name, ok));
 
 // Cross-validate the ascendant & MC formulas against an independent
 // brute-force horizon/meridian search (different maths path), using the
@@ -552,7 +306,7 @@ const crossChecks = [
   ["mc formula vs brute-force < 0.5°", mcBrute !== null && Math.abs(mcFormula - mcBrute) < 0.5],
   ["mc tropical ≈ VSOP87 254.19° (< 0.15°)", Math.abs(mcFormula - 254.1873123) < 0.15],
 ];
-crossChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+crossChecks.forEach(([name, ok]) => check(name, ok));
 
 // Reference chart rendered end-to-end through the form
 $("#editBtn").click();
@@ -582,7 +336,7 @@ const refRenderChecks = [
   ["ref no undefined leaks", !rRef.includes("undefined")],
   ["ref no NaN leaks", !rRef.includes("NaN")],
 ];
-refRenderChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+refRenderChecks.forEach(([name, ok]) => check(name, ok));
 
 // Unmatched-place path: tier-2 fields given but the atlas can't resolve them
 $("#editBtn").click();
@@ -594,232 +348,10 @@ const atlantisChecks = [
   ["unmatched place handled gracefully", rAtlantis.includes("built-in atlas") && rAtlantis.includes("Atlantis, Somewhere")],
   ["unmatched place keeps sun card", rAtlantis.includes("your Vedic Sun") && !rAtlantis.includes("Nakshatra of the Moon")],
 ];
-atlantisChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+atlantisChecks.forEach(([name, ok]) => check(name, ok));
 
-const anonPayload = NV.contributionPayload(pa, NV.timingAnalysis(pa));
-const anonChecks = [
-  ["anonymous payload has packVersion", typeof anonPayload.packVersion === "string" && anonPayload.packVersion.length > 0],
-  ["anonymous payload excludes personal strings", !("name" in anonPayload) && !("dob" in anonPayload) && !("mobile" in anonPayload) && !("birthTime" in anonPayload) && !("birthPlace" in anonPayload)],
-  ["anonymous payload includes missingCounts", anonPayload.missingCounts !== undefined],
-];
-anonChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// fifth block: render of new features (gender + partner)
-$("#editBtn").click();
-$("#fullName").value = "Priya Sharma";
-$("#dob").value = "2005-08-20";
-$("#mobile").value = "9876543210";
-$("#vehicle").value = "";
-$("#gender").value = "female";
-$("#partnerName").value = "Anjali Verma";
-$("#partnerDob").value = "1990-05-06"; // driver 6, conductor 3 -> no enemy pairs vs 2/8
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r4 = $("#reportRoot").innerHTML;
-const checks4 = [
-  ["8 arrow cards", (r4.match(/card arrow-card/g) || []).length === 8],
-  ["arrow names present", ["Arrow of Determination", "Arrow of Intellect", "Arrow of Spirituality", "Arrow of Prosperity", "Arrow of Planning", "Arrow of Emotions", "Arrow of Practicality", "Arrow of Activity"].every((n) => r4.includes(n))],
-  ["arrow state badges", r4.includes("Strong") || r4.includes("Partial") || r4.includes("Frustrated")],
-  ["yantra in remedy kits", r4.includes("Yantra") && r4.includes("Surya Yantra")],
-  ["weak tier shown", r4.includes(">Weak</span>")],
-  ["missing severity badge", r4.includes("Critical") || r4.includes("Echoed by")],
-  ["kua section (Feng Shui labelled)", r4.includes("Personal Lucky Directions") && r4.includes("Feng Shui")],
-  ["kua number computed (female 2005 -> 2)", r4.includes("Kua number is 2")],
-  ["compatibility section", r4.includes("Compatibility &amp; Matchmaking") && r4.includes("Anjali Verma")],
-  ["compatibility verdict", r4.includes("Overall verdict")],
-  ["compatibility remedy card", r4.includes("Compatibility remedy plan") && r4.includes("no clashes")],
-  ["bridge numbers row (clean pairing)", r4.includes("Bridge numbers")],
-  ["neutral-link activation (clean pairing)", r4.includes("Activate the neutral links")],
-  ["no undefined leaks", !r4.includes("undefined")],
-  ["no NaN leaks", !r4.includes("NaN")],
-];
-checks4.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 4b: compatibility remedy card with a conflicting pairing (2/7 vs 1/1)
-$("#editBtn").click();
-$("#fullName").value = "Priya Sharma";
-$("#dob").value = "2005-08-20";
-$("#mobile").value = "9876543210";
-$("#vehicle").value = "";
-$("#gender").value = "female";
-$("#partnerName").value = "Rahul Singh";
-$("#partnerDob").value = "2000-01-01";
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r4b = $("#reportRoot").innerHTML;
-const checks4b = [
-  ["remedy card shows clash pair count", r4b.includes("clash pair(s)")],
-  ["friction + bridge conduct rendered", r4b.includes("Couple remedy for this pair") && r4b.includes("🌉")],
-  ["couple rituals with mantras", r4b.includes("11×") && r4b.includes("mantra")],
-  ["bridge kit card for partner planet", r4b.includes("Bridge kit")],
-  ["bridge numbers row", r4b.includes("Bridge numbers")],
-  ["no undefined leaks", !r4b.includes("undefined")],
-  ["no NaN leaks", !r4b.includes("NaN")],
-];
-checks4b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// sixth block: compound numbers, master numbers, name/combined grids, brand, vastu extras
-const compoundChecks = [
-  ["compound 51 meaning", typeof NV.compoundMeaning(51) === "string" && NV.compoundMeaning(51).includes("Warrior")],
-  ["compound out-of-range is null", NV.compoundMeaning(200) === null && NV.compoundMeaning(0) === null],
-  ["master number 22", NV.masterNumber(22) && NV.masterNumber(22).name.includes("Master Builder")],
-  ["master number 11", NV.masterNumber(11) && NV.masterNumber(11).name.includes("Illuminator")],
-  ["master number 33", NV.masterNumber(33) && NV.masterNumber(33).name.includes("Master Teacher")],
-  ["master non-master is null", NV.masterNumber(20) === null],
-];
-compoundChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// karmic debt + pinnacles engine checks (classical formulas)
-// "Priya" -> Chaldean 8+2+1+1+1 = 13; 16/07/1994 -> birth day 16 (debt),
-// full-date sum 1+6+0+7+1+9+9+4 = 37 -> conductor 1 (no debt).
-const kdp = NV.computeProfile({ name: "Priya", dob: "1994-07-16", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
-const kdpMain = NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" });
-const kdpT = NV.timingAnalysis(kdpMain);
-const karmicChecks = [
-  ["karmic debt detected at unreduced subtotals", kdp.karmicDebts.length === 2 && kdp.karmicDebts.some((k) => k.n === 16 && k.source === "driver") && kdp.karmicDebts.some((k) => k.n === 13 && k.source === "name")],
-  ["no false karmic debt on clean chart", kdpMain.karmicDebts.length === 0],
-  ["dobCompound exposed (17 for 20/08/2005)", kdpMain.dobCompound === 17],
-  ["pinnacles: 4 phases returned", kdpT.pinnacles && kdpT.pinnacles.phases.length === 4],
-  ["pinnacle values 20/08/2005 -> 1,9,1,6", kdpT.pinnacles.phases.map((x) => x.pinnacle).join(",") === "1,9,1,6"],
-  ["challenge values 20/08/2005 -> 6,5,1,1", kdpT.pinnacles.phases.map((x) => x.challenge).join(",") === "6,5,1,1"],
-  ["first pinnacle ends at 36 - conductor", kdpT.pinnacles.firstEnd === 28 && kdpT.pinnacles.phases[0].to === 28 && kdpT.pinnacles.phases[1].from === 29],
-  ["challenges stay within 0-8", kdpT.pinnacles.phases.every((x) => x.challenge >= 0 && x.challenge <= 8)],
-  ["pure pinnacle fn export matches", NV.pinnacleAnalysis(kdpMain).phases[3].pinnacle === 6],
-];
-karmicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// Numerology Dasha engine checks (classical proportional 45-year cycle).
-// DOB 20/08/2005 -> Moolank 2: first MD is 2 (2 yrs), then 3,4,5,6,7,8,9,1…
-// On the fixed reference date 2026-09-05 the native (age 21) sits in
-// MD 7 (ages 20-27); AD sequence inside starts from 7: AD 7 spans
-// 7×7/45 = 1.0889 yrs from 19 Aug 2025 -> ~21 Sep 2026, so AD = 7.
-const dashaRef = NV.dashaTimeline(kdpMain, "2026-09-05T12:00:00");
-const YEAR_MS = 365.2425 * 86400000;
-const mdSeq = dashaRef.mahadashas.slice(0, 9).map((m) => m.n).join(",");
-const mdSpanSum = dashaRef.mahadashas.slice(0, 9).reduce((a, m) => a + (m.endMs - m.startMs), 0);
-const curStack = dashaRef.current;
-const marriageEv = dashaRef.events.find((e) => e.key === "marriage");
-const abroadEv = dashaRef.events.find((e) => e.key === "abroad");
-const dashaChecks = [
-  ["dasha: first MD = Moolank, sequence cycles 1-9", mdSeq === "2,3,4,5,6,7,8,9,1"],
-  ["dasha: one full cycle sums to 45 years", Math.abs(mdSpanSum - 45 * YEAR_MS) < 1000],
-  ["dasha: current MD is 7 (ages 20-27) on 2026-09-05", curStack.md.n === 7 && curStack.md.fromAge === 20 && curStack.md.toAge === 27],
-  ["dasha: current AD is 7 (proportional MD×AD/45)", curStack.ad.n === 7],
-  ["dasha: AD progress within 0-100 and PD days remaining >= 0", curStack.adProgress >= 0 && curStack.adProgress <= 100 && curStack.pdDaysLeft >= 0],
-  ["dasha: PD lord within 1-9 and nested inside AD", curStack.pd.n >= 1 && curStack.pd.n <= 9 && curStack.pd.startMs >= curStack.ad.startMs - 1000 && curStack.pd.endMs <= curStack.ad.endMs + 1000],
-  ["dasha: event scan returns all five life events", dashaRef.events.length === 5 && ["marriage", "abroad", "career", "property", "wealth"].every((k) => dashaRef.events.some((e) => e.key === k))],
-  ["dasha: marriage windows use Venus/Moon lords within band", marriageEv.future.length > 0 && marriageEv.future.every((w) => [6, 2].includes(w.adN) || [6, 2].includes(w.mdN))],
-  ["dasha: abroad windows use Rahu/Ketu lords", abroadEv.future.length > 0 && abroadEv.future.every((w) => [4, 7].includes(w.adN) || [4, 7].includes(w.mdN))],
-  ["dasha: future windows are chronological and not in the past", dashaRef.events.every((e) => e.future.every((w, i) => !w.past && (i === 0 || w.startMs >= e.future[i - 1].startMs)))],
-];
-dashaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// brand analysis (reuses the Chaldean engine)
-const brand = NV.brandAnalysis("Shree Balaji Textiles", NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" }));
-const brandChecks = [
-  ["brand total/root computed", brand.total > 0 && brand.root >= 1 && brand.root <= 9],
-  ["brand auspicious roots present", Array.isArray(brand.auspicious) && brand.auspicious.length > 0],
-  ["brand suggestions are sound-preserving", brand.suggestions.every((v) => !/drop/i.test(v.change))],
-];
-brandChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// render with brand + study + staircase + plot shape
-$("#editBtn").click();
-$("#fullName").value = "Priya Sharma";
-$("#dob").value = "2005-08-20";
-$("#mobile").value = "9876543210";
-$("#brand").value = "Shree Balaji Textiles";
-$("#study").value = "E";
-$("#staircase").value = "NE";
-$("#plotShape").value = "missing-northeast";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r5 = $("#reportRoot").innerHTML;
-const checks5 = [
-  ["name compound meaning shown", r5.includes("Compound Number")],
-  ["name grid & combined grid", r5.includes("Name Grid") && r5.includes("Combined Grid")],
-  ["brand section rendered", r5.includes("Business / Brand Name") && r5.includes("Shree Balaji Textiles")],
-  ["brand compound/master shown", r5.includes("Chaldean total")],
-  ["study room analysed", r5.includes("Study Room")],
-  ["staircase dosh (NE)", r5.includes("Staircase")],
-  ["plot shape dosh", r5.includes("Plot shape") && r5.includes("Northeast corner")],
-  ["mobile compound meaning", r5.includes("Compound Number")],
-  ["no undefined leaks", !r5.includes("undefined")],
-  ["no NaN leaks", !r5.includes("NaN")],
-];
-checks5.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// 6b: karmic debt profile rendered end-to-end (name "Priya" = 13, birth day 16)
-$("#editBtn").click();
-$("#fullName").value = "Priya";
-$("#dob").value = "1994-07-16";
-$("#mobile").value = "9876543210";
-$("#vehicle").value = "";
-$("#birthTime").value = ""; $("#birthPlace").value = "";
-$("#brand").value = "";
-$("#partnerName").value = ""; $("#partnerDob").value = "";
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r5b = $("#reportRoot").innerHTML;
-const checks5b = [
-  ["karmic debt badge shows count", r5b.includes("Karmic Debt Check") && r5b.includes("2 found")],
-  ["debt 16 humility content", r5b.includes("Debt of Humility") && r5b.includes("Birth day")],
-  ["debt 13 effort content", r5b.includes("Debt of Effort") && r5b.includes("Name Chaldean total")],
-  ["settling remedy rendered", r5b.includes("Settling remedy:")],
-  ["debt resolved to root kit", r5b.includes("16 → 7") && r5b.includes("13 → 4")],
-  ["karmic debt joins one-time plan", r5b.includes("Settle karmic debt 16")],
-  ["pinnacle card still renders", r5b.includes("Four Life Phases")],
-  ["no undefined leaks", !r5b.includes("undefined")],
-  ["no NaN leaks", !r5b.includes("NaN")],
-];
-checks5b.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// seventh block: reinforcing harmony branch — zodiac ruler equals the Driver.
-// 06/06/1990 -> Driver 6, sidereal Taurus (ruled by Venus/number 6) -> overlap.
-$("#editBtn").click();
-$("#fullName").value = "Priya Sharma";
-$("#dob").value = "1990-06-06";
-$("#mobile").value = "9876543210";
-$("#vehicle").value = "";
-$("#birthTime").value = ""; $("#birthPlace").value = "";
-$("#entrance").value = "unsure"; $("#kitchen").value = "unsure";
-$("#bedroom").value = "unsure"; $("#toilet").value = "unsure";
-$("#watchType").value = "none";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const r6 = $("#reportRoot").innerHTML;
-const checks6 = [
-  ["harmony reinforcing branch (ruler = driver)", r6.includes("Cross-system harmony") && r6.includes("Driver (Moolank)")],
-  ["tier 1 pill shown in hero", r6.includes("Vedic Sun Sign · Sidereal (Lahiri)")],
-  ["no undefined leaks", !r6.includes("undefined")],
-];
-checks6.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-// eighth block: intake validation guards (degenerate inputs must not render)
-$("#editBtn").click();
-$("#fullName").value = "Validation Probe";
-$("#dob").value = "1990-06-06";
-$("#mobile").value = "0000000000"; // all-zero: no planetary vibration
-$("#vehicle").value = "";
-$("#birthTime").value = ""; $("#birthPlace").value = "";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-const valChecks = [
-  ["all-zero mobile rejected", !$("#err-mobile").hidden],
-  ["degenerate input did not re-render report", !$("#reportRoot").innerHTML.includes("Validation Probe")],
-];
-$("#mobile").value = "9876543210";
-$("#dob").value = "2999-01-01"; // future date
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-valChecks.push(["future DOB rejected", !$("#err-dob").hidden]);
-valChecks.push(["future DOB did not re-render", !$("#reportRoot").innerHTML.includes("Validation Probe")]);
-$("#dob").value = "1990-06-06";
-$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
-valChecks.push(["form recovers after valid submit", $("#reportRoot").innerHTML.includes("Validation Probe")]);
-valChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
-
-console.log(fail === 0 ? "\nALL CHECKS PASSED" : `\n${fail} CHECK(S) FAILED`);
-process.exit(fail === 0 ? 0 : 1);
+if (failed) {
+  console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
+  process.exit(1);
+}
+console.log("\nAll hybrid smoke checks passed.");

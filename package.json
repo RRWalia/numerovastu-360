@@ -1,8 +1,8 @@
 {
   "name": "numerovastu-360",
   "private": true,
-  "version": "2.7.0",
-  "description": "Numerology & Vastu Remedy Engine — Loshu Grid, name/mobile analysis, remedies",
+  "version": "2.8.0",
+  "description": "Hybrid Lo Shu Foundation & Vedic Dasha timeline \u2014 private numerology and Vastu guidance",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "start": "npm run dev",
