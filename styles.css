@@ -1097,6 +1097,10 @@ body {
   gap: 12px;
   font-variant-numeric: lining-nums tabular-nums;
 }
+/* Print-only sheet title. On screen the toolbar stamp already carries the
+   module name and generation date; in print the toolbar and the marketing
+   panel heading are stripped, so the sheet must identify itself. */
+.cockpit-sheet-title { display: none; }
 .cockpit-head { border-bottom: 2px solid var(--label-primary); padding-bottom: 8px; }
 .cockpit-identity { font-size: 14px; line-height: 21px; color: var(--label-primary); }
 .cockpit-kicker { margin-top: 4px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
@@ -1163,7 +1167,9 @@ body {
 /* ---------- Print (Save/Print Report) ---------- */
 @page { size: A4 portrait; margin: 12mm 10mm; }
 @media print {
-  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav, .module-tabs, .timeline-anchor-nav, .cockpit-toolbar { display: none !important; }
+  /* The skip link is parked above the viewport with a negative transform; in
+     print that box lands on page 1 as a stray grey pill, so it is stripped. */
+  .app-header, .app-footer, .form-note, .toast-viewport, .skip-link, .report-nav, .module-tabs, .timeline-anchor-nav, .cockpit-toolbar { display: none !important; }
   .report-module-panel[hidden] { display: flex !important; }
   /* Remedy cards, kits and grids must never be split down the middle of a
      client PDF: keep each prescription block atomic. */
@@ -1232,18 +1238,66 @@ body {
   .btn { display: none; }
   /* The cockpit is a one-page consultation sheet: flat ink, tight leading. */
   .triage-card { border-left: 3px solid #111; }
-  .cockpit-sheet { border: 1px solid #999; padding: 0; gap: 8px; }
-  .cockpit-cell, .cockpit-block { border: 1px solid #ccc; }
-  .cockpit-head { border-bottom: 2px solid #111; }
-  .cockpit-identity { font-size: 12px; line-height: 17px; color: #111; }
-  .cockpit-fact, .cockpit-list li { font-size: 11px; line-height: 16px; color: #111; }
-  .cockpit-table { font-size: 10px; }
-  .cockpit-rule { border-bottom: 1px dashed #999; }
-  /* "Print this page" narrows the job to the cockpit alone. */
+  /* ---- Practitioner Cockpit: one dedicated A4 page ----
+     A practitioner reads this sheet during a live consultation, so print gives
+     it a page of its own. Without a forced break the section started wherever
+     the previous page had room left, and its height — screen-only panel heading
+     plus screen-sized block paddings and 16px leading — spilled the graded
+     event windows table (and on denser charts the header block too) onto the
+     following pages. The heading is now stripped in print, the section breaks
+     before itself, and the sheet packs to 8.5pt/1.2 (7.5pt in the table) so
+     identity, both grids, timing, triage, Tier 2, windows and the notes rules
+     all share one page. */
+  .cockpit-panel-heading { display: none !important; }
+  #cockpit-panel { margin-top: 0; gap: 0; }
+  #practitioner-cockpit.cockpit-section {
+    margin: 0;
+    break-before: page;
+    page-break-before: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .cockpit-sheet {
+    border: 1px solid #999;
+    padding: 6mm 8mm;
+    gap: 4px;
+    font-size: 8.5pt;
+    line-height: 1.2;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .cockpit-sheet-title { display: block; font-size: 9.5pt; line-height: 1.2; font-weight: 700; color: #111; }
+  .cockpit-cell, .cockpit-block { border: 1px solid #ccc; border-radius: 0; padding: 3px 5px; }
+  .cockpit-grid { gap: 4px; }
+  /* Keep the three comparison grids side by side: stacking them costs a third
+     of the page and breaks the single-page contract on narrower paper. */
+  .cockpit-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cockpit-head { border-bottom: 2px solid #111; padding-bottom: 3px; }
+  .cockpit-identity { font-size: 8.5pt; line-height: 1.2; color: #111; }
+  .cockpit-kicker { margin-top: 2px; font-size: 7pt; line-height: 1.15; }
+  .cockpit-label { font-size: 7pt; line-height: 1.15; letter-spacing: 0.04em; margin-bottom: 2px; }
+  .cockpit-fact, .cockpit-list li { font-size: 8.5pt; line-height: 1.2; color: #111; }
+  .cockpit-list { gap: 2px; }
+  .cockpit-tag { padding: 0 4px; margin-right: 4px; font-size: 7pt; line-height: 1.2; }
+  .cockpit-sheet .badge { padding: 0 4px; font-size: 7pt; line-height: 1.2; }
+  .cockpit-mini, .cockpit-why { font-size: 7pt; line-height: 1.15; }
+  .cockpit-why { margin-top: 3px; }
+  .cockpit-table { font-size: 7.5pt; line-height: 1.15; }
+  .cockpit-table th, .cockpit-table td { padding: 2px 4px; }
+  .cockpit-table th { font-size: 6.5pt; }
+  .cockpit-foot { gap: 4px; }
+  .cockpit-notes { gap: 5px; }
+  .cockpit-rule { border-bottom: 1px dashed #999; height: 9px; }
+  .cockpit-disclaimer { font-size: 7pt; line-height: 1.15; }
+  /* "Print this page" narrows the job to the cockpit alone. The sheet is
+     already the first box on the job, so the forced break is dropped — leaving
+     it in would emit a blank page before the consultation sheet. */
   body.print-cockpit .report-hero,
   body.print-cockpit #foundation-panel,
   body.print-cockpit #timeline-panel,
   body.print-cockpit .cockpit-panel-heading { display: none !important; }
   body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }
-  body.print-cockpit .cockpit-section { margin: 0; }
+  body.print-cockpit .cockpit-section { margin: 0; break-before: auto; page-break-before: auto; }
 }

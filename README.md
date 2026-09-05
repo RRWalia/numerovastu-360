@@ -39,7 +39,7 @@ catch-all source of truth.
 | Remedy triage | `remedyTriage()` prescribes **one acute target** — the missing number that is live in the Dasha stack or Personal Year — and demotes the rest to Tier 2 environmental cues with the date they activate. |
 | Event windows | `qualifyEventWindow()` grades windows High / Moderate / Conditional instead of hiding them when a significator is natally absent. |
 | Practitioner Cockpit | A third report module: one printable A4 consultation sheet with identity, both grids, the live stack, triage and graded windows. |
-| Print resilience | `@page { size: A4 portrait; margin: 12mm 10mm; }` plus `break-inside: avoid` on every remedy/kit/cockpit card; “Print this page” narrows the job to the cockpit alone. |
+| Print resilience | `@page { size: A4 portrait; margin: 12mm 10mm; }` plus `break-inside: avoid` on every remedy/kit/cockpit card; the cockpit forces its own page in print (`break-before: page`, marketing intro stripped, 8.5pt/1.2 sheet type, 7.5pt tables) so it stays a single quick-reference sheet; “Print this page” narrows the job to the cockpit alone. |
 
 ## Product map
 
@@ -96,6 +96,13 @@ A single printable page (`#practitioner-cockpit`) for use during a consultation:
 
 The cockpit recalculates nothing. It reads the same engines as the full report,
 so the two can never disagree.
+
+In print the sheet is a dedicated page: the section breaks before itself, the
+module’s explanatory heading is screen-only copy and is dropped, and the sheet
+compacts to 8.5pt/1.2 (7.5pt tables) so identity, grids, timing, triage,
+Tier 2, windows and the notes rules all share one A4 page. The sheet header
+carries a print-only title line (module name plus generation date) because the
+toolbar stamp that shows it on screen is also hidden in print.
 
 ### Advanced Vedic comparison
 
@@ -217,7 +224,10 @@ replace the current Dasha-selected active zone.
   margins; remedy, kit and cockpit cards never split across a page.
 - The cockpit’s “Print this page” button adds `body.print-cockpit`, which
   narrows the print job to the single consultation sheet and is always removed
-  afterwards.
+  afterwards. In that mode the forced page break is lifted again (the sheet is
+  already the first box of the job, so keeping it would emit a blank page).
+- The skip link is stripped in print: its off-screen transform parks it inside
+  page 1 of the paginated output otherwise.
 - On screen only, report sections use `content-visibility: auto` so mobile
   devices no longer lay out all 40+ pages on first render; print media keeps
   full layout.

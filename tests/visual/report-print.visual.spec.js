@@ -203,6 +203,37 @@ test.describe('hybrid report browser regression', () => {
     expect(cockpitPrint.foundation).toBe('none');
     expect(cockpitPrint.cockpit).not.toBe('none');
     expect(cockpitPrint.toolbar).toBe('none');
+
+    // Single-page contract: the sheet owns a dedicated page, the marketing
+    // panel heading is gone, and the print type is compact enough that the
+    // graded windows table cannot spill onto a second page.
+    const singlePage = await page.evaluate(() => {
+      const toPt = (value) => (parseFloat(value) * 72) / 96;
+      const section = document.querySelector('#practitioner-cockpit');
+      const sheet = document.querySelector('.cockpit-sheet');
+      const table = document.querySelector('.cockpit-table');
+      const grid = document.querySelector('.cockpit-grid.three');
+      return {
+        sectionBreakBefore: getComputedStyle(section).breakBefore,
+        sectionBreakInside: getComputedStyle(section).breakInside,
+        sheetBreakInside: getComputedStyle(sheet).breakInside,
+        sheetBreakAfter: getComputedStyle(sheet).breakAfter,
+        sheetFontPt: Math.round(toPt(getComputedStyle(sheet).fontSize) * 100) / 100,
+        tableFontPt: Math.round(toPt(getComputedStyle(table).fontSize) * 100) / 100,
+        headingDisplay: getComputedStyle(document.querySelector('.cockpit-panel-heading')).display,
+        sheetTitleDisplay: getComputedStyle(document.querySelector('.cockpit-sheet-title')).display,
+        gridColumns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+      };
+    });
+    expect(singlePage.sectionBreakBefore).toBe('page');
+    expect(singlePage.sectionBreakInside).not.toBe('auto');
+    expect(singlePage.sheetBreakInside).toBe('avoid');
+    expect(singlePage.sheetBreakAfter).toBe('avoid');
+    expect(singlePage.sheetFontPt).toBeLessThanOrEqual(8.6);
+    expect(singlePage.tableFontPt).toBeLessThan(singlePage.sheetFontPt);
+    expect(singlePage.headingDisplay).toBe('none');
+    expect(singlePage.sheetTitleDisplay).toBe('block');
+    expect(singlePage.gridColumns).toBe(3);
   });
 
   test('print/PDF exposes both modules and the normally collapsed comparison', async ({ page }) => {
