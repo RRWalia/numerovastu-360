@@ -385,6 +385,7 @@ window.NVAstro = (function () {
     ["bhavnagar", "Bhavnagar", "Gujarat", "India", 21.7645, 72.1519, 5.5, false],
     ["bhuj", "Bhuj", "Gujarat", "India", 23.2420, 69.6669, 5.5, false],
     ["junagadh", "Junagadh", "Gujarat", "India", 21.5222, 70.4579, 5.5, false],
+    ["dahod,dohad", "Dahod", "Gujarat", "India", 22.8356, 74.2560, 5.5, false],
     ["gandhidham", "Gandhidham", "Gujarat", "India", 23.0753, 70.1337, 5.5, false],
     ["morbi,morvi", "Morbi", "Gujarat", "India", 22.8173, 70.8377, 5.5, false],
     ["nadiad", "Nadiad", "Gujarat", "India", 22.6916, 72.8634, 5.5, false],

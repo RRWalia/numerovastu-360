@@ -373,6 +373,12 @@ const nakUnitChecks = [
     return p.astro && p.astro.tier === "full" && p.astro.place && p.astro.place.fromCoords;
   })()],
   ["India town Palwal resolves from compact atlas", NA.matchPlace("Palwal, Haryana, India") && NA.matchPlace("Palwal").name === "Palwal" && NA.matchPlace("Palwal").tz === 5.5],
+  ["Dahod, Gujarat core coords", (() => {
+    const a = NA.matchPlace("Dahod, Gujarat"), b = NA.matchPlace("Dohad");
+    return a && a.name === "Dahod" && a.state === "Gujarat" && a.tz === 5.5
+      && Math.abs(a.lat - 22.8356) < 1e-4 && Math.abs(a.lon - 74.2560) < 1e-4
+      && b && b.name === "Dahod";
+  })()],
   ["searchPlaces prefix does not require dumping datalist", NA.searchPlaces("palwal", 5).some((h) => /palwal/i.test(h.name))],
 ];
 nakUnitChecks.forEach(([name, ok]) => check(name, ok));
