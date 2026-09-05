@@ -171,6 +171,9 @@
   }
 
   function relation(a, b) {
+    // Rahu (4) and Moon (2) form the eclipse axis (Grahan); never label
+    // Moon as friendly inside a Rahu period, even when a custom pack omits it.
+    if ((a === 4 && b === 2) || (a === 2 && b === 4)) return "enemy";
     if (a === b) return "friendly"; // a planet is never its own enemy
     const f = (window.DB && window.DB.friendship) ? window.DB.friendship[a] : null;
     if (!f) return "neutral";
@@ -1317,8 +1320,13 @@
      the active Mahadasha/Antardasha lords and the event's Dasha definition;
      neither Lo Shu nor Vedic-grid counts can strengthen, weaken or reroute a
      prediction window. */
-  function scoreEventWindow(ev, mdN, adN) {
+  function scoreEventWindow(ev, mdN, adN, p) {
     let s = 0;
+    // Natal presence changes confidence without changing the timing window.
+    // Missing significators are conditional; present ones receive support.
+    const counts = p && p.vedicCounts ? p.vedicCounts : {};
+    const strength = (n) => counts[n] > 1 ? 1 : counts[n] === 1 ? 0.5 : -0.5;
+    s += strength(adN) + strength(mdN);
     if (ev.primary.includes(adN)) s += 3;
     if (ev.primary.includes(mdN)) s += 2;
     if (ev.support.includes(adN)) s += 1.5;
@@ -1369,7 +1377,7 @@
         buildAntardashas(m.n, m.startMs).forEach((a) => {
           const midAge = ((a.startMs + a.endMs) / 2 - birthMs) / DASHA_YEAR_MS;
           if (midAge < ev.band[0] || midAge > ev.band[1]) return;
-          const score = scoreEventWindow(ev, m.n, a.n);
+          const score = scoreEventWindow(ev, m.n, a.n, p);
           if (score >= 3) windows.push({
             mdN: m.n, adN: a.n, score,
             startMs: a.startMs, endMs: a.endMs,
@@ -2311,7 +2319,7 @@
     ].map(([source, digits, treatment]) => `<tr><td><strong>${esc(source)}</strong></td><td>${esc(digits)}</td><td>${esc(treatment)}</td></tr>`).join("");
     const present = Object.keys(p.vedicCounts).filter((n) => p.vedicCounts[n] > 0).join(", ") || "—";
     return `<section class="rsection vedic-comparison-section" id="vedic-comparison-section">
-      <details class="advanced-vedic-comparison">
+      <details class="advanced-vedic-comparison" open>
         <summary><span>${t("secVedicCompare", "Advanced Vedic Comparison")}</span><span class="details-hint">${lang === "hi" ? "वैकल्पिक जन्म-ग्रिड" : lang === "gu" ? "વૈકલ્પિક જન્મ-ગ્રિડ" : "Optional birth-grid view"}</span></summary>
         <div class="details-body">
           <h2 class="rsection-title"><span class="idx">+</span>${copy.title}</h2>
@@ -2770,8 +2778,13 @@
           <div class="kit-label">${lang === "hi" ? "सक्रिय वास्तु क्षेत्र: इस उप-काल में इसे साधें" : lang === "gu" ? "સક્રિય વાસ્તુ ક્ષેત્ર: આ ઉપ-કાળમાં આને સાધો" : "Active Vastu Zone: Prioritise this sector now"}</div>
           <div class="kit-value">${lang === "hi" ? `आपके वर्तमान उप-स्वामी <strong>${planetOf(cur.ad.n)} (अंतर्दशा ${cur.ad.n})</strong> का क्षेत्र <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) है। ${esc(loc(adInfo.zoneRemedy, lang))}` : lang === "gu" ? `તમારા વર્તમાન ઉપ-સ્વામી <strong>${planetOf(cur.ad.n)} (અંતર્દશા ${cur.ad.n})</strong> નું ક્ષેત્ર <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) છે. ${esc(loc(adInfo.zoneRemedy, lang))}` : `Your current sub-ruler is <strong>${planetOf(cur.ad.n)} (AD ${cur.ad.n})</strong> — its sector is the <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}). ${esc(loc(adInfo.zoneRemedy, lang))}`}</div>
           <div class="kit-value">${lang === "hi" ? `सूक्ष्म-काल के लिए: प्रत्यंतर स्वामी ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} को भी स्वच्छ रखें।` : lang === "gu" ? `સૂક્ષ્મ-કાળ માટે: પ્રત્યંતર સ્વામી ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} ને પણ સ્વચ્છ રાખો.` : `For the micro-period: Pratyantar lord ${planetOf(cur.pd.n)} — also keep the ${esc(loc(pdInfo.zone, lang))} clean and serviced.`}</div>
+          <div class="kit-value"><strong>Dual-Zone Vastu pairing:</strong> Primary Sub-Zone (Moon): keep North-West clear and decluttered. Anchor Stabilizer (Rahu): keep South-West heavily grounded with earthy tones to prevent destabilisation.</div>
         </div></div>
       </div>`;
+
+      const pairSynthesis = (cur.md.n === 4 && cur.ad.n === 2)
+        ? `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha"><div class="card-title">Vedic Predictive Synthesis — Grahan Yoga</div><div class="kit-value"><strong>Current Stack:</strong> Rahu MD (4) + Moon AD (2)</div><div class="kit-value">Rahu amplifies ambition and unconventional moves, but filtered through Moon's emotional lens it can produce mental restlessness, sleep volatility, vivid dreams and sudden emotional decisions.</div><div class="kit-value"><strong>Predictive Guidance:</strong> Avoid signing long-term partnership contracts during the final degrees of this sub-period; channel emotional intensity into creative, technical or research output.</div></div>`
+        : `<div class="card predictive-synthesis" data-predictive-layer="md-ad-sambhandha"><div class="card-title">Vedic Predictive Synthesis — MD × AD</div><div class="kit-value"><strong>Current Stack:</strong> ${planetOf(cur.md.n)} MD (${cur.md.n}) + ${planetOf(cur.ad.n)} AD (${cur.ad.n}).</div><div class="kit-value">The Mahadasha sets the macro climate; the Antardasha filters it into the immediate emotional and practical decisions.</div></div>`;
 
       const ladderCard = `<div class="card">
         <div class="card-title">${lang === "hi" ? "जीवन-भर की महादशा सीढ़ी" : lang === "gu" ? "જીવનભરની મહાદશા સીડી" : "Lifetime Mahadasha Ladder"}</div>
@@ -2793,7 +2806,8 @@
         const windows = e.future.length
           ? e.future.map((w) => {
               const badge = w.active ? ` <span class="badge good">${lang === "hi" ? "अभी सक्रिय" : lang === "gu" ? "હમણાં સક્રિય" : "Active now"}</span>` : "";
-              return `<div class="kit-value"><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge}</div>`;
+              const natalLabel = (p.vedicCounts && p.vedicCounts[w.adN] > 0) ? "Natal significator present — stronger conversion" : "Probability: 65% (Delayed/Conditional) — significator missing in your natal chart; activate the relevant environmental remedy before expecting liquid results.";
+              return `<div class="kit-value"><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge}<div class="card-sub">${natalLabel}</div></div>`;
             }).join("")
           : `<div class="kit-value">${lang === "hi" ? "इस scan में निकट भविष्य की कोई प्रबल दशा-window नहीं है — व्यवहारिक तैयारी जारी रखें और अगला दशा संक्रमण देखें।" : lang === "gu" ? "આ scan માં નજીકના ભવિષ્યની કોઈ પ્રબળ દશા-window નથી — વ્યવહારિક તૈયારી ચાલુ રાખો અને આગળનું દશા પરિવર્તન જુઓ." : "No strong upcoming Dasha window appears in this scan — keep practical preparation steady and watch the next Dasha transition."}</div>`;
         const pastLine = e.pastBest
@@ -2816,6 +2830,7 @@
         <h2 class="rsection-title"><span class="idx">${SECTION.dasha}</span>${t("secDasha", "Dasha Timeline — Life Event Windows")}</h2>
         <p class="rsection-desc">${lang === "hi" ? "अंक-ज्योतिष की दशा प्रणाली: जन्म से आपका मूलांक अपनी महादशा शुरू करता है (अंक = वर्ष), फिर क्रम ९ अंकों में घूमता है। हर महादशा के भीतर अंतर्दशा और प्रत्यंतर दशा उसी अनुपात में चलती हैं — यही बताता है कि कौन-सा ग्रह अभी आपके जीवन का 'ऑपरेटिंग सिस्टम' चला रहा है।" : lang === "gu" ? "અંક-જ્યોતિષની દશા પ્રણાલી: જન્મથી તમારો મૂળાંક પોતાની મહાદશા શરૂ કરે છે (અંક = વર્ષ), પછી ક્રમ ૯ અંકોમાં ફરે છે. દરેક મહાદશાની અંદર અંતર્દશા અને પ્રત્યંતર દશા એ જ પ્રમાણમાં ચાલે છે — એ જ બતાવે છે કે કયો ગ્રહ અત્યારે તમારા જીવનની 'ઓપરેટિંગ સિસ્ટમ' ચલાવે છે." : "The Ank Jyotish dasha system: from birth, your Moolank opens its own Mahadasha (number = years), then the sequence walks the 9 numbers in order. Inside every Mahadasha run proportional Antardashas and Pratyantar dashas — together they show which planet is running your life's operating system right now."}</p>
         ${stackCard}
+        ${pairSynthesis}
         ${ladderCard}
         ${eventsCard}
         <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो केवल सक्रिय महादशा-अंतर्दशा के कारक ग्रहों से बनती है; लो शू और वैदिक जन्म-ग्रिड इन्हें नहीं बदलते।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડો ફક્ત સક્રિય મહાદશા-અંતર્દશાના કારક ગ્રહોથી બને છે; લો શુ અને વૈદિક જન્મ-ગ્રિડ તેને બદલતા નથી." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. Event windows use only the active Mahadasha–Antardasha significator pattern; neither Lo Shu nor Vedic birth-grid counts can change them." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
