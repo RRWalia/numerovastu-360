@@ -179,6 +179,15 @@ check("cockpit renders one consolidated sheet with every clinical block", !!cock
 check("cockpit shows the conflict, the sector fix and a single japa dose", cockpitBadge.classList.contains("badge-conflict") && !cockpitBadge.classList.contains("good") && /Grahan Yoga/.test(cockpitBadge.textContent) && $('[data-cockpit-block="triage"]', cockpit).dataset.tier1Number === "2" && /Om Somaya Namah/.test(cockpit.textContent) && /27×/.test(cockpit.textContent) && /North-West/.test(cockpit.textContent) && /South-West/.test(cockpit.textContent));
 check("cockpit keeps absent-significator windows visible and graded", $$("[data-cockpit-window]", cockpit).length === 5 && $$('[data-grade="conditional"]', cockpit).length > 0 && $$('[data-grade="high"]', cockpit).length > 0 && /Conditional · remedy-led/.test(cockpit.textContent) && /Requires environmental Vastu activation/.test(cockpit.textContent));
 check("cockpit prints as its own page and never splits a card", styles.includes("@page { size: A4 portrait; margin: 12mm 10mm; }") && styles.includes("body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }") && styles.includes(".cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }") && styles.includes(".badge.badge-conflict { background: var(--light-red-bg); color: #c92a36; }"));
+const cockpitPrintTitle = $(".cockpit-sheet-title", cockpit);
+check("cockpit keeps its single-page print contract: intro stripped, forced break, compact type", !!cockpitPrintTitle && /Practitioner Clinical Cockpit/.test(cockpitPrintTitle.textContent)
+  && styles.includes(".cockpit-panel-heading { display: none !important; }")
+  && styles.includes("#practitioner-cockpit.cockpit-section {")
+  && styles.includes("break-before: page;")
+  && styles.includes("font-size: 8.5pt;")
+  && styles.includes(".cockpit-table { font-size: 7.5pt; line-height: 1.15; }")
+  && styles.includes("body.print-cockpit .cockpit-section { margin: 0; break-before: auto; page-break-before: auto; }")
+  && styles.includes(".skip-link, .report-nav, .module-tabs, .timeline-anchor-nav, .cockpit-toolbar { display: none !important; }"));
 const waliaPlan = $("#plan-section", waliaReport);
 const waliaTriageCard = $("#remedy-triage", waliaPlan);
 check("the 40-day plan opens with a staged prescription instead of every remedy at once", !!waliaTriageCard && waliaTriageCard.dataset.tier1Number === "2" && /Om Somaya Namah/.test(waliaTriageCard.textContent) && $$('[data-triage-tier="2"]', waliaTriageCard).length === 2 && /Deliberately withheld this cycle/.test(waliaTriageCard.textContent) && $$('.priority-item[data-triage-tier="1"]', waliaPlan).length === 1 && $$('.priority-item[data-triage-tier="2"]', waliaPlan).length === 2 && /Tier 2 · hold/.test(waliaPlan.textContent));

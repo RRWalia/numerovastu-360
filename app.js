@@ -2167,6 +2167,7 @@
       </div>
       <div class="cockpit-sheet" data-cockpit-sheet="true">
         <header class="cockpit-head">
+          <div class="cockpit-sheet-title" data-cockpit-print-title="true">${esc(L.title)} · ${prettyDate(c.generatedMs)}</div>
           <div class="cockpit-identity">${identity}</div>
           <div class="cockpit-kicker">${esc(L.sub)}</div>
         </header>
