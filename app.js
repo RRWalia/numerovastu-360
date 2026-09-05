@@ -117,7 +117,7 @@
     contributionEnabled: "nv360.contributionEnabled.v1",
     contributionOutbox: "nv360.contributionOutbox.v1"
   };
-  const SECTION = { core: 1, traits: 2, loshu: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, memory: 14, vastu: 15, kua: 16, compatibility: 17, goalsStart: 18 };
+  const SECTION = { core: 1, traits: 2, loshu: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
 
   const state = {
     lang: "en",
@@ -1056,6 +1056,136 @@
       else if (rd === "friendly" && rc === "friendly") milestones.push({ age, yr: p.year + age, why: `age reduces to ${a} — harmonious with both your numbers` });
     }
     return { years, luckyYears, milestones, curAge, pinnacles };
+  }
+
+  /* ---------------- Numerology Dasha engine (Ank Jyotish) ----------------
+     Classical proportional cycle on a 45-year base (1+2+…+9 = 45).
+     · Mahadasha starts at birth with the Moolank and lasts N solar years;
+       the sequence then advances cyclically 1→9 and repeats after 45 years.
+     · Antardasha = MD years × AD number ÷ 45, sequence starting from the
+       MD lord itself (nested mathematical continuity).
+     · Pratyantar = AD span × PD number ÷ 45, sequence starting from the
+       AD lord.
+     Dates use the 365.2425-day solar year from the date of birth; when the
+     user has provided an exact birth time (Vedic Tier 2) the cycle is
+     anchored to that time for finer boundaries. */
+  const DASHA_YEAR_MS = 365.2425 * 86400000;
+
+  function dashaSequenceFrom(n) {
+    return Array.from({ length: 9 }, (_, i) => ((n - 1 + i) % 9) + 1);
+  }
+
+  function dashaBirthDate(p) {
+    let hh = 0, mm = 0;
+    if (p.birthTime) {
+      const parts = String(p.birthTime).split(":").map(Number);
+      if (!isNaN(parts[0])) hh = parts[0];
+      if (!isNaN(parts[1])) mm = parts[1];
+    }
+    return new Date(p.year, p.month - 1, p.day, hh, mm);
+  }
+
+  function buildAntardashas(mdNumber, mdStartMs) {
+    let cur = mdStartMs;
+    return dashaSequenceFrom(mdNumber).map((adN) => {
+      const ms = (mdNumber * adN / 45) * DASHA_YEAR_MS;
+      const seg = { n: adN, startMs: cur, endMs: cur + ms };
+      cur += ms;
+      return seg;
+    });
+  }
+
+  function buildPratyantars(adSeg) {
+    const span = adSeg.endMs - adSeg.startMs;
+    let cur = adSeg.startMs;
+    return dashaSequenceFrom(adSeg.n).map((pdN) => {
+      const ms = span * pdN / 45;
+      const seg = { n: pdN, startMs: cur, endMs: cur + ms };
+      cur += ms;
+      return seg;
+    });
+  }
+
+  /* Cross-check an event window against the person's own chart: the lord
+     that triggers the event is strengthened by friendship with the Driver /
+     Conductor and by presence in the Loshu grid, weakened by enmity or by
+     being a missing number. Returns 0 when no primary lord is active. */
+  function scoreEventWindow(ev, mdN, adN, p) {
+    let s = 0;
+    if (ev.primary.includes(adN)) s += 3;
+    if (ev.primary.includes(mdN)) s += 2;
+    if (ev.support.includes(adN)) s += 1.5;
+    if (ev.support.includes(mdN)) s += 1;
+    if (s < 3) return 0;
+    const key = ev.primary.includes(adN) ? adN : mdN;
+    const rd = relation(p.driver, key), rc = relation(p.conductor, key);
+    if (rd === "friendly") s += 0.75; else if (rd === "enemy") s -= 0.75;
+    if (rc === "friendly") s += 0.5; else if (rc === "enemy") s -= 0.5;
+    if (p.missing.includes(key)) s -= 0.75;
+    else if (p.counts && p.counts[key] >= 2) s += 0.25;
+    return s;
+  }
+
+  function dashaTimeline(p, refDate) {
+    const birth = dashaBirthDate(p);
+    const birthMs = birth.getTime();
+    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+
+    // Lifetime Mahadasha ladder (birth → ~100 years)
+    const mahadashas = [];
+    let cur = birthMs, n = p.driver;
+    while (cur < birthMs + 100 * DASHA_YEAR_MS) {
+      const ms = n * DASHA_YEAR_MS;
+      mahadashas.push({
+        n,
+        startMs: cur, endMs: cur + ms,
+        fromAge: Math.round((cur - birthMs) / DASHA_YEAR_MS),
+        toAge: Math.round((cur + ms - birthMs) / DASHA_YEAR_MS),
+        current: nowMs >= cur && nowMs < cur + ms
+      });
+      cur += ms;
+      n = (n % 9) + 1;
+    }
+
+    // Current nested stack: MD → AD → PD
+    const md = mahadashas.find((m) => m.current) || mahadashas[mahadashas.length - 1];
+    const ads = buildAntardashas(md.n, md.startMs);
+    const ad = ads.find((a) => nowMs >= a.startMs && nowMs < a.endMs) || ads[ads.length - 1];
+    const pds = buildPratyantars(ad);
+    const pd = pds.find((x) => nowMs >= x.startMs && nowMs < x.endMs) || pds[pds.length - 1];
+    const adProgress = Math.max(0, Math.min(100, Math.round(((nowMs - ad.startMs) / (ad.endMs - ad.startMs)) * 100)));
+    const pdDaysLeft = Math.max(0, Math.ceil((pd.endMs - nowMs) / 86400000));
+
+    // Life-event windows: scan every AD segment across life, score it against
+    // the classical lords AND this person's own grid, then keep the best
+    // upcoming windows (plus the strongest past one for validation).
+    const db = getActiveDB();
+    const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
+    const eventDefs = dashaDB.lifeEvents || {};
+    const events = Object.keys(eventDefs).map((key) => {
+      const ev = eventDefs[key];
+      const windows = [];
+      mahadashas.forEach((m) => {
+        buildAntardashas(m.n, m.startMs).forEach((a) => {
+          const midAge = ((a.startMs + a.endMs) / 2 - birthMs) / DASHA_YEAR_MS;
+          if (midAge < ev.band[0] || midAge > ev.band[1]) return;
+          const score = scoreEventWindow(ev, m.n, a.n, p);
+          if (score >= 3) windows.push({
+            mdN: m.n, adN: a.n, score,
+            startMs: a.startMs, endMs: a.endMs,
+            fromAge: Math.floor((a.startMs - birthMs) / DASHA_YEAR_MS),
+            toAge: Math.ceil((a.endMs - birthMs) / DASHA_YEAR_MS),
+            past: a.endMs < nowMs,
+            active: nowMs >= a.startMs && nowMs < a.endMs
+          });
+        });
+      });
+      const future = windows.filter((w) => !w.past).sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 3).sort((x, y) => x.startMs - y.startMs);
+      const pastBest = windows.filter((w) => w.past).sort((x, y) => y.score - x.score)[0] || null;
+      return { key, def: ev, future, pastBest };
+    });
+
+    return { birthMs, mahadashas, current: { md, ad, pd, adProgress, pdDaysLeft }, events };
   }
 
   function watchSpec(p) {
@@ -2809,6 +2939,106 @@
       </div>
     </section>`;
 
+    /* ---- Section: Numerology Dasha timeline + life-event windows ---- */
+    const dashaSection = (function () {
+      const dl = dashaTimeline(p);
+      const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
+      if (!dashaDB[1]) return "";
+      const planetOf = (n) => esc(db.numbers[n].planet.split(" ")[0]);
+      const yearOfMs = (ms) => new Date(ms).getFullYear();
+      const cur = dl.current;
+      const mdInfo = dashaDB[cur.md.n] || {}, adInfo = dashaDB[cur.ad.n] || {}, pdInfo = dashaDB[cur.pd.n] || {};
+      const nowLbl = lang === "hi" ? "वर्तमान" : lang === "gu" ? "હાલમાં" : "Now";
+      const agesLbl2 = lang === "hi" ? "आयु" : lang === "gu" ? "ઉંમર" : "Ages";
+      const relBadgeFor = (n) => {
+        const rd = relation(p.driver, n);
+        return rd === "friendly" ? `<span class="badge good">${lang === "hi" ? "मित्र ग्रह" : lang === "gu" ? "મિત્ર ગ્રહ" : "Friendly to you"}</span>`
+          : rd === "enemy" ? `<span class="badge warn">${lang === "hi" ? "सावधानी काल" : lang === "gu" ? "સાવધાની કાળ" : "Handle with care"}</span>`
+          : `<span class="badge info">${lang === "hi" ? "तटस्थ" : lang === "gu" ? "તટસ્થ" : "Neutral"}</span>`;
+      };
+
+      const stackCard = `<div class="card">
+        <div class="goal-head">
+          <div class="card-title">${lang === "hi" ? "आपका सक्रिय दशा-क्रम" : lang === "gu" ? "તમારો સક્રિય દશા-ક્રમ" : "Your Active Dasha Stack"}</div>
+          <span class="badge info">${lang === "hi" ? "शास्त्रीय आनुपातिक (४५-वर्ष)" : lang === "gu" ? "શાસ્ત્રીય પ્રમાણસર (૪૫-વર્ષ)" : "Classical Proportional (45-Yr)"}</span>
+        </div>
+        <div class="card-grid" style="margin-top:10px">
+          <div class="card num-card">
+            <div class="num-value">${cur.md.n}</div>
+            <div class="num-label">${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "Mahadasha"} · ${planetOf(cur.md.n)}</div>
+            <div class="num-sub">${yearOfMs(cur.md.startMs)}–${yearOfMs(cur.md.endMs)} (${agesLbl2} ${cur.md.fromAge}–${cur.md.toAge}) ${relBadgeFor(cur.md.n)}</div>
+          </div>
+          <div class="card num-card">
+            <div class="num-value alt">${cur.ad.n}</div>
+            <div class="num-label">${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "Antardasha"} · ${planetOf(cur.ad.n)}</div>
+            <div class="num-sub">${prettyDate(cur.ad.startMs)} → ${prettyDate(cur.ad.endMs)}</div>
+            <div class="progress-track" role="progressbar" aria-valuenow="${cur.adProgress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${cur.adProgress}%"></div></div>
+            <div class="num-sub">${cur.adProgress}% ${lang === "hi" ? "पूर्ण" : lang === "gu" ? "પૂર્ણ" : "elapsed"}</div>
+          </div>
+          <div class="card num-card">
+            <div class="num-value" style="font-size:26px">${cur.pd.n}</div>
+            <div class="num-label">${lang === "hi" ? "प्रत्यंतर दशा" : lang === "gu" ? "પ્રત્યંતર દશા" : "Pratyantar Dasha"} · ${planetOf(cur.pd.n)}</div>
+            <div class="num-sub">${cur.pdDaysLeft} ${lang === "hi" ? "दिन शेष" : lang === "gu" ? "દિવસ બાકી" : "days remaining"} (${lang === "hi" ? "तक" : lang === "gu" ? "સુધી" : "until"} ${prettyDate(cur.pd.endMs)})</div>
+          </div>
+        </div>
+        <div class="kit-value"><strong>${lang === "hi" ? `इस काल का स्वर — महादशा ${cur.md.n} (${planetOf(cur.md.n)}):` : lang === "gu" ? `આ સમયગાળાનો સૂર — મહાદશા ${cur.md.n} (${planetOf(cur.md.n)}):` : `The tone of this chapter — Mahadasha ${cur.md.n} (${planetOf(cur.md.n)}):`}</strong> ${esc(loc(mdInfo.theme, lang))}</div>
+        <div class="kit-value"><strong>${lang === "hi" ? `इस वर्ष की धारा — अंतर्दशा ${cur.ad.n} (${planetOf(cur.ad.n)}):` : lang === "gu" ? `આ વર્ષની ધારા — અંતર્દશા ${cur.ad.n} (${planetOf(cur.ad.n)}):` : `The current within it — Antardasha ${cur.ad.n} (${planetOf(cur.ad.n)}):`}</strong> ${esc(loc(adInfo.events, lang))}. <em>${esc(loc(adInfo.caution, lang))}</em></div>
+        <div class="kit-row"><div class="kit-ico">🧭</div><div class="kit-body">
+          <div class="kit-label">${lang === "hi" ? "सक्रिय वास्तु क्षेत्र — इस उप-काल में इसे साधें" : lang === "gu" ? "સક્રિય વાસ્તુ ક્ષેત્ર — આ ઉપ-કાળમાં આને સાધો" : "Active Vastu zone — prioritise this sector now"}</div>
+          <div class="kit-value">${lang === "hi" ? `आपके वर्तमान उप-स्वामी <strong>${planetOf(cur.ad.n)} (अंतर्दशा ${cur.ad.n})</strong> का क्षेत्र <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) है। ${esc(loc(adInfo.zoneRemedy, lang))}` : lang === "gu" ? `તમારા વર્તમાન ઉપ-સ્વામી <strong>${planetOf(cur.ad.n)} (અંતર્દશા ${cur.ad.n})</strong> નું ક્ષેત્ર <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) છે. ${esc(loc(adInfo.zoneRemedy, lang))}` : `Your current sub-ruler is <strong>${planetOf(cur.ad.n)} (AD ${cur.ad.n})</strong> — its sector is the <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}). ${esc(loc(adInfo.zoneRemedy, lang))}`}</div>
+          <div class="kit-value">${lang === "hi" ? `सूक्ष्म-काल के लिए: प्रत्यंतर स्वामी ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} को भी स्वच्छ रखें।` : lang === "gu" ? `સૂક્ષ્મ-કાળ માટે: પ્રત્યંતર સ્વામી ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} ને પણ સ્વચ્છ રાખો.` : `For the micro-period: Pratyantar lord ${planetOf(cur.pd.n)} — also keep the ${esc(loc(pdInfo.zone, lang))} clean and serviced.`}</div>
+        </div></div>
+      </div>`;
+
+      const ladderCard = `<div class="card">
+        <div class="card-title">${lang === "hi" ? "जीवन-भर की महादशा सीढ़ी" : lang === "gu" ? "જીવનભરની મહાદશા સીડી" : "Lifetime Mahadasha Ladder"}</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "Mahadasha"}</th><th>${lang === "hi" ? "आयु व वर्ष" : lang === "gu" ? "ઉંમર અને વર્ષ" : "Ages & Years"}</th><th>${lang === "hi" ? "काल का विषय" : lang === "gu" ? "કાળનો વિષય" : "Theme of the period"}</th></tr>
+          ${dl.mahadashas.map((m) => {
+            const info = dashaDB[m.n] || {};
+            return `<tr${m.current ? ' class="hl-row"' : ""}>
+              <td><strong>${m.n}</strong> · ${planetOf(m.n)}${m.current ? ` <span class="badge info">${nowLbl}</span>` : ""}</td>
+              <td>${agesLbl2} ${m.fromAge}–${m.toAge} <span class="card-sub">(${yearOfMs(m.startMs)}–${yearOfMs(m.endMs)})</span></td>
+              <td>${esc(loc(info.theme, lang))}</td>
+            </tr>`;
+          }).join("")}
+        </table></div>
+      </div>`;
+
+      const eventRows = dl.events.map((e) => {
+        const lbl = esc(loc(e.def.label, lang));
+        const windows = e.future.length
+          ? e.future.map((w) => {
+              const badge = w.active ? ` <span class="badge good">${lang === "hi" ? "अभी सक्रिय" : lang === "gu" ? "હમણાં સક્રિય" : "Active now"}</span>` : "";
+              return `<div class="kit-value"><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge}</div>`;
+            }).join("")
+          : `<div class="kit-value">${lang === "hi" ? "आगामी वर्षों में कोई प्रबल विंडो नहीं — सामान्य अनुकूल वर्षों (खंड १३) का उपयोग करें।" : lang === "gu" ? "આગામી વર્ષોમાં કોઈ પ્રબળ વિન્ડો નથી — સામાન્ય અનુકૂળ વર્ષો (વિભાગ ૧૩) નો ઉપયોગ કરો." : `No strong upcoming window in this scan — lean on your general favourable years (Section ${SECTION.timing}).`}</div>`;
+        const pastLine = e.pastBest
+          ? `<div class="card-sub">${lang === "hi" ? `पिछली प्रबल विंडो: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (आयु ${e.pastBest.fromAge}–${e.pastBest.toAge}) — मिलान करें कि उस दौर में क्या घटा था।` : lang === "gu" ? `ગત પ્રબળ વિન્ડો: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ઉંમર ${e.pastBest.fromAge}–${e.pastBest.toAge}) — તે સમયગાળામાં શું બન્યું હતું તે સરખાવો.` : `Strongest past window: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ages ${e.pastBest.fromAge}–${e.pastBest.toAge}) — cross-check what actually happened then; it is your personal proof of how this cycle speaks.`}</div>`
+          : "";
+        return `<div class="kit-row"><div class="kit-ico">${e.def.icon || "★"}</div><div class="kit-body">
+          <div class="kit-label">${lbl}</div>
+          ${windows}
+          ${pastLine}
+        </div></div>`;
+      }).join("");
+
+      const eventsCard = `<div class="card">
+        <div class="card-title">${lang === "hi" ? "जीवन-घटना विंडो — विवाह, विदेश, करियर, संपत्ति, धन" : lang === "gu" ? "જીવન-ઘટના વિન્ડો — લગ્ન, વિદેશ, કારકિર્દી, મિલકત, ધન" : "Life-Event Windows — marriage, abroad, career, property, wealth"}</div>
+        <div class="card-sub">${lang === "hi" ? "प्रत्येक विंडो वह अवधि है जब उस घटना के शास्त्रीय कारक ग्रह (जैसे विवाह के लिए शुक्र-चंद्र, विदेश के लिए राहु-केतु) महादशा-अंतर्दशा में सक्रिय होते हैं और आपके अपने ग्रिड से मेल खाते हैं। ये अनुकूल अवसर-काल हैं, निश्चित भविष्यवाणी नहीं।" : lang === "gu" ? "દરેક વિન્ડો એ સમયગાળો છે જ્યારે તે ઘટનાના શાસ્ત્રીય કારક ગ્રહો (જેમ કે લગ્ન માટે શુક્ર-ચંદ્ર, વિદેશ માટે રાહુ-કેતુ) મહાદશા-અંતર્દશામાં સક્રિય હોય છે અને તમારા પોતાના ગ્રીડ સાથે મેળ ખાય છે. આ અનુકૂળ તક-કાળ છે, નિશ્ચિત ભવિષ્યવાણી નથી." : "Each window marks when the classical significators of that event (Venus–Moon for marriage, Rahu–Ketu for abroad, Sun–Saturn for career, and so on) become active in your Mahadasha–Antardasha stack <em>and</em> agree with your own grid. Read them as favourable opportunity periods, not fixed predictions."}</div>
+        <div class="kit">${eventRows}</div>
+      </div>`;
+
+      return `<section class="rsection" id="dasha-section">
+        <h2 class="rsection-title"><span class="idx">${SECTION.dasha}</span>${t("secDasha", "Dasha Timeline — Life Event Windows")}</h2>
+        <p class="rsection-desc">${lang === "hi" ? "अंक-ज्योतिष की दशा प्रणाली: जन्म से आपका मूलांक अपनी महादशा शुरू करता है (अंक = वर्ष), फिर क्रम ९ अंकों में घूमता है। हर महादशा के भीतर अंतर्दशा और प्रत्यंतर दशा उसी अनुपात में चलती हैं — यही बताता है कि कौन-सा ग्रह अभी आपके जीवन का 'ऑपरेटिंग सिस्टम' चला रहा है।" : lang === "gu" ? "અંક-જ્યોતિષની દશા પ્રણાલી: જન્મથી તમારો મૂળાંક પોતાની મહાદશા શરૂ કરે છે (અંક = વર્ષ), પછી ક્રમ ૯ અંકોમાં ફરે છે. દરેક મહાદશાની અંદર અંતર્દશા અને પ્રત્યંતર દશા એ જ પ્રમાણમાં ચાલે છે — એ જ બતાવે છે કે કયો ગ્રહ અત્યારે તમારા જીવનની 'ઓપરેટિંગ સિસ્ટમ' ચલાવે છે." : "The Ank Jyotish dasha system: from birth, your Moolank opens its own Mahadasha (number = years), then the sequence walks the 9 numbers in order. Inside every Mahadasha run proportional Antardashas and Pratyantar dashas — together they show which planet is running your life's operating system right now."}</p>
+        ${stackCard}
+        ${ladderCard}
+        ${eventsCard}
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो में हम कारक ग्रह की आपके मूलांक-भाग्यांक से मित्रता और ग्रिड में उपस्थिति भी जोड़ते हैं — इसलिए यही विंडो हर व्यक्ति के लिए अलग शक्ति रखती है।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડોમાં અમે કારક ગ્રહની તમારા મૂળાંક-ભાગ્યાંક સાથેની મિત્રતા અને ગ્રીડમાં હાજરી પણ ઉમેરીએ છીએ — તેથી એક જ વિન્ડો દરેક વ્યક્તિ માટે અલગ શક્તિ ધરાવે છે." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. For event windows we additionally weigh the significator's friendship with your Driver/Conductor and its presence in your Loshu grid — which is why the same window carries different strength for different people." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
+      </section>`;
+    })();
+
     const memorySection = `<section class="rsection" id="memory-section">
       <h2 class="rsection-title"><span class="idx">${SECTION.memory}</span>${t("secMemory", "Your Evolving Chart")}</h2>
       <p class="rsection-desc">This section is private, on-device memory only. It helps the app learn your own journey over time without uploading personal data.</p>
@@ -3102,6 +3332,7 @@
           <a href="#loshu-section">${t("navLoshu", "Loshu Grid")}</a>
           <a href="#vedic-section">${t("navVedic", "Vedic Sign")}</a>
           <a href="#timing-section">${t("navTiming", "Timing")}</a>
+          <a href="#dasha-section">${t("navDasha", "Dasha")}</a>
           <a href="#memory-section">${t("navMemory", "Evolving Chart")}</a>
           <a href="#vastu-section">${t("navVastu", "Vastu")}</a>
           <a href="#plan-section">${t("navPlan", "40-Day Plan")}</a>
@@ -3143,6 +3374,7 @@
       ${colorSection}
       ${careerSection}
       ${timingSection}
+      ${dashaSection}
       ${memorySection}
       ${vastuSection}
       ${kuaSection}
@@ -3435,7 +3667,7 @@
   /* expose for smoke tests and external control */
   window.__NV = {
     computeProfile, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
-    mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, zodiacSign,
+    mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, relation, chaldeanValue, validatePack,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,

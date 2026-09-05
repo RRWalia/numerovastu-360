@@ -2,20 +2,47 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NumeroVastu 360 Knowledge Pack",
   "type": "object",
-  "required": ["schemaVersion", "packVersion", "db"],
+  "required": [
+    "schemaVersion",
+    "packVersion",
+    "db"
+  ],
   "properties": {
-    "schemaVersion": { "type": "integer", "minimum": 1 },
-    "packVersion": { "type": "string" },
-    "generatedAt": { "type": ["string", "null"] },
-    "manifestPath": { "type": "string" },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "packVersion": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "manifestPath": {
+      "type": "string"
+    },
     "contribution": {
       "type": "object",
       "properties": {
-        "mode": { "type": "string" },
-        "endpoint": { "type": ["string", "null"] },
-        "description": { "type": "string" }
+        "mode": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
       },
-      "required": ["mode"]
+      "required": [
+        "mode"
+      ]
     },
     "db": {
       "type": "object",
@@ -51,6 +78,10 @@
       "deity": {
         "type": "object",
         "description": "Optional deity protection layer: numbers 1–9 map to an ishta devta (god, mantra, primaryChant, weeklyChant, offerings, support, protectionNote) — traditional spiritual guidance."
+      },
+      "dasha": {
+        "type": "object",
+        "description": "Optional numerology dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the life-event window engine."
       }
     }
   }
