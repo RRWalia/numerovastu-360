@@ -319,7 +319,7 @@
     contributionEnabled: "nv360.contributionEnabled.v1",
     contributionOutbox: "nv360.contributionOutbox.v1"
   };
-  const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
+  const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
 
   const state = {
     lang: "en",
@@ -3192,6 +3192,123 @@
   // explicitly a birth-only advanced comparison, never a remedy renderer.
   function renderVedicGrid(p) { return renderVedicBirthComparison(p); }
 
+  /* Bio-energetic Tattva anchors for Vedic planes that are Partly Active
+     or Deficient. Complete planes are omitted. This is Dinacharya /
+     Aushadhi / Pranayama only — Lo Shu keeps mantras, minerals and the
+     40-day mandala; Dasha keeps spatial timing. Copy lives here (same
+     pattern as VEDIC_PLANE_READINGS) so pack 2.8.0 stays in lockstep. */
+  const VEDIC_TATTVA_KIT = {
+    practical: {
+      tattva: { en: "Agni / Fire Tattva", hi: "अग्नि तत्व", gu: "અગ્નિ તત્વ" },
+      cells: [3, 1, 9],
+      signature: {
+        en: "Low digestive fire, morning sluggishness, cold extremities, delayed decision-making. The body needs heat, not more cooling.",
+        hi: "पाचन-अग्नि मंद, सुबह सुस्ती, ठंडे हाथ-पैर, निर्णय में देरी। शरीर को ऊष्मा चाहिए, और ठंडक नहीं।",
+        gu: "પાચન-અગ્નિ મંદ, સવારે સુસ્તી, ઠંડા હાથ-પગ, નિર્ણયમાં વિલંબ. શરીરને ગરમી જોઈએ, વધુ ઠંડક નહીં."
+      },
+      rows: [
+        { ico: "🌬", label: { en: "Breathwork (Pranayama)", hi: "श्वास-अभ्यास (प्राणायाम)", gu: "શ્વાસ-અભ્યાસ (પ્રાણાયામ)" }, value: { en: "Surya Bhedana (right-nostril breathing): inhale 4 counts through the right nostril, hold 2, exhale 4 through the left. 5–9 rounds after sunrise.", hi: "सूर्य भेदन (दाईं नासिका श्वास): दाहिनी नासिका से 4 गिनती खींचें, 2 रोकें, बाईं से 4 छोड़ें। सूर्योदय के बाद 5–9 चक्र।", gu: "સૂર્ય ભેદન (જમણી નાસિકા શ્વાસ): જમણી નાસિકાથી 4 ગણતરી ખેંચો, 2 રોકો, ડાબીથી 4 છોડો. સૂર્યોદય પછી 5–9 ચક્ર." } },
+        { ico: "🛁", label: { en: "Aushadhi Snan & Aroma", hi: "औषधि स्नान और सुगंध", gu: "ઔષધિ સ્નાન અને સુગંધ" }, value: { en: "Warm (not hot) baths; a pinch of turmeric or fresh ginger in the bath water; light camphor or cinnamon aroma in the room — never overpowering.", hi: "गुनगुना (बहुत गरम नहीं) स्नान; पानी में हल्दी या ताज़ा अदरक की चुटकी; कमरे में कपूर या दालचीनी की हल्की सुगंध — तेज़ नहीं।", gu: "ગુનગુનું (ખૂબ ગરમ નહીં) સ્નાન; પાણીમાં હળદર કે તાજી આદુની ચુટકી; રૂમમાં કપૂર કે તજની હળવી સુગંધ — તીવ્ર નહીં." } },
+        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Room-temperature or warm water through the day; warm lemon-honey water on waking. Skip iced drinks.", hi: "दिन भर कमरे के तापमान या गुनगुना पानी; जागने पर नींबू-शहद का गुनगुना पानी। बर्फ वाले पेय न लें।", gu: "દિવસભર રૂમ-તાપમાન કે ગુનગુનું પાણી; ઊઠતાં લીંબુ-મધનું ગુનગુનું પાણી. બરફવાળા પીણાં ટાળો." } },
+        { ico: "☀", label: { en: "Solar Activation", hi: "सूर्य सक्रियण", gu: "સૂર્ય સક્રિયકરણ" }, value: { en: "10–20 minutes of morning sunlight facing East — face and upper chest uncovered.", hi: "सुबह 10–20 मिनट पूर्व दिशा में धूप — चेहरा और ऊपरी छाती खुली रखें।", gu: "સવારે 10–20 મિનિટ પૂર્વ દિશામાં ધૂપ — ચહેરો અને ઉપરની છાતી ખુલ્લા રાખો." } },
+        { ico: "✦", label: { en: "Behavioral Micro-Habit", hi: "व्यवहार की छोटी आदत", gu: "વ્યવહારની નાની ટેવ" }, value: { en: "Make the first work block of the day a 25-minute focused sprint — a small, warm start to light the fire.", hi: "दिन का पहला काम 25 मिनट का केंद्रित स्प्रिंट रखें — अग्नि जलाने के लिए छोटा, गर्म प्रारंभ।", gu: "દિવસનું પહેલું કામ 25 મિનિટનું કેન્દ્રિત સ્પ્રિન્ટ રાખો — અગ્નિ પ્રગટાવવા નાની, ગરમ શરૂઆત." } }
+      ]
+    },
+    materialistic: {
+      tattva: { en: "Vayu / Air Tattva", hi: "वायु तत्व", gu: "વાયુ તત્વ" },
+      cells: [6, 7, 5],
+      signature: {
+        en: "Restlessness, unfinished conversations, scattered attention, stalled money-cycles. Move air with rhythm, not more stimulation.",
+        hi: "बेचैनी, अधूरी बातचीत, बिखरा ध्यान, धन-चक्र में अटकन। वायु को लय से चलाएं, और उत्तेजना से नहीं।",
+        gu: "બેચેની, અધૂરી વાતચીત, વેરાયેલું ધ્યાન, ધન-ચક્રમાં અટકાણ. વાયુને લયથી ચલાવો, વધુ ઉત્તેજનાથી નહીં."
+      },
+      rows: [
+        { ico: "🌬", label: { en: "Breathwork (Pranayama)", hi: "श्वास-अभ्यास (प्राणायाम)", gu: "શ્વાસ-અભ્યાસ (પ્રાણાયામ)" }, value: { en: "Nadi Shodhana (alternate-nostril): inhale left, exhale right; inhale right, exhale left. 9–12 rounds, mid-morning or before a negotiation.", hi: "नाड़ी शोधन (एकांतर नासिका): बाईं से खींचें, दाईं से छोड़ें; दाईं से खींचें, बाईं से छोड़ें। 9–12 चक्र, सुबह देर से या बातचीत से पहले।", gu: "નાડી શોધન (એકાંતર નાસિકા): ડાબીથી ખેંચો, જમણીથી છોડો; જમણીથી ખેંચો, ડાબીથી છોડો. 9–12 ચક્ર, સવારે મોડે કે વાટાઘાટ પહેલાં." } },
+        { ico: "🛁", label: { en: "Aushadhi Snan & Aroma", hi: "औषधि स्नान और सुगंध", gu: "ઔષધિ સ્નાન અને સુગંધ" }, value: { en: "A handful of tulsi or mint in the bath; a light eucalyptus or mint aroma; keep one window cracked for a cross-breeze.", hi: "स्नान में तुलसी या पुदीने की मुट्ठी; यूकेलिप्टस या पुदीने की हल्की सुगंध; हवा के लिए एक खिड़की थोड़ी खुली रखें।", gu: "સ્નાનમાં તુલસી કે ફુદીનાની મુઠ્ઠી; યુકેલિપ્ટસ કે ફુદીનાની હળવી સુગંધ; હવા માટે એક બારી થોડી ખુલ્લી રાખો." } },
+        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Small sips through the day; tulsi or mint infusion; lighter, less fried meals at the main sitting.", hi: "दिन भर छोटे घूंट; तुलसी या पुदीने का काढ़ा; मुख्य भोजन हलका रखें, तली चीज़ें कम।", gu: "દિવસભર નાના ઘૂંટ; તુલસી કે ફુદીનાનો કાઢો; મુખ્ય ભોજન હળવું રાખો, તળેલું ઓછું." } },
+        { ico: "🌬", label: { en: "Space & Sensory Reset", hi: "स्थान और इंद्रिय रीसेट", gu: "સ્થાન અને ઇન્દ્રિય રીસેટ" }, value: { en: "Open a window every 90 minutes; stand and roll the shoulders for two minutes between deep-work blocks.", hi: "हर 90 मिनट खिड़की खोलें; गहरे काम के बीच दो मिनट खड़े होकर कंधे घुमाएँ।", gu: "દર 90 મિનિટે બારી ખોલો; ઊંડા કામ વચ્ચે બે મિનિટ ઊભા રહીને ખભા ફેરવો." } },
+        { ico: "✦", label: { en: "Behavioral Micro-Habit", hi: "व्यवहार की छोटी आदत", gu: "વ્યવહારની નાની ટેવ" }, value: { en: "After every conversation, write the next step in one line — give Air a direction instead of letting it scatter.", hi: "हर बातचीत के बाद अगला कदम एक पंक्ति में लिखें — वायु को दिशा दें, बिखराव नहीं।", gu: "દરેક વાતચીત પછી આગલું પગલું એક લીટીમાં લખો — વાયુને દિશા આપો, વેરવિખેર નહીં." } }
+      ]
+    },
+    emotional: {
+      tattva: { en: "Jala / Water + Earth Tattva", hi: "जल + पृथ्वी तत्व", gu: "જળ + પૃથ્વી તત્વ" },
+      cells: [2, 8, 4],
+      signature: {
+        en: "Mood waves, uneven sleep, feeling ungrounded, plans that fade. Stability comes from water and earth, not more intensity.",
+        hi: "भाव-लहरें, अस्थिर नींद, ज़मीन से कटाव, योजनाएँ जो फीकी पड़ जाती हैं। स्थिरता जल और मिट्टी से आती है, और तीव्रता से नहीं।",
+        gu: "ભાવ-લહેરો, અસ્થિર ઊંઘ, જમીનથી કટાવ, યોજનાઓ જે ઝાંખી પડે. સ્થિરતા જળ અને માટીથી આવે છે, વધુ તીવ્રતાથી નહીં."
+      },
+      rows: [
+        { ico: "🌬", label: { en: "Breathwork (Pranayama)", hi: "श्वास-अभ्यास (प्राणायाम)", gu: "શ્વાસ-અભ્યાસ (પ્રાણાયામ)" }, value: { en: "Chandra Bhedana (left-nostril) or a 4–6 calming breath: inhale left 4, hold 2, exhale right 6. 5–8 rounds before sleep.", hi: "चंद्र भेदन (बाईं नासिका) या 4–6 शांत श्वास: बाईं से 4 खींचें, 2 रोकें, दाईं से 6 छोड़ें। सोने से पहले 5–8 चक्र।", gu: "ચંદ્ર ભેદન (ડાબી નાસિકા) અથવા 4–6 શાંત શ્વાસ: ડાબીથી 4 ખેંચો, 2 રોકો, જમણીથી 6 છોડો. સૂતા પહેલાં 5–8 ચક્ર." } },
+        { ico: "🛁", label: { en: "Aushadhi Snan & Aroma", hi: "औषधि स्नान और सुगंध", gu: "ઔષધિ સ્નાન અને સુગંધ" }, value: { en: "Warm bath with a drop of rose or sandalwood hydrosol; a light lavender or sandalwood aroma at night.", hi: "गुलाब या चंदन जल की बूंद के साथ गुनगुना स्नान; रात को लैवेंडर या चंदन की हल्की सुगंध।", gu: "ગુલાબ કે ચંદન જળના ટીપા સાથે ગુનગુનું સ્નાન; રાત્રે લેવેન્ડર કે ચંદનની હળવી સુગંધ." } },
+        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Regular sips; coconut water or cumin-coriander water in the afternoon; ease caffeine after dusk.", hi: "नियमित घूंट; दोपहर में नारियल पानी या जीरा-धनिया पानी; शाम के बाद कैफीन कम करें।", gu: "નિયમિત ઘૂંટ; બપોરે નારિયેળ પાણી કે જીરું-ધાણા પાણી; સાંજ પછી કેફીન ઓછું." } },
+        { ico: "🌱", label: { en: "Grounding Anchor", hi: "भूमि-संपर्क", gu: "ભૂમિ-સંપર્ક" }, value: { en: "Bare feet on soil or grass 5–10 minutes; a warm foot-soak in the evening.", hi: "नंगे पाँव मिट्टी या घास पर 5–10 मिनट; शाम को गुनगुना पैर-स्नान।", gu: "નંગા પગે માટી કે ઘાસ પર 5–10 મિનિટ; સાંજે ગુનગુનું પગ-સ્નાન." } },
+        { ico: "✦", label: { en: "Behavioral Micro-Habit", hi: "व्यवहार की छोटी आदत", gu: "વ્યવહારની નાની ટેવ" }, value: { en: "Three lines at night — what you felt, what you finished, one small step for tomorrow.", hi: "रात को तीन पंक्तियाँ — क्या महसूस किया, क्या पूरा किया, कल का एक छोटा कदम।", gu: "રાત્રે ત્રણ લીટીઓ — શું અનુભવ્યું, શું પૂરું કર્યું, કાલનું એક નાનું પગલું." } }
+      ]
+    }
+  };
+
+  function vedicTattvaAnchors(p, lang) {
+    const l = lang || getLang();
+    return vedicPlaneReadings(p, l)
+      .filter((plane) => plane.state === "partial" || plane.state === "empty")
+      .map((plane) => {
+        const kit = VEDIC_TATTVA_KIT[plane.key] || { tattva: {}, signature: {}, rows: [], cells: plane.cells };
+        return {
+          key: plane.key,
+          name: plane.name,
+          element: plane.element,
+          cells: kit.cells || plane.cells,
+          state: plane.state,
+          present: plane.present,
+          absent: plane.absent,
+          tattva: loc(kit.tattva, l),
+          signature: loc(kit.signature, l),
+          rows: (kit.rows || []).map((row) => ({
+            ico: row.ico,
+            label: loc(row.label, l),
+            value: loc(row.value, l)
+          }))
+        };
+      });
+  }
+
+  function renderVedicTattvaSection(p) {
+    const lang = getLang();
+    const copy = vedicGridCopy(lang);
+    const anchors = vedicTattvaAnchors(p, lang);
+    if (!anchors.length) return "";
+    const deficientLabel = lang === "hi" ? "न्यून" : lang === "gu" ? "ઊણપ" : "Deficient";
+    const cards = anchors.map((plane) => {
+      const chips = plane.cells.map((n) => `<span class="plane-chip ${p.vedicCounts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
+      const badge = plane.state === "empty"
+        ? `<span class="badge warn">${esc(deficientLabel)}</span>`
+        : `<span class="badge info">${esc(copy.planePartial)}</span>`;
+      const rows = plane.rows.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${esc(row.label)}</div><div class="kit-value">${esc(row.value)}</div></div></div>`).join("");
+      return `<article class="card plane-card tattva-card" data-vedic-plane="${plane.key}" data-plane-state="${plane.state}" data-tattva="${esc(plane.tattva)}">
+        <div class="goal-head"><div class="card-title">${esc(plane.name)} — ${esc(plane.tattva)}</div>${badge}</div>
+        <div class="card-sub">${esc(plane.element)} · ${plane.cells.join(" – ")}</div>
+        <div class="plane-chips">${chips}</div>
+        <div class="kit">
+          <div class="kit-row"><div class="kit-ico">◎</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "न्यूनता संकेत" : lang === "gu" ? "ઊણપનું ચિહ્ન" : "Deficiency Signature"}</div><div class="kit-value">${esc(plane.signature)}</div></div></div>
+          ${rows}
+        </div>
+      </article>`;
+    }).join("");
+    const note = lang === "hi"
+      ? "ये दैनिक जैविक आधार हैं — श्वास, औषधि स्नान, सुगंध, धूप, जल और छोटी आदतें। ये आपकी 40-दिवसीय लो शू साधना के साथ चलते हैं; खनिज साथी और दिशा-समय अपनी-अपनी धाराओं में रहते हैं।"
+      : lang === "gu"
+        ? "આ દૈનિક જૈવિક આધાર છે — શ્વાસ, ઔષધિ સ્નાન, સુગંધ, ધૂપ, જળ અને નાની ટેવો. તે તમારી ૪૦-દિવસીય લો શુ સાધના સાથે ચાલે છે; ખનિજ સાથી અને દિશા-સમય પોતપોતાની ધારામાં રહે છે."
+        : "These are everyday biological anchors — breath, herbal baths, aroma, sunlight, water and small habits. They run alongside your 40-day Lo Shu practice. Mineral companions and spatial timing stay in their own streams.";
+    return `<section class="rsection tattva-section" id="tattva-section" data-authority="vedic-tattva">
+      <h2 class="rsection-title"><span class="idx idx-wide">${SECTION.tattva}</span>${t("secTattva", "Vedic Plane Harmonization — Elemental Tattva Balancing")}</h2>
+      <p class="rsection-desc">${t("secTattvaDesc", "Physical, breathwork, and herbal anchors to stabilize deficient natal planes. These run alongside your 40-day Lo Shu practice without adding ritual fatigue.")}</p>
+      <div class="plane-cards tattva-cards">${cards}</div>
+      <div class="judge-note">${note}</div>
+    </section>`;
+  }
+
+
   function kitCard(n, heading) {
     const db = getActiveDB();
     const i = db.numbers[n];
@@ -4182,6 +4299,7 @@
         ${renderLoShuGrid(p)}
         ${renderVedicBirthComparison(p)}
         ${weakSection}
+        ${renderVedicTattvaSection(p)}
         ${zodiacSection}
         ${nameSection}
         ${mobSection}
@@ -4607,7 +4725,7 @@
     formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
-    masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings,
+    masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,

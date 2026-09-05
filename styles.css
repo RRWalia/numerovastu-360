@@ -445,6 +445,9 @@ body {
   background: var(--fill-f2); color: var(--label-secondary);
   font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center;
 }
+.rsection-title .idx.idx-wide {
+  width: auto; min-width: 28px; padding: 0 6px; font-size: 11px;
+}
 .rsection-desc { font-size: 14px; color: var(--label-secondary); margin-top: -8px; }
 
 .summary-section { margin-top: 4px; }
@@ -806,6 +809,8 @@ body {
 /* 8-plane analysis cards */
 .plane-cards { display: flex; flex-direction: column; gap: 16px; }
 .plane-card { display: flex; flex-direction: column; gap: 8px; }
+.tattva-section { gap: 16px; }
+.tattva-card { display: flex; flex-direction: column; gap: 8px; }
 .plane-chips { display: flex; gap: 8px; }
 .plane-chip {
   width: 28px; height: 28px; border-radius: var(--r-full);
@@ -1228,7 +1233,8 @@ body {
   .root-group { background: #fff; border: 1px solid #ddd; }
   .root-digit, .root-total, .root-step, .root-result { color: #111; }
   .root-op, .root-arrow, .root-group-label, .root-formula-words { color: #555; }
-  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading { break-inside: avoid-page; page-break-inside: avoid; }
+  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading, .tattva-card { break-inside: avoid-page; page-break-inside: avoid; }
+  #tattva-section { break-inside: auto; page-break-inside: auto; }
   .ritual-card { background: #fff; }
   .phase-badge { background: #eee; color: #111; }
   .cadence-daily, .cadence-weekly, .cadence-once { background: #eee; color: #111; }
