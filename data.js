@@ -1070,14 +1070,174 @@ var DB = {
     8: { en: "Money and power lessons — balance material drive with ethics; neither chase it nor scorn it.",
          hi: "धन और सत्ता की सीख — भौतिक महत्वाकांक्षा को नैतिकता से संतुलित करें; न पीछा करें, न तिरस्कार।",
          gu: "ધન અને સત્તાની સીખ — ભૌતિક મહત્વાકાંક્ષાને નૈતિકતા સાથે સંતુલિત કરો; ન પાછળ ભાગો, ન તિરસ્કાર કરો." }
+  },
+
+  /* ---- Numerology Dasha system (Ank Jyotish) ----
+     Classical proportional 45-year cycle (1+2+…+9 = 45). The first Mahadasha
+     starts at birth with the Moolank and lasts that many years; the sequence
+     then advances 1→9 cyclically. Antardasha = MD × AD ÷ 45 (sequence starts
+     from the MD lord); Pratyantar = AD × PD ÷ 45 (sequence starts from the
+     AD lord). Each number's entry: the period theme, the classical events it
+     activates, its caution, and the Vastu zone to service while its
+     sub-period runs (planet → direction mapping). */
+  dasha: {
+    1: {
+      theme: { en: "Authority and visibility — a period to lead, build your name and earn recognition from seniors and the state.",
+               hi: "अधिकार और पहचान — नेतृत्व करने, नाम बनाने और वरिष्ठों व शासन से मान्यता पाने का काल।",
+               gu: "સત્તા અને ઓળખ — નેતૃત્વ કરવાનો, નામ બનાવવાનો અને વરિષ્ઠો તથા શાસન પાસેથી માન્યતા મેળવવાનો સમય." },
+      events: { en: "Career rise, promotion, government matters, father-related events, new public identity",
+                hi: "करियर में उन्नति, पदोन्नति, सरकारी कार्य, पिता से जुड़ी घटनाएं, नई सार्वजनिक पहचान",
+                gu: "કારકિર્દીમાં પ્રગતિ, બઢતી, સરકારી કાર્યો, પિતા સંબંધિત ઘટનાઓ, નવી જાહેર ઓળખ" },
+      caution: { en: "Ego clashes with authority; protect heart, eyes and vitality.",
+                 hi: "अहंकार से वरिष्ठों से टकराव; हृदय, नेत्र और ऊर्जा का ध्यान रखें।",
+                 gu: "અહંકારથી ઉપરી સાથે ટકરાવ; હૃદય, આંખો અને શક્તિનું ધ્યાન રાખો." },
+      zone: { en: "East", hi: "पूर्व", gu: "પૂર્વ" }, zoneElement: "Fire/Air",
+      zoneRemedy: { en: "Clear obstructions in the East; let sunrise light enter daily.",
+                    hi: "पूर्व दिशा की रुकावटें हटाएं; रोज सुबह की धूप अंदर आने दें।",
+                    gu: "પૂર્વ દિશાની અડચણો દૂર કરો; રોજ સવારનો તડકો અંદર આવવા દો." }
+    },
+    2: {
+      theme: { en: "Emotions, bonding and public connection — hearts open; home and mother matters come forward.",
+               hi: "भावनाएं, जुड़ाव और जन-संपर्क — मन खुलता है; घर और माता से जुड़े विषय आगे आते हैं।",
+               gu: "લાગણીઓ, જોડાણ અને જન-સંપર્ક — મન ખુલે છે; ઘર અને માતા સંબંધિત બાબતો આગળ આવે છે." },
+      events: { en: "Marriage & emotional bonding, motherhood, home peace, public-facing roles, travel across water",
+                hi: "विवाह व भावनात्मक जुड़ाव, मातृत्व, गृह-शांति, जन-संपर्क की भूमिकाएं, जल-यात्रा",
+                gu: "લગ્ન અને ભાવનાત્મક જોડાણ, માતૃત્વ, ઘરની શાંતિ, જન-સંપર્કની ભૂમિકાઓ, જળ-મુસાફરી" },
+      caution: { en: "Mood swings, overthinking and disturbed sleep; keep a steady routine.",
+                 hi: "मूड बदलना, अधिक सोचना और नींद में बाधा; दिनचर्या नियमित रखें।",
+                 gu: "મૂડ બદલાવ, વધુ વિચાર અને ઊંઘમાં ખલેલ; દિનચર્યા નિયમિત રાખો." },
+      zone: { en: "North-West", hi: "उत्तर-पश्चिम (वायव्य)", gu: "વાયવ્ય (ઉત્તર-પશ્ચિમ)" }, zoneElement: "Air",
+      zoneRemedy: { en: "Keep the North-West clutter-free; add brass decor and check stored water.",
+                    hi: "उत्तर-पश्चिम को साफ-सुथरा रखें; पीतल की सजावट रखें और रखे पानी की जांच करें।",
+                    gu: "વાયવ્યને સ્વચ્છ રાખો; પિત્તળની સજાવટ રાખો અને સંગ્રહેલા પાણીની તપાસ કરો." }
+    },
+    3: {
+      theme: { en: "Expansion and grace — wisdom, wealth, teachers and children bless this period.",
+               hi: "विस्तार और कृपा — ज्ञान, धन, गुरु और संतान इस काल को शुभ बनाते हैं।",
+               gu: "વિસ્તાર અને કૃપા — જ્ઞાન, ધન, ગુરુ અને સંતાન આ સમયગાળાને શુભ બનાવે છે." },
+      events: { en: "Marriage blessings, childbirth, higher education, wealth growth, guru's guidance, respect",
+                hi: "विवाह-योग, संतान-प्राप्ति, उच्च शिक्षा, धन-वृद्धि, गुरु-मार्गदर्शन, सम्मान",
+                gu: "લગ્ન-યોગ, સંતાન-પ્રાપ્તિ, ઉચ્ચ શિક્ષણ, ધન-વૃદ્ધિ, ગુરુ-માર્ગદર્શન, સન્માન" },
+      caution: { en: "Over-optimism and over-commitment; keep discipline in diet and promises.",
+                 hi: "अति-आशावाद और अधिक वादे; खान-पान और वचनों में अनुशासन रखें।",
+                 gu: "અતિ-આશાવાદ અને વધુ પડતાં વચનો; ખોરાક અને વચનોમાં શિસ્ત રાખો." },
+      zone: { en: "North-East", hi: "ईशान (उत्तर-पूर्व)", gu: "ઈશાન (ઉત્તર-પૂર્વ)" }, zoneElement: "Water",
+      zoneRemedy: { en: "Keep the Ishanya (NE) pure — study table, meditation and light yellow accents suit it.",
+                    hi: "ईशान कोण पवित्र रखें — अध्ययन मेज, ध्यान और हल्के पीले रंग यहां शुभ हैं।",
+                    gu: "ઈશાન ખૂણો પવિત્ર રાખો — અભ્યાસ ટેબલ, ધ્યાન અને આછો પીળો રંગ અહીં શુભ છે." }
+    },
+    4: {
+      theme: { en: "Sudden turns and unconventional growth — foreign elements, technology and bold ambition dominate.",
+               hi: "अचानक मोड़ और अपरंपरागत उन्नति — विदेशी तत्व, तकनीक और साहसी महत्वाकांक्षा प्रबल रहती है।",
+               gu: "અચાનક વળાંક અને બિનપરંપરાગત પ્રગતિ — વિદેશી તત્વો, ટેક્નોલોજી અને સાહસી મહત્વાકાંક્ષા પ્રબળ રહે છે." },
+      events: { en: "Going abroad, relocation, sudden gains or changes, technology ventures, out-of-the-box breaks",
+                hi: "विदेश गमन, स्थानांतरण, अचानक लाभ या बदलाव, तकनीकी उद्यम, अप्रत्याशित अवसर",
+                gu: "વિદેશગમન, સ્થળાંતર, અચાનક લાભ કે ફેરફાર, ટેક્નોલોજી સાહસો, અણધારી તકો" },
+      caution: { en: "Illusion, shortcuts and addictions; verify documents and avoid grey-area deals.",
+                 hi: "भ्रम, शॉर्टकट और व्यसन; दस्तावेज जांचें और संदिग्ध सौदों से बचें।",
+                 gu: "ભ્રમ, શોર્ટકટ અને વ્યસનો; દસ્તાવેજો ચકાસો અને શંકાસ્પદ સોદાથી બચો." },
+      zone: { en: "South-West", hi: "दक्षिण-पश्चिम (नैऋत्य)", gu: "નૈઋત્ય (દક્ષિણ-પશ્ચિમ)" }, zoneElement: "Earth",
+      zoneRemedy: { en: "Avoid mirrors or water in the SW; add grounding weight — heavy furniture or stone.",
+                    hi: "दक्षिण-पश्चिम में दर्पण या पानी न रखें; भारी फर्नीचर या पत्थर से स्थिरता लाएं।",
+                    gu: "નૈઋત્યમાં અરીસો કે પાણી ન રાખો; ભારે ફર્નિચર કે પથ્થરથી સ્થિરતા લાવો." }
+    },
+    5: {
+      theme: { en: "Commerce, communication and movement — deals, learning and networks multiply.",
+               hi: "व्यापार, संवाद और गतिशीलता — सौदे, सीखना और नेटवर्क बढ़ते हैं।",
+               gu: "વેપાર, સંવાદ અને ગતિશીલતા — સોદા, શીખવું અને નેટવર્ક વધે છે." },
+      events: { en: "Business growth, contracts, short travels, new skills, partnerships in trade",
+                hi: "व्यापार-वृद्धि, अनुबंध, छोटी यात्राएं, नए कौशल, व्यापारिक साझेदारियां",
+                gu: "વેપાર-વૃદ્ધિ, કરાર, ટૂંકી મુસાફરીઓ, નવાં કૌશલ્યો, વેપારી ભાગીદારીઓ" },
+      caution: { en: "Scattered focus and over-trading; finish what you start.",
+                 hi: "बिखरा ध्यान और अति-व्यापार; शुरू किया काम पूरा करें।",
+                 gu: "વિખરાયેલું ધ્યાન અને અતિ-વેપાર; શરૂ કરેલું કામ પૂરું કરો." },
+      zone: { en: "Centre (Brahmasthan)", hi: "केंद्र (ब्रह्मस्थान)", gu: "કેન્દ્ર (બ્રહ્મસ્થાન)" }, zoneElement: "Space",
+      zoneRemedy: { en: "Keep the centre open — free of pillars, heavy items and clutter.",
+                    hi: "ब्रह्मस्थान (केंद्र) खुला रखें — खंभे, भारी सामान और अव्यवस्था से मुक्त।",
+                    gu: "બ્રહ્મસ્થાન (કેન્દ્ર) ખુલ્લું રાખો — થાંભલા, ભારે સામાન અને અવ્યવસ્થાથી મુક્ત." }
+    },
+    6: {
+      theme: { en: "Love, comfort and refinement — relationships, luxury and creative success flower.",
+               hi: "प्रेम, सुख और सौंदर्य — रिश्ते, वैभव और रचनात्मक सफलता खिलती है।",
+               gu: "પ્રેમ, સુખ અને સૌંદર્ય — સંબંધો, વૈભવ અને સર્જનાત્મક સફળતા ખીલે છે." },
+      events: { en: "Marriage & romance, vehicles and home comforts, luxury purchases, arts and media success",
+                hi: "विवाह व प्रेम, वाहन और गृह-सुख, वैभव की खरीद, कला व मीडिया में सफलता",
+                gu: "લગ્ન અને પ્રેમ, વાહનો અને ઘરનું સુખ, વૈભવી ખરીદી, કલા અને મીડિયામાં સફળતા" },
+      caution: { en: "Overindulgence and relationship drift; keep loyalty and budgets firm.",
+                 hi: "अति-भोग और रिश्तों में ढिलाई; निष्ठा और बजट दृढ़ रखें।",
+                 gu: "અતિ-ભોગ અને સંબંધોમાં શિથિલતા; નિષ્ઠા અને બજેટ મક્કમ રાખો." },
+      zone: { en: "South-East", hi: "आग्नेय (दक्षिण-पूर्व)", gu: "અગ્નિ (દક્ષિણ-પૂર્વ)" }, zoneElement: "Fire",
+      zoneRemedy: { en: "Service the SE kitchen; balance red/pastel tones and avoid blue or black here.",
+                    hi: "आग्नेय रसोई ठीक रखें; लाल/हल्के रंग संतुलित करें, यहां नीला-काला न रखें।",
+                    gu: "અગ્નિ ખૂણાનું રસોડું બરાબર રાખો; લાલ/આછા રંગ સંતુલિત કરો, અહીં વાદળી-કાળો ન રાખો." }
+    },
+    7: {
+      theme: { en: "Detachment and depth — research, spirituality and distant or foreign stays call.",
+               hi: "वैराग्य और गहराई — शोध, अध्यात्म और दूर या विदेश प्रवास बुलाते हैं।",
+               gu: "વૈરાગ્ય અને ઊંડાણ — સંશોધન, અધ્યાત્મ અને દૂર કે વિદેશ વસવાટ બોલાવે છે." },
+      events: { en: "Foreign or remote stays, spiritual growth, research and healing arts, deep study",
+                hi: "विदेश या दूरस्थ प्रवास, आध्यात्मिक उन्नति, शोध व चिकित्सा-कला, गहन अध्ययन",
+                gu: "વિદેશ કે દૂરસ્થ વસવાટ, આધ્યાત્મિક પ્રગતિ, સંશોધન અને હીલિંગ કળા, ઊંડો અભ્યાસ" },
+      caution: { en: "Isolation, sudden detachments and confusion in direction; stay anchored to practice.",
+                 hi: "एकाकीपन, अचानक विरक्ति और दिशा-भ्रम; साधना से जुड़े रहें।",
+                 gu: "એકલતા, અચાનક વિરક્તિ અને દિશા-ભ્રમ; સાધનાથી જોડાયેલા રહો." },
+      zone: { en: "North-East / SW boundary", hi: "ईशान / नैऋत्य सीमा", gu: "ઈશાન / નૈઋત્ય સીમા" }, zoneElement: "Water/Earth",
+      zoneRemedy: { en: "Fix minor leakages; keep transition zones and the prayer corner orderly.",
+                    hi: "छोटे रिसाव ठीक करें; आने-जाने के मार्ग और पूजा-स्थान व्यवस्थित रखें।",
+                    gu: "નાના લીકેજ ઠીક કરો; અવર-જવરના માર્ગ અને પૂજા-સ્થાન વ્યવસ્થિત રાખો." }
+    },
+    8: {
+      theme: { en: "Karma's ledger — slow, structural and just; discipline converts effort into durable status.",
+               hi: "कर्म का हिसाब — धीमा, संरचित और न्यायपूर्ण; अनुशासन परिश्रम को स्थायी प्रतिष्ठा में बदलता है।",
+               gu: "કર્મનો હિસાબ — ધીમો, માળખાગત અને ન્યાયી; શિસ્ત મહેનતને કાયમી પ્રતિષ્ઠામાં ફેરવે છે." },
+      events: { en: "Property and land, long-term career consolidation, legal/justice matters, mass-scale work",
+                hi: "संपत्ति व भूमि, दीर्घकालिक करियर-सुदृढ़ीकरण, कानूनी/न्याय के विषय, बड़े पैमाने का कार्य",
+                gu: "મિલકત અને જમીન, દીર્ઘકાલીન કારકિર્દી મજબૂતી, કાનૂની/ન્યાયના વિષયો, મોટા પાયે કાર્ય" },
+      caution: { en: "Delays, joint/bone strain and pessimism; never take shortcuts in this period.",
+                 hi: "विलंब, जोड़ों-हड्डियों पर दबाव और निराशा; इस काल में शॉर्टकट कभी न लें।",
+                 gu: "વિલંબ, સાંધા-હાડકાં પર તાણ અને નિરાશા; આ સમયગાળામાં ક્યારેય શોર્ટકટ ન લો." },
+      zone: { en: "West", hi: "पश्चिम", gu: "પશ્ચિમ" }, zoneElement: "Space/Air",
+      zoneRemedy: { en: "Strengthen the West structurally; balance dark metals and iron decor.",
+                    hi: "पश्चिम दिशा को संरचनात्मक रूप से मजबूत रखें; गहरे धातु व लोहे की सजावट संतुलित करें।",
+                    gu: "પશ્ચિમ દિશાને માળખાગત રીતે મજબૂત રાખો; ઘેરી ધાતુ અને લોખંડની સજાવટ સંતુલિત કરો." }
+    },
+    9: {
+      theme: { en: "Courage and completion — energy peaks; land, competition and bold closures are favoured.",
+               hi: "साहस और पूर्णता — ऊर्जा चरम पर; भूमि, प्रतिस्पर्धा और साहसिक समापन शुभ।",
+               gu: "સાહસ અને સંપૂર્ણતા — ઊર્જા ચરમ પર; જમીન, સ્પર્ધા અને હિંમતભર્યા સમાપન શુભ." },
+      events: { en: "Property purchase or construction, competitive wins, surgeries handled well, brother-related events",
+                hi: "संपत्ति खरीद या निर्माण, प्रतियोगिता में विजय, शल्य-चिकित्सा में सफलता, भाई से जुड़ी घटनाएं",
+                gu: "મિલકત ખરીદી કે બાંધકામ, સ્પર્ધામાં વિજય, સર્જરીમાં સફળતા, ભાઈ સંબંધિત ઘટનાઓ" },
+      caution: { en: "Anger, accidents and disputes; drive carefully and cool the temper.",
+                 hi: "क्रोध, दुर्घटना और विवाद; वाहन सावधानी से चलाएं और क्रोध शांत रखें।",
+                 gu: "ક્રોધ, અકસ્માત અને વિવાદ; વાહન સાવધાનીથી ચલાવો અને ગુસ્સો શાંત રાખો." },
+      zone: { en: "South", hi: "दक्षिण", gu: "દક્ષિણ" }, zoneElement: "Fire",
+      zoneRemedy: { en: "Energise the South with warm lighting; avoid deep blues and large water bodies there.",
+                    hi: "दक्षिण को गर्म रोशनी से ऊर्जित करें; वहां गहरा नीला रंग और बड़े जल-स्रोत न रखें।",
+                    gu: "દક્ષિણને હૂંફાળી રોશનીથી ઊર્જિત કરો; ત્યાં ઘેરો વાદળી રંગ અને મોટા જળ-સ્ત્રોત ન રાખો." }
+    },
+    /* Life-event window definitions: primary lords trigger the event, support
+       lords strengthen it; band = the classical age range scanned. */
+    lifeEvents: {
+      marriage: { icon: "💍", primary: [6, 2], support: [3], band: [18, 42],
+                  label: { en: "Marriage & committed partnership", hi: "विवाह व स्थायी साथ", gu: "લગ્ન અને સ્થાયી સાથ" } },
+      abroad:   { icon: "✈️", primary: [4, 7], support: [5], band: [16, 55],
+                  label: { en: "Going abroad — travel or settlement", hi: "विदेश गमन — यात्रा या बसना", gu: "વિદેશગમન — મુસાફરી કે વસવાટ" } },
+      career:   { icon: "📈", primary: [1, 8], support: [3], band: [21, 65],
+                  label: { en: "Career peak & recognition", hi: "करियर शिखर व मान्यता", gu: "કારકિર્દી શિખર અને માન્યતા" } },
+      property: { icon: "🏠", primary: [8, 9], support: [4], band: [24, 65],
+                  label: { en: "Property, home & land", hi: "संपत्ति, घर व भूमि", gu: "મિલકત, ઘર અને જમીન" } },
+      wealth:   { icon: "💰", primary: [3, 6], support: [5], band: [21, 70],
+                  label: { en: "Wealth expansion & business growth", hi: "धन-विस्तार व व्यापार-वृद्धि", gu: "ધન-વિસ્તાર અને વેપાર-વૃદ્ધિ" } }
+    }
   }
 };
 
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 1,
-  packVersion: "2.5.0",
-  generatedAt: "2026-09-02T00:00:00Z",
+  packVersion: "2.6.0",
+  generatedAt: "2026-09-05T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",

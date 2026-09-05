@@ -53,9 +53,9 @@ const report = $("#reportRoot").innerHTML;
 const checks = [
   ["report visible", !$("#reportView").classList.contains("hidden")],
   ["load latest local chart enabled", !$("#loadLatestBtn").classList.contains("hidden")],
-  ["app version badge", $("#appBadge").textContent === "App v2.6.1 · Meeus engine"],
-  ["build badge", $("#buildBadge").textContent === "Build 2026-09-02"],
-  ["knowledge pack badge", report.includes("Knowledge pack v2.5.0")],
+  ["app version badge", $("#appBadge").textContent === "App v2.7.0 · Meeus engine"],
+  ["build badge", $("#buildBadge").textContent === "Build 2026-09-05"],
+  ["knowledge pack badge", report.includes("Knowledge pack v2.6.0")],
   ["ganesh invocation", report.includes("ॐ श्री गणेशाय नमः")],
   ["northstar summary section", report.includes("Northstar Summary") && report.includes("Your first three moves") && report.includes("Way forward")],
   ["northstar summary links to plan", report.includes('href="#plan-section"')],
@@ -85,6 +85,13 @@ const checks = [
   ["colors section", report.includes("Lucky Colours") && report.includes("Day-wise Dressing")],
   ["career section", report.includes("Best Fields")],
   ["timing section", report.includes("Favourable Years") && report.includes("Personal Year")],
+  ["dasha section renders", report.includes('id="dasha-section"') && report.includes("Dasha Timeline — Life Event Windows")],
+  ["dasha active stack + methodology badge", report.includes("Your Active Dasha Stack") && report.includes("Classical Proportional (45-Yr)")],
+  ["dasha nested stack levels", report.includes("Mahadasha ·") && report.includes("Antardasha ·") && report.includes("Pratyantar Dasha ·")],
+  ["dasha lifetime ladder", report.includes("Lifetime Mahadasha Ladder")],
+  ["dasha life-event windows", report.includes("Life-Event Windows") && report.includes("Marriage &amp; committed partnership") && report.includes("Going abroad — travel or settlement")],
+  ["dasha active vastu zone callout", report.includes("Active Vastu zone")],
+  ["dasha nav link", report.includes('href="#dasha-section"')],
   ["karmic debt card renders (clean slate)", report.includes("Karmic Debt Check") && report.includes("Clean slate")],
   ["pinnacle & challenge card renders", report.includes("Four Life Phases") && report.includes("Pinnacle") && report.includes("Challenge")],
   ["pinnacle phase ages (20/08/2005 -> first ends 36-8=28)", report.includes("Ages 0–28") && report.includes("Ages 47+")],
@@ -184,6 +191,7 @@ const hindiChecks = [
   ["Hindi no undefined leaks", !rHi.includes("undefined")],
   ["Hindi no NaN leaks", !rHi.includes("NaN")],
   ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
+  ["Hindi dasha section", rHi.includes("दशा समय-रेखा") && rHi.includes("महादशा") && rHi.includes("अंतर्दशा") && rHi.includes("प्रत्यंतर दशा")],
   ["Hindi ayurvedic dosha card", rHi.includes("आयुर्वेदिक दोष स्तर") && rHi.includes("मिश्रित प्रकृति")],
   ["Hindi dosha cross-ref + plan line", rHi.includes("दोष-दृष्टि") && rHi.includes("दोष-लय")],
   ["Hindi dosha disclaimer", rHi.includes("पारंपरिक") && rHi.includes("पेशेवर चिकित्सा सलाह")],
@@ -213,6 +221,7 @@ const gujaratiChecks = [
   ["Gujarati no undefined leaks", !rGu.includes("undefined")],
   ["Gujarati no NaN leaks", !rGu.includes("NaN")],
   ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],
+  ["Gujarati dasha section", rGu.includes("દશા સમય-રેખા") && rGu.includes("મહાદશા") && rGu.includes("અંતર્દશા") && rGu.includes("પ્રત્યંતર દશા")],
   ["Gujarati ayurvedic dosha card", rGu.includes("આયુર્વેદિક દોષ સ્તર") && rGu.includes("મિશ્ર પ્રકૃતિ")],
   ["Gujarati dosha cross-ref + plan line", rGu.includes("દોષ-દૃષ્ટિ") && rGu.includes("દોષ-લય")],
   ["Gujarati dosha disclaimer", rGu.includes("પરંપરાગત") && rGu.includes("વ્યાવસાયિક તબીબી સલાહ")],
@@ -682,6 +691,32 @@ const karmicChecks = [
   ["pure pinnacle fn export matches", NV.pinnacleAnalysis(kdpMain).phases[3].pinnacle === 6],
 ];
 karmicChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Numerology Dasha engine checks (classical proportional 45-year cycle).
+// DOB 20/08/2005 -> Moolank 2: first MD is 2 (2 yrs), then 3,4,5,6,7,8,9,1…
+// On the fixed reference date 2026-09-05 the native (age 21) sits in
+// MD 7 (ages 20-27); AD sequence inside starts from 7: AD 7 spans
+// 7×7/45 = 1.0889 yrs from 19 Aug 2025 -> ~21 Sep 2026, so AD = 7.
+const dashaRef = NV.dashaTimeline(kdpMain, "2026-09-05T12:00:00");
+const YEAR_MS = 365.2425 * 86400000;
+const mdSeq = dashaRef.mahadashas.slice(0, 9).map((m) => m.n).join(",");
+const mdSpanSum = dashaRef.mahadashas.slice(0, 9).reduce((a, m) => a + (m.endMs - m.startMs), 0);
+const curStack = dashaRef.current;
+const marriageEv = dashaRef.events.find((e) => e.key === "marriage");
+const abroadEv = dashaRef.events.find((e) => e.key === "abroad");
+const dashaChecks = [
+  ["dasha: first MD = Moolank, sequence cycles 1-9", mdSeq === "2,3,4,5,6,7,8,9,1"],
+  ["dasha: one full cycle sums to 45 years", Math.abs(mdSpanSum - 45 * YEAR_MS) < 1000],
+  ["dasha: current MD is 7 (ages 20-27) on 2026-09-05", curStack.md.n === 7 && curStack.md.fromAge === 20 && curStack.md.toAge === 27],
+  ["dasha: current AD is 7 (proportional MD×AD/45)", curStack.ad.n === 7],
+  ["dasha: AD progress within 0-100 and PD days remaining >= 0", curStack.adProgress >= 0 && curStack.adProgress <= 100 && curStack.pdDaysLeft >= 0],
+  ["dasha: PD lord within 1-9 and nested inside AD", curStack.pd.n >= 1 && curStack.pd.n <= 9 && curStack.pd.startMs >= curStack.ad.startMs - 1000 && curStack.pd.endMs <= curStack.ad.endMs + 1000],
+  ["dasha: event scan returns all five life events", dashaRef.events.length === 5 && ["marriage", "abroad", "career", "property", "wealth"].every((k) => dashaRef.events.some((e) => e.key === k))],
+  ["dasha: marriage windows use Venus/Moon lords within band", marriageEv.future.length > 0 && marriageEv.future.every((w) => [6, 2].includes(w.adN) || [6, 2].includes(w.mdN))],
+  ["dasha: abroad windows use Rahu/Ketu lords", abroadEv.future.length > 0 && abroadEv.future.every((w) => [4, 7].includes(w.adN) || [4, 7].includes(w.mdN))],
+  ["dasha: future windows are chronological and not in the past", dashaRef.events.every((e) => e.future.every((w, i) => !w.past && (i === 0 || w.startMs >= e.future[i - 1].startMs)))],
+];
+dashaChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // brand analysis (reuses the Chaldean engine)
 const brand = NV.brandAnalysis("Shree Balaji Textiles", NV.computeProfile({ name: "Priya Sharma", dob: "2005-08-20", mobile: "9876543210", gender: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure" }));
