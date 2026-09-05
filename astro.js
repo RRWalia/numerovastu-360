@@ -981,7 +981,7 @@ window.NVAstro = (function () {
       if (n === q) score = 100;
       else if (n.startsWith(q)) score = 80 - Math.min(20, Math.max(0, n.length - q.length));
       else if ((" " + hay).indexOf(" " + q) !== -1) score = 40;
-      else if (hay.indexOf(q) !== -1) score = 20;
+      else if (q.length >= 3 && hay.indexOf(q) !== -1) score = 20;
       if (score < 0) return;
       if (core) score += 5;
       seen.add(id);
