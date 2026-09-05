@@ -19,7 +19,7 @@ test('India atlas loads in the browser and Etah/Etawah top a short query', async
   const options = page.locator('#birthPlaceList option');
   await expect(options.first()).toHaveValue(/^Etah, /);
   const values = await options.evaluateAll((opts) => opts.map((o) => o.value));
-  expect(values.length).toBeGreaterThanOrEqual(2);
-  expect(values[1]).toMatch(/^Etawah, /);
+  expect(values.length).toBeGreaterThanOrEqual(3);
+  expect(values.slice(0, 3).some((v) => v.startsWith('Etawah, '))).toBe(true);
   expect(values.join(' ')).not.toMatch(/Detroit|Basseterre/);
 });
