@@ -182,6 +182,64 @@
     return "enemy";
   }
 
+  /* ---------------- Classical Sambhandha (Dasha relationship) ----------------
+     An Antardasha never runs in isolation: it operates *inside* the house and
+     climate of its Mahadasha lord. The operative verdict is therefore
+     MD × AD, never Driver × AD (that produced a green "Friendly to you" badge
+     on Moon AD inside a Rahu MD, contradicting the Grahan Yoga synthesis).
+     A small set of pairs is hostile in both directions in classical practice
+     even when a knowledge pack lists one side as neutral: the eclipse axis
+     (Rahu–Moon, Rahu–Sun), Sun–Saturn, Mars–Saturn and the Deva/Asura gurus
+     Jupiter–Venus. Only when MD × AD is genuinely neutral does the native's
+     own Driver decide how the sub-period lands. */
+  const GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
+  const SAMBANDHA_HOSTILE_PAIRS = new Set([
+    "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
+    "4-1", "1-4", // Rahu – Sun (Grahan / eclipse axis)
+    "1-8", "8-1", // Sun – Saturn
+    "9-8", "8-9", // Mars – Saturn
+    "3-6", "6-3"  // Jupiter – Venus (Deva guru vs Asura guru)
+  ]);
+
+  function getDashaRelationship(mdLord, adLord, driver) {
+    const md = Number(mdLord), ad = Number(adLord);
+    const pairKey = `${md}-${ad}`;
+    const grahan = GRAHAN_PAIRS.has(pairKey);
+    const packRelation = relation(md, ad);
+    if (grahan || SAMBANDHA_HOSTILE_PAIRS.has(pairKey) || packRelation === "enemy") {
+      return {
+        md, ad, relation: "enemy", grahan,
+        source: grahan ? "grahan" : "sambandha-hostile",
+        status: "Conflicting / Caution",
+        tone: "bad",                 // existing badge palette
+        cssClass: "badge-conflict",  // never green
+        guidance: grahan
+          ? "Grahan (eclipse) sub-period — the guest lord is eclipsed by its host. Neutralise the sector and defer irreversible commitments."
+          : "Adversarial sub-period — the Antardasha lord runs inside a hostile Mahadasha climate. Neutralise with targeted remedies."
+      };
+    }
+    if (packRelation === "friendly") {
+      return {
+        md, ad, relation: "friendly", grahan: false, source: "md-ad",
+        status: "Favourable", tone: "good", cssClass: "badge-friendly",
+        guidance: "Host and guest lords cooperate — this sub-period converts with ordinary effort."
+      };
+    }
+    // MD × AD is neutral: fall back to how the sub-lord meets the natal Driver.
+    const driverRelation = relation(Number(driver), ad);
+    const harmonious = driverRelation === "friendly";
+    return {
+      md, ad, relation: "neutral", grahan: false, source: "driver-fallback",
+      driverRelation,
+      status: harmonious ? "Favourable" : "Neutral / Active",
+      tone: harmonious ? "good" : "info",
+      cssClass: harmonious ? "badge-friendly" : "badge-neutral",
+      guidance: harmonious
+        ? "The pairing is neutral, but the sub-lord aligns with your natal foundation — energy flows smoothly."
+        : "A neutral pairing: results follow deliberate effort rather than momentum."
+    };
+  }
+
   /* Ayurvedic dosha profile — determined only by the Driver + Conductor.
      Foundation/Lo Shu count signals never alter this baseline. It enriches
      the Health interpretation without adding PII or asking any medical
@@ -419,6 +477,33 @@
     return chain;
   }
 
+  /* Deterministic, printable digit breakdown for a root-number equation.
+     Built straight from the digits of the date itself — never by string
+     surgery on a previously formatted label — so no character can be dropped,
+     duplicated or replaced by an artifact such as "$". Zeros are filtered for
+     the classical display; because a zero adds nothing, the printed sum stays
+     mathematically identical to the full digit sum.
+       formatConductorBreakdown("1978-01-31", 3) → "3 + 1 + 1 + 1 + 9 + 7 + 8 = 30 → 3"
+     The digit ORDER follows the string given: pass "DDMMYYYY" (or a
+     "DD-MM-YYYY" string) for a day → month → year reading. */
+  function formatConductorBreakdown(dobString, conductorNumber) {
+    const raw = String(dobString === undefined || dobString === null ? "" : dobString).trim();
+    // An ISO date ("YYYY-MM-DD") is re-ordered to the classical day → month →
+    // year reading; any other input keeps the order it was given in.
+    const iso = raw.match(/^(\d{4})\D(\d{1,2})\D(\d{1,2})$/);
+    const ordered = iso ? `${iso[3]}${iso[2]}${iso[1]}` : raw;
+    const cleanDigits = ordered.replace(/\D/g, "").split("").map(Number);
+    const nonZeroDigits = cleanDigits.filter((d) => d !== 0);
+    if (!nonZeroDigits.length) return "";
+    const sumFormula = nonZeroDigits.join(" + ");
+    const rawSum = nonZeroDigits.reduce((acc, curr) => acc + curr, 0);
+    const target = Number(conductorNumber) || reductionChain(rawSum)[reductionChain(rawSum).length - 1];
+    if (rawSum === target) return `${sumFormula} = ${rawSum}`;
+    const steps = reductionChain(rawSum).slice(1);
+    if (steps[steps.length - 1] !== target) steps.push(target);
+    return `${sumFormula} = ${rawSum} → ${steps.join(" → ")}`;
+  }
+
   /* Root-number equation rendered as explicit, grouped digit tokens. Every
      digit (including 0) is its own <span>, groups are separated by a visible
      divider and the result is stated in words. This is intentionally not a
@@ -435,7 +520,11 @@
     const words = intermediate.length
       ? (lang === "hi" ? `सभी अंकों का योग ${digitSum}, जो ${root} में सिमटता है` : lang === "gu" ? `બધા અંકોનો સરવાળો ${digitSum}, જે ${root} માં સંકોચાય છે` : `all digits add to ${digitSum}, which reduces to ${root}`)
       : (lang === "hi" ? `अंकों का योग सीधे ${root} है` : lang === "gu" ? `અંકોનો સરવાળો સીધો ${root} છે` : `the digits add directly to ${root}`);
-    return `<div class="root-formula" data-digit-sum="${digitSum}" data-root="${root}"><div class="root-formula-line">${groupMarkup}<span class="root-op">=</span>${steps}<strong class="root-result">${root}</strong></div><div class="root-formula-words">${words}</div></div>`;
+    // Canonical plain-text equation, generated by formatConductorBreakdown
+    // from the raw digits. It is the machine-checkable copy of the same maths
+    // and the string a practitioner can quote verbatim to a client.
+    const plain = formatConductorBreakdown(groups.map((g) => g.digits).join(""), root);
+    return `<div class="root-formula" data-digit-sum="${digitSum}" data-root="${root}"><div class="root-formula-line">${groupMarkup}<span class="root-op">=</span>${steps}<strong class="root-result">${root}</strong></div><div class="root-formula-words">${words}</div><div class="root-formula-plain" data-plain-formula="${esc(plain)}">${esc(plain)}</div></div>`;
   }
 
   function normalizePack(raw, source) {
@@ -1664,11 +1753,11 @@
       const info = db.numbers[n];
       if (!info) return;
       if (lang === "hi") {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `<strong>${esc(info.planet)}</strong> को बलवान बनाएं (लो शू में अनुपस्थित अंक ${n}): <span class="mantra">${esc(info.mantra)}</span> का जाप करें (${esc(info.mantraCount)}), ${esc(info.color.split(",")[0])} रंग अपनाएं और ${esc(info.lifestyle.split(";")[0])} का अभ्यास करें।` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "missing", text: `<strong>${esc(info.planet)}</strong> को बलवान बनाएं (लो शू में अनुपस्थित अंक ${n}): <span class="mantra">${esc(info.mantra)}</span> का जाप करें (${esc(info.mantraCount)}), ${esc(info.color.split(",")[0])} रंग अपनाएं और ${esc(info.lifestyle.split(";")[0])} का अभ्यास करें।` });
       } else if (lang === "gu") {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `<strong>${esc(info.planet)}</strong> ને બળવાન બનાવો (લો શુમાં ખૂટતો અંક ${n}): <span class="mantra">${esc(info.mantra)}</span> નો જાપ કરો (${esc(info.mantraCount)}), ${esc(info.color.split(",")[0])} રંગ અપનાવો અને ${esc(info.lifestyle.split(";")[0])} નો અભ્યાસ કરો.` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "missing", text: `<strong>${esc(info.planet)}</strong> ને બળવાન બનાવો (લો શુમાં ખૂટતો અંક ${n}): <span class="mantra">${esc(info.mantra)}</span> નો જાપ કરો (${esc(info.mantraCount)}), ${esc(info.color.split(",")[0])} રંગ અપનાવો અને ${esc(info.lifestyle.split(";")[0])} નો અભ્યાસ કરો.` });
       } else {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `Strengthen <strong>${esc(info.planet)}</strong> (missing ${n} in your Lo Shu grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, use ${esc(info.color.split(",")[0])} and practise ${esc(info.lifestyle.split(";")[0])}.` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "missing", text: `Strengthen <strong>${esc(info.planet)}</strong> (missing ${n} in your Lo Shu grid): chant <span class="mantra">${esc(info.mantra)}</span> ${esc(info.mantraCount)}, use ${esc(info.color.split(",")[0])} and practise ${esc(info.lifestyle.split(";")[0])}.` });
       }
     });
     targets.repeated.slice(0, 3).forEach((n) => {
@@ -1677,11 +1766,11 @@
       const channel = loc(excess.channel, lang) || info.lifestyle;
       if (!info) return;
       if (lang === "hi") {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `<strong>${esc(info.planet)}</strong> की ${p.loShuCounts[n]}× दोहराई ऊर्जा को दिशा दें: ${esc(channel)}। इस अंक को और बढ़ाने वाला उपाय न जोड़ें।` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "repeated", text: `<strong>${esc(info.planet)}</strong> की ${p.loShuCounts[n]}× दोहराई ऊर्जा को दिशा दें: ${esc(channel)}। इस अंक को और बढ़ाने वाला उपाय न जोड़ें।` });
       } else if (lang === "gu") {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `<strong>${esc(info.planet)}</strong> ની ${p.loShuCounts[n]}× પુનરાવર્તિત ઊર્જાને દિશા આપો: ${esc(channel)}. આ અંકને વધુ વધારતો ઉપાય ઉમેરશો નહીં.` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "repeated", text: `<strong>${esc(info.planet)}</strong> ની ${p.loShuCounts[n]}× પુનરાવર્તિત ઊર્જાને દિશા આપો: ${esc(channel)}. આ અંકને વધુ વધારતો ઉપાય ઉમેરશો નહીં.` });
       } else {
-        rows.push({ cadence: "daily", source: "lo-shu", text: `Channel ${p.loShuCounts[n]}× repeated <strong>${esc(info.planet)}</strong> energy: ${esc(channel)}. Do not add another remedy that feeds this number.` });
+        rows.push({ cadence: "daily", source: "lo-shu", n, signal: "repeated", text: `Channel ${p.loShuCounts[n]}× repeated <strong>${esc(info.planet)}</strong> energy: ${esc(channel)}. Do not add another remedy that feeds this number.` });
       }
     });
     if (!rows.length) {
@@ -1693,6 +1782,468 @@
           : `Your Lo Shu Birth Grid is balanced. For maintenance, repeat number <strong>${targets.primary}</strong> (${esc(info.planet)})'s positive habit: <strong>${esc(info.lifestyle.split(";")[0])}</strong>.` });
     }
     return rows.slice(0, 8);
+  }
+
+  /* ---------------- Remedial triage (staged clinical protocol) ----------------
+     A certified practitioner never prescribes every missing number at once.
+     Three beej mantras (36,000+ japas), three weekly fasts, several gemstones
+     and five lifestyle rules guarantee zero adherence — the "Christmas tree"
+     prescription. This engine stages the same knowledge:
+
+       Tier 1 (acute)  — only the missing number that is LIVE right now, i.e.
+                         it is the Antardasha / Pratyantar / Mahadasha lord or
+                         the Personal-Year number. One mantra, one dose, one
+                         sector, one weekly discipline.
+       Tier 2 (latent) — every other missing number. Held on environmental
+                         cues only (colour, plant, sector hygiene) with the
+                         exact date/period at which it becomes a Tier-1 target.
+
+     Nothing is deleted: the full remedy library stays in the report. Triage
+     only decides what the client is asked to DO this month. */
+  function nextActivation(p, n, timeline, nowMs) {
+    let antardasha = null;
+    (timeline.mahadashas || []).forEach((m) => {
+      if (m.endMs <= nowMs) return;
+      buildAntardashas(m.n, m.startMs).forEach((a) => {
+        if (a.n !== n || a.endMs <= nowMs) return;
+        if (!antardasha || a.startMs < antardasha.startMs) {
+          antardasha = { mdN: m.n, startMs: a.startMs, endMs: a.endMs, current: a.startMs <= nowMs };
+        }
+      });
+    });
+    const yearNow = new Date(nowMs).getFullYear();
+    let personalYear = null;
+    for (let off = 0; off <= 9; off++) {
+      if (reduce(p.day + p.month + reduce(yearNow + off)) === n) { personalYear = yearNow + off; break; }
+    }
+    return { antardasha, personalYear };
+  }
+
+  function remedyTriage(p, dl, refDate) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const timeline = dl || dashaTimeline(p, refDate);
+    const cur = timeline.current;
+    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+    const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
+    const shortMantra = db.mantraShort || (window.DB && window.DB.mantraShort) || {};
+    const planetOf = (n) => String((db.numbers[n] || {}).planet || "").split(" ")[0];
+    const targets = loShuPracticeTargets(p);
+    const missing = (targets.missing || []).map(Number);
+    const repeated = (targets.repeated || []).map(Number);
+
+    // Which numbers are actually live in the client's current time-map.
+    const layers = [
+      { key: "antardasha", n: cur.ad.n, weight: 4, label: `Antardasha lord ${cur.ad.n} (${planetOf(cur.ad.n)}) — active until ${prettyDate(cur.ad.endMs)}` },
+      { key: "personal-year", n: cur.personalYear, weight: 3, label: `Personal Year ${cur.personalYear} (${planetOf(cur.personalYear)}) — the ${cur.year} transit` },
+      { key: "pratyantar", n: cur.pd.n, weight: 2, label: `Pratyantar lord ${cur.pd.n} (${planetOf(cur.pd.n)}) — micro period until ${prettyDate(cur.pd.endMs)}` },
+      { key: "mahadasha", n: cur.md.n, weight: 1, label: `Mahadasha lord ${cur.md.n} (${planetOf(cur.md.n)}) — chapter until ${prettyDate(cur.md.endMs)}` }
+    ];
+    const activeNumbers = layers.map((l) => l.n).filter((n, i, a) => a.indexOf(n) === i);
+    const acute = missing
+      .map((n) => ({ n, layers: layers.filter((l) => l.n === n) }))
+      .filter((c) => c.layers.length)
+      .map((c) => ({ n: c.n, layers: c.layers, weight: Math.max.apply(null, c.layers.map((l) => l.weight)) }))
+      .sort((a, b) => b.weight - a.weight || a.n - b.n);
+
+    const doseFor = (n) => {
+      const info = db.numbers[n] || {};
+      const beej = shortMantra[n] || {};
+      const zone = dashaDB[n] || {};
+      return {
+        n,
+        planet: info.planet || "",
+        mantra: beej.pron || info.mantra || "",
+        mantraDev: beej.dev || "",
+        // One quarter-mala, once a day. Adherence beats volume: a completed
+        // 27× daily is clinically worth more than an abandoned 108×.
+        japa: "27× daily (quarter mala), same time each day",
+        fullCycle: info.mantraCount || "",
+        day: info.day || "",
+        colour: String(info.color || "").split(",")[0].trim(),
+        lifestyle: String(info.lifestyle || "").split(";")[0].trim(),
+        zone: loc(zone.zone, lang),
+        zoneRemedy: loc(zone.zoneRemedy, lang),
+        crystal: info.crystal || ""
+      };
+    };
+
+    let tier1;
+    if (acute.length) {
+      const pick = acute[0];
+      tier1 = Object.assign({ mode: "acute", reasons: pick.layers.map((l) => l.label), trigger: pick.layers[0].key }, doseFor(pick.n));
+    } else if (missing.length) {
+      // Nothing missing is live: do not start japa. Work the active sector only.
+      const adDose = doseFor(cur.ad.n);
+      tier1 = {
+        mode: "environmental", n: cur.ad.n, planet: adDose.planet,
+        reasons: [`No missing number is live in the current stack — the active ${planetOf(cur.ad.n)} sub-period sets the only Tier-1 action`],
+        trigger: "antardasha", mantra: "", mantraDev: "", japa: "Hold japa — no beej mantra is clinically indicated this period",
+        fullCycle: "", day: "", colour: adDose.colour, lifestyle: adDose.lifestyle,
+        zone: adDose.zone, zoneRemedy: adDose.zoneRemedy, crystal: ""
+      };
+    } else {
+      const primary = targets.primary;
+      tier1 = Object.assign({ mode: "maintenance", reasons: ["Balanced grid — maintenance dose only"], trigger: "maintenance" }, doseFor(primary));
+    }
+
+    const tier2 = missing
+      .filter((n) => !(tier1.mode === "acute" && n === tier1.n))
+      .map((n) => {
+        const info = db.numbers[n] || {};
+        const zone = dashaDB[n] || {};
+        const unlock = nextActivation(p, n, timeline, nowMs);
+        const liveLayers = layers.filter((l) => l.n === n);
+        const queued = liveLayers.length > 0; // live, but out-ranked by the acute target
+        const unlockLabel = queued
+          ? `Live now via ${liveLayers.map((l) => l.key.replace("-", " ")).join(" + ")} — queued behind the Tier-1 target, review at the next consultation`
+          : unlock.antardasha
+            ? `${planetOf(n)} Antardasha ${prettyDate(unlock.antardasha.startMs)} → ${prettyDate(unlock.antardasha.endMs)}${unlock.personalYear ? ` · Personal Year ${n} in ${unlock.personalYear}` : ""}`
+            : unlock.personalYear ? `Personal Year ${n} in ${unlock.personalYear}` : "No activation inside the scanned horizon";
+        return {
+          n,
+          planet: info.planet || "",
+          cue: String(info.lifestyle || "").split(";")[0].trim(),
+          colour: String(info.color || "").split(",")[0].trim(),
+          sector: loc(zone.zone, lang),
+          status: queued ? "queued" : "latent",
+          hold: queued
+            ? "Environmental cue only this cycle — one acute japa target at a time."
+            : "No japa, no fast, no gemstone yet — environmental cue only.",
+          unlock,
+          unlockLabel
+        };
+      })
+      .sort((a, b) => {
+        if ((a.status === "queued") !== (b.status === "queued")) return a.status === "queued" ? -1 : 1;
+        const as = a.unlock.antardasha ? a.unlock.antardasha.startMs : Infinity;
+        const bs = b.unlock.antardasha ? b.unlock.antardasha.startMs : Infinity;
+        return as - bs || a.n - b.n;
+      });
+
+    const channel = repeated.map((n) => {
+      const excess = (db.excessEnergy && db.excessEnergy[n]) || {};
+      return { n, count: (p.loShuCounts || {})[n] || 0, planet: (db.numbers[n] || {}).planet || "", channel: loc(excess.channel, lang) || String((db.numbers[n] || {}).lifestyle || "").split(";")[0].trim() };
+    });
+
+    return {
+      activeNumbers,
+      layers,
+      tier1,
+      tier2,
+      channel,
+      // What the triage deliberately withholds, so the practitioner can say
+      // why the client is not being handed the full 41-page prescription.
+      withheld: tier2.length
+        ? [
+          `${tier2.length} additional beej mantra${tier2.length > 1 ? "s" : ""} (${tier2.map((x) => x.n).join(", ")}) — deferred to their own periods`,
+          `${tier2.length} extra weekly fast${tier2.length > 1 ? "s" : ""} — a client cannot fast ${tier2.length + 1} days in 7`,
+          "Additional gemstones — one activating stone at a time, never stacked"
+        ]
+        : []
+    };
+  }
+
+  /* Natal-weighted qualification of a predictive event window. A missing
+     significator never deletes a window — natal voids mean friction, delay and
+     remedial effort, not the absence of the event. */
+  function qualifyEventWindow(eventSignificators, natalCounts, dashaPair) {
+    const sig = (eventSignificators || []).map(Number);
+    const pair = dashaPair || [];
+    const md = Number(pair[0]), ad = Number(pair[1]);
+    if (!sig.includes(ad) && !sig.includes(md)) return null;
+    const counts = natalCounts || {};
+    const subLord = sig.includes(ad) ? ad : md;
+    const isNatalPresent = (counts[subLord] || 0) > 0;
+    const carriedByMd = !isNatalPresent && sig.includes(md) && (counts[md] || 0) > 0;
+    return {
+      subLord,
+      natalStatus: isNatalPresent ? "Present" : "Absent",
+      grade: isNatalPresent ? "high" : carriedByMd ? "moderate" : "conditional",
+      probability: isNatalPresent
+        ? "High (Direct Conversion)"
+        : carriedByMd ? "Moderate (Carried by the Mahadasha significator)" : "Conditional (Remedy-Dependent)",
+      clinicalNote: isNatalPresent
+        ? "Natural window for conversion. Minimal external effort required."
+        : carriedByMd
+          ? "Results arrive, usually a beat later than the window opens — the Mahadasha significator carries them."
+          : "Opportunity arrives with delays. Requires environmental Vastu activation in the active sector to manifest."
+    };
+  }
+
+  /* ---------------- Practitioner Clinical Cockpit ----------------
+     One printable A4 page a certified practitioner can work from during a
+     30-minute consultation, instead of flipping through 40+ report pages.
+     It consolidates identity, both grids, the live Dasha stack (judged by
+     Sambhandha), the annual transit, the triaged prescription and the graded
+     event windows. It computes nothing new — every value is read from the
+     same engines the full report uses, so the two can never disagree. */
+  function practitionerCockpit(p, refDate) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const dl = dashaTimeline(p, refDate);
+    const cur = dl.current;
+    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+    const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
+    const planetOf = (n) => String((db.numbers[n] || {}).planet || "").split(" ")[0];
+    const sambandha = getDashaRelationship(cur.md.n, cur.ad.n, p.driver);
+    const triage = remedyTriage(p, dl, refDate);
+    const countsOf = (counts) => Object.keys(counts || {}).map(Number).sort((a, b) => a - b);
+
+    const loShuExcess = countsOf(p.loShuCounts)
+      .filter((n) => (p.loShuCounts[n] || 0) >= 2)
+      .map((n) => ({ n, count: p.loShuCounts[n] }))
+      .sort((a, b) => b.count - a.count || a.n - b.n);
+    // "Strong" in the Vedic birth grid means a repeated indicator (2+), which
+    // is what a practitioner reads as a dominant energy; if nothing repeats we
+    // fall back to whatever is simply present.
+    const vedicPresent = countsOf(p.vedicCounts).filter((n) => (p.vedicCounts[n] || 0) > 0);
+    const vedicRepeated = vedicPresent.filter((n) => (p.vedicCounts[n] || 0) >= 2);
+    const vedicStrong = (vedicRepeated.length ? vedicRepeated : vedicPresent)
+      .slice()
+      .sort((a, b) => (p.vedicCounts[b] - p.vedicCounts[a]) || a - b);
+
+    const astro = p.astro && p.astro.ok ? p.astro : null;
+    const lagna = astro && astro.tier === "full" && astro.lagna ? `${astro.lagna.sign} ${astro.lagna.glyph}` : "";
+    const place = astro && astro.place ? astro.place : null;
+    const coords = place ? `${Math.abs(place.lat).toFixed(1)}°${place.lat >= 0 ? "N" : "S"}, ${Math.abs(place.lon).toFixed(1)}°${place.lon >= 0 ? "E" : "W"}` : "";
+
+    // Graded event windows: nearest upcoming window per life event, never
+    // scrubbed when a significator is natally absent — only qualified.
+    const windows = (dl.events || []).map((e) => {
+      const w = (e.future || []).find((x) => x.endMs > nowMs) || null;
+      if (!w) return { key: e.key, label: loc(e.def.label, lang), icon: e.def.icon || "★", window: null, bandClosed: e.bandClosed };
+      const significators = (e.def.primary || []).concat(e.def.support || []);
+      const qualified = qualifyEventWindow(significators, p.vedicCounts, [w.mdN, w.adN]) || {};
+      return {
+        key: e.key, label: loc(e.def.label, lang), icon: e.def.icon || "★",
+        bandClosed: e.bandClosed,
+        window: {
+          mdN: w.mdN, adN: w.adN, startMs: w.startMs, endMs: w.endMs,
+          fromAge: w.fromAge, toAge: w.toAge, active: w.active, beyondBand: !!w.beyondBand,
+          grade: qualified.grade || (w.conversion && w.conversion.grade) || "conditional",
+          probability: qualified.probability || "",
+          natalStatus: qualified.natalStatus || "",
+          clinicalNote: qualified.clinicalNote || ""
+        }
+      };
+    }).sort((a, b) => {
+      if (!a.window) return 1;
+      if (!b.window) return -1;
+      return a.window.startMs - b.window.startMs;
+    });
+
+    const adZone = dashaDB[cur.ad.n] || {};
+    const mdZone = dashaDB[cur.md.n] || {};
+
+    return {
+      generatedMs: nowMs,
+      header: {
+        name: p.name,
+        dob: `${String(p.day).padStart(2, "0")}-${String(p.month).padStart(2, "0")}-${p.year}`,
+        birthTime: p.birthTimeDisplay || (p.birthTime ? formatBirthTime(p.birthTime) : ""),
+        place: p.birthPlace || "",
+        coords, lagna,
+        sun: astro && astro.sun ? `${astro.sun.sign} ${astro.sun.glyph}` : p.zodiac || "",
+        nakshatra: astro && astro.tier === "full" && astro.moon ? `${astro.moon.nakshatra.name} p${astro.moon.nakshatra.pada}` : ""
+      },
+      core: {
+        driver: p.driver, conductor: p.conductor,
+        driverPlanet: planetOf(p.driver), conductorPlanet: planetOf(p.conductor),
+        nameCompound: p.nameCompound, nameNumber: p.nameNum,
+        loShuMissing: p.loShuMissing, loShuExcess,
+        vedicMissing: p.vedicMissing, vedicStrong,
+        kua: p.kua || null
+      },
+      timing: {
+        md: { n: cur.md.n, planet: planetOf(cur.md.n), startMs: cur.md.startMs, endMs: cur.md.endMs, fromAge: cur.md.fromAge, toAge: cur.md.toAge },
+        ad: { n: cur.ad.n, planet: planetOf(cur.ad.n), startMs: cur.ad.startMs, endMs: cur.ad.endMs, progress: cur.adProgress },
+        pd: { n: cur.pd.n, planet: planetOf(cur.pd.n), endMs: cur.pd.endMs, daysLeft: cur.pdDaysLeft },
+        nextAd: cur.nextAd ? { n: cur.nextAd.n, planet: planetOf(cur.nextAd.n), startMs: cur.nextAd.startMs } : null,
+        personalYear: { n: cur.personalYear, planet: planetOf(cur.personalYear), year: cur.year },
+        sambandha
+      },
+      vastu: {
+        primary: { n: cur.ad.n, zone: loc(adZone.zone, lang), remedy: loc(adZone.zoneRemedy, lang) },
+        anchor: { n: cur.md.n, zone: loc(mdZone.zone, lang), remedy: loc(mdZone.zoneRemedy, lang) }
+      },
+      triage,
+      windows
+    };
+  }
+
+  function renderPractitionerCockpit(p, refDate) {
+    const c = practitionerCockpit(p, refDate);
+    const lang = getLang();
+    const w = {
+      en: {
+        title: "Practitioner Clinical Cockpit", sub: "One-page consultation sheet — everything below is computed on this device from the same engines as the full report.",
+        core: "Core", loshu: "Lo Shu (Foundation)", vedic: "Vedic (Ank Jyotish)", name: "Name",
+        missing: "Missing", excess: "Excess", absent: "Absent", strong: "Strong",
+        timing: "Current timing", macro: "Macro", current: "Current", micro: "Micro", transit: "Transit",
+        triage: "Clinical triage", conflict: "Active conflict", spatial: "Urgent spatial Rx", japa: "Single japa target",
+        latent: "Tier 2 · latent leaks (hold)", unlocks: "Activates", withheld: "Deliberately withheld this cycle",
+        windows: "Graded event windows", event: "Event", window: "Window", lords: "MD × AD", probability: "Conversion",
+        notes: "Consultation notes", print: "Print this page", ends: "ends", elapsed: "elapsed", none: "None",
+        disclaimer: "Traditional guidance for reflection and planning — not medical, legal or financial advice. Generated locally; no birth data left this device.",
+        holdLine: "Held on environmental cues only — no japa, no fast, no gemstone until activation."
+      },
+      hi: {
+        title: "प्रैक्टिशनर क्लिनिकल कॉकपिट", sub: "एक-पृष्ठ परामर्श शीट — सभी मान इसी डिवाइस पर, पूरी रिपोर्ट के समान इंजनों से गणना किए गए हैं।",
+        core: "मुख्य", loshu: "लो शू (Foundation)", vedic: "वैदिक (अंक ज्योतिष)", name: "नाम",
+        missing: "अनुपस्थित", excess: "अधिक", absent: "अनुपस्थित", strong: "प्रबल",
+        timing: "वर्तमान समय-चक्र", macro: "महा", current: "वर्तमान", micro: "सूक्ष्म", transit: "ट्रांज़िट",
+        triage: "क्लिनिकल ट्राइएज", conflict: "सक्रिय टकराव", spatial: "तात्कालिक वास्तु उपाय", japa: "एकमात्र जप लक्ष्य",
+        latent: "टियर २ · प्रतीक्षित रिसाव (रोकें)", unlocks: "सक्रिय होगा", withheld: "इस चक्र में जानबूझकर रोके गए",
+        windows: "श्रेणीबद्ध घटना-विंडो", event: "घटना", window: "विंडो", lords: "महा × अंतर", probability: "फलन-संभावना",
+        notes: "परामर्श नोट्स", print: "यह पृष्ठ प्रिंट करें", ends: "तक", elapsed: "पूर्ण", none: "कोई नहीं",
+        disclaimer: "यह पारंपरिक मार्गदर्शन है — चिकित्सा, कानूनी या वित्तीय सलाह नहीं। सब कुछ स्थानीय रूप से बना; जन्म-डेटा कहीं नहीं भेजा गया।",
+        holdLine: "केवल वातावरण-संकेत — सक्रिय होने तक न जप, न व्रत, न रत्न।"
+      },
+      gu: {
+        title: "પ્રેક્ટિશનર ક્લિનિકલ કોકપિટ", sub: "એક-પાનાની પરામર્શ શીટ — બધા મૂલ્યો આ જ ડિવાઇસ પર, પૂરા રિપોર્ટના સમાન એન્જિનથી ગણાયા છે.",
+        core: "મુખ્ય", loshu: "લો શુ (Foundation)", vedic: "વૈદિક (અંક જ્યોતિષ)", name: "નામ",
+        missing: "ખૂટતા", excess: "વધુ", absent: "ગેરહાજર", strong: "પ્રબળ",
+        timing: "વર્તમાન સમય-ચક્ર", macro: "મહા", current: "વર્તમાન", micro: "સૂક્ષ્મ", transit: "ટ્રાન્ઝિટ",
+        triage: "ક્લિનિકલ ટ્રાયએજ", conflict: "સક્રિય ટકરાવ", spatial: "તાત્કાલિક વાસ્તુ ઉપાય", japa: "એકમાત્ર જાપ લક્ષ્ય",
+        latent: "ટિયર ૨ · પ્રતીક્ષિત લીક (રોકો)", unlocks: "સક્રિય થશે", withheld: "આ ચક્રમાં ઇરાદાપૂર્વક રોકેલા",
+        windows: "શ્રેણીબદ્ધ ઘટના-વિન્ડો", event: "ઘટના", window: "વિન્ડો", lords: "મહા × અંતર", probability: "ફલન-સંભાવના",
+        notes: "પરામર્શ નોંધ", print: "આ પાનું પ્રિન્ટ કરો", ends: "સુધી", elapsed: "પૂર્ણ", none: "કોઈ નહીં",
+        disclaimer: "આ પરંપરાગત માર્ગદર્શન છે — તબીબી, કાનૂની કે નાણાકીય સલાહ નથી. બધું સ્થાનિક રીતે બન્યું; જન્મ-ડેટા ક્યાંય મોકલાયો નથી.",
+        holdLine: "ફક્ત પર્યાવરણીય સંકેત — સક્રિય થાય ત્યાં સુધી ન જાપ, ન ઉપવાસ, ન રત્ન."
+      }
+    }[lang] || null;
+    const L = w || {};
+    const t1 = c.triage.tier1;
+    const numList = (arr) => (arr && arr.length ? arr.join(", ") : "—");
+    const gradeBadge = (grade) => {
+      const cls = grade === "high" ? "good" : grade === "moderate" ? "info" : "warn";
+      const label = grade === "high" ? "High · direct" : grade === "moderate" ? "Moderate · carried" : "Conditional · remedy-led";
+      return `<span class="badge ${cls}" data-cockpit-grade="${grade}">${label}</span>`;
+    };
+    const identity = [
+      `<strong>${esc(c.header.name)}</strong>`,
+      `DOB ${esc(c.header.dob)}${c.header.birthTime ? ` · ${esc(c.header.birthTime)}` : ""}`,
+      c.header.place ? `${esc(c.header.place)}${c.header.coords ? ` (${esc(c.header.coords)})` : ""}` : "",
+      c.header.lagna ? `Lagna ${esc(c.header.lagna)}` : `Sun ${esc(c.header.sun)}`,
+      c.header.nakshatra ? `Nak ${esc(c.header.nakshatra)}` : ""
+    ].filter(Boolean).join(" &nbsp;|&nbsp; ");
+
+    const timingRows = [
+      `<li><span class="cockpit-tag">${esc(L.macro)}</span> ${esc(c.timing.md.planet)} MD (${c.timing.md.n}) · ${prettyDate(c.timing.md.startMs)} → ${prettyDate(c.timing.md.endMs)} (ages ${c.timing.md.fromAge}–${c.timing.md.toAge})</li>`,
+      `<li data-cockpit-ad-relation="${c.timing.sambandha.relation}"><span class="cockpit-tag">${esc(L.current)}</span> ${esc(c.timing.ad.planet)} AD (${c.timing.ad.n}) · ${prettyDate(c.timing.ad.startMs)} → ${prettyDate(c.timing.ad.endMs)} · ${c.timing.ad.progress}% ${esc(L.elapsed)} <span class="badge ${c.timing.sambandha.tone} ${c.timing.sambandha.cssClass}">${esc(c.timing.sambandha.status)}${c.timing.sambandha.grahan ? " · Grahan Yoga" : ""}</span></li>`,
+      `<li><span class="cockpit-tag">${esc(L.micro)}</span> ${esc(c.timing.pd.planet)} PD (${c.timing.pd.n}) · ${esc(L.ends)} ${prettyDate(c.timing.pd.endMs)} (${c.timing.pd.daysLeft}d)${c.timing.nextAd ? ` · next AD ${esc(c.timing.nextAd.planet)} (${c.timing.nextAd.n}) ${prettyDate(c.timing.nextAd.startMs)}` : ""}</li>`,
+      `<li><span class="cockpit-tag">${esc(L.transit)}</span> Personal Year ${c.timing.personalYear.n} (${esc(c.timing.personalYear.planet)}) · ${c.timing.personalYear.year}</li>`
+    ].join("");
+
+    const conflictLine = c.timing.sambandha.relation === "enemy"
+      ? `${esc(c.timing.md.planet)} (${c.timing.md.n}) vs ${esc(c.timing.ad.planet)} (${c.timing.ad.n})${c.timing.sambandha.grahan ? " — Grahan Yoga" : ""} in the ${esc(c.vastu.primary.zone)} sector. ${esc(c.timing.sambandha.guidance)}`
+      : `${esc(c.timing.md.planet)} (${c.timing.md.n}) × ${esc(c.timing.ad.planet)} (${c.timing.ad.n}) — ${esc(c.timing.sambandha.status)}. ${esc(c.timing.sambandha.guidance)}`;
+
+    const japaLine = t1.mode === "acute"
+      ? `<strong>${esc(t1.mantra)}</strong>${t1.mantraDev ? ` <span class="cockpit-dev">${esc(t1.mantraDev)}</span>` : ""} — ${esc(t1.japa)} · ${esc(t1.planet)} (${t1.n})${t1.day ? ` · one weekly discipline: ${esc(t1.day)}` : ""}`
+      : t1.mode === "environmental"
+        ? `${esc(t1.japa)} — work the ${esc(t1.zone)} sector instead.`
+        : `<strong>${esc(t1.mantra)}</strong> — ${esc(t1.japa)} (maintenance).`;
+
+    const tier2Rows = c.triage.tier2.length
+      ? c.triage.tier2.map((item) => `<li data-cockpit-tier2="${item.n}"><strong>${item.n} · ${esc(item.planet)}</strong> — ${esc(item.colour)} accents, ${esc(item.cue)}. <span class="cockpit-hold">${esc(item.hold)}</span> <span class="cockpit-unlock">${esc(L.unlocks)}: ${esc(item.unlockLabel)}</span></li>`).join("")
+      : `<li>${esc(L.none)} — the acute target is the only remedy load this cycle.</li>`;
+
+    const windowRows = c.windows.map((ev) => {
+      if (!ev.window) return `<tr data-cockpit-window="${esc(ev.key)}"><td>${ev.icon} ${esc(ev.label)}</td><td colspan="3">Watch the next Dasha transition — no significator window inside the scan horizon.</td></tr>`;
+      return `<tr data-cockpit-window="${esc(ev.key)}" data-grade="${ev.window.grade}">
+        <td>${ev.icon} ${esc(ev.label)}</td>
+        <td>${prettyDate(ev.window.startMs)} → ${prettyDate(ev.window.endMs)}<div class="cockpit-mini">ages ${ev.window.fromAge}–${ev.window.toAge}${ev.window.beyondBand ? " · late window" : ""}</div></td>
+        <td>${ev.window.mdN} × ${ev.window.adN}</td>
+        <td>${gradeBadge(ev.window.grade)}<div class="cockpit-mini">${esc(ev.window.clinicalNote)}</div></td>
+      </tr>`;
+    }).join("");
+
+    return `<section class="rsection cockpit-section" id="practitioner-cockpit" data-authority="clinical-cockpit">
+      <div class="cockpit-toolbar">
+        <button id="printCockpitBtn" class="btn btn-primary btn-32" type="button">${esc(L.print)}</button>
+        <span class="cockpit-stamp">${esc(L.title)} · ${prettyDate(c.generatedMs)}</span>
+      </div>
+      <div class="cockpit-sheet" data-cockpit-sheet="true">
+        <header class="cockpit-head">
+          <div class="cockpit-identity">${identity}</div>
+          <div class="cockpit-kicker">${esc(L.sub)}</div>
+        </header>
+        <div class="cockpit-grid three">
+          <div class="cockpit-cell"><div class="cockpit-label">${esc(L.core)}</div>
+            <div class="cockpit-fact">D-${c.core.driver} (${esc(c.core.driverPlanet)}) · C-${c.core.conductor} (${esc(c.core.conductorPlanet)})</div>
+            <div class="cockpit-fact">${esc(L.name)}: ${c.core.nameCompound} → ${c.core.nameNumber}${c.core.kua ? ` · Kua ${c.core.kua}` : ""}</div>
+          </div>
+          <div class="cockpit-cell"><div class="cockpit-label">${esc(L.loshu)}</div>
+            <div class="cockpit-fact" data-cockpit-loshu-missing="${c.core.loShuMissing.join(",")}">${esc(L.missing)}: <strong>${numList(c.core.loShuMissing)}</strong></div>
+            <div class="cockpit-fact">${esc(L.excess)}: ${c.core.loShuExcess.length ? c.core.loShuExcess.map((x) => `${x.n} (${x.count}×)`).join(", ") : "—"}</div>
+          </div>
+          <div class="cockpit-cell"><div class="cockpit-label">${esc(L.vedic)}</div>
+            <div class="cockpit-fact">${esc(L.absent)}: <strong>${numList(c.core.vedicMissing)}</strong></div>
+            <div class="cockpit-fact">${esc(L.strong)}: ${numList(c.core.vedicStrong)}</div>
+          </div>
+        </div>
+        <div class="cockpit-block" data-cockpit-block="timing">
+          <div class="cockpit-label">${esc(L.timing)}</div>
+          <ul class="cockpit-list">${timingRows}</ul>
+        </div>
+        <div class="cockpit-block cockpit-triage" data-cockpit-block="triage" data-tier1-mode="${esc(t1.mode)}" data-tier1-number="${t1.n}">
+          <div class="cockpit-label">${esc(L.triage)}</div>
+          <ol class="cockpit-list numbered">
+            <li><span class="cockpit-tag warn">${esc(L.conflict)}</span> ${conflictLine}</li>
+            <li><span class="cockpit-tag">${esc(L.spatial)}</span> ${esc(c.vastu.primary.zone)} (${esc(c.timing.ad.planet)} AD) — ${esc(c.vastu.primary.remedy)} ${esc(c.vastu.anchor.zone)} (${esc(c.timing.md.planet)} MD) — ${esc(c.vastu.anchor.remedy)}</li>
+            <li data-cockpit-japa="${t1.mode === "acute" ? t1.n : ""}"><span class="cockpit-tag">${esc(L.japa)}</span> ${japaLine}</li>
+          </ol>
+          <div class="cockpit-why">${esc(t1.reasons.join(" · "))}</div>
+        </div>
+        <div class="cockpit-block" data-cockpit-block="tier2">
+          <div class="cockpit-label">${esc(L.latent)}</div>
+          <ul class="cockpit-list">${tier2Rows}</ul>
+          ${c.triage.withheld.length ? `<div class="cockpit-why"><strong>${esc(L.withheld)}:</strong> ${c.triage.withheld.map(esc).join(" · ")}</div>` : ""}
+        </div>
+        <div class="cockpit-block" data-cockpit-block="windows">
+          <div class="cockpit-label">${esc(L.windows)}</div>
+          <table class="cockpit-table"><tr><th>${esc(L.event)}</th><th>${esc(L.window)}</th><th>${esc(L.lords)}</th><th>${esc(L.probability)}</th></tr>${windowRows}</table>
+        </div>
+        <footer class="cockpit-foot">
+          <div class="cockpit-notes"><span class="cockpit-label">${esc(L.notes)}</span><span class="cockpit-rule"></span><span class="cockpit-rule"></span></div>
+          <div class="cockpit-disclaimer">${esc(L.disclaimer)}</div>
+        </footer>
+      </div>
+    </section>`;
+  }
+
+  /* Staged prescription card for the 40-Day Plan. The full remedy library
+     stays in the report; this card decides what the client is asked to DO
+     this cycle, so the plan stops reading like a Christmas tree. */
+  function renderTriageCard(p, triage) {
+    const lang = getLang();
+    const tr = triage || remedyTriage(p);
+    const t1 = tr.tier1;
+    const head = lang === "hi" ? "उपाय ट्राइएज — इस चक्र में केवल यही करें" : lang === "gu" ? "ઉપાય ટ્રાયએજ — આ ચક્રમાં ફક્ત આટલું જ કરો" : "Remedy triage — do only this much this cycle";
+    const intro = lang === "hi"
+      ? "एक साथ हर अनुपस्थित अंक का उपाय न करें। नीचे दी गई पूरी सूची reference है; अभी केवल Tier 1 लक्ष्य साधें।"
+      : lang === "gu"
+        ? "એકસાથે દરેક ખૂટતા અંકનો ઉપાય ન કરો. નીચેની આખી યાદી reference છે; અત્યારે ફક્ત Tier 1 લક્ષ્ય સાધો."
+        : "Do not run every missing number at once. Everything below stays as reference; this cycle you work one acute target — the number that is actually live in your Dasha stack or Personal Year.";
+    const tier1Line = t1.mode === "acute"
+      ? `<strong>${t1.n} · ${esc(t1.planet)}</strong> — <span class="mantra">${esc(t1.mantra)}</span> ${esc(t1.japa)}${t1.day ? ` · ${lang === "hi" ? "साप्ताहिक अनुशासन" : lang === "gu" ? "સાપ્તાહિક શિસ્ત" : "one weekly discipline"}: ${esc(t1.day)}` : ""} · ${esc(t1.colour)} · ${esc(t1.zone)}`
+      : t1.mode === "environmental"
+        ? `${esc(t1.japa)} — ${esc(t1.zone)}: ${esc(t1.zoneRemedy)}`
+        : `<strong>${t1.n} · ${esc(t1.planet)}</strong> — ${esc(t1.japa)}`;
+    const tier2Rows = tr.tier2.length
+      ? tr.tier2.map((item) => `<div class="kit-row" data-triage-tier="2" data-triage-number="${item.n}"><div class="kit-ico"><strong>${item.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(item.planet)} — ${lang === "hi" ? "प्रतीक्षित" : lang === "gu" ? "પ્રતીક્ષિત" : "latent"}</div><div class="kit-value">${esc(item.colour)} · ${esc(item.cue)}</div><div class="card-sub">${esc(item.hold)} ${lang === "hi" ? "सक्रिय होगा" : lang === "gu" ? "સક્રિય થશે" : "Activates"}: ${esc(item.unlockLabel)}</div></div></div>`).join("")
+      : `<div class="kit-row"><div class="kit-ico">✓</div><div class="kit-body"><div class="kit-value">${lang === "hi" ? "कोई प्रतीक्षित लक्ष्य नहीं — केवल एक ही उपाय-भार है।" : lang === "gu" ? "કોઈ પ્રતીક્ષિત લક્ષ્ય નથી — ફક્ત એક જ ઉપાય-ભાર છે." : "No latent targets — the acute target is the only remedy load."}</div></div></div>`;
+    return `<div class="card triage-card" id="remedy-triage" data-remedy-authority="lo-shu" data-tier1-mode="${esc(t1.mode)}" data-tier1-number="${t1.n}">
+      <div class="goal-head"><div class="card-title">${esc(head)}</div><span class="badge good">${lang === "hi" ? "टियर १ · अभी" : lang === "gu" ? "ટિયર ૧ · હમણાં" : "Tier 1 · now"}</span></div>
+      <div class="card-sub">${esc(intro)}</div>
+      <div class="kit">
+        <div class="kit-row" data-triage-tier="1"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "टियर १ — तीव्र लक्ष्य" : lang === "gu" ? "ટિયર ૧ — તીવ્ર લક્ષ્ય" : "Tier 1 — acute target"}</div><div class="kit-value">${tier1Line}</div><div class="card-sub">${esc(t1.reasons.join(" · "))}</div></div></div>
+        ${tier2Rows}
+      </div>
+      ${tr.withheld.length ? `<div class="judge-note"><strong>${lang === "hi" ? "जानबूझकर रोका गया:" : lang === "gu" ? "ઇરાદાપૂર્વક રોકેલું:" : "Deliberately withheld this cycle:"}</strong> ${tr.withheld.map(esc).join(" · ")}</div>` : ""}
+    </div>`;
   }
 
   function plainText(html) {
@@ -2643,6 +3194,9 @@
     const vastu = vastuReport(p);
     const goals = goalPlan(p);
     const priorities = priorityPlan(p);
+    const triage = remedyTriage(p);
+    const tier1Number = triage.tier1.mode === "acute" ? triage.tier1.n : null;
+    const tier2Numbers = triage.tier2.map((item) => item.n);
     const watch = watchSpec(p);
     const evolving = evolvingChartData(p, timing);
     const summary = northstarSummary(p);
@@ -2995,12 +3549,13 @@
           : rd === "enemy" ? `<span class="badge warn">${lang === "hi" ? "सावधानी काल" : lang === "gu" ? "સાવધાની કાળ" : "Handle with care"}</span>`
           : `<span class="badge info">${lang === "hi" ? "तटस्थ" : lang === "gu" ? "તટસ્થ" : "Neutral"}</span>`;
       };
-      const stackRelation = relation(cur.md.n, cur.ad.n);
+      const sambandha = getDashaRelationship(cur.md.n, cur.ad.n, p.driver);
+      const stackRelation = sambandha.relation;
       const stackBadge = stackRelation === "enemy"
-        ? `<span class="badge bad" data-md-ad-relation="enemy">${lang === "hi" ? `चुनौतीपूर्ण — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, सावधानी से साधें` : lang === "gu" ? `પડકારજનક — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, સાવચેતીથી સાધો` : `Challenging — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}: neutralise with care`}</span>`
+        ? `<span class="badge bad ${sambandha.cssClass}" data-md-ad-relation="enemy" data-sambandha="${sambandha.source}">${lang === "hi" ? `चुनौतीपूर्ण — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, सावधानी से साधें` : lang === "gu" ? `પડકારજનક — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}, સાવચેતીથી સાધો` : `Challenging — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}: neutralise with care`}</span>`
         : stackRelation === "friendly"
-          ? `<span class="badge good" data-md-ad-relation="friendly">${lang === "hi" ? `सहयोगी — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `સહયોગી — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Supportive — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} cooperate`}</span>`
-          : `<span class="badge info" data-md-ad-relation="neutral">${lang === "hi" ? `तटस्थ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `તટસ્થ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Neutral — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}`}</span>`;
+          ? `<span class="badge good ${sambandha.cssClass}" data-md-ad-relation="friendly" data-sambandha="${sambandha.source}">${lang === "hi" ? `सहयोगी — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `સહયોગી — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Supportive — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} cooperate`}</span>`
+          : `<span class="badge ${sambandha.tone} ${sambandha.cssClass}" data-md-ad-relation="neutral" data-sambandha="${sambandha.source}">${lang === "hi" ? `तटस्थ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : lang === "gu" ? `તટસ્થ — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}` : `Neutral — ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)}`}</span>`;
       const personalRel = relation(p.driver, cur.ad.n);
       const personalNote = lang === "hi"
         ? `(मूलांक ${p.driver} के प्रति ${personalRel === "friendly" ? "मित्र" : personalRel === "enemy" ? "शत्रु" : "सम"}, पर सक्रिय संबंध महादशा × अंतर्दशा का है)`
@@ -3037,9 +3592,11 @@
         : "";
       const microRows = shownUpcoming.map((u, i) => {
         const adTag = u.adChange
-          ? ` <span class="badge ${relation(u.mdN, u.adN) === "enemy" ? "warn" : "info"}">${lang === "hi" ? `नई अंतर्दशा ${u.adN}` : lang === "gu" ? `નવી અંતર્દશા ${u.adN}` : `New AD ${u.adN} · ${planetOf(u.adN)}`}</span>`
+          ? ` <span class="badge ${getDashaRelationship(u.mdN, u.adN, p.driver).relation === "enemy" ? "warn" : "info"}">${lang === "hi" ? `नई अंतर्दशा ${u.adN}` : lang === "gu" ? `નવી અંતર્દશા ${u.adN}` : `New AD ${u.adN} · ${planetOf(u.adN)}`}</span>`
           : "";
-        const rel = relation(u.adN, u.n);
+        // The Pratyantar sits inside its Antardasha exactly as the AD sits
+        // inside the MD — judge it by the same Sambhandha rules.
+        const rel = getDashaRelationship(u.adN, u.n, p.driver).relation;
         const relTag = rel === "enemy" ? ` <span class="badge bad">${lang === "hi" ? "टकराव" : lang === "gu" ? "ટકરાવ" : "Friction with AD"}</span>` : "";
         return `<tr${u.current ? ' class="hl-row"' : ""} data-micro-period="${u.n}">
           <td><strong>${rangeLabel(u, i)}</strong>${u.current ? ` <span class="badge good">${nowLbl}</span>` : ""}${adTag}</td>
@@ -3075,7 +3632,7 @@
       const postWindowBetter = !!cur.nextAd && nextAdRelMd !== "enemy";
       const postWindowHarmonious = postWindowBetter && nextAdRelPy !== "enemy";
       const pyThemeShort = esc(String(pyMeaning).split(" — ")[0] || "");
-      const grahan = cur.md.n === 4 && cur.ad.n === 2 || cur.md.n === 2 && cur.ad.n === 4;
+      const grahan = sambandha.grahan;
       const synthesisEn = (function () {
         const opening = `${cur.year} carries an overarching focus on ${pyThemeShort.toLowerCase()} (Personal Year ${py} · ${planetOf(py)}).`;
         const stack = `Until ${prettyDate(cur.ad.endMs)} the ${planetOf(cur.md.n)}–${planetOf(cur.ad.n)} stack (MD ${cur.md.n} · AD ${cur.ad.n}) is the engine that year runs through`;
@@ -3121,6 +3678,7 @@
             <div class="num-sub">${prettyDate(cur.ad.startMs)} → ${prettyDate(cur.ad.endMs)}</div>
             <div class="num-sub" data-stack-badge="md-ad">${stackBadge}</div>
             <div class="num-sub stack-badge-note">${personalNote}</div>
+            ${lang === "en" ? `<div class="num-sub stack-badge-guidance" data-sambandha-guidance="${sambandha.source}">${esc(sambandha.guidance)}</div>` : ""}
             <div class="progress-track" role="progressbar" aria-valuenow="${cur.adProgress}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${cur.adProgress}%"></div></div>
             <div class="num-sub">${cur.adProgress}% ${lang === "hi" ? "पूर्ण" : lang === "gu" ? "પૂર્ણ" : "elapsed"}</div>
           </div>
@@ -3457,6 +4015,7 @@
           </table></div>
         </div>
       </div>
+      ${renderTriageCard(p, triage)}
       <div class="plan-subhead">${lang === "hi" ? "मंडल के चार चरण" : lang === "gu" ? "મંડળના ચાર તબક્કા" : "The four phases of your mandala"}</div>
       <div class="phase-grid">
         ${activation.phases.map((phase) => `<div class="phase-card">
@@ -3466,7 +4025,15 @@
         </div>`).join("")}
       </div>
       <div class="plan-subhead">${lang === "hi" ? "आपकी कार्य सूची — आवृत्ति अनुसार" : lang === "gu" ? "તમારી કાર્ય સૂચિ — આવૃત્તિ મુજબ" : "Your action checklist — tagged by cadence"}</div>
-      <div class="priority-list">${priorities.map((item) => `<div class="priority-item"><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span></div>`).join("")}
+      <div class="priority-list">${priorities.map((item) => {
+        const tier = item.n === tier1Number ? 1 : tier2Numbers.includes(item.n) ? 2 : 0;
+        const tierBadge = tier === 1
+          ? `<span class="badge good triage-flag">${lang === "hi" ? "टियर १ · अभी" : lang === "gu" ? "ટિયર ૧ · હમણાં" : "Tier 1 · now"}</span>`
+          : tier === 2
+            ? `<span class="badge warn triage-flag">${lang === "hi" ? "टियर २ · प्रतीक्षा" : lang === "gu" ? "ટિયર ૨ · રાહ" : "Tier 2 · hold"}</span>`
+            : "";
+        return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}</div>`;
+      }).join("")}
       </div>
       <div class="card tracker-card" id="plan-tracker">
         <div class="goal-head">
@@ -3501,7 +4068,10 @@
     const activeModule = reportModuleFromHash();
     const foundationHidden = activeModule !== "foundation" ? " hidden" : "";
     const timelineHidden = activeModule !== "timeline" ? " hidden" : "";
+    const cockpitHidden = activeModule !== "cockpit" ? " hidden" : "";
     const foundationSelected = activeModule === "foundation";
+    const timelineSelected = activeModule === "timeline";
+    const cockpitSelected = activeModule === "cockpit";
 
     return `
       <div class="report-hero">
@@ -3516,7 +4086,8 @@
         </div>
         <div class="module-tabs" role="tablist" aria-label="${t("moduleNavigation", "Report modules")}">
           <button class="module-tab${foundationSelected ? " active" : ""}" id="foundation-tab" type="button" role="tab" aria-selected="${foundationSelected}" aria-controls="foundation-panel" tabindex="${foundationSelected ? "0" : "-1"}" data-module-tab="foundation">${t("tabFoundation", "Foundation · Lo Shu")}</button>
-          <button class="module-tab${!foundationSelected ? " active" : ""}" id="timeline-tab" type="button" role="tab" aria-selected="${!foundationSelected}" aria-controls="timeline-panel" tabindex="${!foundationSelected ? "0" : "-1"}" data-module-tab="timeline">${t("tabTimeline", "Timeline · Vedic Dasha")}</button>
+          <button class="module-tab${timelineSelected ? " active" : ""}" id="timeline-tab" type="button" role="tab" aria-selected="${timelineSelected}" aria-controls="timeline-panel" tabindex="${timelineSelected ? "0" : "-1"}" data-module-tab="timeline">${t("tabTimeline", "Timeline · Vedic Dasha")}</button>
+          <button class="module-tab${cockpitSelected ? " active" : ""}" id="cockpit-tab" type="button" role="tab" aria-selected="${cockpitSelected}" aria-controls="cockpit-panel" tabindex="${cockpitSelected ? "0" : "-1"}" data-module-tab="cockpit">${t("tabCockpit", "Cockpit · Practitioner")}</button>
         </div>
         <nav class="report-nav" aria-label="${t("moduleQuickNavigation", "Module navigation")}">
           <a href="#foundation" data-module-jump="foundation">${t("navFoundation", "Foundation")}</a>
@@ -3525,6 +4096,7 @@
           <a href="#dasha-section">${t("navDasha", "Dasha")}</a>
           <a href="#vastu-section">${t("navVastu", "Vastu")}</a>
           <a href="#plan-section">${t("navPlan", "40-Day Plan")}</a>
+          <a href="#cockpit" data-module-jump="cockpit">${t("navCockpit", "Cockpit")}</a>
         </nav>
       </div>
       <section class="report-module-panel foundation-panel" id="foundation-panel" role="tabpanel" aria-labelledby="foundation-tab"${foundationHidden}>
@@ -3568,6 +4140,10 @@
         ${dashaSection}
         ${vastuSection}
       </section>
+      <section class="report-module-panel cockpit-panel" id="cockpit-panel" role="tabpanel" aria-labelledby="cockpit-tab"${cockpitHidden}>
+        <div class="module-panel-heading cockpit-panel-heading" id="cockpit-top"><p class="summary-kicker">${t("tabCockpit", "Cockpit · Practitioner")}</p><h2>${t("cockpitPanelTitle", "Your one-page clinical cockpit")}</h2><p>${t("cockpitPanelDesc", "A single printable consultation sheet: identity, both grids, the live Dasha stack judged by classical Sambhandha, the triaged prescription and graded event windows. It never recalculates anything — it condenses.")}</p></div>
+        ${renderPractitionerCockpit(p)}
+      </section>
     `;
   }
 
@@ -3585,25 +4161,30 @@
   function reportModuleFromHash(hash) {
     const id = String(hash === undefined ? window.location.hash : hash || "").replace(/^#/, "");
     if (id === "timeline" || id === "timeline-panel" || id === "timeline-top" || id === "timing-section" || id === "dasha-section" || id === "vastu-section") return "timeline";
+    if (id === "cockpit" || id === "cockpit-panel" || id === "cockpit-top" || id === "practitioner-cockpit") return "cockpit";
     return "foundation";
   }
 
   function moduleForTarget(targetId) {
     if (!targetId) return "foundation";
     const target = document.getElementById(targetId);
-    return target && target.closest("#timeline-panel") ? "timeline" : reportModuleFromHash(`#${targetId}`);
+    if (target && target.closest("#timeline-panel")) return "timeline";
+    if (target && target.closest("#cockpit-panel")) return "cockpit";
+    return reportModuleFromHash(`#${targetId}`);
   }
 
   function setReportModule(moduleName, options) {
     const opts = options || {};
-    const next = moduleName === "timeline" ? "timeline" : "foundation";
+    const next = (moduleName === "timeline" || moduleName === "cockpit") ? moduleName : "foundation";
     const root = $("#reportRoot");
     if (!root) return;
     const foundation = $("#foundation-panel", root);
     const timeline = $("#timeline-panel", root);
+    const cockpit = $("#cockpit-panel", root);
     const tabs = $$('[data-module-tab]', root);
     if (foundation) foundation.hidden = next !== "foundation";
     if (timeline) timeline.hidden = next !== "timeline";
+    if (cockpit) cockpit.hidden = next !== "cockpit";
     tabs.forEach((tab) => {
       const selected = tab.dataset.moduleTab === next;
       tab.classList.toggle("active", selected);
@@ -3660,8 +4241,27 @@
     });
   }
 
+  /* Cockpit-only printing: the practitioner usually wants the single
+     consultation sheet, not the 40-page client report. A body class narrows
+     the print stylesheet to the cockpit and is always removed afterwards. */
+  function printPractitionerCockpit() {
+    const body = document.body;
+    body.classList.add("print-cockpit");
+    const clear = () => body.classList.remove("print-cockpit");
+    if (typeof window.onafterprint !== "undefined") {
+      window.addEventListener("afterprint", clear, { once: true });
+    }
+    setTimeout(clear, 1500);
+    window.print();
+  }
+
   function bindReportInteractions() {
     bindReportModuleNavigation();
+    const cockpitPrint = $("#printCockpitBtn", $("#reportRoot"));
+    if (cockpitPrint && !cockpitPrint.dataset.bound) {
+      cockpitPrint.dataset.bound = "true";
+      cockpitPrint.addEventListener("click", printPractitionerCockpit);
+    }
     $$('[data-practice-number]', $("#reportRoot")).forEach((btn) => {
       btn.addEventListener("click", () => {
         const n = Number(btn.getAttribute("data-practice-number"));
@@ -3942,6 +4542,8 @@
     computeProfile, generateLoShuGrid, generateVedicGrid, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
+    formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
+    practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
