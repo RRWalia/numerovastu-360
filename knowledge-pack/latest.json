@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.7.0",
-  "packUrl": "knowledge-pack/packs/2.7.0.json",
-  "notes": "Introduces the Vedic Numerology Grid (Ank Kundali): Vedic planetary layout 3-1-9 / 6-7-5 / 2-8-4, three horizontal planes, zero and century filtering, and transparent Moolank/Bhagyank plotting."
+  "latestVersion": "2.8.0",
+  "packUrl": "knowledge-pack/packs/2.8.0.json",
+  "notes": "Hybrid release: restores the classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, keeps Vedic Ank Kundali as a birth-only Planetary Strength Indicator comparison, and retains the independent proportional Vedic Dasha / active Vastu timeline."
 }

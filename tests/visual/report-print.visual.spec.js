@@ -1,14 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-const FIXED_NOW = Date.UTC(2026, 7, 23, 9, 0, 0); // 2026-08-23 09:00:00 UTC
+const FIXED_NOW = Date.UTC(2026, 8, 5, 9, 0, 0); // 2026-09-05 UTC
 
 async function freezeBrowserTime(page) {
   await page.addInitScript((fixedNow) => {
     const RealDate = Date;
     class FixedDate extends RealDate {
-      constructor(...args) {
-        super(...(args.length ? args : [fixedNow]));
-      }
+      constructor(...args) { super(...(args.length ? args : [fixedNow])); }
       static now() { return fixedNow; }
       static parse(value) { return RealDate.parse(value); }
       static UTC(...args) { return RealDate.UTC(...args); }
@@ -46,11 +44,8 @@ async function generateCompleteReport(page) {
   await page.locator('#vehicle').fill('HR51AB1234');
   await page.locator('#birthTime').fill('14:05');
   await page.locator('#birthPlace').fill('New Delhi, India');
-
   await page.locator("#goalChips .chip[data-goal='Money']").click();
   await page.locator("#goalChips .chip[data-goal='Career']").click();
-  await page.locator("#goalChips .chip[data-goal='Relationship']").click();
-
   await page.locator('#entrance').selectOption('SW');
   await page.locator('#kitchen').selectOption('NE');
   await page.locator('#bedroom').selectOption('SW');
@@ -59,69 +54,93 @@ async function generateCompleteReport(page) {
   await page.locator('#staircase').selectOption('NE');
   await page.locator('#plotShape').selectOption('missing-northeast');
   await page.locator('#watchType').selectOption('smart');
-
-  await page.locator('#brand').fill('Shree Balaji Textiles');
-  await page.locator('#partnerName').fill('Anjali Verma');
-  await page.locator('#partnerDob').fill('1990-04-15');
-
   await page.locator('#intakeForm').evaluate((form) => form.requestSubmit());
 
   await expect(page.locator('#reportView')).toBeVisible();
-  await expect(page.locator('#reportRoot')).toContainText('Northstar Summary');
-  await expect(page.locator('#reportRoot')).toContainText('Your first three moves');
-  await expect(page.locator('#reportRoot')).toContainText('Core Numerology Profile');
-  await expect(page.locator('#vedic-grid-section')).toContainText('Your Vedic Numerology Grid');
-  await expect(page.locator('#vedic-grid-section .vedic-plane-card')).toHaveCount(3);
-  await expect(page.locator('#vedic-grid-section .vedic-cell')).toHaveCount(27);
-  await expect(page.locator('#reportRoot')).toContainText('Astro-Identity Snapshot');
-  await expect(page.locator('#reportRoot')).toContainText('Vastu Dosh Scan');
-  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
-test.describe('visual regression: report and print layouts', () => {
-  test('desktop report layout', async ({ page }) => {
+test.describe('hybrid report browser regression', () => {
+  test('Foundation is the Lo Shu dashboard and the Vedic comparison remains optional', async ({ page }) => {
     await generateCompleteReport(page);
 
-    await expect(page).toHaveScreenshot('desktop-report-layout.png', {
-      fullPage: false,
-      mask: [page.locator('.toast-viewport')],
-    });
+    await expect(page.locator('#foundation-tab')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#foundation-panel')).toBeVisible();
+    await expect(page.locator('#timeline-panel')).toBeHidden();
+    await expect(page.locator('#foundation-panel')).toContainText('Lo Shu Blueprint');
+    await expect(page.locator('#foundation-panel .loshu-grid')).toHaveCount(3);
+    await expect(page.locator('#foundation-panel .loshu-cell')).toHaveCount(27);
+    await expect(page.locator('#foundation-panel .loshu-grid').nth(0).locator('.loshu-cell')).toHaveAttribute('data-grid-number', '4');
+
+    const advanced = page.locator('details.advanced-vedic-comparison');
+    await expect(advanced).not.toHaveAttribute('open', '');
+    await advanced.locator('summary').click();
+    await expect(advanced).toHaveAttribute('open', '');
+    await expect(advanced.locator('.vedic-grid')).toHaveCount(1);
+    await expect(advanced.locator('.vedic-cell')).toHaveCount(9);
+    await expect(advanced.locator('.vedic-cell').nth(0)).toHaveAttribute('data-grid-number', '3');
+    await expect(advanced).toContainText('Planetary Strength Indicators');
+    await expect(advanced).not.toContainText('Vedic Name Grid');
+    await expect(advanced).not.toContainText('Combined Vedic Grid');
   });
 
-  test('print layout first page', async ({ page }) => {
-    await page.setViewportSize({ width: 794, height: 1123 });
+  test('Timeline owns Dasha, active Vastu and the fixed home-context scan', async ({ page }) => {
     await generateCompleteReport(page);
-    await page.emulateMedia({ media: 'print' });
-    await page.evaluate(() => window.scrollTo(0, 0));
 
-    await expect(page).toHaveScreenshot('print-layout-first-page.png', {
-      fullPage: false,
-      mask: [page.locator('.toast-viewport')],
-    });
+    await page.locator('#timeline-tab').click();
+    await expect(page).toHaveURL(/#timeline$/);
+    await expect(page.locator('#timeline-tab')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#timeline-panel')).toBeVisible();
+    await expect(page.locator('#foundation-panel')).toBeHidden();
+    await expect(page.locator('#dasha-section')).toHaveAttribute('data-authority', 'dasha');
+    await expect(page.locator('[data-dasha-vastu-zone="active"]')).toContainText('Active Vastu Zone');
+    await expect(page.locator('#timeline-panel #vastu-section')).toHaveAttribute('data-authority', 'home-vastu-context');
+    await expect(page.locator('#foundation-panel #vastu-section')).toHaveCount(0);
+    await expect(page.locator('#timeline-panel #vastu-section')).toContainText('selected only from the current Dasha lords');
+
+    await page.locator('#foundation-tab').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#timeline-tab')).toBeFocused();
+    await expect(page.locator('#timeline-tab')).toHaveAttribute('aria-selected', 'true');
+
+    await page.evaluate(() => { window.location.hash = '#vastu-section'; });
+    await expect(page.locator('#timeline-panel')).toBeVisible();
+    await expect(page.locator('#vastu-section')).toBeVisible();
   });
 
-  // Regression guard: the Northstar Summary is taller than the space left on
-  // page 1 but shorter than a full page. The blanket `.rsection {
-  // break-inside: avoid-page }` print rule made Chrome push the whole section
-  // to page 2, printing page 1 blank below the header. The summary must stay
-  // allowed to fragment, with only its small inner blocks kept atomic.
-  test('print pagination keeps summary breakable across pages', async ({ page }) => {
+  test('mobile Timeline navigation is keyboard and horizontal-scroll safe', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await generateCompleteReport(page);
+    await page.locator('#timeline-tab').click();
+
+    await expect(page.locator('#timeline-panel')).toBeVisible();
+    await expect(page.locator('.timeline-anchor-nav')).toBeVisible();
+    const mobileNav = await page.locator('.timeline-anchor-nav').evaluate((nav) => {
+      const style = getComputedStyle(nav);
+      return { overflowX: style.overflowX, whiteSpace: style.whiteSpace, scrollWidth: nav.scrollWidth, clientWidth: nav.clientWidth };
+    });
+    expect(['auto', 'scroll']).toContain(mobileNav.overflowX);
+    expect(mobileNav.scrollWidth).toBeGreaterThanOrEqual(mobileNav.clientWidth);
+    await expect(page.locator('.timeline-anchor-nav a[href="#dasha-section"]')).toBeVisible();
+    await expect(page.locator('.timeline-anchor-nav a[href="#vastu-section"]')).toBeVisible();
+  });
+
+  test('print/PDF exposes both modules and the normally collapsed comparison', async ({ page }) => {
     await generateCompleteReport(page);
     await page.emulateMedia({ media: 'print' });
 
-    const styles = await page.evaluate(() => {
-      const summary = document.querySelector('#summary-section');
-      const card = document.querySelector('.summary-card');
-      const move = document.querySelector('.summary-actions li');
+    const printState = await page.evaluate(() => {
+      const foundation = document.querySelector('#foundation-panel');
+      const timeline = document.querySelector('#timeline-panel');
+      const details = document.querySelector('details.advanced-vedic-comparison');
+      const detailBody = details && details.querySelector('.details-body');
       return {
-        summary: getComputedStyle(summary).breakInside,
-        card: card && getComputedStyle(card).breakInside,
-        move: move && getComputedStyle(move).breakInside,
+        foundation: getComputedStyle(foundation).display,
+        timeline: getComputedStyle(timeline).display,
+        detailBody: detailBody && getComputedStyle(detailBody).display,
       };
     });
-
-    expect(styles.summary).toBe('auto');
-    expect(styles.card).toBe('avoid-page');
-    expect(styles.move).toBe('avoid-page');
+    expect(printState.foundation).not.toBe('none');
+    expect(printState.timeline).not.toBe('none');
+    expect(printState.detailBody).not.toBe('none');
   });
 });

@@ -355,6 +355,65 @@ body {
 }
 .report-nav a:hover { background: var(--fill-f1); }
 
+/* Foundation / Timeline product navigation. Tabs use native ARIA semantics;
+   the compact rail remains scrollable rather than clipping on small screens. */
+.module-tabs {
+  display: inline-flex; align-self: flex-start; gap: 4px;
+  margin-top: 10px; padding: 4px; max-width: 100%;
+  border: 1px solid var(--separator); border-radius: var(--r-full);
+  background: var(--fill-f1); overflow-x: auto;
+}
+.module-tab {
+  appearance: none; border: 0; cursor: pointer; white-space: nowrap;
+  min-height: 36px; padding: 7px 14px; border-radius: var(--r-full);
+  background: transparent; color: var(--label-secondary);
+  font: inherit; font-size: 13px; font-weight: 700;
+}
+.module-tab:hover { color: var(--label-primary); }
+.module-tab.active { background: var(--label-primary); color: #fff; box-shadow: var(--shadow-small); }
+.module-tab:focus-visible, .timeline-anchor-nav a:focus-visible { outline: 3px solid var(--kimi-blue); outline-offset: 2px; }
+.report-module-panel { display: flex; flex-direction: column; gap: 28px; margin-top: 24px; }
+.report-module-panel[hidden] { display: none; }
+.module-panel-heading {
+  padding: 18px 20px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, rgba(30, 27, 75, .07), rgba(109, 40, 217, .05));
+  border: 1px solid rgba(109, 40, 217, .16);
+}
+.module-panel-heading h2 { margin-top: 3px; font-size: 21px; line-height: 29px; }
+.module-panel-heading p:not(.summary-kicker) { margin-top: 5px; color: var(--label-secondary); font-size: 14px; line-height: 21px; }
+.timeline-panel-heading { border-color: rgba(15, 99, 201, .2); background: linear-gradient(135deg, rgba(15, 99, 201, .08), rgba(22, 196, 86, .05)); }
+.timeline-anchor-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.timeline-anchor-nav a { min-height: 32px; padding: 6px 11px; border-radius: var(--r-full); background: #fff; border: 1px solid var(--separator); color: var(--label-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+
+/* Classic Lo Shu Foundation grid (4-9-2 / 3-5-7 / 8-1-6). It deliberately
+   has separate class names from the advanced Vedic birth comparison. */
+.loshu-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.loshu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 300px; flex: none; }
+.loshu-cell { aspect-ratio: 1; border-radius: var(--r-md); background: var(--bg-primary); border: 1px solid var(--separator); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative; }
+.loshu-cell .digits { font-size: 20px; font-weight: 700; line-height: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.loshu-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
+.loshu-cell.present { background: rgba(22, 196, 86, .11); border-color: rgba(22, 196, 86, .36); }
+.loshu-cell.present.multi { background: var(--light-yellow-bg); border-color: rgba(200, 160, 0, .32); }
+.loshu-cell.missing .digits { color: var(--label-quaternary); }
+.loshu-cell.missing::after { content: attr(data-missing-label); position: absolute; bottom: 6px; color: var(--danger); font-size: 10px; line-height: 14px; font-weight: 600; }
+.loshu-grid.compact { max-width: 100%; margin-top: 4px; }
+.loshu-grid.compact .loshu-cell .digits { font-size: 16px; }
+.arrow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.arrow-card { min-height: 134px; }
+.arrow-formed { border-color: rgba(22, 196, 86, .35); }
+.arrow-open { border-color: rgba(255, 149, 0, .28); }
+
+/* Advanced Vedic content is intentionally collapsed by default and remains a
+   birth-only strength comparison rather than another remedy surface. */
+.vedic-comparison-section { margin-top: -8px; }
+.advanced-vedic-comparison { border: 1px solid rgba(109, 40, 217, .24); border-radius: var(--r-lg); background: rgba(109, 40, 217, .035); overflow: hidden; }
+.advanced-vedic-comparison > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 15px 16px; color: var(--label-primary); font-size: 15px; font-weight: 700; }
+.advanced-vedic-comparison > summary::marker { color: var(--purple); }
+.advanced-vedic-comparison[open] > summary { border-bottom: 1px solid var(--separator); }
+.details-hint { color: var(--label-tertiary); font-size: 12px; font-weight: 500; }
+.details-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.details-body .rsection-title { margin: 0; }
+
 /* Ganesh invocation — Vitality & Wisdom (yellow / gold / orange) */
 .invocation {
   text-align: center;
@@ -548,7 +607,7 @@ body {
 .badge.bad  { background: var(--light-red-bg); color: #c92a36; }
 .badge.info { background: var(--kimi-blue-10); color: #0f63c9; }
 
-/* Vedic Numerology Grid / Ank Kundali */
+/* Advanced Vedic Ank Kundali birth comparison */
 .vedic-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
 .vedic-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
@@ -866,8 +925,16 @@ body {
   .status-row .btn, .engagement-item .btn, .mini-form .btn { width: 100%; }
   .field-row { flex-direction: column; gap: 16px; }
   .form-block { padding: 16px; }
-  .vedic-grid-wrap { flex-direction: column; }
-  .vedic-grid { max-width: 100%; }
+  .vedic-grid-wrap, .loshu-grid-wrap { flex-direction: column; }
+  .vedic-grid, .loshu-grid { max-width: 100%; }
+  .module-tabs { width: 100%; align-self: stretch; }
+  .module-tab { flex: 1; padding-left: 11px; padding-right: 11px; }
+  .report-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .report-nav a { white-space: nowrap; flex: none; }
+  .module-panel-heading { padding: 16px; }
+  .timeline-anchor-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .timeline-anchor-nav a { white-space: nowrap; flex: none; }
+  .arrow-grid { grid-template-columns: 1fr; }
   .adopt-release { grid-template-columns: 1fr; }
   .summary-shell { padding: 18px; border-radius: 18px; }
   .summary-title { font-size: 22px; line-height: 31px; }
@@ -964,7 +1031,13 @@ body {
 
 /* ---------- Print (Save/Print Report) ---------- */
 @media print {
-  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav { display: none !important; }
+  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav, .module-tabs, .timeline-anchor-nav { display: none !important; }
+  .report-module-panel[hidden] { display: flex !important; }
+  .report-module-panel { gap: 20px; margin-top: 18px; }
+  .module-panel-heading { background: #fff; border-color: #ddd; }
+  .advanced-vedic-comparison:not([open]) > .details-body { display: flex !important; }
+  .advanced-vedic-comparison { background: #fff; }
+  .loshu-cell, .vedic-cell { break-inside: avoid; }
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   .rsection { animation: none; break-inside: avoid-page; }

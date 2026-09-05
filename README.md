@@ -1,255 +1,275 @@
 # NumeroVastu 360
 
-**Numerology & Vastu Remedy Engine** — a 360° report generator that combines classical Vedic numerology with Vastu principles.
+**Release 2.8.0 — Lo Shu Foundation + Vedic Dasha Timeline**
 
-Enter your name, date of birth, mobile and vehicle numbers once, and the app computes your Driver (Moolank) and Conductor (Bhagyank) numbers, builds a live **Vedic Numerology Grid (Ank Kundali)**, and generates a complete remedy plan across money, health, career, business and relationships.
+NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
+It intentionally keeps two traditions separate:
 
----
+- **Foundation · Lo Shu** answers *“What patterns do I work with?”*
+- **Timeline · Vedic Dasha** answers *“What is active now, and when does it change?”*
 
-## What it does
+Enter a name, date of birth and optional home details to generate a report. No
+personal details are sent to an application server.
 
-| Area | What's analysed / generated |
+> Traditional/spiritual guidance only. It is not medical, legal, financial or
+> mental-health advice.
+
+## What changed in 2.8.0
+
+This release makes the hybrid model explicit rather than treating one grid as a
+catch-all source of truth.
+
+| Area | 2.8.0 behaviour |
 | --- | --- |
-| **Northstar summary** | Plain-language executive summary — headline, chart story, strategy cards, your first three moves and the way forward — with a jump link to the 40-day plan (the two never repeat each other) |
-| **Core profile** | Driver (Moolank) & Conductor (Bhagyank) numbers, Name number (Chaldean), Mobile & vehicle vibrations, Vedic Sun Sign (Surya Rashi), plus a **Karmic Debt check** — 13/14/16/19 scanned at the *unreduced* birth-day, full birth-date and Chaldean name totals, each with its repeating lesson and settling remedy routed to the reduced root's planet kit, and an **Ayurvedic Dosha layer** — the classical Jyotish–Ayurveda constitutional map (dominant dosha, nature, aggravation, balancing foods, routine and mantra-link for every number 1–9, in EN/HI/GU), blended from Driver + Conductor with aggravation flagged from repeated 3+ numbers and support gaps from missing-critical numbers. It is framed as traditional wellness guidance, not diagnosis. Also a **Deity Protection layer** — the classical number → ishta devta correspondence (guardian deity, classical mantra, the 11× and 108× chants, offerings and support materials for every number 1–9, in EN/HI/GU), paired from Driver + Conductor, with extra vigilance from repeated 3+ numbers and under-supported (missing-critical) gaps. It is framed as traditional spiritual guidance — the reader's own family tradition and guru take priority. |
-| **Vedic precision** | **Tier 1 (ready now):** Vedic Sun Sign (Surya Rashi) — sidereal / Nirayana, Lahiri ayanamsa — computed from date of birth alone, with the Western tropical sign shown as a clearly-labelled reference. **Tier 2 (unlocked):** add your exact birth time + birth city and the **Astro-Identity Snapshot** computes your Moon Sign (Chandra Rashi), Nakshatra with its pada, Lagna (ascendant) and Midheaven — a real in-browser Vedic ephemeris (see below), never sent anywhere. A cross-system harmony note appears when the sign's ruling number overlaps with missing or important Vedic birth-grid numbers. |
-| **Vedic Numerology Grid (Ank Kundali)** | Live 3×3 Vedic planetary grid in the fixed `3–1–9 / 6–7–5 / 2–8–4` order. It reads the three horizontal planes — Practical / Fire, Materialistic / Air and Emotional / Water — with present, partial and support states, transparent plotting sources and missing-number severity tiers. |
-| **Name analysis** | Chaldean total, **compound number (1–108) meaning**, **master numbers (11/22/33)**, relationship to birth numbers, and **sound-preserving spelling corrections** (Tripti → Triptii style — never drops letters) |
-| **Name & combined grids** | The same Vedic template plotted from your **name's Chaldean letter values** and a **combined filtered-DOB + name** grid, alongside the birth grid |
-| **Business / brand mode** | Chaldean success reading for a brand, shop or venture name — compound number, auspicious roots, and sound-preserving corrections |
-| **Mobile / Vehicle** | Vibration check vs. Driver & Conductor, plus recommended totals for a change |
-| **Compatibility** | Two-person Driver/Conductor matchmaking (marriage or partnership) using the planetary friendship table, plus a **compatibility remedy plan** — per-clash friction & bridge guidance, couple rituals drawn from both planets' remedy kits, and "bridge numbers" friendly to both charts |
-| **Remedy kits** | Per-planet mantras, crystals, rudraksha, yantras, colours, charity, fasting & lifestyle remedies |
-| **Timing** | Personal-year cycle, favourable years, milestone ages, and the **four life phases — Pinnacles & Challenges** with classical age boundaries (first phase ends at 36 − Conductor, each next spans 9 years) and per-phase peak energy + recurring lesson |
-| **Dasha timeline** | The **Ank Jyotish dasha system** on the classical proportional 45-year cycle (1+2+…+9 = 45): the first Mahadasha starts at birth with the Moolank (number = years), then walks 1→9 cyclically; **Antardasha = MD × AD ÷ 45** and **Pratyantar = AD × PD ÷ 45**, each sub-sequence starting from its parent lord for nested mathematical continuity. The report shows the **active MD/AD/PD stack** (with an AD progress bar and PD days remaining), the **lifetime Mahadasha ladder**, an **active Vastu zone callout** (the current sub-ruler's planet → direction micro-remedy, e.g. Venus → South-East), and **life-event windows** — marriage, going abroad, career peak, property and wealth — computed from each event's classical significator lords (Venus–Moon for marriage, Rahu–Ketu for abroad, Sun–Saturn for career…) *and* cross-checked against the person's own grid (friendship with Driver/Conductor, presence/absence in the Vedic birth grid), with the strongest past window surfaced for personal validation. Framed honestly as favourable opportunity periods, not fixed predictions, with a note on the alternative 1-year-Antardasha school. An exact birth time (Tier 2) anchors cycle boundaries to the minute. |
-| **Vastu** | Entrance, kitchen, bedroom, toilet, **study room** & **staircase** dosh scan with fixes, **plot-shape (missing corner/extension) analysis**, plus a clearly-labelled **Kua number** (Feng Shui personal lucky directions) |
-| **Watch / wearable** | Personalised metal, dial, geometry & strap spec |
-| **40-Day Activation Plan** | The report's operational finale: a daily core ritual, a weekly charity/fast rhythm, a **dosha-aware lifestyle line** (Vata anchors the morning routine; Pitta cools around noon; Kapha adds movement before sunset), an **ishta devta chant line** (the guardian deity of both key numbers with their 11× and 108× chants), the four classical mandala phases (Foundation → Rhythm → Integrate → Review), the single action checklist tagged Daily/Weekly/One-time, and an **interactive 40-day tracker** saved privately per profile |
-| **Evolving skill system** | Bundled **Knowledge Pack** with optional self-update, on-device chart memory, private remedy check-ins, and an off-by-default anonymous aggregate contribution scaffold |
+| Default report | Opens on **Foundation · Lo Shu** after onboarding |
+| Foundation grid | Classic Lo Shu `4–9–2 / 3–5–7 / 8–1–6` |
+| Grid plotting | Every non-zero digit from the full `DD-MM-YYYY`, including century digits, then Moolank and Bhagyank |
+| Lo Shu views | Birth, Name and Combined grids; eight planes; eight arrows; present, repeated and missing signals |
+| Vedic Ank Kundali | A collapsed, **birth-grid-only** advanced comparison using `3–1–9 / 6–7–5 / 2–8–4` |
+| Timeline | Independent proportional Dasha stack, dates, current/next periods, life-event windows and active Vastu zone |
+| Release data | Schema v2 / knowledge pack v2.8.0 |
 
----
+## Product map
 
-## Vedic Grid calculation
+### Foundation · Lo Shu Blueprint
 
-The natal grid is an **Ank Kundali**, not a Lo Shu magic square. Its permanent
-Vedic planetary template is:
+Foundation is the initial personality and practice dashboard. It includes:
+
+- Driver / Moolank and Conductor / Bhagyank as core identity context;
+- classic Lo Shu **Birth**, **Name**, and **Combined** grids;
+- Lo Shu planes, arrows, present/missing/repeated signals;
+- missing-number remedy kits and repeated-number channeling;
+- Lo Shu-led mantras, affirmations, crystals, Rudraksha and habits;
+- a Lo Shu-led 40-day activation tracker;
+- a collapsed **Advanced Vedic Comparison** for the Vedic birth grid only.
+
+The Name and Combined grids use the same Lo Shu coordinates as the Birth Grid.
+They do **not** create Vedic Name or Vedic Combined grids.
+
+### Timeline · Vedic Dasha
+
+Timeline is the time-based roadmap. It contains:
+
+- active Mahadasha, Antardasha and Pratyantar Dasha;
+- current-period dates, progress and upcoming transitions;
+- Dasha-led life-event opportunity windows;
+- the exact callout **“Active Vastu Zone: Prioritise this sector now”**;
+- a fixed home-placement context scan, clearly distinguished from the dynamic
+  Dasha zone.
+
+The Active Vastu Zone is chosen from the active Dasha lords and the Vedic
+planetary compass map. It is never inferred from a Lo Shu cell position.
+
+### Advanced Vedic comparison
+
+The optional Foundation disclosure is a comparison lens, not a second remedy
+engine:
+
+- it is closed by default;
+- it renders only the **Vedic Birth Grid**;
+- its count differences are labelled **Planetary Strength Indicators**;
+- absent/repeated Vedic indicators do not create missing-number remedies,
+  crystals, or another 40-day checklist.
+
+## Authority boundaries
+
+The report intentionally shows the source of each kind of guidance.
+
+| Output | Sole authority | What does **not** change it |
+| --- | --- | --- |
+| Ayurvedic constitution / baseline | Driver + Conductor | Either grid |
+| Ishta Devta / guardian deities | Driver + Conductor | Either grid |
+| Power days | Driver + Conductor | Either grid |
+| Missing/repeated remedies, crystals, Rudraksha, affirmations, habits and 40-day practice | Lo Shu Birth Grid | Vedic comparison, zodiac and Dasha |
+| Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
+| Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
+
+The Driver/Conductor power-day card is a scheduling reference. It does not pick
+or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng
+Shui (Chinese)** and remains separate from the Vedic Dasha/Vastu direction map.
+
+## Grid calculations
+
+### Primary classic Lo Shu engine
+
+The Foundation grid is fixed as:
 
 ```text
-3 (Guru) | 1 (Surya) | 9 (Mangal)  — Practical Plane / Fire
-6 (Shukra) | 7 (Ketu) | 5 (Budh)   — Materialistic Plane / Air
-2 (Chandra) | 8 (Shani) | 4 (Rahu) — Emotional Plane / Water
+4 | 9 | 2
+3 | 5 | 7
+8 | 1 | 6
 ```
 
-When plotting a DOB, the engine removes every `0`, excludes the century
-identifier from the *plotted* year digits, and adds both Moolank and Bhagyank.
-A one-digit day (including `10`, `20` or `30` after zero removal) is represented
-once by its Moolank; compound-day digits stay in the grid. The Bhagyank still
-uses the complete DOB, including the century digits, for its calculation.
+For a date of birth, the engine:
 
-For example, `30-06-1986` yields Moolank `3` and Bhagyank `6`. The day `30` is
-not duplicated, the month contributes `6`, the year contributes its final two
-digits `8` and `6`, and the two calculated numbers are added. The plotted
-frequency is therefore `3×1`, `6×3` and `8×1`.
+1. formats the date as `DD-MM-YYYY`;
+2. keeps every non-zero digit, including the century digits in `YYYY`;
+3. adds Moolank / Driver (reduced birth day);
+4. adds Bhagyank / Conductor (reduced full DOB);
+5. counts each number in the Lo Shu layout.
 
-## Vedic planetary Vastu alignment
+For example, `30-06-1986` contributes raw digits `3, 6, 1, 9, 8, 6`, then
+Driver `3` and Conductor `6`. Its Lo Shu result therefore differs intentionally
+from the advanced Vedic comparison.
 
-NumeroVastu's room guidance and active-dasha zone callouts use the Vedic
-planetary directions below, rather than Lo Shu or Bagua axes:
+### Advanced Vedic Ank Kundali engine
 
-| Number | Vedic planet | Vastu direction |
+The comparison grid is fixed as:
+
+```text
+3 | 1 | 9
+6 | 7 | 5
+2 | 8 | 4
+```
+
+It preserves the app's existing filtered-DOB rules:
+
+- zeros are removed;
+- century digits are excluded from plotted year digits;
+- direct date input is de-duplicated for `1–9`, `10`, `20` and `30`;
+- Moolank and Bhagyank are still added.
+
+For `30-06-1986`, the Vedic plotted counts are `3×1`, `6×3`, `8×1`.
+Those counts must never be used as Lo Shu counts or as a remedy checklist.
+
+### Dasha and Vastu timing
+
+The Dasha engine is deterministic and independent of both grid engines:
+
+- Moolank begins the Mahadasha sequence;
+- a Mahadasha has a duration equal to its number of years;
+- Antardasha is proportional: `MD × AD ÷ 45`;
+- Pratyantar Dasha is proportional within its parent Antardasha;
+- event windows use active Dasha-lord significators only.
+
+The Dasha/Vastu bridge uses the Vedic planetary direction map:
+
+| Number | Planet | Vedic Vastu zone |
 | --- | --- | --- |
-| 3 | Jupiter (Guru) | North-East (Ishanya) |
-| 1 | Sun (Surya) | East (Purva) |
-| 9 | Mars (Mangal) | South (Dakshin) |
-| 6 | Venus (Shukra) | South-East (Agneya) |
+| 3 | Jupiter / Guru | North-East / Ishanya |
+| 1 | Sun / Surya | East / Purva |
+| 9 | Mars / Mangal | South / Dakshin |
+| 6 | Venus / Shukra | South-East / Agneya |
 | 7 | Ketu | North-East / Center Axis |
-| 5 | Mercury (Budh) | Center (Brahmasthan) / North |
-| 2 | Moon (Chandra) | North-West (Vayavya) |
-| 8 | Saturn (Shani) | West (Paschim) |
-| 4 | Rahu | South-West (Nairutya) |
+| 5 | Mercury / Budh | Center / Brahmasthan and North |
+| 2 | Moon / Chandra | North-West / Vayavya |
+| 8 | Saturn / Shani | West / Paschim |
+| 4 | Rahu | South-West / Nairutya |
 
-The optional **Kua** card remains explicitly labelled as a separate Feng Shui
-feature; it does not drive Vedic Vastu room recommendations.
+The optional room-direction scan is a fixed assessment of entered home details.
+It is displayed in Timeline beside the Dasha road map and explicitly cannot
+replace the current Dasha-selected active zone.
 
----
+## Accessibility, URL state and print
 
-## Privacy
+- The module switcher uses `tablist`, `tab` and `tabpanel` semantics.
+- Arrow keys move between Foundation and Timeline tabs.
+- `#foundation`, `#timeline`, `#dasha-section`, `#timing-section` and
+  `#vastu-section` activate the owning module before scrolling.
+- On narrow screens, module and Timeline anchor navigation remain horizontally
+  reachable rather than wrapping into inaccessible controls.
+- In print/PDF media, both report modules and the normally closed advanced
+  comparison are expanded in report order.
+- English, Hindi and Gujarati distinguish Lo Shu, Vedic comparison, Vedic
+  Dasha and Feng Shui/Kua labels.
 
-All calculations run **entirely in the visitor's browser** — no name, DOB, phone, birth time, birth place or Vastu data is ever sent to a server. There is no backend. The optional Vedic-precision fields (exact birth time, birth city/place) are stored only in the browser's local storage and are excluded from the anonymous contribution payload.
+## Privacy and knowledge packs
 
-The new **Knowledge Pack** updater does **not** change that promise: the pack is public content, not personal data. The app ships with a bundled pack for instant offline use, then can optionally fetch a newer public pack and cache it locally.
+All profile calculations run in the browser. Names, DOBs, phones, vehicles,
+birth time/place and entered home details are not posted to an app backend.
+Local report history, the practice tracker and journal remain in browser local
+storage for that device.
 
-The new **on-device memory** also stays local: saved reports, remedy check-ins and evolving-chart notes are stored only in the browser on that device.
+The public knowledge pack is separate from personal data:
 
-An **anonymous contribution** switch is included as a scaffold and is **off by default**. When enabled, it only prepares aggregate counts such as selected goals or missing-number totals. It never includes names, dates of birth, phone numbers, vehicle numbers or private journal notes.
+1. `data.js` supplies bundled schema-v2 content for instant/offline use.
+2. A newer public JSON pack can be read from `knowledge-pack/latest.json`.
+3. A pack is validated before it is cached or used.
+4. An older/single-grid pack is rejected rather than mixed into the hybrid UI.
 
----
+Release 2.8.0 ships `knowledge-pack/packs/2.8.0.json`, generated from the
+bundled pack. The schema requires canonical `loShuGrid` and `vedicGrid`
+configuration as well as the Dasha/Vastu mappings.
 
-## Tech stack
+## Tech stack and project layout
 
-- **Vanilla JavaScript** (no framework) — a stable IIFE-based engine (`app.js`) + a bundled curated knowledge pack (`data.js`)
-- **Visible release metadata** — app version, build label and Knowledge Pack version are surfaced as badges on the intake screen
-- **In-browser Vedic ephemeris** (`astro.js`) — sidereal (Nirayana) Sun, Moon, Nakshatra + pada, Lagna and Midheaven computed entirely on-device with **Lahiri (Chitrapaksha) ayanamsa** and a **630+-place offline world atlas** (with coordinate + time-zone override entry) — every sovereign world capital including **Hargeisa, Somaliland**, widely-recognised territories, and 350+ Indian cities, all validated by `scripts/validate-atlas.mjs` against IANA time-zone data. The ephemeris is a **fully self-contained port of Jean Meeus' "Astronomical Algorithms"** (Julian day & ΔT, IAU-82 sidereal time, ch. 22 nutation, ch. 25 Sun, ch. 47 Moon) — zero runtime dependencies, validated to < 12″ against VSOP87 (astronomy-engine) on the reference chart
-- **Versioned JSON knowledge packs** under `knowledge-pack/` for self-updates, schema validation, caching and fallback
-- **Plain CSS** (`styles.css`) with print styles, responsive breakpoints and `prefers-reduced-motion` support
-- **[Vite](https://vitejs.dev/)** for local development
-- **[jsdom](https://github.com/jsdom/jsdom)** for the headless smoke test (295+ checks, including an independently cross-validated reference chart)
+- Vanilla JavaScript (`app.js`) with a bundled curated knowledge pack (`data.js`)
+- Browser-local Vedic ephemeris (`astro.js`)
+- Plain CSS with responsive and print rules (`styles.css`)
+- Vite for development and static serving
+- jsdom for deterministic engine/report smoke coverage
+- Playwright/Chromium for browser, mobile-navigation and print checks
 
----
-
-## Project structure
-
-```
+```text
 numerovastu-360/
-├── index.html          # Single-page app (intake form + report view)
-├── app.js              # Stable engine: calculations, rendering, self-update + local memory
-├── astro.js            # In-browser Vedic ephemeris — self-contained Meeus port (Sun/Moon/Nakshatra/Lagna/MC, Lahiri ayanamsa)
-├── data.js             # Bundled fallback knowledge pack (instant/offline)
-├── knowledge-pack/     # Manifest, schema and versioned JSON packs for silent upgrades
-├── styles.css          # Styling (light theme, print + mobile)
-├── smoke.test.js       # Headless end-to-end smoke test (jsdom)
-├── playwright.config.mjs # Visual regression config (report + print screenshots)
-├── tests/              # Playwright visual regression specs and baselines
-├── vite.config.mjs     # Local dev / preview server config
-├── scripts/            # Repository maintenance scripts (static build)
-├── share.bat           # Windows script to share over HTTPS (see below)
-└── reference/          # Source tables (table-A/B xlsx) used to curate data.js
+├── index.html                         # App shell and intake form
+├── app.js                             # Engines, renderers, routing and local state
+├── astro.js                           # Browser-local Vedic astronomy helpers
+├── data.js                            # Bundled schema-v2 knowledge pack
+├── i18n.js                            # English, Hindi and Gujarati labels
+├── styles.css                         # Responsive and print presentation
+├── smoke.test.js                      # Hybrid engine and jsdom regression suite
+├── tests/visual/                      # Browser/mobile/print Playwright coverage
+├── knowledge-pack/
+│   ├── schema.json                    # Schema-v2 contract
+│   ├── latest.json                    # Current manifest
+│   └── packs/2.8.0.json               # Release JSON pack
+└── scripts/build-static.cjs           # Static distribution builder
 ```
 
-The root files are the single source of truth — Vite serves them directly
-(`index.html` loads `astro.js`, `data.js` and `app.js`), and the `share.bat`
-static server should be pointed at the repository root. GitHub Pages deploys
-the same root files from `main`.
-
-## Knowledge Pack architecture
-
-The app now has two layers:
-
-1. **Engine (`app.js`)** — calculations, rendering, local caching, update checks and on-device memory.
-2. **Knowledge Pack (`data.js` + `knowledge-pack/packs/*.json`)** — the curated numerology/Vastu database, versioned with `packVersion`.
-
-Startup flow:
-
-1. Load the bundled pack from `data.js` immediately.
-2. Restore any newer validated pack cached in `localStorage`.
-3. Optionally fetch `knowledge-pack/latest.json`.
-4. If a newer pack exists, download it, validate it, cache it, and surface a “Knowledge updated…” toast.
-
-This keeps the app usable offline while still allowing content to evolve without touching the core engine.
-
----
-
-## Getting started
+## Development
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 18+ (developed on Node 22)
+- Node.js 18+ (Node 22 is supported)
 
-### Install & run (local development)
+### Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` runs `vite --host 0.0.0.0`, which serves the app and prints a local URL
-(usually `http://localhost:5173`). Open it in a browser.
+Vite binds to `0.0.0.0`; open the URL it prints (normally
+`http://localhost:5173`).
 
-### Run quality checks
+### Quality checks
 
 ```bash
-npm test
-npm run audit
-npm run build
-# or all together:
-npm run check
+npm test                 # Grid, authority, pack, localisation and tab regression suite
+npm run audit            # Dependency audit
+npm run build            # Rebuilds static dist/ from root sources
+npm run check            # test + audit + build
 
-# optional screenshot regression suite:
+# Browser checks (Chromium required once)
 npm run browsers:install
 npm run test:visual
 ```
 
-`npm test` runs `node smoke.test.js`.
+The smoke suite checks both grid engines, Lo Shu Name/Combined coordinate
+mapping, Dasha/Vastu independence, authority boundaries, schema/pack validity,
+multilingual labels, accessible tab/hash behavior, and mobile/print CSS hooks.
+The Playwright suite verifies the same report behavior in a real browser,
+including mobile Timeline navigation and print expansion.
 
-The smoke test loads the app in jsdom, submits several profiles (including a
-practitioner example and a name-correction case), and asserts every report
-section renders with no `undefined`/`NaN` leaks. It exits `0` on success,
-`1` on any failure.
+### Deploy
 
-`npm run audit` fails on moderate-or-higher dependency advisories. `npm run build`
-creates a deployable static `dist/` by copying the browser-first app files and the
-full `knowledge-pack/` directory exactly as the app expects them at runtime.
+The application is static. Publish either:
 
-The visual regression suite uses Playwright/Chromium to compare the desktop report
-viewport and the first print-styled page. Use `npm run test:visual` locally; it
-creates any missing baselines and then compares existing ones. Commit the generated
-`tests/visual/**-snapshots/*.png` files after reviewing them. Use
-`npm run test:visual:update` only when intentionally accepting layout changes, and
-`npm run test:visual:ci` for strict CI runs once baselines are committed.
+- the repository root files and the full `knowledge-pack/` directory; or
+- the generated `dist/` directory after `npm run build`.
 
----
-
-## Sharing over HTTPS (`share.bat`)
-
-`share.bat` (Windows only) starts a local static server and tunnels it through
-Cloudflare so you get a public `https://…trycloudflare.com` URL without
-deploying anywhere.
-
-**Requirements (not committed to the repo — see `.gitignore`):**
-
-- `tools/static-server.js` — a small Node static file server that serves the
-  **repository root** (the app files `index.html`, `app.js`, `data.js`,
-  `styles.css`) on `http://localhost:8321`
-- `tools/cloudflared.exe` — the [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
-  client
-
-Place both files in a `tools/` directory next to `share.bat` before using it.
-Keep the terminal window open while sharing; close it to stop the tunnel. All
-visitor data still stays in the visitor's browser.
-
-> Cross-platform alternative (no `tools/` needed): run `npm run dev`, then in a
-> second terminal run `npx localtunnel --port 5173` for a public URL.
-
----
-
-## Deployment
-
-The app is a set of static files — `index.html` loads `astro.js`, `data.js` and
-`app.js` directly.
-
-For root-file hosting, publish the root files plus the `knowledge-pack/` directory.
-For hosts that expect a build output, run `npm run build` and publish `dist/`; the
-build script copies every runtime asset, including `knowledge-pack/`, without
-changing the browser-only architecture.
-
-### GitHub Pages (simplest)
-
-1. Push the repo to GitHub.
-2. In **Settings → Pages**, set the source to the branch and folder containing
-   the root files (e.g. `main` / `/ (root)`).
-3. The app is served as-is at `https://<user>.github.io/numerovastu-360/`.
-
-> If you prefer a build-output workflow, run `npm run build` and publish the
-> generated `dist/` folder.
-
-### Any static host
-
-Upload `index.html`, `astro.js`, `app.js`, `data.js`, `styles.css` and the full
-`knowledge-pack/` directory to any static host (Netlify, Vercel, S3, nginx,
-etc.). No server-side runtime is needed.
-
----
+No server-side runtime is required.
 
 ## Disclaimer
 
-NumeroVastu 360 provides guidance based on classical Vedic numerology and Vastu
-principles. The remedies are **supportive practices, not a substitute** for
-professional medical, legal or financial advice. Please consult appropriate
-professionals for health, legal or financial decisions.
-
----
+NumeroVastu 360 presents traditional numerology, Vastu and spiritual wellness
+content for reflection. It does not diagnose health conditions or guarantee
+outcomes. Seek qualified professional advice for medical, legal, financial,
+relationship or property decisions.
 
 ## License
 
-No license file is currently included. Contact the repository owner
-(`RRWalia/numerovastu-360`) before reusing or redistributing the code.
+No license file is included. Contact the repository owner
+([`RRWalia/numerovastu-360`](https://github.com/RRWalia/numerovastu-360)) before
+reusing or redistributing the project.

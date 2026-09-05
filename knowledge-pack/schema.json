@@ -10,7 +10,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 2
     },
     "packVersion": {
       "type": "string"
@@ -51,7 +51,9 @@
         "friendship",
         "numbers",
         "watch",
+        "loShuGrid",
         "vedicGrid",
+        "dasha",
         "traits",
         "missingFix",
         "yantra",
@@ -138,7 +140,8 @@
                 }
               }
             }
-          }
+          },
+          "description": "Advanced birth-only Vedic Ank Kundali comparison. Its planetary strength indicators never create remedy obligations."
         },
         "dosha": {
           "type": "object",
@@ -150,7 +153,84 @@
         },
         "dasha": {
           "type": "object",
-          "description": "Optional numerology dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the life-event window engine."
+          "description": "Required numerology Dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the independent Dasha timeline and active Vastu zone."
+        },
+        "loShuGrid": {
+          "type": "object",
+          "description": "Primary classic Lo Shu Foundation data. Its Birth, Name and Combined grids own missing/repeated-number remedies and lifestyle practice.",
+          "required": [
+            "layout",
+            "planes",
+            "arrows",
+            "plotting"
+          ],
+          "properties": {
+            "layout": {
+              "const": [
+                [
+                  4,
+                  9,
+                  2
+                ],
+                [
+                  3,
+                  5,
+                  7
+                ],
+                [
+                  8,
+                  1,
+                  6
+                ]
+              ],
+              "description": "Canonical classic Lo Shu order."
+            },
+            "planes": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "cells"
+                ]
+              }
+            },
+            "arrows": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "line",
+                  "present",
+                  "missing"
+                ]
+              }
+            },
+            "plotting": {
+              "type": "object",
+              "required": [
+                "zeros",
+                "year",
+                "calculations"
+              ],
+              "properties": {
+                "zeros": {
+                  "type": "string"
+                },
+                "year": {
+                  "type": "string"
+                },
+                "calculations": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         }
       }
     }
