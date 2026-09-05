@@ -43,4 +43,5 @@ When changing these areas, verify that personal data remains local-only:
 - Knowledge Pack fetching and caching,
 - anonymous contribution payload construction,
 - report rendering and print/export flows,
-- Vedic precision fields: birth time and birth place.
+- Vedic precision fields: birth time and birth place,
+- optional Photon geocoding (`connect-src` allows `https://photon.komoot.io` only; the request is user-initiated and caches the chosen city string, never lat/lon or the chart).

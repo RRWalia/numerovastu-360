@@ -29,7 +29,7 @@ if (!NVAstro || !NVAstro.cities) {
   console.error('FATAL: window.NVAstro.cities() not available — export it from astro.js');
   process.exit(1);
 }
-const CITIES = NVAstro.cities();
+const CITIES = (typeof NVAstro.coreCities === 'function' ? NVAstro.coreCities() : NVAstro.cities());
 
 /* IANA zone per non-Indian display name (new + legacy entries) */
 const ZONES = {

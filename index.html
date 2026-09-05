@@ -18,7 +18,7 @@
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="NumeroVastu 360" />
 <meta name="twitter:description" content="Private, browser-only Numerology and Vastu remedy reports." />
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://photon.komoot.io; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
 <link rel="stylesheet" href="styles.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%231e1b4b'/%3E%3Cstop offset='.6' stop-color='%236d28d9'/%3E%3Cstop offset='1' stop-color='%23b45309'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='44' height='44' rx='11' fill='url(%23b)'/%3E%3Cg stroke='%23ffd782' stroke-width='1.6' stroke-linecap='round' opacity='.95'%3E%3Cpath d='M18.7 9v30M29.3 9v30M9 18.7h30M9 29.3h30'/%3E%3C/g%3E%3Ctext x='24' y='29.5' text-anchor='middle' font-size='15' fill='%23ffd782' font-family='Noto Sans Devanagari,sans-serif'%3E%E0%A5%90%3C/text%3E%3C/svg%3E" />
 </head>
@@ -216,10 +216,36 @@
           </div>
           <div class="field">
             <label class="field-label" for="birthPlace"><span data-i18n="birthPlace">Birth City / Place (optional)</span></label>
-            <input class="input" id="birthPlace" name="birthPlace" type="text" placeholder="e.g. New Delhi, India" data-i18n-ph="birthPlacePlaceholder" autocomplete="address-level2" list="birthPlaceList" />
+            <input class="input" id="birthPlace" name="birthPlace" type="text" placeholder="e.g. New Delhi, India" data-i18n-ph="birthPlacePlaceholder" autocomplete="off" list="birthPlaceList" />
             <datalist id="birthPlaceList"></datalist>
-            <p class="field-hint" data-i18n-html="birthPlaceHint">Tier 2 — anchors the sky over your birthplace. 630+ cities built in (offline); or type coordinates like “28.41, 77.32”.</p>
+            <p class="field-hint" data-i18n-html="birthPlaceHint">Tier 2 — anchors the sky over your birthplace. 7,000+ Indian towns plus 630 curated world cities, fully offline. Type a prefix for suggestions, paste coordinates like “28.41, 77.32”, or look up once via Photon (opt-in).</p>
+            <div class="place-tools">
+              <button type="button" class="btn btn-secondary btn-32" id="photonLookupBtn" data-i18n="photonLookup">Look up online (Photon)</button>
+              <button type="button" class="btn btn-secondary btn-32" id="loadAtlasGccBtn" data-i18n="loadGulfAtlas">Load Gulf cities (offline)</button>
+              <button type="button" class="btn btn-secondary btn-32" id="loadAtlasWorldBtn" data-i18n="loadWorldAtlas">Load world cities 100k+ (offline)</button>
+            </div>
+            <p class="field-hint" data-i18n="photonHint">Photon is opt-in: only the place name you typed is sent to photon.komoot.io. The chosen city string is cached locally — never coordinates or your chart.</p>
+            <ul class="photon-results" id="birthPlacePhotonResults" hidden></ul>
           </div>
+        </div>
+
+        <div class="geo-manual" id="birthGeoManual">
+          <p class="field-label" data-i18n="birthGeoManual">Manual coordinates (optional)</p>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label" for="birthLat" data-i18n="birthLat">Latitude</label>
+              <input class="input" id="birthLat" name="birthLat" type="text" inputmode="decimal" placeholder="28.41" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="birthLon" data-i18n="birthLon">Longitude</label>
+              <input class="input" id="birthLon" name="birthLon" type="text" inputmode="decimal" placeholder="77.32" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label class="field-label" for="birthTz" data-i18n="birthTz">Time zone (hours from UTC)</label>
+              <input class="input" id="birthTz" name="birthTz" type="text" inputmode="decimal" placeholder="5.5" autocomplete="off" />
+            </div>
+          </div>
+          <p class="field-hint" data-i18n="birthGeoManualHint">Overrides the atlas when you know the exact spot. Time zone defaults to +5.5 if left blank. A nearby district within 25 km (Lagna shift under 0.1°) is used when the name is unknown.</p>
         </div>
 
         <div class="tier-list" aria-label="Vedic precision tiers">
