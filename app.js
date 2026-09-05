@@ -24,6 +24,13 @@
     { key: "materialistic", cells: [6, 7, 5], element: "Air", governs: "Wealth accumulation, luxury, analytical thinking, business acumen and networking." },
     { key: "emotional", cells: [2, 8, 4], element: "Water", governs: "Intuition, emotional balance, perseverance, discipline and systematic planning." }
   ];
+  // The Vastu compass is a separate Vedic planetary mapping — grid positions
+  // must never be mistaken for Lo Shu / Bagua directional positions.
+  const VEDIC_VASTU_COMPASS_PLANETS = Object.freeze({ N: 5, NE: 3, E: 1, SE: 6, S: 9, SW: 4, W: 8, NW: 2 });
+  const VEDIC_DASHA_ZONES = Object.freeze({
+    1: "East", 2: "North-West", 3: "North-East", 4: "South-West", 5: "Center (Brahmasthan)",
+    6: "South-East", 7: "North-East / Center Axis", 8: "West", 9: "South"
+  });
   const KARMIC_DEBT_POOL = [13, 14, 16, 19];
 
   /* Vedic Ank Kundali input is deliberately filtered differently from a
@@ -393,6 +400,16 @@
         if (!filtering || ["zeros", "century", "dateDeduplication", "calculations"].some((key) => typeof filtering[key] !== "string")) {
           errs.push("db.vedicGrid.filtering must document zero, century, date de-duplication and calculation rules");
         }
+      }
+      const compass = db.vastu && db.vastu.directions;
+      if (!compass || Object.entries(VEDIC_VASTU_COMPASS_PLANETS).some(([direction, planet]) => !compass[direction] || Number(compass[direction].planet) !== planet)) {
+        errs.push("db.vastu.directions must retain the canonical Vedic planetary compass mapping");
+      }
+      // Dasha zone copy is optional for a slim content pack, but when supplied
+      // it must agree with the same Vedic directional system (including Ketu's
+      // North-East / Center axis) rather than revive a legacy grid axis.
+      if (db.dasha && Object.entries(VEDIC_DASHA_ZONES).some(([number, zone]) => !db.dasha[number] || !db.dasha[number].zone || db.dasha[number].zone.en !== zone)) {
+        errs.push("db.dasha zones must retain the canonical Vedic planetary direction mapping");
       }
       if (db.numbers) {
         for (let i = 1; i <= 9; i++) {
@@ -2596,6 +2613,8 @@
     const copy = vedicGridCopy(getLang());
     const layout = vedicGridConfig(db).layout;
     return layout.flat().map((n) => {
+      // Frequency maps are keyed by their numerological value (1–9), never by
+      // a legacy matrix index. The Vedic layout controls only the coordinate.
       const c = counts[n] || 0;
       const cls = c === 0 ? "missing" : c >= 3 ? "present multi" : "present";
       const digits = c > 0 ? Array(c).fill(n).map((x) => `<span>${x}</span>`).join("") : `<span>${n}</span>`;

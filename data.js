@@ -329,7 +329,9 @@ var DB = {
     "Relationship": [6, 2, 3, 7]
   },
 
-  /* ---- Vastu: 8 zones, ruling planet, best use, doshas & fixes ---- */
+  /* ---- Vastu: 8 zones, ruling planet, best use, doshas & fixes ----
+     These are Vedic planetary compass directions, never Lo Shu grid positions
+     or Bagua axes. Ketu's NE / Center axis is used in the dasha guidance. */
   vastu: {
     directions: {
       "N":  { planet: 5, element: "Earth", label: "North (Mercury)",        best: "Living room, study, office desk, cash locker", worst: "Master bedroom, toilet, heavy storage",
@@ -1092,7 +1094,7 @@ var DB = {
       caution: { en: "Scattered focus and over-trading; finish what you start.",
                  hi: "बिखरा ध्यान और अति-व्यापार; शुरू किया काम पूरा करें।",
                  gu: "વિખરાયેલું ધ્યાન અને અતિ-વેપાર; શરૂ કરેલું કામ પૂરું કરો." },
-      zone: { en: "Centre (Brahmasthan)", hi: "केंद्र (ब्रह्मस्थान)", gu: "કેન્દ્ર (બ્રહ્મસ્થાન)" }, zoneElement: "Space",
+      zone: { en: "Center (Brahmasthan)", hi: "केंद्र (ब्रह्मस्थान)", gu: "કેન્દ્ર (બ્રહ્મસ્થાન)" }, zoneElement: "Space",
       zoneRemedy: { en: "Keep the centre open — free of pillars, heavy items and clutter.",
                     hi: "ब्रह्मस्थान (केंद्र) खुला रखें — खंभे, भारी सामान और अव्यवस्था से मुक्त।",
                     gu: "બ્રહ્મસ્થાન (કેન્દ્ર) ખુલ્લું રાખો — થાંભલા, ભારે સામાન અને અવ્યવસ્થાથી મુક્ત." }
@@ -1122,10 +1124,10 @@ var DB = {
       caution: { en: "Isolation, sudden detachments and confusion in direction; stay anchored to practice.",
                  hi: "एकाकीपन, अचानक विरक्ति और दिशा-भ्रम; साधना से जुड़े रहें।",
                  gu: "એકલતા, અચાનક વિરક્તિ અને દિશા-ભ્રમ; સાધનાથી જોડાયેલા રહો." },
-      zone: { en: "North-East / SW boundary", hi: "ईशान / नैऋत्य सीमा", gu: "ઈશાન / નૈઋત્ય સીમા" }, zoneElement: "Water/Earth",
-      zoneRemedy: { en: "Fix minor leakages; keep transition zones and the prayer corner orderly.",
-                    hi: "छोटे रिसाव ठीक करें; आने-जाने के मार्ग और पूजा-स्थान व्यवस्थित रखें।",
-                    gu: "નાના લીકેજ ઠીક કરો; અવર-જવરના માર્ગ અને પૂજા-સ્થાન વ્યવસ્થિત રાખો." }
+      zone: { en: "North-East / Center Axis", hi: "ईशान / ब्रह्मस्थान अक्ष", gu: "ઈશાન / બ્રહ્મસ્થાન અક્ષ" }, zoneElement: "Water/Space",
+      zoneRemedy: { en: "Keep the Ishanya (NE) and Brahmasthan axis clear, quiet and suitable for prayer, meditation or study.",
+                    hi: "ईशान और ब्रह्मस्थान अक्ष को साफ, शांत और प्रार्थना, ध्यान या अध्ययन के योग्य रखें।",
+                    gu: "ઈશાન અને બ્રહ્મસ્થાન અક્ષને સ્વચ્છ, શાંત અને પ્રાર્થના, ધ્યાન કે અભ્યાસ માટે યોગ્ય રાખો." }
     },
     8: {
       theme: { en: "Karma's ledger — slow, structural and just; discipline converts effort into durable status.",

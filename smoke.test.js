@@ -119,6 +119,7 @@ const checks = [
   ["short mantra in kits", report.includes("Wish-Paper Affirmation") && report.includes("Daily Short Mantra")],
   ["watch section", report.includes("Watch &amp; Wearable Remedy")],
   ["vastu section", report.includes("Vastu Dosh Scan")],
+  ["Vastu labels use Vedic planetary directions", report.includes("Southwest (Rahu)") && report.includes("Northeast (Jupiter)") && report.includes("Northwest (Moon)")],
   ["SW entrance dosh detected", report.includes("Southwest entrance")],
   ["kitchen NE dosh detected", report.includes("Kitchen (fire)")],
   ["goal plans", report.includes("Money — Remedy Plan") && report.includes("Career — Remedy Plan")],
@@ -153,6 +154,10 @@ checks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + nam
 const vedicExample = window.__NV.generateVedicGrid(30, 6, 1986);
 const malformedVedicPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
 malformedVedicPack.db.vedicGrid.layout = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
+const malformedDirectionPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedDirectionPack.db.vastu.directions.NE.planet = 8;
+const malformedDashaDirectionPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
+malformedDashaDirectionPack.db.dasha[7].zone.en = "West";
 const compoundDayGrid = window.__NV.generateVedicGrid(25, 12, 1999);
 const zeroDayGrid = window.__NV.generateVedicGrid(10, 10, 2010);
 const repeatedVedicProfile = window.__NV.computeProfile({
@@ -166,7 +171,7 @@ const vedicExampleProfile = window.__NV.computeProfile({
 const vedicExampleReport = window.__NV.renderReport(vedicExampleProfile);
 const repeatedVedicReport = window.__NV.renderReport(repeatedVedicProfile);
 const vedicGridChecks = [
-  ["bundled Vedic knowledge pack validates and rejects a Lo Shu layout", window.__NV.validatePack(window.__NV_BUNDLED_PACK).ok && !window.__NV.validatePack(malformedVedicPack).ok],
+  ["bundled pack rejects legacy grid or directional mappings", window.__NV.validatePack(window.__NV_BUNDLED_PACK).ok && !window.__NV.validatePack(malformedVedicPack).ok && !window.__NV.validatePack(malformedDirectionPack).ok && !window.__NV.validatePack(malformedDashaDirectionPack).ok],
   ["Vedic template is 3-1-9 / 6-7-5 / 2-8-4", JSON.stringify(vedicExample.layout) === JSON.stringify([[3, 1, 9], [6, 7, 5], [2, 8, 4]]) && JSON.stringify(window.__NV.getActiveDB().vedicGrid.layout) === JSON.stringify([[3, 1, 9], [6, 7, 5], [2, 8, 4]])],
   ["30/06/1986 Moolank and Bhagyank are 3 and 6", vedicExample.rulingNo === 3 && vedicExample.destinyNo === 6],
   ["30/06/1986 plots exactly 3×1, 6×3 and 8×1", vedicExample.counts[3] === 1 && vedicExample.counts[6] === 3 && vedicExample.counts[8] === 1 && Object.entries(vedicExample.counts).filter(([, c]) => c).length === 3],
@@ -178,6 +183,38 @@ const vedicGridChecks = [
   ["3+ repetition still triggers excess, dosha and deity guidance", repeatedVedicProfile.counts[2] === 5 && repeatedVedicProfile.repeated.includes(2) && repeatedVedicProfile.doshaProfile.aggravated.some((a) => a.n === 2 && a.count === 5) && repeatedVedicProfile.deityProfile.repeatedDeity.some((a) => a.n === 2 && a.count === 5) && repeatedVedicReport.includes("Excess Energy") && repeatedVedicReport.includes("Dosha view:") && repeatedVedicReport.includes("Deity view:")]
 ];
 vedicGridChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
+
+// Release-edge sanity checks: flat decades, compound dates, coordinate mapping
+// and the Vedic planetary Vastu directions must never regress to Lo Shu axes.
+const year2000Grid = window.__NV.generateVedicGrid(10, 10, 2000);
+const date19Grid = window.__NV.generateVedicGrid(19, 2, 2000);
+const date28Grid = window.__NV.generateVedicGrid(28, 2, 2000);
+const directDateDays = [1, 9, 10, 20, 30];
+const nameMappingProfile = window.__NV.computeProfile({
+  name: "ACE", dob: "2000-01-10", mobile: "9876543210", goals: ["Money"],
+  entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", study: "unsure", staircase: "unsure", watchType: "none"
+});
+const nameMappingHost = window.document.createElement("div");
+nameMappingHost.innerHTML = window.__NV.renderVedicGrid(nameMappingProfile);
+const mappedGrids = Array.from(nameMappingHost.querySelectorAll(".vedic-grid"));
+const cellsByNumber = (grid) => Object.fromEntries(Array.from(grid.querySelectorAll(".vedic-cell")).map((cell) => [cell.dataset.gridNumber, cell]));
+const nameCells = cellsByNumber(mappedGrids[1]);
+const combinedCells = cellsByNumber(mappedGrids[2]);
+const canonicalVastu = window.__NV_BUNDLED_PACK.db.vastu.directions;
+const vedicCompassMapping = { 1: "E", 2: "NW", 3: "NE", 4: "SW", 5: "N", 6: "SE", 8: "W", 9: "S" };
+const vedicDashaZones = {
+  1: "East", 2: "North-West", 3: "North-East", 4: "South-West", 5: "Center (Brahmasthan)",
+  6: "South-East", 7: "North-East / Center Axis", 8: "West", 9: "South"
+};
+const releaseEdgeChecks = [
+  ["year 2000 has no raw year digits and no NaN/undefined", year2000Grid.raw.yearTail === "00" && year2000Grid.sourceDigits.year.length === 0 && year2000Grid.entries.filter((entry) => entry.source === "year").length === 0 && year2000Grid.digits.join(",") === "1,1,4" && Object.values(year2000Grid.counts).every(Number.isFinite) && !JSON.stringify(year2000Grid).includes("undefined")],
+  ["only direct date identities are de-duplicated", directDateDays.every((day) => window.__NV.generateVedicGrid(day, 1, 2000).excluded.dayDeduplicated) && !date19Grid.excluded.dayDeduplicated && !date28Grid.excluded.dayDeduplicated],
+  ["compound date 19 keeps 1 and 9 and separately adds Moolank 1", date19Grid.sourceDigits.day.join(",") === "1,9" && date19Grid.rulingNo === 1 && date19Grid.destinyNo === 5 && date19Grid.counts[1] === 2 && date19Grid.counts[9] === 1],
+  ["compound date 28 keeps 2 and 8 and separately adds Moolank 1", date28Grid.sourceDigits.day.join(",") === "2,8" && date28Grid.rulingNo === 1 && date28Grid.destinyNo === 5 && date28Grid.counts[1] === 1 && date28Grid.counts[8] === 1],
+  ["Chaldean name and combined values use Vedic number coordinates", mappedGrids.length === 3 && Array.from(mappedGrids[1].querySelectorAll(".vedic-cell")).map((cell) => cell.dataset.gridNumber).join(",") === "3,1,9,6,7,5,2,8,4" && ["1", "3", "5"].every((number) => nameCells[number].classList.contains("present")) && combinedCells["1"].classList.contains("multi") && nameMappingProfile.nameCounts[1] === 1 && nameMappingProfile.nameCounts[3] === 1 && nameMappingProfile.nameCounts[5] === 1],
+  ["Vastu compass and dasha directions use the Vedic planetary mapping", Object.entries(vedicCompassMapping).every(([number, direction]) => canonicalVastu[direction].planet === Number(number)) && Object.entries(vedicDashaZones).every(([number, zone]) => window.__NV_BUNDLED_PACK.db.dasha[number].zone.en === zone)]
+];
+releaseEdgeChecks.forEach(([name, ok]) => { console.log((ok ? "PASS" : "FAIL") + "  " + name); if (!ok) fail++; });
 
 // 40-day tracker interactions: toggle, persist, reset (first profile still on screen)
 const qsa = (s) => Array.from(window.document.querySelectorAll(s));
@@ -217,6 +254,7 @@ const hindiChecks = [
   ["Hindi weak number remedy", rHi.includes("निर्बल ग्रह") || rHi.includes("कमजोर कड़ी को मजबूत करें")],
   ["Hindi watch advice", rHi.includes("घड़ी") && (rHi.includes("धातु") || rHi.includes("डायल"))],
   ["Hindi Vastu dosh", rHi.includes("वास्तु दोष")],
+  ["Hindi Vastu labels use Vedic planetary directions", rHi.includes("नैऋत्य") && rHi.includes("राहु") && rHi.includes("ईशान") && rHi.includes("बृहस्पति") && rHi.includes("वायव्य") && rHi.includes("चंद्रमा")],
   ["Hindi no undefined leaks", !rHi.includes("undefined")],
   ["Hindi no NaN leaks", !rHi.includes("NaN")],
   ["Hindi karmic + pinnacle titles", rHi.includes("कर्मऋण जाँच") && rHi.includes("जीवन के चार चरण")],
@@ -247,6 +285,7 @@ const gujaratiChecks = [
   ["Gujarati weak number remedy", rGu.includes("નિર્બળ ગ્રહ") || rGu.includes("નબળી કડીને બળવાન બનાવો")],
   ["Gujarati watch advice", (rGu.includes("કાંડા ઘડિયાળ") || rGu.includes("ઘડિયાળ")) && (rGu.includes("ધાતુ") || rGu.includes("ડાયલ"))],
   ["Gujarati Vastu dosh", rGu.includes("વાસ્તુ દોષ")],
+  ["Gujarati Vastu labels use Vedic planetary directions", rGu.includes("નૈઋત્ય") && rGu.includes("રાહુ") && rGu.includes("ઇશાન") && rGu.includes("બૃહસ્પતિ") && rGu.includes("વાયવ્ય") && rGu.includes("ચંદ્ર")],
   ["Gujarati no undefined leaks", !rGu.includes("undefined")],
   ["Gujarati no NaN leaks", !rGu.includes("NaN")],
   ["Gujarati karmic + pinnacle titles", rGu.includes("કર્મઋણ તપાસ") && rGu.includes("જીવનના ચાર તબક્કા")],

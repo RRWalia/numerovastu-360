@@ -2875,7 +2875,7 @@
           "gu": "વિખરાયેલું ધ્યાન અને અતિ-વેપાર; શરૂ કરેલું કામ પૂરું કરો."
         },
         "zone": {
-          "en": "Centre (Brahmasthan)",
+          "en": "Center (Brahmasthan)",
           "hi": "केंद्र (ब्रह्मस्थान)",
           "gu": "કેન્દ્ર (બ્રહ્મસ્થાન)"
         },
@@ -2931,15 +2931,15 @@
           "gu": "એકલતા, અચાનક વિરક્તિ અને દિશા-ભ્રમ; સાધનાથી જોડાયેલા રહો."
         },
         "zone": {
-          "en": "North-East / SW boundary",
-          "hi": "ईशान / नैऋत्य सीमा",
-          "gu": "ઈશાન / નૈઋત્ય સીમા"
+          "en": "North-East / Center Axis",
+          "hi": "ईशान / ब्रह्मस्थान अक्ष",
+          "gu": "ઈશાન / બ્રહ્મસ્થાન અક્ષ"
         },
-        "zoneElement": "Water/Earth",
+        "zoneElement": "Water/Space",
         "zoneRemedy": {
-          "en": "Fix minor leakages; keep transition zones and the prayer corner orderly.",
-          "hi": "छोटे रिसाव ठीक करें; आने-जाने के मार्ग और पूजा-स्थान व्यवस्थित रखें।",
-          "gu": "નાના લીકેજ ઠીક કરો; અવર-જવરના માર્ગ અને પૂજા-સ્થાન વ્યવસ્થિત રાખો."
+          "en": "Keep the Ishanya (NE) and Brahmasthan axis clear, quiet and suitable for prayer, meditation or study.",
+          "hi": "ईशान और ब्रह्मस्थान अक्ष को साफ, शांत और प्रार्थना, ध्यान या अध्ययन के योग्य रखें।",
+          "gu": "ઈશાન અને બ્રહ્મસ્થાન અક્ષને સ્વચ્છ, શાંત અને પ્રાર્થના, ધ્યાન કે અભ્યાસ માટે યોગ્ય રાખો."
         }
       },
       "8": {

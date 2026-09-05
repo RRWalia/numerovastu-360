@@ -51,6 +51,26 @@ not duplicated, the month contributes `6`, the year contributes its final two
 digits `8` and `6`, and the two calculated numbers are added. The plotted
 frequency is therefore `3×1`, `6×3` and `8×1`.
 
+## Vedic planetary Vastu alignment
+
+NumeroVastu's room guidance and active-dasha zone callouts use the Vedic
+planetary directions below, rather than Lo Shu or Bagua axes:
+
+| Number | Vedic planet | Vastu direction |
+| --- | --- | --- |
+| 3 | Jupiter (Guru) | North-East (Ishanya) |
+| 1 | Sun (Surya) | East (Purva) |
+| 9 | Mars (Mangal) | South (Dakshin) |
+| 6 | Venus (Shukra) | South-East (Agneya) |
+| 7 | Ketu | North-East / Center Axis |
+| 5 | Mercury (Budh) | Center (Brahmasthan) / North |
+| 2 | Moon (Chandra) | North-West (Vayavya) |
+| 8 | Saturn (Shani) | West (Paschim) |
+| 4 | Rahu | South-West (Nairutya) |
+
+The optional **Kua** card remains explicitly labelled as a separate Feng Shui
+feature; it does not drive Vedic Vastu room recommendations.
+
 ---
 
 ## Privacy
