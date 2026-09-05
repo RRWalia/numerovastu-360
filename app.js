@@ -292,8 +292,11 @@
     const map = db.deity || (window.DB && window.DB.deity) || {};
     const driverDeity = map[src.driver] || null;
     const conductorDeity = map[src.conductor] || null;
-    const sameDeity = !!(driverDeity && conductorDeity && driverDeity.god && conductorDeity.god &&
-      driverDeity.god.en === conductorDeity.god.en && driverDeity.mantra === conductorDeity.mantra);
+    const getGodName = (d) => d && (d.archetypes ? (d.archetypes.en || d.archetypes) : (d.god ? (d.god.en || d.god) : ""));
+    const sameDeity = !!(driverDeity && conductorDeity &&
+      getGodName(driverDeity) && getGodName(conductorDeity) &&
+      getGodName(driverDeity) === getGodName(conductorDeity) &&
+      driverDeity.mantra === conductorDeity.mantra);
     return {
       driverNumber: src.driver,
       conductorNumber: src.conductor,
@@ -2773,20 +2776,78 @@
 
   /* Deity Protection Layer — Ishta Devta card. Names the guardian deity
      (ishta devta) behind the Driver and Conductor numbers, with the
-     classical mantra, the daily 11× chant, the 108× round, offerings and
-     support materials. Framed as traditional spiritual guidance: the
+     guiding archetypes, short mantra, cadence & day, offerings and
+     presentation copy. Framed as traditional spiritual guidance: the
      reader's own family tradition and guru's instruction take priority. */
   function deityCard(p) {
     const dp = p.deityProfile || {};
     const db = getActiveDB();
     const lang = getLang();
-    const L = (obj) => obj ? obj[lang] || obj.en || "" : "";
+    const L = (obj) => {
+      if (!obj) return "";
+      if (typeof obj === "string") return obj;
+      return obj[lang] || obj.en || "";
+    };
     const guardians = [];
-    if (dp.driverDeity) guardians.push({ n: dp.driverNumber, role: lang === "hi" ? "ड्राइवर / मूलांक" : lang === "gu" ? "ડ્રાઈવર / મૂળાંક" : "Driver / Moolank", deity: dp.driverDeity });
-    if (dp.conductorDeity && !dp.sameDeity) guardians.push({ n: dp.conductorNumber, role: lang === "hi" ? "कंडक्टर / भाग्यांक" : lang === "gu" ? "કન્ડક્ટર / ભાગ્યાંક" : "Conductor / Bhagyank", deity: dp.conductorDeity });
-    const rows = guardians.map((guard) => `<div class="kit-row"><div class="kit-ico"><strong>${guard.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(guard.role)} · ${esc(db.numbers[guard.n].planet.split(" ")[0])}</div><div class="kit-value"><strong>${esc(L(guard.deity.god))}</strong> — <span class="mantra">${esc(guard.deity.mantra)}</span></div><div class="card-sub">${esc(L(guard.deity.primaryChant))} · ${esc(L(guard.deity.weeklyChant))}</div><div class="card-sub">${esc(L(guard.deity.offerings))}</div></div></div>`).join("");
-    const badge = dp.sameDeity ? L(dp.driverDeity && dp.driverDeity.god) : guardians.map((g) => L(g.deity.god)).join(" · ");
-    return `<div class="card" id="deity-card" data-authority="driver-conductor"><div class="goal-head"><div class="card-title">${lang === "hi" ? "देव-संरक्षण स्तर — आपका इष्ट देवता" : lang === "gu" ? "દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા" : "Deity Protection Layer — Your Ishta Devta"}</div><span class="badge">${esc(badge)}</span></div><div class="card-sub">${lang === "hi" ? "रक्षक देव केवल आपके मूलांक और भाग्यांक से चुने जाते हैं। लो शू और उन्नत वैदिक तुलना इस चयन को नहीं बदलते।" : lang === "gu" ? "રક્ષક દેવ ફક્ત તમારા મૂળાંક અને ભાગ્યાંકથી પસંદ થાય છે. લો શુ અને ઉન્નત વૈદિક તુલના આ પસંદગી બદલતી નથી." : "Guardian deities are selected only from your Driver and Conductor. Lo Shu and the advanced Vedic comparison never change this selection."}</div><div class="kit">${rows}</div>${dp.sameDeity ? `<div class="kit-value">${lang === "hi" ? "एक ही इष्ट देव दोनों मुख्य अंकों का सहारा हैं।" : lang === "gu" ? "એક જ ઇષ્ટ દેવ બંને મુખ્ય અંકોનો સહારો છે." : "One ishta devta supports both of your key numbers."}</div>` : ""}<div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "यह पारंपरिक आध्यात्मिक मार्गदर्शन है; अपनी कुल-परंपरा और गुरु की शिक्षा को प्राथमिकता दें।" : lang === "gu" ? "આ પરંપરાગત આધ્યાત્મિક માર્ગદર્શન છે; તમારી કુળ-પરંપરા અને ગુરુની શિક્ષાને પ્રાથમિકતા આપો." : "This is traditional spiritual guidance; give priority to your family tradition and guru's instruction."}</div></div>`;
+    if (dp.driverDeity) {
+      guardians.push({
+        n: dp.driverNumber,
+        role: dp.sameDeity && dp.driverNumber === dp.conductorNumber
+          ? (lang === "hi" ? "ड्राइवर व कंडक्टर / मूलांक व भाग्यांक" : lang === "gu" ? "ડ્રાઈવર અને કન્ડક્ટર / મૂળાંક અને ભાગ્યાંક" : "Driver & Conductor / Moolank & Bhagyank")
+          : (lang === "hi" ? "ड्राइवर / मूलांक" : lang === "gu" ? "ડ્રાઈવર / મૂળાંક" : "Driver / Moolank"),
+        deity: dp.driverDeity
+      });
+    }
+    if (dp.conductorDeity && !dp.sameDeity) {
+      guardians.push({
+        n: dp.conductorNumber,
+        role: lang === "hi" ? "कंडक्टर / भाग्यांक" : lang === "gu" ? "કન્ડક્ટર / ભાગ્યાંક" : "Conductor / Bhagyank",
+        deity: dp.conductorDeity
+      });
+    }
+
+    const rows = guardians.map((guard) => {
+      const numInfo = (db.numbers && db.numbers[guard.n]) || {};
+      const planetName = numInfo.planet || "";
+      const archetypes = L(guard.deity.archetypes || guard.deity.god);
+      const mantra = guard.deity.mantra || "";
+      const cadence = L(guard.deity.cadence) || [L(guard.deity.primaryChant), L(guard.deity.weeklyChant)].filter(Boolean).join(" · ");
+      const offerings = L(guard.deity.offerings);
+      const presCopy = L(guard.deity.presentationCopy || guard.deity.protectionNote);
+
+      const archetypesLabel = lang === "hi" ? "मार्गदर्शक स्वरूप:" : lang === "gu" ? "માર્ગદર્શક સ્વરૂપ:" : "Guiding Archetypes:";
+      const mantraLabel = lang === "hi" ? "लघु मंत्र:" : lang === "gu" ? "લઘુ મંત્ર:" : "Short Mantra:";
+      const cadenceLabel = lang === "hi" ? "जाप क्रम व वार:" : lang === "gu" ? "જાપ ક્રમ અને વાર:" : "Cadence & Day:";
+      const offeringsLabel = lang === "hi" ? "भोग व अर्पण:" : lang === "gu" ? "ભોગ અને અર્પણ:" : "Offerings:";
+      const presLabel = lang === "hi" ? "स्वरूप मार्गदर्शन:" : lang === "gu" ? "સ્વરૂપ માર્ગદર્શન:" : "Archetype Guidance:";
+
+      return `<div class="kit-row">
+        <div class="kit-ico"><strong>${guard.n}</strong></div>
+        <div class="kit-body">
+          <div class="kit-label">${esc(guard.role)} · Number ${guard.n} — ${esc(planetName)}</div>
+          <div class="kit-value"><strong>${archetypesLabel}</strong> <strong>${esc(archetypes)}</strong></div>
+          <div class="kit-value"><strong>${mantraLabel}</strong> <span class="mantra">${esc(mantra)}</span></div>
+          <div class="card-sub"><strong>${cadenceLabel}</strong> ${esc(cadence)}</div>
+          <div class="card-sub"><strong>${offeringsLabel}</strong> ${esc(offerings)}</div>
+          ${presCopy ? `<div class="card-sub" style="margin-top:4px;"><strong>${presLabel}</strong> <em>${esc(presCopy)}</em></div>` : ""}
+        </div>
+      </div>`;
+    }).join("");
+
+    const badge = dp.sameDeity
+      ? L(dp.driverDeity && (dp.driverDeity.archetypes || dp.driverDeity.god))
+      : guardians.map((g) => L(g.deity.archetypes || g.deity.god)).join(" · ");
+
+    return `<div class="card" id="deity-card" data-authority="driver-conductor">
+      <div class="goal-head">
+        <div class="card-title">${lang === "hi" ? "देव-संरक्षण स्तर — आपका इष्ट देवता" : lang === "gu" ? "દેવ-સંરક્ષણ સ્તર — તમારો ઈષ્ટ દેવતા" : "Deity Protection Layer — Your Ishta Devta"}</div>
+        <span class="badge">${esc(badge)}</span>
+      </div>
+      <div class="card-sub">${lang === "hi" ? "रक्षक देव केवल आपके मूलांक और भाग्यांक से चुने जाते हैं। लो शू और उन्नत वैदिक तुलना इस चयन को नहीं बदलते।" : lang === "gu" ? "રક્ષક દેવ ફક્ત તમારા મૂળાંક અને ભાગ્યાંકથી પસંદ થાય છે. લો શુ અને ઉન્નત વૈદિક તુલના આ પસંદગી બદલતી નથી." : "Guardian deities are selected only from your Driver and Conductor. Lo Shu and the advanced Vedic comparison never change this selection."}</div>
+      <div class="kit">${rows}</div>
+      ${dp.sameDeity ? `<div class="kit-value">${lang === "hi" ? "एक ही इष्ट देव दोनों मुख्य अंकों का सहारा हैं।" : lang === "gu" ? "એક જ ઇષ્ટ દેવ બંને મુખ્ય અંકોનો સહારો છે." : "One ishta devta supports both of your key numbers."}</div>` : ""}
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "यह पारंपरिक आध्यात्मिक मार्गदर्शन है; अपनी कुल-परंपरा और गुरु की शिक्षा को प्राथमिकता दें।" : lang === "gu" ? "આ પરંપરાગત આધ્યાત્મિક માર્ગદર્શન છે; તમારી કુળ-પરંપરા અને ગુરુની શિક્ષાને પ્રાથમિકતા આપો." : "This is traditional spiritual guidance; give priority to your family tradition and guru's instruction."}</div>
+    </div>`;
   }
 
   function gridConfigIsCanonical(layout, canonical) {

@@ -103,6 +103,33 @@ const activeLord = baseDasha.current.ad.n;
 const expectedZone = window.__NV.getActiveDB().dasha[activeLord].zone.en;
 check("Ayurvedic constitution derives only from Driver/Conductor", same(authorityProfile.doshaProfile, alteredGridProfile.doshaProfile) && !("aggravated" in authorityProfile.doshaProfile) && !("underSupported" in authorityProfile.doshaProfile));
 check("guardian deities derive only from Driver/Conductor", same(authorityProfile.deityProfile, alteredGridProfile.deityProfile) && !("repeatedDeity" in authorityProfile.deityProfile) && !("underSupported" in authorityProfile.deityProfile));
+const authorityDeityCard = $("#deity-card", authorityReportDom);
+check("deity card scaffolds guiding archetypes, mantra, cadence, offerings and archetype guidance",
+  !!authorityDeityCard &&
+  authorityDeityCard.textContent.includes("Guiding Archetypes:") &&
+  authorityDeityCard.textContent.includes("Short Mantra:") &&
+  authorityDeityCard.textContent.includes("Cadence & Day:") &&
+  authorityDeityCard.textContent.includes("Offerings:") &&
+  authorityDeityCard.textContent.includes("Lord Vishnu / Lord Dakshinamurthy") &&
+  authorityDeityCard.textContent.includes("Maa Lakshmi / Goddess Katyayani")
+);
+const activeDb = window.__NV.getActiveDB();
+const expectedDeities = [
+  { n: 1, arch: "Surya Narayana / Lord Rama", mantra: "ॐ घृणिः सूर्याय नमः (Om Ghrinih Suryaya Namah)", cadence: "11× at sunrise · 108× on Sundays", offerings: "Fresh water in a copper vessel (Arghya), red flowers, jaggery, or wheat" },
+  { n: 2, arch: "Lord Shiva (Chandrashekhara) / Goddess Gauri (Parvati)", mantra: "ॐ नमः शिवाय (Om Namah Shivaya)", cadence: "11× morning on an empty stomach · 108× on Mondays", offerings: "Pure water, raw milk, white flowers, and bilva leaves" },
+  { n: 3, arch: "Lord Vishnu / Lord Dakshinamurthy", mantra: "ॐ नमो भगवते वासुदेवाय (Om Namo Bhagavate Vasudevaya)", cadence: "11× before study, teaching, or major decisions · 108× on Thursdays", offerings: "Chana dal, yellow flowers, turmeric, tulsi leaves, and panak (honey water)" },
+  { n: 4, arch: "Maa Durga / Lord Bhairava", mantra: "ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)", cadence: "11× when plans feel erratic or overwhelming · 108× on Saturdays", offerings: "Kumkum, red flowers, sesame oil lamp, or feeding stray dogs" },
+  { n: 5, arch: "Lord Ganesha / Lord Vishnu", mantra: "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)", cadence: "11× before commercial negotiations, writing, or calculations · 108× on Wednesdays", offerings: "Fresh green Durva grass, modak, green moong, or stationery donation" },
+  { n: 6, arch: "Maa Lakshmi / Goddess Katyayani", mantra: "ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)", cadence: "11× morning before work · 108× on Fridays", offerings: "White or pink flowers (rose/lotus), kheer, white sweets, and fine natural scents" },
+  { n: 7, arch: "Lord Ganesha / Shri Hanuman", mantra: "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)", cadence: "11× when facing isolation or mental confusion · 108× on Tuesdays or Saturdays", offerings: "21 Durva blades, red tilak, modak, or sesame oil lamp" },
+  { n: 8, arch: "Shri Hanuman / Lord Shiva (Mahakaal)", mantra: "ॐ शं शनैश्चराय नमः (Om Sham Shanaischaraya Namah) or Hanuman Chalisa", cadence: "11× morning · 108× (or 1 Chalisa recital) on Saturdays", offerings: "Mustard oil lamp, black sesame seeds, and blue/dark flowers" },
+  { n: 9, arch: "Maa Durga / Shri Hanuman (Lord Kartikeya)", mantra: "ॐ हं हनुमते नमः (Om Hum Hanumate Namah) or ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)", cadence: "11× for courage before physical effort or confrontation · 108× on Tuesdays", offerings: "Red sindoor, jasmine oil lamp, jaggery with roasted gram, and red hibiscus" }
+];
+const all9Match = expectedDeities.every((exp) => {
+  const d = activeDb.deity[exp.n];
+  return d && d.archetypes && d.archetypes.en === exp.arch && d.mantra === exp.mantra && d.cadence.en === exp.cadence && d.offerings.en === exp.offerings && d.presentationCopy && d.presentationCopy.en.length > 20;
+});
+check("all 9 numbers scaffold exact guiding archetypes, mantras, cadences, offerings and presentation copy", all9Match);
 check("Lo Shu alone chooses 40-day practice, lifestyle and remedial crystals", basePractice.targetN !== alteredPractice.targetN && !same(basePractice.daily, alteredPractice.daily) && same(basePractice.powerDays, alteredPractice.powerDays) && baseCrystals.remedyNumbers.join(",") === authorityProfile.loShuMissing.join(",") && alteredCrystals.remedyNumbers.length === 0 && alteredCrystals.picks.length === 0);
 const stripGrade = (events) => events.map((event) => event.future.map((w) => Object.assign({}, w, { conversion: null })));
 const gradesOf = (events) => events.flatMap((event) => event.future.map((w) => w.conversion.grade));
