@@ -53,7 +53,8 @@ Foundation is the initial personality and practice dashboard. It includes:
 - missing-number remedy kits and repeated-number channeling;
 - Lo Shu-led mantras, affirmations, crystals, Rudraksha and habits;
 - a Lo Shu-led 40-day activation tracker;
-- an **Advanced Vedic Comparison** for the Vedic birth grid only (expanded so it prints), with one interpretive card per Vedic plane.
+- an **Advanced Vedic Comparison** for the Vedic birth grid only (expanded so it prints), with one interpretive card per Vedic plane;
+- **4A Vedic Plane Harmonization — Elemental Tattva Balancing**: physical, breathwork and herbal anchors for Vedic planes that are Partly Active or Deficient (complete planes are omitted).
 
 The Name and Combined grids use the same Lo Shu coordinates as the Birth Grid.
 They do **not** create Vedic Name or Vedic Combined grids.
@@ -113,7 +114,10 @@ engine:
 - it renders only the **Vedic Birth Grid**;
 - its count differences are labelled **Planetary Strength Indicators**;
 - absent/repeated Vedic indicators do not create missing-number remedies,
-  crystals, or another 40-day checklist.
+  crystals, or another 40-day checklist;
+- Section 4A may add breath, herbal-bath, aroma, water and sunlight anchors for
+  those same planes when they are not fully active — never fasts, rings,
+  crystals or a second mantra/mandala stack.
 
 ## Authority boundaries
 

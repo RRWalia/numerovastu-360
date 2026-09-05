@@ -31,6 +31,7 @@ This table is both a product decision and a regression boundary.
 | Power days | Driver + Conductor | Lo Shu, Vedic comparison |
 | Missing/repeated remedies | Lo Shu Birth Grid | Vedic comparison, Dasha, zodiac |
 | Crystals, Rudraksha, affirmations and habits for remedies | Lo Shu Birth Grid | Driver/Conductor, Vedic comparison, Dasha, zodiac |
+| Bio-energetic Tattva anchors (breath, herbal bath, aroma, water, sunlight) | Vedic birth planes that are Partly Active or Deficient (`data-authority="vedic-tattva"`) | Complete Vedic planes, Lo Shu kits, crystals, Dasha timing |
 | 40-day activation target and practice | Lo Shu Birth Grid | Home scan, Dasha, dosha and deity cards |
 | Dasha dates and event windows | Dasha engine | Both grids |
 | Dynamic Active Vastu Zone | Active Dasha lords + Vedic compass mapping | Both grids, static room scan, Kua |
@@ -96,7 +97,9 @@ The comparison renderer is deliberately constrained to:
 - an explanation of its filtered plotting sources.
 
 It must not render Vedic Name/Combined grids or turn absent Vedic indicators
-into a remedy list.
+into a Lo Shu-style remedy list (mantras, minerals, mandalas). Section 4A may
+add Dinacharya / Aushadhi / Pranayama anchors for planes that are Partly Active
+or Deficient; complete planes stay silent.
 
 ### 3.3 Dasha engine
 
@@ -151,6 +154,7 @@ Report
 │   ├── Lo Shu Birth / Name / Combined grids
 │   ├── Lo Shu planes, arrows, missing kits and repeated channeling
 │   ├── Advanced Vedic Comparison (open so it prints; birth grid + three plane readings)
+│   ├── 4A Vedic Plane Harmonization — Elemental Tattva Balancing (cards only for partial/empty planes)
 │   ├── Supporting identity / career / colour / Kua features
 │   └── Lo Shu 40-day activation plan + separate Driver/Conductor power-day reference
 └── Timeline · Vedic Dasha
@@ -303,6 +307,7 @@ There is no generic downstream `profile.counts` or `profile.missing` field.
   direct-date filtering differences;
 - Lo Shu Name/Combined coordinate mapping;
 - advanced Vedic birth-only behavior (printable, with plane readings, no remedy list);
+- Section 4A Tattva cards only for partial/empty Vedic planes, with no fasts, crystals or Lo Shu mandala stack;
 - Dasha and Vastu timing independence from both grids;
 - all authority boundaries, including Lo Shu-only 40-day/crystal selection and
   non-prescriptive Compatibility output;

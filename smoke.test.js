@@ -229,6 +229,24 @@ check("Vedic planes receive qualitative readings", planeCards.length === 3 && pl
 const emptyMaterial = window.__NV.vedicPlaneReadings(Object.assign({}, waliaProfile, { vedicCounts: Object.assign({}, waliaProfile.vedicCounts, { 7: 0 }) }), "en");
 check("empty and complete plane states get dedicated sentences", emptyMaterial.find((pl) => pl.key === "materialistic").state === "empty" && /empty Material Plane/i.test(emptyMaterial.find((pl) => pl.key === "materialistic").reading) && window.__NV.vedicPlaneReadings(alteredGridProfile, "en").every((pl) => pl.state === "empty") && !/Vedic remedy/.test(waliaVedic.textContent));
 
+const waliaTattva = window.__NV.vedicTattvaAnchors(waliaProfile, "en");
+const waliaTattvaDom = mount(window.__NV.renderVedicTattvaSection(waliaProfile));
+const tattvaCards = $$(".tattva-card", waliaTattvaDom);
+const tattvaByKey = Object.fromEntries(tattvaCards.map((c) => [c.dataset.vedicPlane, c]));
+const tattvaText = waliaTattvaDom.textContent;
+check("Walia 4A emits Tattva cards only for partial or empty Vedic planes", waliaTattva.length === 3 && waliaTattva.every((pl) => pl.state === "partial") && tattvaCards.length === 3 && $("#tattva-section", waliaTattvaDom).getAttribute("data-authority") === "vedic-tattva" && /4A/.test($(".idx", waliaTattvaDom).textContent) && tattvaText.includes("Vedic Plane Harmonization — Elemental Tattva Balancing") && tattvaText.includes("without adding ritual fatigue"));
+check("Tattva kits map Practical Agni, Materialistic Vayu and Emotional Jala", tattvaByKey.practical.textContent.includes("Agni / Fire Tattva") && /Surya Bhedana/.test(tattvaByKey.practical.textContent) && tattvaByKey.materialistic.textContent.includes("Vayu / Air Tattva") && /Nadi Shodhana/.test(tattvaByKey.materialistic.textContent) && tattvaByKey.emotional.textContent.includes("Jala / Water") && /Chandra Bhedana/.test(tattvaByKey.emotional.textContent) && /Behavioral Micro-Habit/.test(tattvaText) && /Aushadhi Snan/.test(tattvaText));
+check("Tattva 4A never adds ritual, mineral or Lo Shu mandala stack", !/Vedic remedy/.test(tattvaText) && !/fast/i.test(tattvaText) && !/crystal/i.test(tattvaText) && !/rudraksha/i.test(tattvaText) && !/yantra/i.test(tattvaText) && !/beej/i.test(tattvaText) && !/\bring\b/i.test(tattvaText) && !/mala/i.test(tattvaText));
+const completePractical = Object.assign({}, waliaProfile, { vedicCounts: Object.assign({}, waliaProfile.vedicCounts, { 3: 1, 1: 1, 9: 1 }) });
+const completePracticalDom = mount(window.__NV.renderVedicTattvaSection(completePractical));
+check("complete Practical plane suppresses the Agni Tattva card", window.__NV.vedicTattvaAnchors(completePractical, "en").every((pl) => pl.key !== "practical") && !$$(".tattva-card", completePracticalDom).some((c) => c.dataset.vedicPlane === "practical") && $$(".tattva-card", completePracticalDom).length === 2);
+const allCompleteCounts = {};
+for (let n = 1; n <= 9; n++) allCompleteCounts[n] = 1;
+const allCompleteDom = mount(window.__NV.renderVedicTattvaSection(Object.assign({}, waliaProfile, { vedicCounts: allCompleteCounts })));
+check("4A is omitted when every Vedic plane is complete", window.__NV.vedicTattvaAnchors(Object.assign({}, waliaProfile, { vedicCounts: allCompleteCounts }), "en").length === 0 && allCompleteDom.innerHTML.trim() === "");
+const emptyTattva = window.__NV.vedicTattvaAnchors(Object.assign({}, waliaProfile, { vedicCounts: Object.assign({}, waliaProfile.vedicCounts, { 6: 0, 7: 0, 5: 0 }) }), "en");
+check("empty Material plane still receives a Deficient Vayu card", emptyTattva.find((pl) => pl.key === "materialistic").state === "empty" && /Deficient/.test(mount(window.__NV.renderVedicTattvaSection(Object.assign({}, waliaProfile, { vedicCounts: Object.assign({}, waliaProfile.vedicCounts, { 6: 0, 7: 0, 5: 0 }) }))).textContent));
+
 /* ---- Pack shape and canonical mappings ---- */
 const validPack = window.__NV.validatePack(window.__NV_BUNDLED_PACK);
 const malformedLoShu = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
@@ -285,6 +303,7 @@ for (const language of ["hi", "gu"]) {
 }
 check("mobile timeline navigation remains horizontally reachable", /@media \(max-width: 640px\)/.test(styles) && /\.report-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles) && /\.timeline-anchor-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles));
 check("print/PDF expands both panels and the collapsed Vedic comparison", /@media print/.test(styles) && /\.report-module-panel\[hidden\] \{ display: flex !important; \}/.test(styles) && /\.advanced-vedic-comparison:not\(\[open\]\) > \.details-body \{ display: flex !important; \}/.test(styles));
+check("print CSS keeps Tattva cards intact", /\.tattva-card/.test(styles) && /#tattva-section \{ break-inside: auto; page-break-inside: auto; \}/.test(styles));
 check("Compatibility print layout keeps its overview and relational rows together", styles.includes("#compatibility-section { display: block; break-inside: auto; page-break-inside: auto; }") && styles.includes("#compatibility-section > * + * { margin-top: 16px; }") && styles.includes("#compatibility-section .compatibility-overview,") && styles.includes("#compatibility-section .compatibility-reflection-intro,") && styles.includes("#compatibility-section .kit-row,") && styles.includes("break-inside: avoid-page;") && styles.includes("#compatibility-section #compatibility-reflection { display: block; break-inside: auto; page-break-inside: auto; }"));
 
 /* ---- Vedic ephemeris guardrail (restored): Meeus engine vs VSOP87 ----
