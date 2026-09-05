@@ -366,6 +366,8 @@ const nakUnitChecks = [
   ["atlas entries structurally sound", NA.cities().every((r) => Array.isArray(r) && r.length === 8 && Math.abs(r[4]) <= 90 && Math.abs(r[5]) <= 180 && r[6] >= -12 && r[6] <= 14 && typeof r[7] === "boolean")],
   ["core cityNames stay curated", NA.cityNames().length >= 600 && NA.cityNames().length < 2000],
   ["India atlas ingested", typeof NA.atlasSize === "function" && NA.atlasSize() > 6000],
+  ["index.html wires the India atlas script tag", html.includes('<script src="atlas/atlas-in.js"></script>')],
+  ["short query Et ranks Etah/Etawah without substring noise", (() => { const top = NA.searchPlaces("Et", 12); return top.length >= 2 && top[0].name === "Etah" && top[1].name === "Etawah" && !top.some((h) => /Detroit|Ethiopia|Basseterre/.test(h.name)); })()],
   ["Faridabad core coords preserved", NA.matchPlace("Faridabad") && Math.abs(NA.matchPlace("Faridabad").lat - 28.4089) < 1e-4 && Math.abs(NA.matchPlace("Faridabad").lon - 77.3178) < 1e-4],
   ["birthPlace datalist stays empty until prefix search", $("#birthPlaceList") && $("#birthPlaceList").children.length === 0],
   ["manual lat/lon override unlocks place", (() => {
