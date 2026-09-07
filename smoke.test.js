@@ -636,6 +636,30 @@ check("non-Pitta repeated Sun gets cooling habits but not dosha/Agni overlays", 
 const minorCockpitDom = mount(window.__NV.renderPractitionerCockpit(minorSim));
 check("cockpit surfaces age and both safety guardrails for a minor", /age 15/.test(minorCockpitDom.textContent) && !!$('[data-cockpit-guardrail="under-18"]', minorCockpitDom) && !!$('[data-cockpit-guardrail="solar"]', minorCockpitDom));
 
+/* ---- Page 36 ↔ Remedy Triage alignment (Daily Core Ritual blocker) ----
+   Historical bug: the ritual card took the first critical missing number
+   (missing[0] → Ketu 7) while the triage card beside it prescribed Mars 9
+   as the sole acute target with Ketu held. The plan now binds to the
+   triage engine: acute Tier-1 number leads the ritual; when nothing
+   missing is live, japa is held explicitly instead of contradicting. */
+const simRawTargets = window.__NV.loShuPracticeTargets(simardeep);
+check("raw Lo Shu gap order still starts at Ketu 7 (documents the old mismatch input)", simRawTargets.primary === 7);
+const simTriage = window.__NV.remedyTriage(simardeep);
+const simPlan = window.__NV.activationPlan(simardeep, simTriage);
+check("daily core ritual binds to the triage Tier-1 target instead of missing[0]", simPlan.targetN === simTriage.tier1.n && simPlan.targetN !== simRawTargets.primary);
+check("acute plan carries the sync note and tier metadata", simPlan.acute === (simTriage.tier1.mode === "acute") && simPlan.tier1Mode === simTriage.tier1.mode && /Synced with the Remedy Triage/.test(simPlan.triageNote));
+const simRitualDom = $(".ritual-card", mount(window.__NV.renderReport(simardeep)));
+const simRitualText = simRitualDom.textContent;
+const tier1Short = window.__NV.getActiveDB().mantraShort[simTriage.tier1.n];
+check("Page 36 chants the Tier-1 short mantra", simRitualText.includes(tier1Short.dev) && simRitualText.includes(tier1Short.pron) && simRitualDom.dataset.ritualTarget === String(simTriage.tier1.n));
+check("Page 36 ritual target equals the triage card's acute number", $("#remedy-triage", mount(window.__NV.renderReport(simardeep))).dataset.tier1Number === simRitualDom.dataset.ritualTarget && $('[data-ritual-sync]', simRitualDom).dataset.ritualSync === simTriage.tier1.mode);
+if (simTriage.tier1.mode === "acute" && simTriage.tier1.n === 9) {
+  check("Simardeep Page 36 prescribes Om Mangalaya Namah (Mars 9), never Om Ketave Namah (Ketu 7)", simRitualText.includes("ॐ मंगलाय नमः") && simRitualText.includes("Om Mangalaya Namah") && !simRitualText.includes("ॐ केतवे नमः") && !simRitualText.includes("Om Ketave Namah"));
+}
+const heldPlan = window.__NV.activationPlan(authorityProfile, { tier1: { mode: "environmental", n: 2, planet: "Moon (Chandra)", reasons: ["No missing number is live in the current stack"], japa: "Hold japa — no beej mantra is clinically indicated this period", zone: "North-West", zoneRemedy: "Keep the North-West clutter-free; add brass decor and check stored water." }, tier2: [] });
+check("environmental tier-1 holds japa instead of chanting a non-live missing number", heldPlan.holdJapa === true && /japa on hold/.test(heldPlan.daily[0].label) && /Hold japa/.test(heldPlan.daily[0].value) && !/<span class="mantra">/.test(heldPlan.daily[0].value) && /North-West/.test(heldPlan.daily[0].sub));
+check("maintenance-tier plans keep the classic Lo Shu primary unchanged", window.__NV.activationPlan(alteredGridProfile).targetN === window.__NV.loShuPracticeTargets(alteredGridProfile).primary);
+
 /* Reference chart authored through the new dd-mm-yyyy text field. */
 $("#editBtn").click();
 $("#fullName").value = "Randeep Walia";
