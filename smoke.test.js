@@ -541,6 +541,47 @@ check("dob input: live mask turns bare digits into dd-mm-yyyy", maskedDd === "05
 check("dob input: live mask does not mangle a pasted yyyy-mm-dd ISO", isoUnmangled === "2005-08-20");
 check("dob input: live mask leaves typed dd-mm-yyyy intact", typedDd === "05-08-1976");
 
+/* ---- Mobile number remedy: the ideal total list must never be blank ----
+   A total friendly to *both* birth numbers does not exist for 24 of the 81
+   Driver×Conductor pairs (Driver 6 × Conductor 1 among them), which used to
+   render "pick one whose digits total ." — the highest-impact remedy in the
+   report with no number in it. The engine must fall back rather than go quiet,
+   and must never recommend a root that is an outright enemy of either number. */
+const mobHostile = { mobRelD: "enemy", mobRelC: "enemy" };
+const mobPairs = [];
+for (let d = 1; d <= 9; d++) {
+  for (let c = 1; c <= 9; c++) {
+    const sug = window.__NV.mobileSuggestion(Object.assign({ driver: d, conductor: c }, mobHostile));
+    const roots = sug.goodTotals.map((total) => window.__NV.reduce(total));
+    mobPairs.push({
+      pair: `${d}x${c}`,
+      needed: sug.needed,
+      listed: sug.goodTotals.length > 0,
+      clean: roots.every((r) => window.__NV.relation(d, r) !== "enemy" && window.__NV.relation(c, r) !== "enemy")
+    });
+  }
+}
+const mobBlank = mobPairs.filter((row) => !row.listed).map((row) => row.pair);
+const mobEnemy = mobPairs.filter((row) => !row.clean).map((row) => row.pair);
+check("mobile remedy: every Driver×Conductor pair gets a non-empty ideal total list", mobBlank.length === 0);
+check("mobile remedy: no suggested total reduces to an enemy of either birth number", mobEnemy.length === 0);
+check("mobile remedy: Driver 6 × Conductor 1 (no total is friendly to both) still falls back", (() => {
+  const roots = window.__NV.mobileSuggestion(Object.assign({ driver: 6, conductor: 1 }, mobHostile)).goodTotals.map((total) => window.__NV.reduce(total));
+  return roots.length === 6 && roots.every((r) => [3, 5, 9].includes(r));
+})());
+check("mobile remedy: harmonious numbers stay harmonious — no suggestion is forced", window.__NV.mobileSuggestion({ driver: 6, conductor: 1, mobRelD: "friendly", mobRelC: "friendly" }).needed === false);
+
+/* The reported chart: Simardeep Walia, 15-10-2010 → Driver 6 / Conductor 1. */
+const simardeep = profile({ name: "Simardeep Walia", dob: "2010-10-15", mobile: "9991000000", goals: ["Money"], gender: "male" });
+check("Simardeep 15-10-2010 plots as Driver 6 / Conductor 1", simardeep.driver === 6 && simardeep.conductor === 1);
+check("Simardeep mobile 9991000000 (Number 1) is hostile to Driver 6", simardeep.mobNum === 1 && simardeep.mobRelD === "enemy");
+const simardeepSug = window.__NV.mobileSuggestion(simardeep);
+check("Simardeep gets a concrete ideal mobile total list", simardeepSug.needed === true && simardeepSug.goodTotals.length === 6);
+const simardeepMobile = mount(window.__NV.renderReport(simardeep)).textContent
+  .split("Vehicle Number Vibration")[0]
+  .replace(/\s+/g, " ");
+check("Simardeep report names the ideal mobile totals instead of an empty gap", /pick one whose digits total 9, 12, 14, 18, 21, 23\./.test(simardeepMobile) && !/digits total\s*\./.test(simardeepMobile));
+
 /* Reference chart authored through the new dd-mm-yyyy text field. */
 $("#editBtn").click();
 $("#fullName").value = "Randeep Walia";
