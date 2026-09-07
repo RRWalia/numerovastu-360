@@ -1424,15 +1424,30 @@
     };
   }
 
+  /* A phone is the most-used device in the chart, so a hostile mobile total is
+     the highest-impact remedy we offer — which makes an empty suggestion list
+     worse than no suggestion at all. Requiring a total that is *friendly* to
+     both birth numbers is impossible for 24 of the 81 Driver×Conductor pairs
+     (Driver 6 × Conductor 1 among them: 6's friends {4,5,7,8} and 1's friends
+     {2,3,9} never overlap), and the section used to render "pick one whose
+     digits total ." with nothing in the gap. Fall back the same way
+     vehicleAnalysis() already does — a total that is an outright enemy of
+     neither number — then, as a last resort for a custom knowledge pack whose
+     friendship rows leave even that empty, to totals friendly to the Driver.
+     relation(n, n) is always "friendly", so that final tier cannot be empty. */
   function mobileSuggestion(p) {
     const bad = p.mobRelD === "enemy" || p.mobRelC === "enemy";
     if (!bad) return { needed: false };
-    const good = [];
+    const bothGood = [], acceptable = [], driverGood = [];
     for (let t = 9; t <= 60; t++) {
       const r = reduce(t);
-      if (relation(p.driver, r) === "friendly" && relation(p.conductor, r) === "friendly") good.push(t);
+      const rd = relation(p.driver, r), rc = relation(p.conductor, r);
+      if (rd === "friendly" && rc === "friendly") bothGood.push(t);
+      else if (rd !== "enemy" && rc !== "enemy") acceptable.push(t);
+      if (rd === "friendly") driverGood.push(t);
     }
-    return { needed: true, goodTotals: good.slice(0, 6) };
+    const goodTotals = bothGood.length ? bothGood : acceptable.length ? acceptable : driverGood;
+    return { needed: true, goodTotals: goodTotals.slice(0, 6) };
   }
 
   function compatibility(a, b) {
