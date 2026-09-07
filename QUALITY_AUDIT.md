@@ -1,6 +1,6 @@
 # NumeroVastu 360 Quality Audit
 
-Last reviewed: 2026-09-05
+Last reviewed: 2026-09-07
 
 ## Current status
 
@@ -18,6 +18,8 @@ Last reviewed: 2026-09-05
 | Predictive rigour | Improved | `getDashaRelationship()` applies classical Sambhandha (MD hosts AD, symmetric Grahan/hostile pairs) to the Antardasha badge, the Pratyantar rows and the cockpit; conflicting stacks can never render green. |
 | Formula integrity | Pass | `formatConductorBreakdown()` derives the printed equation from raw DOB digits; smoke tests assert the 31/01/1978 string exactly. |
 | Practitioner workflow | Added | One-page printable Practitioner Cockpit module (`#practitioner-cockpit`) with its own cockpit-only print mode. |
+| Clinical safety overlays | Added (2.8.1) | 4× Sun + Pitta charts get labelled solar-moderation notes (baseline ritual tempered; cooling channeling emphasised in Sections 3/4A); under-18 charts defer heavy planetary gems (Neelam/Gomed/Lehsunia) to gentle substitutes and route parents to Tattva lifestyle anchors; hostile-stacked minor charts get a student-age note in the transit synthesis. Engine outputs and the data pack are unchanged — overlays only. |
+| Plan ↔ triage coherence | Fixed (2.8.1) | The Daily Core Ritual previously chanted the first critical missing number (`missing[0]`) while the Remedy Triage card beside it prescribed a different acute Tier-1 target. `resolvePracticeTargets()` now binds the 40-day ritual, its sync note and the Northstar first move to the triage verdict (acute number leads; japa held when nothing missing is live); smoke tests pin Simardeep's chart to *Om Mangalaya Namah* (Mars 9), never *Om Ketave Namah* (Ketu 7). |
 | Print resilience | Improved | Explicit `@page { size: A4 portrait; margin: 12mm 10mm; }` and `break-inside: avoid` on remedy, kit and cockpit cards; the cockpit section now breaks before itself onto a dedicated page, drops its screen-only panel heading and compacts to 8.5pt/1.2 (7.5pt tables) so the whole sheet — including the graded windows table — prints on one A4 page; the off-screen skip link no longer leaks onto printed page 1. |
 | Report render performance | Improved | Off-viewport report sections use `content-visibility: auto` on screen (never in print), removing the mobile main-thread lock on first render. |
 | Visual regression | Added | Playwright specs cover desktop report and print-media first-page layouts, plus a print-pagination guard that keeps the Northstar Summary breakable across pages. |

@@ -582,6 +582,84 @@ const simardeepMobile = mount(window.__NV.renderReport(simardeep)).textContent
   .replace(/\s+/g, " ");
 check("Simardeep report names the ideal mobile totals instead of an empty gap", /pick one whose digits total 9, 12, 14, 18, 21, 23\./.test(simardeepMobile) && !/digits total\s*\./.test(simardeepMobile));
 
+/* ---- Clinical safety overlays: solar-load moderation + under-18 gem guard ----
+   The reported chart (Simardeep 15-10-2010) repeats the Sun digit 4× with a
+   Pitta constitution and was consulted as a 15-year-old student, so the
+   report must (1) moderate solar rituals with cooling channeling habits and
+   (2) defer heavy planetary gems to gentle substitutes. The chart engines
+   stay untouched — these are labelled overlays, and the dosha baseline stays
+   a pure Driver/Conductor function. Age is pinned synthetically so the
+   assertions stay deterministic whatever the wall clock says. */
+check("currentAgeYears computes completed years with month/day boundary", window.__NV.currentAgeYears(15, 10, 2010, Date.UTC(2026, 8, 7)) === 15 && window.__NV.currentAgeYears(15, 10, 2010, Date.UTC(2026, 9, 14)) === 15 && window.__NV.currentAgeYears(15, 10, 2010, Date.UTC(2026, 9, 15)) === 16 && window.__NV.currentAgeYears(1, 1, 2000, Date.UTC(2026, 0, 1)) === 26);
+check("profile exposes a completed-years age signal", Number.isFinite(simardeep.ageYears) && Number.isFinite(profile({ dob: "1986-06-30" }).ageYears));
+
+const solarSim = Object.assign({}, simardeep); // age-independent overlays
+const solarReportDom = mount(window.__NV.renderReport(solarSim));
+check("solar overload detected for a 4× Sun chart", window.__NV.solarOverload(solarSim) && window.__NV.solarLoadOf(solarSim) === 4);
+const solarDoshaNote = $('#dosha-card [data-solar-moderation="dosha"]', solarReportDom);
+check("4× Sun + Pitta moderates the Ayurvedic baseline ritual", !!solarDoshaNote && /solar moderation \(4× Sun \+ Pitta\)/.test(solarDoshaNote.textContent) && /brief, calm arghya/.test(solarDoshaNote.textContent) && /Chandra Bhedana/.test(solarDoshaNote.textContent) && solarDoshaNote.getAttribute("data-authority") === "lo-shu-overlay");
+const solarExcessNote = $('[data-solar-moderation="excess"]', solarReportDom);
+check("excess-energy card cools the repeated Sun instead of feeding it", !!solarExcessNote && /Cool the surplus/.test(solarExcessNote.textContent) && /perfectionism, head-heat and impatience/.test(solarExcessNote.textContent));
+const simTattvaDom = mount(window.__NV.renderVedicTattvaSection(solarSim));
+const solarAgniNote = $('[data-solar-moderation="agni"]', simTattvaDom);
+check("4A Agni card runs the fire anchors in their mildest form under solar load", !!solarAgniNote && /skip Surya Bhedana/.test(solarAgniNote.textContent) && /Chandra Bhedana/.test(solarAgniNote.textContent));
+check("4A banned-word rule still holds with the solar moderation row present", (() => { const txt = simTattvaDom.textContent; return !/Vedic remedy/.test(txt) && !/fast/i.test(txt) && !/crystal/i.test(txt) && !/rudraksha/i.test(txt) && !/yantra/i.test(txt) && !/beej/i.test(txt) && !/\bring\b/i.test(txt) && !/mala/i.test(txt); })());
+
+const minorSim = Object.assign({}, simardeep, { ageYears: 15 });
+const minorReportDom = mount(window.__NV.renderReport(minorSim));
+check("under-18 chart flags the Lo Shu remedy kits for parents", !!$('#remedy-section [data-age-guardrail="under-18"]', minorReportDom) && /Under-18 note for parents/.test($('#remedy-section', minorReportDom).textContent));
+const minorKits = $$("#remedy-section .card", minorReportDom);
+const kitOf = (label) => minorKits.find((card) => new RegExp(label).test(($(".card-title", card) || { textContent: "" }).textContent));
+const crystalRowOf = (card) => $$(".kit-row", card).find((row) => ($(".kit-label", row) || { textContent: "" }).textContent.trim() === "Crystal");
+check("Rahu kit defers Hessonite (Gomed) to Smoky Quartz for a minor", (() => { const row = crystalRowOf(kitOf("Rahu")); return !!row && /^Smoky Quartz — the gentle substitute/.test(($(".kit-value", row) || {}).textContent || "") && /Hessonite \(Gomed\) stays deferred/.test(row.textContent) && !!$('[data-age-guardrail="under-18"]', kitOf("Rahu")); })());
+check("Saturn kit defers Blue Sapphire (Neelam) to Amethyst/Lapis for a minor", (() => { const row = crystalRowOf(kitOf("Saturn")); return !!row && /^Amethyst or Lapis Lazuli — the gentle substitute/.test(($(".kit-value", row) || {}).textContent || "") && /Blue Sapphire \(Neelam\) stays deferred/.test(row.textContent); })());
+check("Ketu kit defers Cat's Eye (Lehsunia) to Tiger's Eye for a minor", (() => { const row = crystalRowOf(kitOf("Ketu")); return !!row && /^Tiger's Eye — the gentle substitute/.test(($(".kit-value", row) || {}).textContent || ""); })());
+check("non-heavy kits keep the canonical adult crystal string for minors", (() => { const row = crystalRowOf(kitOf("Jupiter")); return !!row && /Yellow Sapphire or Citrine/.test(($(".kit-value", row) || {}).textContent || "") && !/gentle substitute/.test(row.textContent); })());
+
+const minorCrystalSection = $$("section.rsection", minorReportDom).find((section) => /Crystal Companion Guide/.test(section.textContent));
+const minorCrystalCards = $$(".card", minorCrystalSection);
+check("Crystal Guide swaps every heavy pick to its gentle substitute for a minor", !minorCrystalCards.some((card) => { const t = ($(".card-title", card) || { textContent: "" }).textContent; return /💎\s*(Blue Sapphire|Hessonite|Cat's Eye)/.test(t); }) && !!$('[data-gentle-substitute="Hessonite"]', minorCrystalSection));
+check("Crystal Guide carries the parent note routing minors to 4A anchors", !!$('[data-age-guardrail="under-18"]', minorCrystalSection) && /gentle substitutes/.test(minorCrystalSection.textContent) && /Amethyst or Citrine/.test(minorCrystalSection.textContent));
+
+const minorTransit = $(".dasha-transit-synthesis", minorReportDom);
+const simStack = window.__NV.dashaTimeline(simardeep).current;
+const simStackEnemy = window.__NV.getDashaRelationship(simStack.md.n, simStack.ad.n, simardeep.driver).relation === "enemy";
+check("student lens rides only a conflicting stack on a minor chart", (!!$("[data-student-stack-note]", minorReportDom)) === simStackEnemy && (!simStackEnemy || /small, reversible steps/.test($("[data-student-stack-note]", minorReportDom).textContent)));
+if (simStack.md.n === 8 && simStack.ad.n === 9) {
+  check("Saturn × Mars student lens names the authority/independence friction and the computed closure date", /Saturn × Mars/.test($("[data-student-stack-note]", minorReportDom).textContent) && /rules and authority \(Saturn\)/.test($("[data-student-stack-note]", minorReportDom).textContent) && new RegExp(`sub-period closes on ${"\\d{1,2} \\w{3} \\d{4}"}`).test($("[data-student-stack-note]", minorReportDom).textContent));
+}
+
+const adultCleanReport = window.__NV.renderReport(profile({ dob: "1986-06-30" })); // adult, single Sun
+check("adult chart without solar overload stays free of safety overlays", !/data-solar-moderation/.test(adultCleanReport) && !/data-age-guardrail/.test(adultCleanReport) && !/data-student-stack-note/.test(adultCleanReport));
+check("non-Pitta repeated Sun gets cooling habits but not dosha/Agni overlays", (() => { const waliaDom = mount(window.__NV.renderReport(waliaProfile)); return !$('[data-solar-moderation="dosha"]', waliaDom) && !mount(window.__NV.renderVedicTattvaSection(waliaProfile)).textContent.includes("Solar-load moderation") && window.__NV.solarOverload(waliaProfile); })());
+
+const minorCockpitDom = mount(window.__NV.renderPractitionerCockpit(minorSim));
+check("cockpit surfaces age and both safety guardrails for a minor", /age 15/.test(minorCockpitDom.textContent) && !!$('[data-cockpit-guardrail="under-18"]', minorCockpitDom) && !!$('[data-cockpit-guardrail="solar"]', minorCockpitDom));
+
+/* ---- Page 36 ↔ Remedy Triage alignment (Daily Core Ritual blocker) ----
+   Historical bug: the ritual card took the first critical missing number
+   (missing[0] → Ketu 7) while the triage card beside it prescribed Mars 9
+   as the sole acute target with Ketu held. The plan now binds to the
+   triage engine: acute Tier-1 number leads the ritual; when nothing
+   missing is live, japa is held explicitly instead of contradicting. */
+const simRawTargets = window.__NV.loShuPracticeTargets(simardeep);
+check("raw Lo Shu gap order still starts at Ketu 7 (documents the old mismatch input)", simRawTargets.primary === 7);
+const simTriage = window.__NV.remedyTriage(simardeep);
+const simPlan = window.__NV.activationPlan(simardeep, simTriage);
+check("daily core ritual binds to the triage Tier-1 target instead of missing[0]", simPlan.targetN === simTriage.tier1.n && simPlan.targetN !== simRawTargets.primary);
+check("acute plan carries the sync note and tier metadata", simPlan.acute === (simTriage.tier1.mode === "acute") && simPlan.tier1Mode === simTriage.tier1.mode && /Synced with the Remedy Triage/.test(simPlan.triageNote));
+const simRitualDom = $(".ritual-card", mount(window.__NV.renderReport(simardeep)));
+const simRitualText = simRitualDom.textContent;
+const tier1Short = window.__NV.getActiveDB().mantraShort[simTriage.tier1.n];
+check("Page 36 chants the Tier-1 short mantra", simRitualText.includes(tier1Short.dev) && simRitualText.includes(tier1Short.pron) && simRitualDom.dataset.ritualTarget === String(simTriage.tier1.n));
+check("Page 36 ritual target equals the triage card's acute number", $("#remedy-triage", mount(window.__NV.renderReport(simardeep))).dataset.tier1Number === simRitualDom.dataset.ritualTarget && $('[data-ritual-sync]', simRitualDom).dataset.ritualSync === simTriage.tier1.mode);
+if (simTriage.tier1.mode === "acute" && simTriage.tier1.n === 9) {
+  check("Simardeep Page 36 prescribes Om Mangalaya Namah (Mars 9), never Om Ketave Namah (Ketu 7)", simRitualText.includes("ॐ मंगलाय नमः") && simRitualText.includes("Om Mangalaya Namah") && !simRitualText.includes("ॐ केतवे नमः") && !simRitualText.includes("Om Ketave Namah"));
+}
+const heldPlan = window.__NV.activationPlan(authorityProfile, { tier1: { mode: "environmental", n: 2, planet: "Moon (Chandra)", reasons: ["No missing number is live in the current stack"], japa: "Hold japa — no beej mantra is clinically indicated this period", zone: "North-West", zoneRemedy: "Keep the North-West clutter-free; add brass decor and check stored water." }, tier2: [] });
+check("environmental tier-1 holds japa instead of chanting a non-live missing number", heldPlan.holdJapa === true && /japa on hold/.test(heldPlan.daily[0].label) && /Hold japa/.test(heldPlan.daily[0].value) && !/<span class="mantra">/.test(heldPlan.daily[0].value) && /North-West/.test(heldPlan.daily[0].sub));
+check("maintenance-tier plans keep the classic Lo Shu primary unchanged", window.__NV.activationPlan(alteredGridProfile).targetN === window.__NV.loShuPracticeTargets(alteredGridProfile).primary);
+
 /* Reference chart authored through the new dd-mm-yyyy text field. */
 $("#editBtn").click();
 $("#fullName").value = "Randeep Walia";
