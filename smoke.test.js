@@ -509,6 +509,48 @@ const atlantisChecks = [
 ];
 atlantisChecks.forEach(([name, ok]) => check(name, ok));
 
+/* ---- dd-mm-yyyy date input boundary ---- */
+const norm = window.__NV.normalizeDobInput;
+const disp = window.__NV.formatDobForDisplay;
+const dobChecks = [
+  ["dd-mm-yyyy '05-08-1976' normalises to ISO", norm("05-08-1976") === "1976-08-05"],
+  ["single digit day/month '5-8-1976' normalises to ISO", norm("5-8-1976") === "1976-08-05"],
+  ["legacy ISO '1976-08-05' is accepted and unchanged", norm("1976-08-05") === "1976-08-05"],
+  ["'05/08/1976' slash separator accepted", norm("05/08/1976") === "1976-08-05"],
+  ["'05.08.1976' dot separator accepted", norm("05.08.1976") === "1976-08-05"],
+  ["invalid day 31-02-1976 rejected", norm("31-02-1976") === ""],
+  ["invalid month 05-13-1976 rejected", norm("05-13-1976") === ""],
+  ["garbage input rejected", norm("not-a-date") === "" && norm("") === ""],
+  ["ISO displays as dd-mm-yyyy", disp("1976-08-05") === "05-08-1976"],
+  ["dd-mm-yyyy displays unchanged", disp("05-08-1976") === "05-08-1976"],
+  ["empty displays empty", disp("") === ""],
+];
+dobChecks.forEach(([name, ok]) => check(`dob input: ${name}`, ok));
+
+/* Live mask behaviour (real input events, as a browser/Playwright typing or
+   pasting would fire). */
+function fireDobInput(value) {
+  $("#dob").value = value;
+  $("#dob").dispatchEvent(new window.Event("input", { bubbles: true }));
+  return $("#dob").value;
+}
+const maskedDd = fireDobInput("05081976");                       // digits only -> dd-mm-yyyy
+const isoUnmangled = fireDobInput("2005-08-20");                 // pasted ISO stays untouched
+const typedDd = fireDobInput("05-08-1976");                      // already dd-mm-yyyy unchanged
+check("dob input: live mask turns bare digits into dd-mm-yyyy", maskedDd === "05-08-1976");
+check("dob input: live mask does not mangle a pasted yyyy-mm-dd ISO", isoUnmangled === "2005-08-20");
+check("dob input: live mask leaves typed dd-mm-yyyy intact", typedDd === "05-08-1976");
+
+/* Reference chart authored through the new dd-mm-yyyy text field. */
+$("#editBtn").click();
+$("#fullName").value = "Randeep Walia";
+$("#dob").value = "05-08-1976";           // user-facing dd-mm-yyyy
+$("#birthPlace").value = "Faridabad, Haryana, India";
+$("#birthTime").value = "20:15";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+check("dob input: typed dd-mm-yyyy field normalises the live chart", $("#reportRoot").innerHTML.includes("05-08-1976") && window.__NV.computeProfile({ name: "Randeep Walia", dob: "1976-08-05", mobile: "", goals: [] }).day === 5);
+check("dob input: field reformats to day-month-year after submit", $("#dob").value === "05-08-1976");
+
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
   process.exit(1);

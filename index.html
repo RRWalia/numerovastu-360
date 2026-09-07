@@ -165,8 +165,9 @@
         <div class="field-row">
           <div class="field">
             <label class="field-label" for="dob"><span data-i18n="dob">Date of Birth</span> <span class="req" aria-hidden="true">*</span></label>
-            <input class="input" id="dob" name="dob" type="date" required aria-required="true" />
-            <p class="field-error" id="err-dob" hidden data-i18n="errDob">Please enter a valid date of birth.</p>
+            <input class="input" id="dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="dd-mm-yyyy e.g. 05-08-1976" data-i18n-ph="dobPlaceholder" aria-describedby="dobHint" required aria-required="true" />
+            <p class="field-hint" id="dobHint" data-i18n="dobHint">Day-month-year order, e.g. 05-08-1976.</p>
+            <p class="field-error" id="err-dob" hidden data-i18n="errDob">Please enter a valid date of birth (dd-mm-yyyy).</p>
           </div>
           <div class="field">
             <label class="field-label" for="mobile"><span data-i18n="mobile">Mobile Number</span> <span class="req" aria-hidden="true">*</span></label>
@@ -365,7 +366,7 @@
           </div>
           <div class="field">
             <label class="field-label" for="partnerDob" data-i18n="partnerDob">Partner's Date of Birth</label>
-            <input class="input" id="partnerDob" name="partnerDob" type="date" />
+            <input class="input" id="partnerDob" name="partnerDob" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="dd-mm-yyyy e.g. 05-08-1976" data-i18n-ph="dobPlaceholder" />
           </div>
         </div>
       </div>

@@ -1019,7 +1019,7 @@
   function fillFormFromSnapshot(snapshot) {
     if (!snapshot || !snapshot.input) return;
     if ($("#fullName")) $("#fullName").value = snapshot.input.name || "";
-    if ($("#dob")) $("#dob").value = snapshot.input.dob || "";
+    if ($("#dob")) $("#dob").value = formatDobForDisplay(snapshot.input.dob || "");
     if ($("#mobile")) $("#mobile").value = snapshot.input.mobile || "";
     if ($("#vehicle")) $("#vehicle").value = snapshot.input.vehicle || "";
     if ($("#entrance")) $("#entrance").value = snapshot.input.entrance || "unsure";
@@ -1038,8 +1038,70 @@
     if ($("#birthTz")) $("#birthTz").value = snapshot.input.birthTz || "";
     if ($("#brand")) $("#brand").value = snapshot.input.brand || "";
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
-    if ($("#partnerDob")) $("#partnerDob").value = snapshot.input.partnerDob || "";
+    if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(snapshot.input.partnerDob || "");
     syncGoalChips(snapshot.input.goals || []);
+  }
+
+  /* ---------------- DOB input (dd-mm-yyyy) ----------------
+     The DOB field is a plain text input that expects day-month-year order
+     (e.g. 05-08-1976). Internally every engine and saved snapshot keeps a
+     canonical ISO "YYYY-MM-DD" string; we only translate at the form
+     boundary so grids, Dasha math, astro.js and stored reports never see a
+     format they were not built for. Parsing is tolerant of the separators
+     "-", "/", "." or spaces and also accepts a legacy ISO "YYYY-MM-DD"
+     value (e.g. an old snapshot or test), but a 4-digit-leading token is
+     always read as the year. */
+  function normalizeDobInput(raw) {
+    const text = String(raw == null ? "" : raw).trim();
+    if (!text) return "";
+    let compact = text.replace(/[/.,\s]+/g, "-").replace(/[^\d-]/g, "");
+    const parts = compact.split("-").filter((p) => p.length > 0);
+    if (parts.length !== 3) return "";
+    const yearLeading = parts[0].length === 4;
+    let d, m, y;
+    if (yearLeading) { y = parts[0]; m = parts[1]; d = parts[2]; }
+    else { d = parts[0]; m = parts[1]; y = parts[2]; }
+    d = Number(d); m = Number(m); y = Number(y);
+    if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1000 && y <= 2100)) return "";
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return "";
+    return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
+  function formatDobForDisplay(value) {
+    const s = String(value == null ? "" : value).trim();
+    if (!s) return "";
+    const parts = s.split(/[-/.]/).filter((p) => p.length > 0);
+    if (parts.length !== 3) return s;
+    if (parts[0].length === 4) return `${parts[2].padStart(2, "0")}-${parts[1].padStart(2, "0")}-${parts[0]}`;
+    return `${parts[0].padStart(2, "0")}-${parts[1].padStart(2, "0")}-${parts[2]}`;
+  }
+  function isFutureIso(iso) {
+    const d = new Date(iso + "T00:00:00Z");
+    const now = new Date();
+    return !isNaN(d.getTime()) && d > now;
+  }
+  /* Live typing mask: allow digits (max 8) and insert "-" after the day and
+     month so the field self-formats to dd-mm-yyyy as the user types. A
+     clearly year-leading "yyyy-mm-dd" value (e.g. a pasted ISO date or an
+     old saved value) is left untouched so the tolerant parser can read it. */
+  function looksLikeYearLeadingIso(value) {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length < 8) return false;
+    // First four digits are the year (19xx/20xx) and precede a separator.
+    return /^(19|20)\d\d[-/.]/.test(value) && value.slice(0, 4) === digits.slice(0, 4);
+  }
+  function maskDobInput(el) {
+    el.addEventListener("input", () => {
+      const before = el.value;
+      if (looksLikeYearLeadingIso(before)) return;
+      const digits = before.replace(/\D/g, "").slice(0, 8);
+      let out = "";
+      for (let i = 0; i < digits.length; i++) {
+        if (i === 2 || i === 4) out += "-";
+        out += digits[i];
+      }
+      if (before !== out) el.value = out;
+    });
   }
 
   /* ---------------- validation ---------------- */
@@ -1054,7 +1116,8 @@
     setErr("fullName", badName); if (badName) { ok = false; first = first || $("#fullName"); }
 
     const dob = ($("#dob") && $("#dob").value) || "";
-    const badDob = !dob || isNaN(new Date(dob).getTime()) || new Date(dob) > new Date();
+    const dobIso = normalizeDobInput(dob);
+    const badDob = !dobIso || isFutureIso(dobIso);
     setErr("dob", badDob); if (badDob) { ok = false; first = first || $("#dob"); }
 
     const mob = ($("#mobile") && $("#mobile").value.replace(/\D/g, "")) || "";
@@ -4850,6 +4913,10 @@
   updateMemoryUI();
   applyLanguageToUI();
 
+  // DOB fields are plain text expecting day-month-year (e.g. 05-08-1976).
+  if ($("#dob")) { maskDobInput($("#dob")); $("#dob").value = formatDobForDisplay($("#dob").value); }
+  if ($("#partnerDob")) { maskDobInput($("#partnerDob")); $("#partnerDob").value = formatDobForDisplay($("#partnerDob").value); }
+
   $("#contributeAnonymous").addEventListener("change", (e) => {
     state.contributionEnabled = !!e.target.checked;
     writeStore(STORAGE_KEYS.contributionEnabled, state.contributionEnabled);
@@ -4869,7 +4936,7 @@
     if (!validate()) return;
     const input = {
       name: $("#fullName").value.trim(),
-      dob: $("#dob").value,
+      dob: normalizeDobInput($("#dob").value),
       mobile: $("#mobile").value.replace(/[^\d+]/g, ""),
       vehicle: $("#vehicle").value.trim(),
       goals: Array.from(selectedGoals),
@@ -4889,8 +4956,11 @@
       birthTz: ($("#birthTz") && $("#birthTz").value.trim()) || "",
       brand: $("#brand").value.trim(),
       partnerName: $("#partnerName").value.trim(),
-      partnerDob: $("#partnerDob").value
+      partnerDob: normalizeDobInput($("#partnerDob").value)
     };
+    // Keep the visible fields tidy as day-month-year (canonical ISO is stored).
+    if ($("#dob")) $("#dob").value = formatDobForDisplay(input.dob);
+    if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(input.partnerDob);
     state.lastInput = Object.assign({}, input);
     lastProfile = computeProfile(input);
     const timing = timingAnalysis(lastProfile);
@@ -4912,6 +4982,7 @@
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
+    normalizeDobInput, formatDobForDisplay,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
