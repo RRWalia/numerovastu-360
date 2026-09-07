@@ -192,6 +192,121 @@
      (Rahu–Moon, Rahu–Sun), Sun–Saturn, Mars–Saturn and the Deva/Asura gurus
      Jupiter–Venus. Only when MD × AD is genuinely neutral does the native's
      own Driver decide how the sub-period lands. */
+  /* ---- Age & safety thresholds -------------------------------------------
+     The report computes a plain completed-age figure from the DOB against
+     the device clock. It is used ONLY to soften prescriptive intensity:
+     under-18 charts defer heavy planetary gems to gentle substitutes and
+     route the family to lifestyle anchors instead of stones. */
+  const MINOR_AGE_LIMIT = 18;
+  function currentAgeYears(day, month, year, nowMs) {
+    const now = nowMs !== undefined && nowMs !== null ? new Date(nowMs) : new Date();
+    let age = now.getFullYear() - year;
+    const m = now.getMonth() + 1;
+    if (m < month || (m === month && now.getDate() < day)) age -= 1;
+    return Math.max(0, age);
+  }
+  function isMinorProfile(p) {
+    return !!p && Number.isFinite(p.ageYears) && p.ageYears < MINOR_AGE_LIMIT;
+  }
+
+  /* ---- Solar-load signal ---------------------------------------------------
+     Digit 1 repeated 3+ times in the Lo Shu birth grid is an "over-lit Sun".
+     The number kits, dosha baseline and Tattva kits stay canonical (packed,
+     versioned data); this flag only adds clearly-labelled cooling overlays so
+     a 3×/4× Sun is not prescribed MORE solar fire. */
+  function solarLoadOf(p) {
+    return (p && p.loShuCounts && p.loShuCounts[1]) || 0;
+  }
+  function solarOverload(p) {
+    return solarLoadOf(p) >= 3;
+  }
+  function pittaInBaseline(p) {
+    const tags = (p && p.doshaProfile && p.doshaProfile.primaryTags) || [];
+    return tags.includes("Pitta");
+  }
+  /* ---- Heavy-planet gem class ---------------------------------------------
+     Saturn / Rahu / Ketu stones are classically "trial-only" prescriptions.
+     For under-18 charts the crystal row leads with the gentle substitute and
+     defers the heavy gem until adulthood, echoing the caution already carried
+     by the canonical data ("wear only after an expert check"). */
+  const HEAVY_GEM_BY_NUMBER = {
+    4: { heavy: "Hessonite (Gomed)", gentle: "Smoky Quartz" },
+    7: { heavy: "Cat's Eye (Lehsunia)", gentle: "Tiger's Eye" },
+    8: { heavy: "Blue Sapphire (Neelam)", gentle: "Amethyst or Lapis Lazuli" }
+  };
+  const HEAVY_GEM_PICK_SWAP = {
+    "Blue Sapphire": "Amethyst",
+    "Hessonite": "Smoky Quartz",
+    "Cat's Eye": "Tiger's Eye"
+  };
+
+  /* Canonical cooling reference for an over-lit Sun: Chandra Bhedana plus
+     evening grounding. When the 4A Tattva section actually renders for this
+     chart the note cites the section; otherwise it names the practice
+     directly so the instruction never points at a missing page. */
+  function solarModerationNote(p, lang, opts) {
+    const o = opts || {};
+    if (!solarOverload(p)) return "";
+    const context = o.context || "dosha";
+    // The constitution and Agni-plane overlays apply specifically to the
+    // hot pairing the note moderates: repeated Sun against a Pitta baseline.
+    if ((context === "dosha" || context === "agni") && !pittaInBaseline(p)) return "";
+    const count = solarLoadOf(p);
+    let anchors = [];
+    try { anchors = vedicTattvaAnchors(p, lang) || []; } catch (e) { anchors = []; }
+    const tattvaShown = anchors.length > 0;
+    const emotionalShown = anchors.some((a) => a.key === "emotional");
+    const coolingRef = {
+      en: tattvaShown
+        ? (emotionalShown ? "the Section 4A Tattva anchors — especially Chandra Bhedana and the evening grounding anchors"
+                          : "the Section 4A Tattva anchors and a nightly Chandra Bhedana (left-nostril) practice with evening grounding")
+        : "a nightly Chandra Bhedana (left-nostril) practice and evening grounding",
+      hi: tattvaShown
+        ? (emotionalShown ? "खंड 4A के तत्व आधार — विशेष रूप से चंद्र भेदन और शाम के भूमि-संपर्क आधार"
+                          : "खंड 4A के तत्व आधार तथा रात्रि का चंद्र भेदन (बाईं नासिका) अभ्यास और शाम का भूमि-संपर्क")
+        : "रात्रि का चंद्र भेदन (बाईं नासिका) अभ्यास और शाम का भूमि-संपर्क",
+      gu: tattvaShown
+        ? (emotionalShown ? "વિભાગ 4A ના તત્વ આધાર — ખાસ કરીને ચંદ્ર ભેદન અને સાંજના ભૂમિ-સંપર્ક આધાર"
+                          : "વિભાગ 4A ના તત્વ આધાર અને રાત્રિનો ચંદ્ર ભેદન (ડાબી નાસિકા) અભ્યાસ તથા સાંજનો ભૂમિ-સંપર્ક")
+        : "રાત્રિનો ચંદ્ર ભેદન (ડાબી નાસિકા) અભ્યાસ અને સાંજનો ભૂમિ-સંપર્ક"
+    }[lang] || (tattvaShown ? "the Section 4A Tattva anchors — especially Chandra Bhedana and the evening grounding anchors" : "a nightly Chandra Bhedana (left-nostril) practice and evening grounding");
+
+    if (context === "excess") {
+      const text = lang === "hi"
+        ? `अधिकता को ठंडा करें: सूर्य पहले से ${count}× दोहराया है, इसलिए जल-अर्पण संक्षिप्त, शांत और केवल सूर्योदय पर रखें — फिर ${coolingRef} से सूर्य-अग्नि संतुलित होगी। अतिरिक्त सौर ऊष्मा सबसे पहले पूर्णतावाद, सिर की गर्मी और अधीरता के रूप में दिखती है।`
+        : lang === "gu"
+          ? `વધારાને ઠંડો કરો: સૂર્ય પહેલેથી ${count}× પુનરાવર્તિત છે, એટલે જળ-અર્પણ ટૂંકું, શાંત અને ફક્ત સૂર્યોદયે રાખો — પછી ${coolingRef} થી સૂર્ય-અગ્નિ સંતુલિત થશે. વધુ સૌર ગરમી પહેલા સંપૂર્ણતાવાદ, માથાની ગરમી અને અધીરાઈ રૂપે દેખાય છે.`
+          : `Cool the surplus: with the Sun already repeated ${count}×, keep the water-offering brief, calm and at sunrise only — then let ${coolingRef} balance the solar fire. Extra solar heat surfaces first as perfectionism, head-heat and impatience.`;
+      return `<div class="kit-value solar-moderation" data-solar-moderation="excess" data-authority="lo-shu-overlay"><strong>${lang === "hi" ? `सूर्य ${count}×:` : lang === "gu" ? `સૂર્ય ${count}×:` : `Sun ${count}×:`}</strong> ${esc(text)}</div>`;
+    }
+
+    if (context === "agni") {
+      // Inside 4A itself, point at the neighbouring Emotional-plane card
+      // rather than re-naming the section the reader is already in.
+      const coolingLocal = emotionalShown
+        ? (lang === "hi" ? "नीचे भावनात्मक तल के चंद्र भेदन और शाम के भूमि-संपर्क आधारों"
+          : lang === "gu" ? "નીચે ભાવનાત્મક સ્તરના ચંદ્ર ભેદન અને સાંજના ભૂમિ-સંપર્ક આધારો"
+            : "the Emotional plane's Chandra Bhedana and evening grounding anchors below")
+        : (lang === "hi" ? "रात्रि के चंद्र भेदन (बाईं नासिका) अभ्यास और शाम के भूमि-संपर्क"
+          : lang === "gu" ? "રાત્રિના ચંદ્ર ભેદન (ડાબી નાસિકા) અભ્યાસ અને સાંજના ભૂમિ-સંપર્ક"
+            : "a nightly Chandra Bhedana (left-nostril) practice and evening grounding");
+      const text = lang === "hi"
+        ? `सूर्य पहले से ${count}× दोहराया है और प्रकृति पित्त है — इन अग्नि आधारों को सबसे हल्के रूप में चलाएं: सूर्य भेदन और दोपहर का सूर्य सक्रियण छोड़ दें, और ${coolingLocal} से इस पट्टिका का शीतलन कराएं।`
+        : lang === "gu"
+          ? `સૂર્ય પહેલેથી ${count}× પુનરાવર્તિત છે અને પ્રકૃતિ પિત્ત છે — આ અગ્નિ આધારો સૌથી હળવા રૂપે ચલાવો: સૂર્ય ભેદન અને બપોરનું સૂર્ય સક્રિયકરણ છોડી દો, અને ${coolingLocal} થી આ પટ્ટિકાનું શીતલન કરાવો.`
+          : `The Sun already repeats ${count}× against a Pitta constitution — run these Agni anchors in their mildest form: skip Surya Bhedana and the midday Solar Activation, and let ${coolingLocal} carry the cooling for this chart.`;
+      return `<div class="kit-row solar-moderation" data-solar-moderation="agni"><div class="kit-ico">☾</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "सूर्य-भार संयम" : lang === "gu" ? "સૂર્ય-ભાર સંયમ" : "Solar-load moderation"}</div><div class="kit-value">${esc(text)}</div></div></div>`;
+    }
+
+    // context === "dosha"
+    const text = lang === "hi"
+      ? `प्रैक्टिशनर नोट — सूर्य संयम (${count}× सूर्य + पित्त): ऊपर की सूर्य दिनचर्या धीमी आंच पर रखें — सूर्योदय पर संक्षिप्त, शांत अर्घ्य पर्याप्त है; दीर्घ सूर्य-दर्शन या ऊष्मा बढ़ाने वाला अभ्यास नहीं। संतुलन ठंडी आदतों से आएगा — खंड 3 का channeling कार्ड तथा ${coolingRef}। पूर्णतावाद, सिर की गर्मी और अधीरता ही नज़र रखने योग्य संकेत हैं।`
+      : lang === "gu"
+        ? `પ્રેક્ટિશનર નોંધ — સૂર્ય સંયમ (${count}× સૂર્ય + પિત્ત): ઉપરની સૂર્ય દિનચર્યા ધીમી તપાસે રાખો — સૂર્યોદયે ટૂંકો, શાંત અર્ઘ્ય પૂરતો; લાંબું સૂર્ય-દર્શન કે ગરમી વધારતો અભ્યાસ નહીં. સંતુલન ઠંડી ટેવોથી આવશે — વિભાગ 3 નું channeling કાર્ડ અને ${coolingRef}. સંપૂર્ણતાવાદ, માથાની ગરમી અને અધીરાઈ એ નજર રાખવાના સંકેતો છે.`
+        : `Practitioner note — solar moderation (${count}× Sun + Pitta): keep the Sun routine above at a low flame — a brief, calm arghya at sunrise is enough; no prolonged sun-gazing or heat-building practice. Let the cooling habits carry the balance — the channeling card in Section 3 and ${coolingRef}. Perfectionism, head-heat and impatience are the tells to watch.`;
+    return `<div class="kit-value solar-moderation" data-solar-moderation="dosha" data-authority="lo-shu-overlay"><strong>${lang === "hi" ? "Overlay (दोहराव-स्तर):" : lang === "gu" ? "ઓવરલે (પુનરાવૃત્તિ-સ્તર):" : "Overlay (repeated-number layer):"}</strong> ${esc(text)}</div>`;
+  }
+
   const GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
   const SAMBANDHA_HOSTILE_PAIRS = new Set([
     "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
@@ -306,7 +421,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.8.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.8.1";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-05";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -1210,6 +1325,9 @@
     return {
       name: input.name,
       day: d, month: m, year: y,
+      // Completed years of age at report time — safety signal only (minor
+      // charts defer heavy gems); never alters numbers, grids or timing.
+      ageYears: currentAgeYears(d, m, y),
       driver, conductor,
       loShuGrid,
       loShuCounts: loShuGrid.counts,
@@ -2315,6 +2433,7 @@
         driver: p.driver, conductor: p.conductor,
         driverPlanet: planetOf(p.driver), conductorPlanet: planetOf(p.conductor),
         nameCompound: p.nameCompound, nameNumber: p.nameNum,
+        ageYears: p.ageYears,
         loShuMissing: p.loShuMissing, loShuExcess,
         vedicMissing: p.vedicMissing, vedicStrong,
         kua: p.kua || null
@@ -2437,8 +2556,10 @@
         </header>
         <div class="cockpit-grid three">
           <div class="cockpit-cell"><div class="cockpit-label">${esc(L.core)}</div>
-            <div class="cockpit-fact">D-${c.core.driver} (${esc(c.core.driverPlanet)}) · C-${c.core.conductor} (${esc(c.core.conductorPlanet)})</div>
+            <div class="cockpit-fact">D-${c.core.driver} (${esc(c.core.driverPlanet)}) · C-${c.core.conductor} (${esc(c.core.conductorPlanet)})${Number.isFinite(c.core.ageYears) ? ` · ${lang === "hi" ? "आयु" : lang === "gu" ? "ઉંમર" : "age"} ${c.core.ageYears}` : ""}</div>
             <div class="cockpit-fact">${esc(L.name)}: ${c.core.nameCompound} → ${c.core.nameNumber}${c.core.kua ? ` · Kua ${c.core.kua}` : ""}</div>
+            ${isMinorProfile(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="under-18">⚠ ${lang === "hi" ? "18 से कम — भारी रत्न स्थगित; खंड 4A तत्व आधार + हल्के पत्थर (Amethyst/Citrine)" : lang === "gu" ? "18 થી ઓછી — ભારે રત્ન મુલ્તવી; વિભાગ 4A તત્વ આધાર + હળવા પથ્થર (Amethyst/Citrine)" : "Under 18 — heavy gems deferred; 4A Tattva anchors + mild stones (Amethyst/Citrine)"}</div>` : ""}
+            ${solarOverload(p) && pittaInBaseline(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="solar">☀ ${lang === "hi" ? `सूर्य 1×${solarLoadOf(p)} + पित्त — अर्घ्य लघु रखें; चंद्र भेदन/शाम भूमि-संपर्क से ठंडा करें` : lang === "gu" ? `સૂર્ય 1×${solarLoadOf(p)} + પિત્ત — અર્ઘ્ય ટૂંકો રાખો; ચંદ્ર ભેદન/સાંજ ભૂમિ-સંપર્કથી ઠંડક આપો` : `Sun 1×${solarLoadOf(p)} + Pitta — keep arghya brief; cool via Chandra Bhedana / evening grounding`}</div>` : ""}
           </div>
           <div class="cockpit-cell"><div class="cockpit-label">${esc(L.loshu)}</div>
             <div class="cockpit-fact" data-cockpit-loshu-missing="${c.core.loShuMissing.join(",")}">${esc(L.missing)}: <strong>${numList(c.core.loShuMissing)}</strong></div>
@@ -2959,6 +3080,7 @@
         <div class="kit-label">${esc(db.numbers[n].planet)} — ${lang === "hi" ? `${count}× दोहराया` : lang === "gu" ? `${count}× પુનરાવર્તિત` : `repeated ${count}×`}</div>
         <div class="kit-value"><strong>${lang === "hi" ? "जब यह बढ़ता है:" : lang === "gu" ? "જ્યારે તે વધુ થાય:" : "When it overshoots:"}</strong> ${esc(overshoot)}</div>
         <div class="kit-value"><strong>${lang === "hi" ? "इसे दिशा दें:" : lang === "gu" ? "તેને દિશા આપો:" : "Channel it:"}</strong> ${esc(channel)}</div>
+        ${n === 1 ? solarModerationNote(p, lang, { context: "excess" }) : ""}
       </div></div>`;
     }).join("");
     const guidance = lang === "hi"
@@ -3032,6 +3154,7 @@
       <div class="card-sub">${lang === "hi" ? "यह baseline केवल मूलांक और भाग्यांक से आता है — लो शू या वैदिक-grid की missing/repeated cells इसे नहीं बदलतीं।" : lang === "gu" ? "આ baseline ફક્ત મૂળાંક અને ભાગ્યાંકથી આવે છે — લો શુ અથવા વૈદિક-grid ની missing/repeated cells તેને બદલતી નથી." : "This baseline comes only from your Driver and Conductor — Lo Shu or Vedic-grid missing/repeated cells do not change it."}</div>
       <div class="kit">${row(d.driverNumber, d.driverDosha || {}, lang === "hi" ? "मूलांक" : lang === "gu" ? "મૂલાંક" : "Driver")}${row(d.conductorNumber, d.conductorDosha || {}, lang === "hi" ? "भाग्यांक" : lang === "gu" ? "ભાગ્યાંક" : "Conductor")}</div>
       <div class="kit"><div class="kit-label">${lang === "hi" ? "मिश्रित प्रकृति" : lang === "gu" ? "મિશ્ર પ્રકૃતિ" : "Blended constitution"}</div><div class="kit-value"><strong>${doshaName(d.primary)}</strong> — ${blend}</div><div class="kit-value"><strong>${lang === "hi" ? "संतुलन-पोषण:" : lang === "gu" ? "સંતુલન-પોષણ:" : "Balancing foods:"}</strong> ${esc(foods)}</div></div>
+      ${solarModerationNote(p, lang, { context: "dosha" })}
       <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "यह पारंपरिक wellness guidance है, निदान नहीं; चिकित्सा सलाह के लिए योग्य पेशेवर से बात करें।" : lang === "gu" ? "આ પરંપરાગત wellness guidance છે, નિદાન નથી; તબીબી સલાહ માટે લાયક વ્યાવસાયિક સાથે વાત કરો." : "This is traditional wellness guidance, not a diagnosis; speak with a qualified professional for medical advice."}</div></div>`;
   }
 
@@ -3553,6 +3676,7 @@
         <div class="kit">
           <div class="kit-row"><div class="kit-ico">◎</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "न्यूनता संकेत" : lang === "gu" ? "ઊણપનું ચિહ્ન" : "Deficiency Signature"}</div><div class="kit-value">${esc(plane.signature)}</div></div></div>
           ${rows}
+          ${plane.key === "practical" ? solarModerationNote(p, lang, { context: "agni" }) : ""}
         </div>
       </article>`;
     }).join("");
@@ -3570,7 +3694,22 @@
   }
 
 
-  function kitCard(n, heading) {
+  /* Crystal row for one remedy kit. Adult charts quote the canonical kit
+     string; under-18 charts lead with the gentle substitute and explicitly
+     defer the heavy Saturn/Rahu/Ketu gem until adulthood. */
+  function crystalRowValue(db, n, p, lang) {
+    const canonical = String(((db && db.numbers) || {})[n] ? db.numbers[n].crystal : "");
+    if (!isMinorProfile(p)) return canonical;
+    const heavy = HEAVY_GEM_BY_NUMBER[n];
+    if (!heavy) return canonical;
+    return lang === "hi"
+      ? `${heavy.gentle} — 18 से कम आयु में यही हल्का विकल्प प्रथम है। ${heavy.heavy} वयस्कता तक स्थगित रहे — तब भी केवल विशेषज्ञ परीक्षण के बाद पहनें।`
+      : lang === "gu"
+        ? `${heavy.gentle} — 18 થી ઓછી ઉંમરમાં આ હળવો વિકલ્પ જ પ્રથમ. ${heavy.heavy} પુખ્ત ઉંમર સુધી મુલ્તવી રહે — ત્યારે પણ ફક્ત નિષ્ણાત પરીક્ષણ પછી જ પહેરવું.`
+        : `${heavy.gentle} — the gentle substitute is the first choice under 18. ${heavy.heavy} stays deferred until adulthood — and even then, worn only after an expert trial.`;
+  }
+
+  function kitCard(n, heading, p) {
     const db = getActiveDB();
     const i = db.numbers[n];
     const sm = db.mantraShort[n];
@@ -3589,7 +3728,8 @@
         <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">${t("beejMantra", "Beej Mantra")}</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">${t("dailyShortMantra", "Daily Short Mantra")}</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">${t("wishPaperAffirmation", "Wish-Paper Affirmation")}</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">${lang === "hi" ? "इसे अपने संकल्प पत्र पर रोज ११ बार लिखें और पर्स या तकिए के नीचे रखें।" : lang === "gu" ? "આને તમારા સંકલ્પ પત્ર પર રોજ ૧૧ વખત લખો અને પર્સમાં કે ઓશીકા નીચે રાખો." : "Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow."}</span></div></div></div>
-        <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">${t("crystal", "Crystal")}</div><div class="kit-value">${esc(i.crystal)}</div></div></div>
+        <div class="kit-row"><div class="kit-ico">💎</div><div class="kit-body"><div class="kit-label">${t("crystal", "Crystal")}</div><div class="kit-value">${esc(crystalRowValue(db, n, p, lang))}</div></div></div>
+        ${isMinorProfile(p) && HEAVY_GEM_BY_NUMBER[n] ? `<div class="kit-row" data-age-guardrail="under-18"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "आयु सुरक्षा (18 से कम)" : lang === "gu" ? "ઉંમર સુરક્ષા (18 થી ઓછી)" : "Age guardrail (under 18)"}</div><div class="kit-value">${lang === "hi" ? `अभिभावक ध्यान दें: विद्यार्थी-आयु में यह किट जीवनशैली, रंग और दान पंक्तियों तथा खंड 4A के तत्व आधारों से चले; रत्न वैकल्पिक और हल्का ही रहे।` : lang === "gu" ? `વાલી નોંધ: વિદ્યાર્થી-ઉંમરે આ કિટ જીવનશૈલી, રંગ અને દાન હરોળ તથા વિભાગ 4A ના તત્વ આધારથી ચાલે; રત્ન વૈકલ્પિક અને હળવું જ રહે.` : `For parents: at school age this kit runs on its lifestyle, colour and charity rows plus the Section 4A Tattva anchors; the stone stays optional and mild.`}</div></div></div>` : ""}
         <div class="kit-row"><div class="kit-ico">📿</div><div class="kit-body"><div class="kit-label">${t("rudraksha", "Rudraksha")}</div><div class="kit-value">${esc(i.rudraksha)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🔱</div><div class="kit-body"><div class="kit-label">${t("yantra", "Yantra")}</div><div class="kit-value">${esc(yantraName)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🎨</div><div class="kit-body"><div class="kit-label">${t("colorDayMetal", "Colour / Metal") }</div><div class="kit-value">${esc(i.color)} · ${esc(i.metal)}</div></div></div>
@@ -3715,7 +3855,8 @@
       ? `<section class="rsection" id="remedy-section" data-remedy-authority="lo-shu">
           <h2 class="rsection-title"><span class="idx">${SECTION.weak}</span>${t("secWeak", "Lo Shu Remedy Kits")}</h2>
           <p class="rsection-desc">${lang === "hi" ? "लो शू जन्म-पट्टिका में अनुपस्थित अंकों के पूर्ण उपाय किट — यही इस रिपोर्ट की एकमात्र missing-number remedy सूची है।" : lang === "gu" ? "લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંકોના સંપૂર્ણ ઉપાય કિટ — આ જ રિપોર્ટની એકમાત્ર missing-number remedy સૂચિ છે." : `Full Lo Shu Foundation remedy kits for missing numbers — the only missing-number remedy list in this report.`}</p>
-          <div class="card-grid two">${p.loShuMissing.slice(0, 4).map((n) => kitCard(n)).join("")}</div>
+          ${isMinorProfile(p) ? `<p class="rsection-desc" data-age-guardrail="under-18">${lang === "hi" ? `18 से कम आयु — अभिभावकों के लिए: ${p.ageYears} वर्ष की विद्यार्थी-पट्टिका के लिए नीचे की आदत, रंग और दान पंक्तियाँ तथा खंड 4A के तत्व आधार ही पूर्ण उपाय हैं — रत्न नहीं। जहाँ किसी किट में भारी ग्रह-रत्न (ब्लू सैफायर/नीलम, हेसोनाइट/गोमेद, कैट्स आई/लहसुनिया) लिखा हो, उसे वयस्कता तक स्थगित समझें; पत्थर चाहिए भी, तो Amethyst, Citrine या Smoky Quartz जैसा हल्का पत्थर पर्याप्त है।` : lang === "gu" ? `18 થી ઓછી ઉંમર — વાલીઓ માટે: ${p.ageYears} વર્ષની વિદ્યાર્થી-પટ્ટિકા માટે નીચેની ટેવ, રંગ અને દાન હરોળ તથા વિભાગ 4A ના તત્વ આધાર જ સંપૂર્ણ ઉપાય છે — રત્ન નહીં. જ્યાં કોઈ કિટમાં ભારે ગ્રહ-રત્ન (બ્લુ સેફાયર/નીલમ, હેસોનાઇટ/ગોમેદ, કૅટ્સ આય/લહસુનિયા) લખ્યું હોય, તેને પુખ્ત ઉંમર સુધી મુલ્તવી ગણો; પથ્થર જ જોઈતો હોય તો Amethyst, Citrine કે Smoky Quartz જેવો હળવો પથ્થર પૂરતો છે.` : `Under-18 note for parents: at age ${p.ageYears} this school-age chart works best through the habit, colour and charity rows below and the Section 4A Tattva anchors — not gemstones. Where a kit names a heavy planetary gem (Blue Sapphire/Neelam, Hessonite/Gomed, Cat's Eye/Lehsunia), treat it as deferred until adulthood; a mild stone such as Amethyst, Citrine or Smoky Quartz is more than enough if a stone is wanted at all.`}</p>` : ""}
+          <div class="card-grid two">${p.loShuMissing.slice(0, 4).map((n) => kitCard(n, undefined, p)).join("")}</div>
           ${p.loShuMissing.length > 4 ? `<p class="rsection-desc">+ ${p.loShuMissing.length - 4} more missing numbers — apply their quick balancers from Section ${SECTION.grid}.</p>` : ""}
         </section>` : "";
 
@@ -3846,13 +3987,24 @@
     </section>`;
 
     const cg = crystalGuide(p);
+    /* Under-18 charts never surface a heavy Saturn/Rahu/Ketu gem card: the
+       pick is swapped to the gentle substitute named in the same kit, and a
+       parent-facing note explains the deferral. */
+    const minorChart = isMinorProfile(p);
+    const cgPicks = minorChart
+      ? [...new Set(cg.picks.map((k) => (HEAVY_GEM_PICK_SWAP[k] && db.crystals[HEAVY_GEM_PICK_SWAP[k]] ? HEAVY_GEM_PICK_SWAP[k] : k)))]
+      : cg.picks;
+    const cgSwapped = minorChart && cg.picks.some((k) => HEAVY_GEM_PICK_SWAP[k]);
+    const cgSubstituteOf = {};
+    if (cgSwapped) cg.picks.forEach((k) => { const swap = HEAVY_GEM_PICK_SWAP[k]; if (swap && cgPicks.includes(swap)) cgSubstituteOf[swap] = k; });
     const crystalSection = `<section class="rsection" data-remedy-authority="lo-shu">
       <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>${t("secCrystal", "Crystal Companion Guide")}</h2>
       <p class="rsection-desc">${lang === "hi" ? `ये crystal और Rudraksha सुझाव केवल लो शू में अनुपस्थित अंक ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "के अभाव"} से आते हैं। मूलांक/भाग्यांक, राशि और उन्नत वैदिक grid इन्हें नहीं बदलते।` : lang === "gu" ? `આ crystal અને Rudraksha સૂચનો ફક્ત લો શુંમાં ખૂટતા અંક ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "ના અભાવ"} પરથી આવે છે. મૂળાંક/ભાગ્યાંક, રાશિ અને ઉન્નત વૈદિક grid તેને બદલતા નથી.` : `These crystal and Rudraksha suggestions come only from missing Lo Shu number${cg.remedyNumbers.length === 1 ? "" : "s"} ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "— none are required"}. Driver/Conductor, zodiac and the advanced Vedic grid do not change them.`}</p>
-      ${cg.picks.length ? `<div class="card-grid two">${cg.picks.map((k) => {
+      ${minorChart && cgPicks.length ? `<div class="card" data-age-guardrail="under-18"><div class="goal-head"><div class="card-title">${lang === "hi" ? "🛡 अभिभावकों के लिए — 18 से कम आयु की पट्टिका" : lang === "gu" ? "🛡 વાલીઓ માટે — 18 થી ઓછી ઉંમરની પટ્ટિકા" : "🛡 For parents — an under-18 chart"}</div><span class="badge info">${lang === "hi" ? `आयु ${p.ageYears}` : lang === "gu" ? `ઉંમર ${p.ageYears}` : `Age ${p.ageYears}`}</span></div><div class="kit-value">${lang === "hi" ? `इस आयु में कोई भारी ग्रह-रत्न नहीं: ब्लू सैफायर (नीलम), हेसोनाइट (गोमेद) और कैट्स आई (लहसुनिया) 18 वर्ष तक स्थगित रहते हैं और तब भी विशेषज्ञ परीक्षण मांगते हैं। ऊपर की सूची पहले से ही हल्के विकल्प दिखाती है। असली उपाय विद्यार्थी-आयु में खंड 4A के तत्व आधार और प्रत्येक किट की जीवनशैली पंक्तियाँ हैं; पत्थर चाहिए भी, तो Amethyst या Citrine जैसा हल्का, जैविक पत्थर ही सुरक्षित शुरुआत है।` : lang === "gu" ? `આ ઉંમરે કોઈ ભારે ગ્રહ-રત્ન નહીં: બ્લુ સેફાયર (નીલમ), હેસોનાઇટ (ગોમેદ) અને કૅટ્સ આય (લહસુનિયા) 18 વર્ષ સુધી મુલ્તવી રહે છે અને પછી પણ નિષ્ણાત પરીક્ષણ માંગે છે. ઉપરની યાદી પહેલેથી હળવા વિકલ્પો બતાવે છે. વિદ્યાર્થી-ઉંમરે સાચો ઉપાય વિભાગ 4A ના તત્વ આધાર અને દરેક કિટની જીવનશૈલી હરોળ છે; પથ્થર જ જોઈતો હોય તો Amethyst કે Citrine જેવો હળવો, ઓર્ગેનિક પથ્થર જ સુરક્ષિત શરૂઆત છે.` : `No heavy planetary gems at this age: Blue Sapphire (Neelam), Hessonite (Gomed) and Cat's Eye (Lehsunia) stay deferred until 18 and demand an expert trial even then — the list above already shows the gentle substitutes. The real remedy at school age is the Section 4A Tattva anchors plus each kit's lifestyle rows; if a stone is still wanted, keep it mild and organic — Amethyst or Citrine are the safe starters.`}</div></div>` : ""}
+      ${cgPicks.length ? `<div class="card-grid two">${cgPicks.map((k) => {
         const c = db.crystals[k];
-        return `<div class="card">
-          <div class="card-title">💎 ${esc(k)}</div>
+        return `<div class="card"${cgSubstituteOf[k] ? ` data-gentle-substitute="${esc(cgSubstituteOf[k])}"` : ""}>
+          <div class="card-title">💎 ${esc(k)}${cgSubstituteOf[k] ? ` <span class="badge info" data-age-guardrail="under-18">${lang === "hi" ? `हल्का विकल्प — ${esc(cgSubstituteOf[k])} के स्थान पर` : lang === "gu" ? `હળવો વિકલ્પ — ${esc(cgSubstituteOf[k])} ના સ્થાને` : `gentle stand-in for ${esc(cgSubstituteOf[k])}`}</span>` : ""}</div>
           <div class="kit">
             <div class="kit-row"><div class="kit-ico">⚡</div><div class="kit-body"><div class="kit-label">Energy / Chakra</div><div class="kit-value">${esc(c.chakra)}</div></div></div>
             <div class="kit-row"><div class="kit-ico">✨</div><div class="kit-body"><div class="kit-label">Core Benefits</div><div class="kit-value">${esc(c.benefits)}</div></div></div>
@@ -4098,7 +4250,12 @@
           <span class="badge ${stackRelation === "enemy" ? "warn" : pyAlignment === "aligned" ? "good" : "info"}">${lang === "hi" ? `व्यक्तिगत वर्ष ${py}` : lang === "gu" ? `વ્યક્તિગત વર્ષ ${py}` : `Personal Year ${py} · ${planetOf(py)}`}</span>
         </div>
         <div class="kit-value">${lang === "hi" ? synthesisHi : lang === "gu" ? synthesisGu : synthesisEn}</div>
-        <div class="card-sub">${lang === "hi" ? "व्यक्तिगत वर्ष वार्षिक ट्रांज़िट-इंजन है; दशा तय करती है कि वह ऊर्जा कब और किस रूप में फलित होती है। तिथियां केवल दशा से आती हैं।" : lang === "gu" ? "વ્યક્તિગત વર્ષ વાર્ષિક ટ્રાન્ઝિટ-એન્જિન છે; દશા નક્કી કરે છે કે તે ઊર્જા ક્યારે અને કયા રૂપે ફળે છે. તારીખો ફક્ત દશાથી આવે છે." : "Personal Year is the annual transit engine; the Dasha decides when and in what form that energy converts. All dates above come from the Dasha alone."}</div>
+        ${isMinorProfile(p) && stackRelation === "enemy" ? `<div class="kit-value student-stack-note" data-student-stack-note="true"><strong>${lang === "hi" ? `विद्यार्थी दृष्टि (आयु ${p.ageYears}):` : lang === "gu" ? `વિદ્યાર્થી દૃષ્ટિ (ઉંમર ${p.ageYears}):` : `Student lens (age ${p.ageYears}):`}</strong> ${lang === "hi"
+          ? `${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} जैसा परस्पर-शत्रु क्रम विद्यालय और घर में प्रायः नियम व अधिकार (${planetOf(cur.md.n)}) बनाम निजी स्वतंत्रता की ललक (${planetOf(cur.ad.n)}) के रूप में दिखता है। हर शैक्षणिक बदलाव छोटे, उलटने योग्य कदमों में रखें; गर्मी को खेल और शारीरिक गति में ढालें; अभिभावक ढांचा थोपें नहीं — बातचीत से तय करें। उपरोक्त सलाह — छोटे, उलटने योग्य कदम और क्रोध को शांत रखना — ${prettyDate(cur.ad.endMs)} को ${planetOf(cur.ad.n)} उप-काल बंद होने तक समयोचित है।`
+          : lang === "gu"
+            ? `${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} જેવો પરસ્પર-શત્રુ ક્રમ શાળા અને ઘરે સામાન્યતઃ નિયમો-સત્તા (${planetOf(cur.md.n)}) વિરુદ્ધ અંગત સ્વતંત્રતાની ઝુંબેશ (${planetOf(cur.ad.n)}) તરીકે દેખાય છે. દરેક શૈક્ષણિક ફેરફાર નાના, પછી ફેરવી શકાય એવા પગલાંઓમાં રાખો; ગરમીને રમતગમત અને શારીરિક ગતિમાં ઢાળો; વાલી માળખું ઠલવે નહીં — વાતચીતથી નક્કી કરે. ઉપરની સલાહ — નાના, પછી ફેરવી શકાય એવા પગલાં અને ગુસ્સો શાંત રાખવો — ${prettyDate(cur.ad.endMs)} એ ${planetOf(cur.ad.n)} ઉપ-કાળ પૂરો થાય ત્યાં સુધી સમયોચિત છે.`
+            : `a mutual-enemy stack like ${planetOf(cur.md.n)} × ${planetOf(cur.ad.n)} usually plays out at school and at home as friction between rules and authority (${planetOf(cur.md.n)}) and the pull for personal independence (${planetOf(cur.ad.n)}). Keep every academic transition in small, reversible steps, channel the heat into sport and movement, and let parents negotiate structure rather than impose it. The guidance above — small, reversible steps and a cooled temper — is timely until the ${planetOf(cur.ad.n)} sub-period closes on ${prettyDate(cur.ad.endMs)}.`}</div>` : ""}
+        <div class="card-sub">${lang === "hi" ? "व्यक्तिगत वर्ष वार्षिक ट्रांज़िट-इंजन है; दशा तय करती है कि वह ऊर्जा कब और किस रूप में फलित होती है। तिथियां केवल दशा से आती हैं।" : lang === "gu" ? "વ્યક્તિગત વર્ષ વાર્ષિक ટ્રાન્ઝિટ-એન્જિન છે; દશા નક્કી કરે છે કે તે ઊર્જા ક્યારે અને કયા રૂપે ફળે છે. તારીખો ફક્ત દશાથી આવે છે." : "Personal Year is the annual transit engine; the Dasha decides when and in what form that energy converts. All dates above come from the Dasha alone."}</div>
       </div>`;
 
       const stackCard = `<div class="card">
@@ -4411,7 +4568,7 @@
       <p class="rsection-desc">${g.weak.length
         ? (lang === "hi" ? `आपके लो शू जन्म-ग्रिड में अनुपस्थित अंक <strong>${g.weak.join(", ")}</strong> इस लक्ष्य के लिए practice targets हैं।` : lang === "gu" ? `તમારા લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંક <strong>${g.weak.join(", ")}</strong> આ લક્ષ્ય માટે practice targets છે.` : `Missing Lo Shu Birth Grid number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> are the practice targets for this focus.`)
         : (lang === "hi" ? "इस लक्ष्य से जुड़े लो शू अंक उपस्थित हैं — कोई अतिरिक्त remedy kit आवश्यक नहीं है।" : lang === "gu" ? "આ લક્ષ્ય સાથે જોડાયેલા લો શુ અંકો હાજર છે — વધારાની remedy kit જરૂરી નથી." : `The Lo Shu numbers connected to this focus are present — no extra remedy kit is required.`)}</p>
-      ${g.weak.length ? `<div class="card-grid two">${g.focus.map((f) => kitCard(f.n)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
+      ${g.weak.length ? `<div class="card-grid two">${g.focus.map((f) => kitCard(f.n, undefined, p)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
     </section>`).join("");
 
     const cadenceLabel = {
@@ -4997,6 +5154,7 @@
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
+    currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     normalizeDobInput, formatDobForDisplay,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,

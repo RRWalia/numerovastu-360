@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.8.0 — Lo Shu Foundation + Vedic Dasha Timeline**
+**Release 2.8.1 — Lo Shu Foundation + Vedic Dasha Timeline**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps two traditions separate:
@@ -14,6 +14,18 @@ personal details are sent to an application server.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.8.1
+
+Clinical safety overlays — additive, clearly-labelled notes on top of the
+canonical kits (no data-pack change, engines untouched):
+
+| Area | 2.8.1 behaviour |
+| --- | --- |
+| Solar-load moderation | When digit 1 repeats 3+ times against a Pitta constitution, the Ayurvedic baseline carries a practitioner note tempering *Surya arghya* to a brief, calm sunrise offering, the Section 3 channeling card adds a “Cool the surplus” line, and the Section 4A Agni card directs the reader to its mildest form (skip *Surya Bhedana* / midday solar activation; let the Emotional plane’s *Chandra Bhedana* and evening grounding carry the cooling). |
+| Under-18 gem guardrail | Profiles compute a completed-years age signal. Under 18, the heavy Saturn/Rahu/Ketu gems (Blue Sapphire/Neelam, Hessonite/Gomed, Cat’s Eye/Lehsunia) are deferred in the remedy kits (“gentle substitute first”), the Crystal Companion Guide swaps those picks to Amethyst / Smoky Quartz / Tiger’s Eye, and parent-facing notes route the remedy to the Section 4A Tattva lifestyle anchors and mild organic stones. |
+| Student lens on hostile Dasha stacks | A minor chart running a mutual-enemy MD × AD (e.g. Saturn × Mars) gets an age-aware note in the Annual Transit × Dasha synthesis: authority-versus-independence framing, small reversible steps through academic transitions, and the sub-period closure date. |
+| Cockpit | The practitioner sheet shows the consultee’s age and surfaces both guardrails as compact facts. |
 
 ## What changed in 2.8.0
 
