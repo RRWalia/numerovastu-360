@@ -324,6 +324,13 @@ body {
 .chip:focus-visible { outline: 2px solid var(--kimi-blue); outline-offset: 2px; }
 .chip.selected { background: var(--label-primary); color: #fff; }
 
+/* Optional Health sub-tags (shown only while the Health focus is on) */
+.health-tags-wrap { margin-top: 12px; padding: 12px 14px; background: var(--fill-f1); border-radius: var(--r-md); display: flex; flex-direction: column; gap: 8px; }
+.health-tags-wrap.hidden { display: none; }
+.field-label-sm { font-size: 13px; line-height: 18px; }
+.chip-group-sm { gap: 6px; }
+.chip-sm { height: 28px; padding: 4px 10px; font-size: 12.5px; line-height: 18px; }
+
 .toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 14px 16px;
@@ -795,6 +802,21 @@ body {
   margin-top: 8px; padding: 8px 12px;
   background: var(--kimi-blue-10); border-left: 3px solid var(--purple);
   border-radius: var(--r-sm); break-inside: avoid; page-break-inside: avoid;
+}
+
+/* Moon-cold clinical guardrail (Number 2 / Chandra): warm-substitute banner
+   over the canonical lunar kit. Amber edge marks a clinical warning. */
+.clinical-guardrail-banner {
+  background: var(--light-orange-bg); border-left: 3px solid var(--amber);
+  border-radius: var(--r-sm); break-inside: avoid; page-break-inside: avoid;
+}
+.kit .clinical-guardrail-banner { margin: 0; padding: 8px 12px; }
+.card.clinical-guardrail-banner { padding: 14px 16px; }
+.clinical-guardrail-banner .kit-label { color: var(--label-primary); font-weight: 700; }
+.priority-guardrail {
+  display: inline-block; margin-top: 4px; padding: 2px 8px;
+  font-size: 12px; line-height: 18px; font-weight: 600;
+  background: var(--light-orange-bg); color: #a05c00; border-radius: var(--r-full);
 }
 .tattva-card .solar-moderation { margin-top: 2px; padding-left: 12px; }
 .student-stack-note {

@@ -307,6 +307,464 @@
     return `<div class="kit-value solar-moderation" data-solar-moderation="dosha" data-authority="lo-shu-overlay"><strong>${lang === "hi" ? "Overlay (दोहराव-स्तर):" : lang === "gu" ? "ઓવરલે (પુનરાવૃત્તિ-સ્તર):" : "Overlay (repeated-number layer):"}</strong> ${esc(text)}</div>`;
   }
 
+  /* ---- Moon-cold clinical guardrail (Number 2 / Chandra) -------------------
+     Raw lunar remedies carry Sheeta Guna (cold potency): the full Moon Beej
+     mantra, Monday cold fasts, a Pearl/Moonstone trial and raw or
+     refrigerated milk can aggravate an active cold, sinus congestion or
+     allergic rhinitis (Vataja Pratishyaya). The canonical Number 2 kit in
+     data.js stays untouched; this flag only adds a clearly-labelled
+     warm-substitute overlay, using the same additive pattern as
+     solarModerationNote and the under-18 gemstone guardrail.
+     Triggers (any one, for every DOB — never a hard-coded chart):
+       - declared: the intake Health sub-tag "Allergies / Respiratory / Cold"
+       - Vata channel in the Driver/Conductor dosha baseline (a Tridoshic
+         Mercury baseline carries a Vata channel, so Driver/Conductor 5
+         charts read as Pitta-Vata even when the blended headline is Pitta)
+       - Mercury 5 as Driver or Conductor (nervous-system Vata)
+       - Health focus selected (the Moon governs the Health focus)
+     Declared sensitivity uses firmer "run warm only" wording; potential
+     sensitivity uses conditional "if prone to…" wording so charts without
+     symptoms are guided, not alarmed. */
+  const HEALTH_TAG_VALUES = ["respiratory", "heat", "fatigue"];
+  const HEALTH_TAG_RESPIRATORY = "respiratory";
+  function healthTagsOf(p) {
+    const raw = (p && p.healthTags) || [];
+    return raw.map((tag) => String(tag || "").trim().toLowerCase())
+      .filter((tag) => HEALTH_TAG_VALUES.includes(tag));
+  }
+  function hasRespiratoryTag(p) {
+    return healthTagsOf(p).includes(HEALTH_TAG_RESPIRATORY);
+  }
+  function vataInBaseline(p) {
+    if (!p || !p.doshaProfile) return false;
+    const tags = p.doshaProfile.primaryTags || [];
+    if (tags.includes("Vata")) return true;
+    const driverType = String((p.doshaProfile.driverDosha || {}).dominant || "").toLowerCase();
+    const conductorType = String((p.doshaProfile.conductorDosha || {}).dominant || "").toLowerCase();
+    // A Tridoshic (Mercury 5) baseline carries all three channels including Vata.
+    return [driverType, conductorType].some((entry) => entry.includes("vata") || entry.includes("tridoshic"));
+  }
+  function mercuryVataNumber(p) {
+    return !!p && (Number(p.driver) === 5 || Number(p.conductor) === 5);
+  }
+  function hasHealthFocus(p) {
+    return !!p && Array.isArray(p.goals) && p.goals.includes("Health");
+  }
+  function moonColdSensitivity(p) {
+    if (!p) return null;
+    const reasons = [];
+    if (hasRespiratoryTag(p)) reasons.push("declared-respiratory");
+    if (vataInBaseline(p)) reasons.push("vata-baseline");
+    if (mercuryVataNumber(p)) reasons.push("mercury-5");
+    if (hasHealthFocus(p)) reasons.push("health-focus");
+    if (!reasons.length) return null;
+    return { level: hasRespiratoryTag(p) ? "declared" : "potential", reasons };
+  }
+  function healthTagLabel(tag, lang) {
+    const l = lang || getLang();
+    const key = String(tag || "").toLowerCase();
+    if (key === "respiratory") return l === "hi" ? "एलर्जी / श्वसन / सर्दी" : l === "gu" ? "એલર્જી / શ્વસન / શરદી" : "Allergies / Respiratory / Cold";
+    if (key === "heat") return l === "hi" ? "एसिडिटी / सूजन / गर्मी" : l === "gu" ? "એસિડિટી / સોજો / ગરમી" : "Acidity / Inflammation / Heat";
+    if (key === "fatigue") return l === "hi" ? "जोड़ / पाचन / थकान" : l === "gu" ? "સાંધા / પાચન / થાક" : "Joints / Digestion / Fatigue";
+    return String(tag || "");
+  }
+  /* Advisory shape used across the report: getRemedyClinicalGuardrail(2, p)
+     returns the badge + note for the Moon kit, or null for every other
+     number and for charts with no cold-sensitivity signal. */
+  function getRemedyClinicalGuardrail(num, profile, langOverride) {
+    const guardrailNum = Number(num);
+    // Numbers 1 and 3-9 run the generic Dosha x planet path; Number 2 keeps
+    // the bespoke Moon-cold guardrail below.
+    if (guardrailNum !== 2) return doshaContraGuardrail(guardrailNum, profile, langOverride);
+    if (!profile) return null;
+    const sensitivity = moonColdSensitivity(profile);
+    if (!sensitivity) return null;
+    const lang = langOverride || getLang();
+    const declared = sensitivity.level === "declared";
+    const badge = lang === "hi"
+      ? "🛡 नैदानिक सुरक्षा — श्वसन व सर्दी संवेदनशीलता"
+      : lang === "gu"
+        ? "🛡 ક્લિનિકલ સલામતી — શ્વસન અને શરદી સંવેદનશીલતા"
+        : "🛡 Clinical Safety Guardrail — Respiratory & Cold Sensitivity";
+    const note = lang === "hi"
+      ? (declared
+        ? "आपने एलर्जी / श्वसन / सर्दी चुनी है — इस चंद्र किट को केवल उष्ण रूप में चलाएं: कच्चा चंद्र बीज मंत्र (Om Shram Shreem…), सोमवार का ठंडा उपवास, Pearl/Moonstone परीक्षण और कच्चा या फ्रिज का दूध रोकें। ये शीत गुण और कफ-भार बढ़ाते हैं। विकल्प में भगवान शिव (चंद्रशेखर) जप (Om Namah Shivaya), चांदी के बर्तन का गुनगुना जल और नाड़ी शोधन अपनाएं; वायुमार्ग साफ होने तक रत्न व उपवास होल्ड पर रखें — रंग, दान व भूमि-संपर्क जारी रखें।"
+        : "यदि पुराना जुकाम, एलर्जिक राइनाइटिस, साइनस सूजन या सुबह की छींकें (वातज प्रतिश्याय) रहती हैं, तो कच्चे चंद्र बीज मंत्र, ठंडे उपवास या अत्यधिक कच्चे दूध से सख्त परहेज करें। ये शीत गुण और कफ-भार बढ़ाते हैं। विकल्प में भगवान शिव (चंद्रशेखर) जप, गुनगुना चांदी-जल और नाड़ी शोधन प्राणायाम अपनाएं।")
+      : lang === "gu"
+        ? (declared
+          ? "તમે એલર્જી / શ્વસન / શરદી પસંદ કરી છે — આ ચંદ્ર કિટ ફક્ત ઉષ્ણ રૂપે ચલાવો: કાચો ચંદ્ર બીજ મંત્ર (Om Shram Shreem…), સોમવારનો ઠંડો ઉપવાસ, Pearl/Moonstone અજમાયશ અને કાચું કે ફ્રિજનું દૂધ રોકો. આ શીત ગુણ અને કફ-ભાર વધારે છે. વિકલ્પે ભગવાન શિવ (ચંદ્રશેખર) જાપ (Om Namah Shivaya), ચાંદીના વાસણનું ગુનગુનું જળ અને નાડી શોધન અપનાવો; શ્વાસમાર્ગ સાફ થાય ત્યાં સુધી રત્ન અને ઉપવાસ હોલ્ડ પર રાખો — રંગ, દાન અને ભૂમિ-સંપર્ક ચાલુ રાખો."
+          : "જો જૂની શરદી, એલર્જિક રાઇનાઇટિસ, સાઇનસ સોજો કે સવારની છીંકો (વાતજ પ્રતિશ્યાય) રહેતી હોય, તો કાચા ચંદ્ર બીજ મંત્ર, ઠંડા ઉપવાસ કે વધુ પડતા કાચા દૂધથી સખત પરહેજ કરો. આ શીત ગુણ અને કફ-ભાર વધારે છે. વિકલ્પે ભગવાન શિવ (ચંદ્રશેખર) જાપ, ગુનગુનું ચાંદી-જળ અને નાડી શોધન પ્રાણાયામ અપનાવો.")
+        : (declared
+          ? "You flagged Allergies / Respiratory / Cold — run this Moon kit in its warm form only: pause the raw Moon Beej mantra (Om Shram Shreem…), Monday cold fasts, Pearl/Moonstone trial and raw or refrigerated milk. These raise Sheeta Guna (coldness) and mucus load. Substitute with Lord Shiva (Chandrashekhara) japa (Om Namah Shivaya), lukewarm water from a silver vessel, and Nadi Shodhana (alternate-nostril) breathwork. Keep Pearl/Moonstone and Monday fasts on hold until the airway is clear — colour, charity and grounding cues continue."
+          : "If dealing with chronic cold, allergic rhinitis, sinus inflammation, or morning sneezing (Vataja Pratishyaya), strictly avoid raw Moon Beej mantras, cold fasts, or excessive raw milk. These increase Sheeta Guna (coldness) and mucus buildup. Substitute with Lord Shiva (Chandrashekhara) japa, lukewarm silver-infused water, and Nadi Shodhana breathwork.");
+    return { type: "warning", level: sensitivity.level, reasons: sensitivity.reasons, badge, note };
+  }
+  /* Kit-card banner rendered as the first row of the Number 2 kit — directly
+     below the planet title — so Section 4 and every goal focus share it.
+     The number gate keeps every other kit (Jupiter, Rahu, …) clean. */
+  function moonColdKitGuardrailHtml(n, p, lang) {
+    if (Number(n) !== 2) return "";
+    const guardrail = getRemedyClinicalGuardrail(2, p, lang || getLang());
+    if (!guardrail) return "";
+    return `<div class="kit-row clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(guardrail.level)}"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${esc(guardrail.badge)}</div><div class="kit-value">${esc(guardrail.note)}</div></div></div>`;
+  }
+  /* Section 4A Emotional-plane overlay. Breathwork and water only — never a
+     mantra, mineral or Lo Shu instruction — so the 4A banned-word rule
+     (no fast/crystal/rudraksha/yantra/beej/ring/mala) keeps holding. */
+  function moonColdTattvaOverlayHtml(p, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const l = lang || getLang();
+    const label = l === "hi" ? "सर्दी-संवेदनशीलता overlay" : l === "gu" ? "શરદી-સંવેદનશીલતા ઓવરલે" : "Cold-sensitivity overlay";
+    const text = l === "hi"
+      ? "सुबह की छींक, जकड़न या साइनस-ठंड हो तो: सारा जल गुनगुना रखें (चांदी का बर्तन उत्तम); फ्रिज के पेय, बर्फ या रात के ठंडे तरल बिल्कुल नहीं। लंबी शीतल श्वास के बजाय नाड़ी शोधन (संतुलित, एकांतर नासिका) अपनाएं; सीधे बैठें, पहले नाक साफ करें, और जकड़न हो तो श्वास-अभ्यास रोकें — भूमि-संपर्क और गुनगुना पैर-स्नान जारी रखें।"
+      : l === "gu"
+        ? "સવારની છીંક, જકડાણ કે સાઇનસ-ઠંડી હોય તો: બધું જળ ગુનગુનું રાખો (ચાંદીનું વાસણ ઉત્તમ); ફ્રિજના પીણાં, બરફ કે રાત્રિના ઠંડા પ્રવાહી બિલકુલ નહીં. લાંબા શીતળ શ્વાસને બદલે નાડી શોધન (સંતુલિત, એકાંતર નાસિકા) અપનાવો; સીધા બેસો, પહેલાં નાક સાફ કરો, અને જકડાણ હોય તો શ્વાસ-અભ્યાસ રોકો — ભૂમિ-સંપર્ક અને ગુનગુનું પગ-સ્નાન ચાલુ રાખો."
+        : "If prone to morning sneezing, congestion or sinus chill: keep all water lukewarm (a silver vessel is ideal); strictly no refrigerated drinks, ice or late-night cooling fluids. Prefer Nadi Shodhana (balanced, alternate-nostril) over prolonged cooling breath; sit upright, clear the nose first, and pause breathwork while actively congested — grounding and the warm foot-soak continue.";
+    return `<div class="kit-row clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${esc(label)}</div><div class="kit-value">${esc(text)}</div></div></div>`;
+  }
+  /* One-line practitioner flag for the cockpit core cell. */
+  function moonColdCockpitFactHtml(p, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const l = lang || getLang();
+    const text = l === "hi"
+      ? "🌙 चंद्र २ + सर्दी संवेदनशीलता — केवल उष्ण चंद्र किट; शिव जप, गुनगुना चांदी-जल, नाड़ी शोधन"
+      : l === "gu"
+        ? "🌙 ચંદ્ર ૨ + શરદી સંવેદનશીલતા — ફક્ત ઉષ્ણ ચંદ્ર કિટ; શિવ જાપ, ગુનગુનું ચાંદી-જળ, નાડી શોધન"
+        : "🌙 Moon 2 + cold sensitivity — warm lunar kit only; Shiva japa, lukewarm silver water, Nadi Shodhana";
+    return `<div class="cockpit-fact" data-cockpit-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}">${esc(text)}</div>`;
+  }
+  /* Health-focus section banner (Section 19+): the Moon governs Health, so a
+     Health chart carries the guardrail even when Number 2 is not missing. */
+  function moonColdHealthFocusHtml(p, lang) {
+    if (!hasHealthFocus(p)) return "";
+    const guardrail = getRemedyClinicalGuardrail(2, p, lang || getLang());
+    if (!guardrail) return "";
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(guardrail.level)}"><div class="goal-head"><div class="card-title">${esc(guardrail.badge)}</div></div><div class="kit-value">${esc(guardrail.note)}</div></div>`;
+  }
+  /* Crystal Guide note: Pearl / Moonstone / White Opal are Sheeta stones, so
+     a cold-sensitive chart trials them only on a clear airway. */
+  const MOON_STONE_KEYS = ["Pearl", "Moonstone", "White Opal"];
+  function moonColdCrystalNoteHtml(p, picks, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const list = picks || [];
+    if (!list.some((key) => MOON_STONE_KEYS.includes(key))) return "";
+    const l = lang || getLang();
+    const text = l === "hi"
+      ? "सर्दी-संवेदनशीलता: Pearl/Moonstone की आज़माइश तभी करें जब श्वासमार्ग साफ हो; तब तक चांदी, गुनगुने जल की आदत और नाड़ी शोधन पर रहें।"
+      : l === "gu"
+        ? "શરદી-સંવેદનશીલતા: Pearl/Moonstone અજમાયશ ત્યારે જ કરો જ્યારે શ્વાસમાર્ગ સાફ હોય; ત્યાં સુધી ચાંદી, ગુનગુના જળની ટેવ અને નાડી શોધન પર રહો."
+        : "Cold-sensitive: trial Pearl/Moonstone only when the airway is clear; until then work silver, lukewarm water habits and Nadi Shodhana.";
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}"><div class="kit-value">🛡 ${esc(text)}</div></div>`;
+  }
+
+  /* ---- Dosha x planet clinical contraindication overlay (Numbers 1-9) ----
+     Generalisation of the Moon-cold guardrail above. Every planetary kit
+     carries an Ayurvedic quality load - Ushna (heating) for Sun/Ketu/Mars,
+     Sheeta-damp (cold) for Venus, Guru (heavy) for Jupiter and
+     Ruksha/Chala (dry/mobile) for Saturn/Rahu/Mercury - and each load
+     clashes with a matching dosha channel in the client's Driver/Conductor
+     baseline, a declared Health intake tag, or (for Health-governed
+     planets) a selected Health focus. The canonical kits in data.js stay
+     untouched; every touchpoint renders an additive overlay row, using the
+     same pattern as moonColdKitGuardrailHtml and the solar/under-18
+     guardrails. Number 2 keeps its bespoke Moon-cold copy and reason
+     vocabulary byte-identical: the generic path below only renders for
+     numbers 1 and 3-9 (data-clinical-guardrail="dosha-contra"). */
+  const HEALTH_GOVERNED_NUMBERS = [1, 2, 7, 9];
+  const DOSHA_CONTRA_RULES = {
+    1: { channel: "pitta", tags: ["heat"], health: true, mercury: false }, // Sun: Ushna x Pitta
+    3: { channel: "kapha", tags: ["fatigue"], health: false, mercury: false }, // Jupiter: Guru x Kapha
+    4: { channel: "vata", tags: ["fatigue"], health: false, mercury: true }, // Rahu: Chala x Vata
+    5: { channel: "vata", tags: ["fatigue"], health: false, mercury: true }, // Mercury: Chala x Vata
+    6: { channel: "kapha", tags: ["respiratory"], health: false, mercury: false }, // Venus: Sheeta-damp x Kapha
+    7: { channel: "pitta", tags: ["heat"], health: true, mercury: false }, // Ketu: smoky Ushna x Pitta
+    8: { channel: "vata", tags: ["respiratory", "fatigue"], health: false, mercury: true }, // Saturn: Ruksha x Vata
+    9: { channel: "pitta", tags: ["heat"], health: true, mercury: false } // Mars: Ushna x Pitta
+  };
+  /* A dosha channel is present when either the Driver or the Conductor
+     dosha names it explicitly. A Tridoshic (Mercury 5) baseline carries a
+     Vata channel only - the nervous-system leg - so Tridoshic charts flag
+     the Vata rules (4/5/8) but never the Pitta/Kapha rules on that basis.
+     For "vata" this is exactly vataInBaseline; the other two channels have
+     no legacy equivalent. */
+  function doshaChannelInBaseline(p, channel) {
+    if (!p || !p.doshaProfile) return false;
+    const needle = String(channel || "").toLowerCase();
+    if (!needle) return false;
+    const types = [
+      String((p.doshaProfile.driverDosha || {}).dominant || ""),
+      String((p.doshaProfile.conductorDosha || {}).dominant || "")
+    ].join(" ").toLowerCase();
+    if (types.includes(needle)) return true;
+    if (needle === "vata" && types.includes("tridoshic")) return true;
+    if (types.includes("tridoshic")) return false;
+    const tags = p.doshaProfile.primaryTags || [];
+    return tags.includes(needle[0].toUpperCase() + needle.slice(1));
+  }
+  /* Per-number sensitivity: declared intake tags escalate the level to
+     "declared"; a dosha channel, Mercury 5 (Vata rules) or the Health
+     focus (Health-governed planets) yield "potential" guidance. */
+  function doshaContraSensitivity(n, p) {
+    const num = Number(n);
+    if (num === 2 || !p) return null; // Number 2 keeps the bespoke Moon path
+    const rule = DOSHA_CONTRA_RULES[num];
+    if (!rule) return null;
+    const reasons = [];
+    const tags = healthTagsOf(p);
+    rule.tags.forEach((tag) => { if (tags.includes(tag)) reasons.push("declared-" + tag); });
+    if (doshaChannelInBaseline(p, rule.channel)) reasons.push(rule.channel + "-baseline");
+    if (rule.mercury && mercuryVataNumber(p)) reasons.push("mercury-5");
+    if (rule.health && hasHealthFocus(p)) reasons.push("health-focus");
+    if (!reasons.length) return null;
+    const declared = rule.tags.some((tag) => tags.includes(tag));
+    return { level: declared ? "declared" : "potential", reasons };
+  }
+  const DOSHA_CONTRA_SAFETY = { en: "Clinical Safety Guardrail", hi: "\u0928\u0948\u0926\u093e\u0928\u093f\u0915 \u0938\u0941\u0930\u0915\u094d\u0937\u093e", gu: "\u0a95\u0acd\u0ab2\u0abf\u0aa8\u0abf\u0a95\u0ab2 \u0ab8\u0ab2\u0abe\u0aae\u0aa4\u0ac0" };
+  const DOSHA_CONTRA_LOAD = { en: "Load", hi: "\u092d\u093e\u0930", gu: "\u0aad\u0abe\u0ab0" };
+  const DOSHA_CONTRA_COPY = {
+    1: {
+      planet: { en: "Sun", hi: "\u0938\u0942\u0930\u094d\u092f", gu: "\u0ab8\u0ac2\u0ab0\u0acd\u0aaf" },
+      declared: {
+        en: "You flagged Acidity / Inflammation / Heat \u2014 run this Sun kit cool: keep the water-offering brief and at sunrise only, skip prolonged sun-gazing and midday solar practices. These add Ushna (heating) load to a Pitta channel. Balance with Chandra Bhedana (left-nostril) breathing and evening grounding; colour, charity and routine cues continue.",
+        hi: "\u0906\u092a\u0928\u0947 \u090f\u0938\u093f\u0921\u093f\u091f\u0940 / \u0938\u0942\u091c\u0928 / \u0917\u0930\u094d\u092e\u0940 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u0938\u0942\u0930\u094d\u092f \u0915\u093f\u091f \u0915\u094b \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u091c\u0932-\u0905\u0930\u094d\u092a\u0923 \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0914\u0930 \u0915\u0947\u0935\u0932 \u0938\u0942\u0930\u094d\u092f\u094b\u0926\u092f \u092a\u0930 \u0930\u0916\u0947\u0902, \u0932\u0902\u092c\u093e \u0938\u0942\u0930\u094d\u092f-\u0926\u0930\u094d\u0936\u0928 \u0914\u0930 \u0926\u094b\u092a\u0939\u0930 \u0915\u0947 \u0938\u094c\u0930 \u0905\u092d\u094d\u092f\u093e\u0938 \u091b\u094b\u0921\u093c\u0947\u0902\u0964 \u092f\u0947 \u092a\u093f\u0924\u094d\u0924-\u092e\u093e\u0930\u094d\u0917 \u092e\u0947\u0902 \u0909\u0937\u094d\u0923 (\u0917\u0930\u094d\u092e) \u092d\u093e\u0930 \u092c\u0922\u093c\u093e\u0924\u0947 \u0939\u0948\u0902\u0964 \u091a\u0902\u0926\u094d\u0930 \u092d\u0947\u0926\u0928 (\u092c\u093e\u0908\u0902 \u0928\u093e\u0938\u093f\u0915\u093e) \u0936\u094d\u0935\u093e\u0938 \u0914\u0930 \u0936\u093e\u092e \u0915\u0947 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0938\u0947 \u0938\u0902\u0924\u0941\u0932\u0928 \u0915\u0930\u0947\u0902; \u0930\u0902\u0917, \u0926\u093e\u0928 \u0914\u0930 \u0926\u093f\u0928\u091a\u0930\u094d\u092f\u093e \u0938\u0902\u0915\u0947\u0924 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0 / \u0ab8\u0acb\u0a9c\u0acb / \u0a97\u0ab0\u0aae\u0ac0 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0ac0 \u0a9b\u0ac7 \u2014 \u0a86 \u0ab8\u0ac2\u0ab0\u0acd\u0aaf \u0a95\u0abf\u0a9f \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0a9c\u0ab3-\u0a85\u0ab0\u0acd\u0aaa\u0aa3 \u0a9f\u0ac2\u0a82\u0a95\u0ac1\u0a82 \u0a85\u0aa8\u0ac7 \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ac2\u0ab0\u0acd\u0aaf\u0acb\u0aa6\u0aaf\u0ac7 \u0ab0\u0abe\u0a96\u0acb, \u0ab2\u0abe\u0a82\u0aac\u0ac1\u0a82 \u0ab8\u0ac2\u0ab0\u0acd\u0aaf-\u0aa6\u0ab0\u0acd\u0ab6\u0aa8 \u0a85\u0aa8\u0ac7 \u0aac\u0aaa\u0acb\u0ab0\u0aa8\u0abe \u0ab8\u0acc\u0ab0 \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0a9b\u0acb\u0aa1\u0acb. \u0a86 \u0aaa\u0abf\u0aa4\u0acd\u0aa4-\u0aae\u0abe\u0ab0\u0acd\u0a97\u0aae\u0abe\u0a82 \u0a89\u0ab7\u0acd\u0aa3 (\u0a97\u0ab0\u0aae) \u0aad\u0abe\u0ab0 \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7. \u0a9a\u0a82\u0aa6\u0acd\u0ab0 \u0aad\u0ac7\u0aa6\u0aa8 (\u0aa1\u0abe\u0aac\u0ac0 \u0aa8\u0abe\u0ab8\u0abf\u0a95\u0abe) \u0ab6\u0acd\u0ab5\u0abe\u0ab8 \u0a85\u0aa8\u0ac7 \u0ab8\u0abe\u0a82\u0a9c\u0aa8\u0abe \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95\u0aa5\u0ac0 \u0ab8\u0a82\u0aa4\u0ac1\u0ab2\u0aa8 \u0a95\u0ab0\u0acb; \u0ab0\u0a82\u0a97, \u0aa6\u0abe\u0aa8 \u0a85\u0aa8\u0ac7 \u0aa6\u0abf\u0aa8\u0a9a\u0ab0\u0acd\u0aaf\u0abe \u0ab8\u0a82\u0a95\u0ac7\u0aa4 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Sun remedies carry Ushna (heating) load. If prone to acidity, skin flare-ups, headaches or a short temper, keep the arghya brief and at sunrise only \u2014 no prolonged sun-gazing or heat-building practice. Let Chandra Bhedana and evening grounding carry the cooling.",
+        hi: "\u0938\u0942\u0930\u094d\u092f \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0909\u0937\u094d\u0923 (\u0917\u0930\u094d\u092e) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u090f\u0938\u093f\u0921\u093f\u091f\u0940, \u0924\u094d\u0935\u091a\u093e-\u0935\u093f\u0915\u093e\u0930, \u0938\u093f\u0930\u0926\u0930\u094d\u0926 \u092f\u093e \u091c\u0932\u094d\u0926\u0940 \u0915\u094d\u0930\u094b\u0927 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0905\u0930\u094d\u0918\u094d\u092f \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0914\u0930 \u0915\u0947\u0935\u0932 \u0938\u0942\u0930\u094d\u092f\u094b\u0926\u092f \u092a\u0930 \u0930\u0916\u0947\u0902 \u2014 \u0932\u0902\u092c\u093e \u0938\u0942\u0930\u094d\u092f-\u0926\u0930\u094d\u0936\u0928 \u092f\u093e \u0917\u0930\u094d\u092e\u0940 \u092c\u0922\u093c\u093e\u0928\u0947 \u0935\u093e\u0932\u093e \u0905\u092d\u094d\u092f\u093e\u0938 \u0928\u0939\u0940\u0902\u0964 \u0936\u0940\u0924\u0932\u0928 \u091a\u0902\u0926\u094d\u0930 \u092d\u0947\u0926\u0928 \u0914\u0930 \u0936\u093e\u092e \u0915\u0947 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0938\u0947 \u0915\u0930\u093e\u090f\u0902\u0964",
+        gu: "\u0ab8\u0ac2\u0ab0\u0acd\u0aaf \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0a89\u0ab7\u0acd\u0aa3 (\u0a97\u0ab0\u0aae) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0, \u0aa4\u0acd\u0ab5\u0a9a\u0abe-\u0ab5\u0abf\u0a95\u0abe\u0ab0, \u0aae\u0abe\u0aa5\u0abe\u0aa8\u0acb \u0aa6\u0ac1\u0a96\u0abe\u0ab5\u0acb \u0a95\u0ac7 \u0a9c\u0ab2\u0acd\u0aa6\u0ac0 \u0a97\u0ac1\u0ab8\u0acd\u0ab8\u0abe\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0a85\u0ab0\u0acd\u0a98\u0acd\u0aaf \u0a9f\u0ac2\u0a82\u0a95\u0acb \u0a85\u0aa8\u0ac7 \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ac2\u0ab0\u0acd\u0aaf\u0acb\u0aa6\u0aaf\u0ac7 \u0ab0\u0abe\u0a96\u0acb \u2014 \u0ab2\u0abe\u0a82\u0aac\u0ac1\u0a82 \u0ab8\u0ac2\u0ab0\u0acd\u0aaf-\u0aa6\u0ab0\u0acd\u0ab6\u0aa8 \u0a95\u0ac7 \u0a97\u0ab0\u0aae\u0ac0 \u0ab5\u0aa7\u0abe\u0ab0\u0aa4\u0acb \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0aa8\u0ab9\u0ac0\u0a82. \u0ab6\u0ac0\u0aa4\u0ab2\u0aa8 \u0a9a\u0a82\u0aa6\u0acd\u0ab0 \u0aad\u0ac7\u0aa6\u0aa8 \u0a85\u0aa8\u0ac7 \u0ab8\u0abe\u0a82\u0a9c\u0aa8\u0abe \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95\u0aa5\u0ac0 \u0a95\u0ab0\u0abe\u0ab5\u0acb."
+      },
+      micro: {
+        en: "run it cool \u2014 brief sunrise arghya only, Chandra Bhedana at night",
+        hi: "\u0907\u0938\u0947 \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u0915\u0947\u0935\u0932 \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0938\u0942\u0930\u094d\u092f\u094b\u0926\u092f \u0905\u0930\u094d\u0918\u094d\u092f, \u0930\u093e\u0924 \u092e\u0947\u0902 \u091a\u0902\u0926\u094d\u0930 \u092d\u0947\u0926\u0928",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0aab\u0a95\u0acd\u0aa4 \u0a9f\u0ac2\u0a82\u0a95\u0acb \u0ab8\u0ac2\u0ab0\u0acd\u0aaf\u0acb\u0aa6\u0aaf \u0a85\u0ab0\u0acd\u0a98\u0acd\u0aaf, \u0ab0\u0abe\u0aa4\u0acd\u0ab0\u0ac7 \u0a9a\u0a82\u0aa6\u0acd\u0ab0 \u0aad\u0ac7\u0aa6\u0aa8"
+      }
+    },
+    3: {
+      planet: { en: "Jupiter", hi: "\u0917\u0941\u0930\u0941", gu: "\u0a97\u0ac1\u0ab0\u0ac1" },
+      declared: {
+        en: "You flagged Joints / Digestion / Fatigue \u2014 run this Jupiter kit light: shorten the morning japa sitting, keep Thursday food light and sattvic, and go easy on sweet charity. These add Guru (heavy) load that deepens fatigue and sluggish digestion. Support with a daily walk and lukewarm water through the day.",
+        hi: "\u0906\u092a\u0928\u0947 \u091c\u094b\u0921\u093c / \u092a\u093e\u091a\u0928 / \u0925\u0915\u093e\u0928 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u0917\u0941\u0930\u0941 \u0915\u093f\u091f \u0915\u094b \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0938\u0941\u092c\u0939 \u0915\u093e \u091c\u092a-\u0906\u0938\u0928 \u091b\u094b\u091f\u093e \u0930\u0916\u0947\u0902, \u0917\u0941\u0930\u0941\u0935\u093e\u0930 \u0915\u093e \u092d\u094b\u091c\u0928 \u0939\u0932\u094d\u0915\u093e \u0914\u0930 \u0938\u093e\u0924\u094d\u0935\u093f\u0915 \u0930\u0916\u0947\u0902, \u092e\u0940\u0920\u0947 \u0926\u093e\u0928 \u092e\u0947\u0902 \u0938\u0902\u092f\u092e \u0930\u0916\u0947\u0902\u0964 \u092f\u0947 \u0917\u0941\u0930\u0941 (\u092d\u093e\u0930\u0940) \u092d\u093e\u0930 \u092c\u0922\u093c\u093e\u0924\u0947 \u0939\u0948\u0902 \u091c\u094b \u0925\u0915\u093e\u0928 \u0914\u0930 \u092e\u0902\u0926 \u092a\u093e\u091a\u0928 \u0915\u094b \u0917\u0939\u0930\u093e \u0915\u0930\u0924\u093e \u0939\u0948\u0964 \u0930\u094b\u091c \u0938\u0948\u0930 \u0914\u0930 \u0926\u093f\u0928\u092d\u0930 \u0917\u0941\u0928\u0917\u0941\u0928\u0947 \u092a\u093e\u0928\u0940 \u0938\u0947 \u0938\u0939\u093e\u0930\u093e \u0926\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0ab8\u0abe\u0a82\u0aa7\u0abe / \u0aaa\u0abe\u0a9a\u0aa8 / \u0aa5\u0abe\u0a95 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0acd\u0aaf\u0acb \u0a9b\u0ac7 \u2014 \u0a86 \u0a97\u0ac1\u0ab0\u0ac1 \u0a95\u0abf\u0a9f \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0ab8\u0ab5\u0abe\u0ab0\u0aa8\u0ac1\u0a82 \u0a9c\u0abe\u0aaa-\u0a86\u0ab8\u0aa8 \u0a9f\u0ac2\u0a82\u0a95\u0ac1\u0a82 \u0ab0\u0abe\u0a96\u0acb, \u0a97\u0ac1\u0ab0\u0ac1\u0ab5\u0abe\u0ab0\u0aa8\u0ac1\u0a82 \u0aad\u0acb\u0a9c\u0aa8 \u0ab9\u0ab3\u0ab5\u0ac1\u0a82 \u0a85\u0aa8\u0ac7 \u0ab8\u0abe\u0aa4\u0acd\u0ab5\u0abf\u0a95 \u0ab0\u0abe\u0a96\u0acb, \u0aae\u0ac0\u0aa0\u0abe \u0aa6\u0abe\u0aa8\u0aae\u0abe\u0a82 \u0ab8\u0a82\u0aaf\u0aae \u0ab0\u0abe\u0a96\u0acb. \u0a86 \u0a97\u0ac1\u0ab0\u0ac1 (\u0aad\u0abe\u0ab0\u0ac7) \u0aad\u0abe\u0ab0 \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7 \u0a9c\u0ac7 \u0aa5\u0abe\u0a95 \u0a85\u0aa8\u0ac7 \u0aae\u0a82\u0aa6 \u0aaa\u0abe\u0a9a\u0aa8\u0aa8\u0ac7 \u0a8a\u0a82\u0aa1\u0ac1\u0a82 \u0a95\u0ab0\u0ac7 \u0a9b\u0ac7. \u0ab0\u0acb\u0a9c \u0a9a\u0abe\u0ab2\u0ab5\u0abe \u0a85\u0aa8\u0ac7 \u0aa6\u0abf\u0ab5\u0ab8\u0aad\u0ab0 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0abe \u0aaa\u0abe\u0aa3\u0ac0\u0aa5\u0ac0 \u0a9f\u0ac7\u0a95\u0acb \u0a86\u0aaa\u0acb."
+      },
+      potential: {
+        en: "Jupiter remedies carry Guru (heavy) load. If prone to heaviness, sluggish digestion or low daytime energy, keep the japa sitting short, food light and charity simple. A daily walk and lukewarm water keep the Kapha channel moving.",
+        hi: "\u0917\u0941\u0930\u0941 \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0917\u0941\u0930\u0941 (\u092d\u093e\u0930\u0940) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u092d\u093e\u0930\u0940\u092a\u0928, \u092e\u0902\u0926 \u092a\u093e\u091a\u0928 \u092f\u093e \u0926\u093f\u0928 \u092e\u0947\u0902 \u0915\u092e \u090a\u0930\u094d\u091c\u093e \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u091c\u092a-\u0906\u0938\u0928 \u091b\u094b\u091f\u093e, \u092d\u094b\u091c\u0928 \u0939\u0932\u094d\u0915\u093e \u0914\u0930 \u0926\u093e\u0928 \u0938\u0930\u0932 \u0930\u0916\u0947\u0902\u0964 \u0930\u094b\u091c \u0938\u0948\u0930 \u0914\u0930 \u0917\u0941\u0928\u0917\u0941\u0928\u093e \u092a\u093e\u0928\u0940 \u0915\u092b-\u092e\u093e\u0930\u094d\u0917 \u0915\u094b \u0917\u0924\u093f\u0936\u0940\u0932 \u0930\u0916\u0924\u0947 \u0939\u0948\u0902\u0964",
+        gu: "\u0a97\u0ac1\u0ab0\u0ac1 \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0a97\u0ac1\u0ab0\u0ac1 (\u0aad\u0abe\u0ab0\u0ac7) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0aad\u0abe\u0ab0\u0ac7\u0aaa\u0aa3\u0ac1\u0a82, \u0aae\u0a82\u0aa6 \u0aaa\u0abe\u0a9a\u0aa8 \u0a95\u0ac7 \u0aa6\u0abf\u0ab5\u0ab8\u0ac7 \u0a93\u0a9b\u0ac0 \u0a8a\u0ab0\u0acd\u0a9c\u0abe\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0a9c\u0abe\u0aaa-\u0a86\u0ab8\u0aa8 \u0a9f\u0ac2\u0a82\u0a95\u0ac1\u0a82, \u0aad\u0acb\u0a9c\u0aa8 \u0ab9\u0ab3\u0ab5\u0ac1\u0a82 \u0a85\u0aa8\u0ac7 \u0aa6\u0abe\u0aa8 \u0ab8\u0ab0\u0ab3 \u0ab0\u0abe\u0a96\u0acb. \u0ab0\u0acb\u0a9c \u0a9a\u0abe\u0ab2\u0ab5\u0ac1\u0a82 \u0a85\u0aa8\u0ac7 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0ac1\u0a82 \u0aaa\u0abe\u0aa3\u0ac0 \u0a95\u0aab-\u0aae\u0abe\u0ab0\u0acd\u0a97\u0aa8\u0ac7 \u0a97\u0aa4\u0abf\u0ab6\u0ac0\u0ab2 \u0ab0\u0abe\u0a96\u0ac7 \u0a9b\u0ac7."
+      },
+      micro: {
+        en: "run it light \u2014 short morning japa, light food, a daily walk",
+        hi: "\u0907\u0938\u0947 \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u091b\u094b\u091f\u093e \u0938\u0941\u092c\u0939-\u091c\u092a, \u0939\u0932\u094d\u0915\u093e \u092d\u094b\u091c\u0928, \u0930\u094b\u091c \u0938\u0948\u0930",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0a9f\u0ac2\u0a82\u0a95\u0acb \u0ab8\u0ab5\u0abe\u0ab0-\u0a9c\u0abe\u0aaa, \u0ab9\u0ab3\u0ab5\u0ac1\u0a82 \u0aad\u0acb\u0a9c\u0aa8, \u0ab0\u0acb\u0a9c \u0a9a\u0abe\u0ab2\u0ab5\u0ac1\u0a82"
+      }
+    },
+    4: {
+      planet: { en: "Rahu", hi: "\u0930\u093e\u0939\u0941", gu: "\u0ab0\u0abe\u0ab9\u0ac1" },
+      declared: {
+        en: "You flagged Joints / Digestion / Fatigue \u2014 run this Rahu kit steady: fix one sleep window, eat warm meals at set times, and avoid erratic fasting or all-night screen runs. Rahu's Chala (mobile) load scatters Vata and deepens fatigue. Ground with a warm oil foot massage at night; colour and charity cues continue.",
+        hi: "\u0906\u092a\u0928\u0947 \u091c\u094b\u0921\u093c / \u092a\u093e\u091a\u0928 / \u0925\u0915\u093e\u0928 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u0930\u093e\u0939\u0941 \u0915\u093f\u091f \u0915\u094b \u0938\u094d\u0925\u093f\u0930 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0938\u094b\u0928\u0947 \u0915\u093e \u090f\u0915 \u0928\u093f\u092f\u0924 \u0938\u092e\u092f \u0930\u0916\u0947\u0902, \u0928\u093f\u092f\u0924 \u0938\u092e\u092f \u092a\u0930 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928 \u0915\u0930\u0947\u0902, \u0905\u0928\u093f\u092f\u092e\u093f\u0924 \u0909\u092a\u0935\u093e\u0938 \u0914\u0930 \u0930\u093e\u0924\u092d\u0930 \u0938\u094d\u0915\u094d\u0930\u0940\u0928 \u0938\u0947 \u092c\u091a\u0947\u0902\u0964 \u0930\u093e\u0939\u0941 \u0915\u093e \u091a\u0932 (\u0905\u0938\u094d\u0925\u093f\u0930) \u092d\u093e\u0930 \u0935\u093e\u0924 \u0915\u094b \u092c\u093f\u0916\u0947\u0930\u0924\u093e \u0914\u0930 \u0925\u0915\u093e\u0928 \u092c\u0922\u093c\u093e\u0924\u093e \u0939\u0948\u0964 \u0930\u093e\u0924 \u092e\u0947\u0902 \u0917\u0930\u094d\u092e \u0924\u0947\u0932 \u0915\u0940 \u092a\u0948\u0930-\u092e\u093e\u0932\u093f\u0936 \u0938\u0947 \u0938\u094d\u0925\u093f\u0930\u0924\u093e \u0932\u093e\u090f\u0902; \u0930\u0902\u0917 \u0914\u0930 \u0926\u093e\u0928 \u0938\u0902\u0915\u0947\u0924 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0ab8\u0abe\u0a82\u0aa7\u0abe / \u0aaa\u0abe\u0a9a\u0aa8 / \u0aa5\u0abe\u0a95 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0acd\u0aaf\u0acb \u0a9b\u0ac7 \u2014 \u0a86 \u0ab0\u0abe\u0ab9\u0ac1 \u0a95\u0abf\u0a9f \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0ab8\u0ac2\u0ab5\u0abe\u0aa8\u0acb \u0a8f\u0a95 \u0aa8\u0abf\u0aaf\u0aa4 \u0ab8\u0aae\u0aaf \u0ab0\u0abe\u0a96\u0acb, \u0aa8\u0abf\u0aaf\u0aa4 \u0ab8\u0aae\u0aaf\u0ac7 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8 \u0a95\u0ab0\u0acb, \u0a85\u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a89\u0aaa\u0ab5\u0abe\u0ab8 \u0a85\u0aa8\u0ac7 \u0ab0\u0abe\u0aa4\u0aad\u0ab0 \u0ab8\u0acd\u0a95\u0acd\u0ab0\u0ac0\u0aa8\u0aa5\u0ac0 \u0aac\u0a9a\u0acb. \u0ab0\u0abe\u0ab9\u0ac1\u0aa8\u0acb \u0a9a\u0ab2 (\u0a85\u0ab8\u0acd\u0aa5\u0abf\u0ab0) \u0aad\u0abe\u0ab0 \u0ab5\u0abe\u0aa4\u0aa8\u0ac7 \u0ab5\u0ac7\u0ab0\u0ab5\u0abf\u0a96\u0ac7\u0ab0 \u0a95\u0ab0\u0ac7 \u0a85\u0aa8\u0ac7 \u0aa5\u0abe\u0a95 \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7. \u0ab0\u0abe\u0aa4\u0acd\u0ab0\u0ac7 \u0a97\u0ab0\u0aae \u0aa4\u0ac7\u0ab2\u0aa8\u0abe \u0aaa\u0a97-\u0aae\u0abe\u0ab2\u0abf\u0ab6\u0aa5\u0ac0 \u0ab8\u0acd\u0aa5\u0abf\u0ab0\u0aa4\u0abe \u0ab2\u0abe\u0ab5\u0acb; \u0ab0\u0a82\u0a97 \u0a85\u0aa8\u0ac7 \u0aa6\u0abe\u0aa8 \u0ab8\u0a82\u0a95\u0ac7\u0aa4 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Rahu remedies carry Chala (mobile, restless) load. If prone to disturbed sleep, anxiety or irregular appetite, keep the practice rhythmic \u2014 fixed sleep, warm regular meals, no erratic fasts. A nightly warm oil foot massage steadies the Vata channel.",
+        hi: "\u0930\u093e\u0939\u0941 \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u091a\u0932 (\u0905\u0938\u094d\u0925\u093f\u0930, \u092c\u0947\u091a\u0948\u0928) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u0928\u0940\u0902\u0926 \u092e\u0947\u0902 \u0916\u0932\u0932, \u091a\u093f\u0902\u0924\u093e \u092f\u093e \u0905\u0928\u093f\u092f\u092e\u093f\u0924 \u092d\u0942\u0916 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0905\u092d\u094d\u092f\u093e\u0938 \u0932\u092f\u092c\u0926\u094d\u0927 \u0930\u0916\u0947\u0902 \u2014 \u0928\u093f\u092f\u0924 \u0928\u0940\u0902\u0926, \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u0905\u0928\u093f\u092f\u092e\u093f\u0924 \u0909\u092a\u0935\u093e\u0938 \u0928\u0939\u0940\u0902\u0964 \u0930\u093e\u0924 \u0915\u0940 \u0917\u0930\u094d\u092e \u0924\u0947\u0932 \u092a\u0948\u0930-\u092e\u093e\u0932\u093f\u0936 \u0935\u093e\u0924-\u092e\u093e\u0930\u094d\u0917 \u0915\u094b \u0938\u094d\u0925\u093f\u0930 \u0915\u0930\u0924\u0940 \u0939\u0948\u0964",
+        gu: "\u0ab0\u0abe\u0ab9\u0ac1 \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0a9a\u0ab2 (\u0a85\u0ab8\u0acd\u0aa5\u0abf\u0ab0, \u0aac\u0ac7\u0a9a\u0ac7\u0aa8) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0a8a\u0a82\u0a98\u0aae\u0abe\u0a82 \u0a96\u0ab2\u0ac7\u0ab2, \u0a9a\u0abf\u0a82\u0aa4\u0abe \u0a95\u0ac7 \u0a85\u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0aad\u0ac2\u0a96\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0ab2\u0aaf\u0aac\u0aa6\u0acd\u0aa7 \u0ab0\u0abe\u0a96\u0acb \u2014 \u0aa8\u0abf\u0aaf\u0aa4 \u0a8a\u0a82\u0a98, \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0a85\u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a89\u0aaa\u0ab5\u0abe\u0ab8 \u0aa8\u0ab9\u0ac0\u0a82. \u0ab0\u0abe\u0aa4\u0acd\u0ab0\u0abf\u0aa8\u0ac1\u0a82 \u0a97\u0ab0\u0aae \u0aa4\u0ac7\u0ab2 \u0aaa\u0a97-\u0aae\u0abe\u0ab2\u0abf\u0ab6 \u0ab5\u0abe\u0aa4-\u0aae\u0abe\u0ab0\u0acd\u0a97\u0aa8\u0ac7 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0a95\u0ab0\u0ac7 \u0a9b\u0ac7."
+      },
+      micro: {
+        en: "run it steady \u2014 fixed sleep window, warm oil foot massage",
+        hi: "\u0907\u0938\u0947 \u0938\u094d\u0925\u093f\u0930 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u0928\u093f\u092f\u0924 \u0928\u0940\u0902\u0926, \u0917\u0930\u094d\u092e \u0924\u0947\u0932 \u092a\u0948\u0930-\u092e\u093e\u0932\u093f\u0936",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0aa8\u0abf\u0aaf\u0aa4 \u0a8a\u0a82\u0a98, \u0a97\u0ab0\u0aae \u0aa4\u0ac7\u0ab2 \u0aaa\u0a97-\u0aae\u0abe\u0ab2\u0abf\u0ab6"
+      }
+    },
+    5: {
+      planet: { en: "Mercury", hi: "\u092c\u0941\u0927", gu: "\u0aac\u0ac1\u0aa7" },
+      declared: {
+        en: "You flagged Joints / Digestion / Fatigue \u2014 run this Mercury kit calm: regular warm meals, single-tasking and an early wind-down beat extra japa volume. Mercury's Chala load overstimulates tired nerves; trial Emerald only after sleep stabilizes. Wednesday charity and green accents continue.",
+        hi: "\u0906\u092a\u0928\u0947 \u091c\u094b\u0921\u093c / \u092a\u093e\u091a\u0928 / \u0925\u0915\u093e\u0928 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u092c\u0941\u0927 \u0915\u093f\u091f \u0915\u094b \u0936\u093e\u0902\u0924 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u090f\u0915 \u0938\u092e\u092f \u092e\u0947\u0902 \u090f\u0915 \u0915\u093e\u092e \u0914\u0930 \u091c\u0932\u094d\u0926\u0940 \u0935\u093f\u0936\u094d\u0930\u093e\u092e \u2014 \u0905\u0927\u093f\u0915 \u091c\u092a \u0938\u0947 \u092c\u0947\u0939\u0924\u0930 \u0939\u0948\u0902\u0964 \u092c\u0941\u0927 \u0915\u093e \u091a\u0932 \u092d\u093e\u0930 \u0925\u0915\u0940 \u0928\u0938\u094b\u0902 \u0915\u094b \u0905\u0924\u093f-\u0909\u0924\u094d\u0924\u0947\u091c\u093f\u0924 \u0915\u0930\u0924\u093e \u0939\u0948; \u0928\u0940\u0902\u0926 \u0938\u094d\u0925\u093f\u0930 \u0939\u094b\u0928\u0947 \u0915\u0947 \u092c\u093e\u0926 \u0939\u0940 \u092a\u0928\u094d\u0928\u093e \u0906\u091c\u092e\u093e\u090f\u0902\u0964 \u092c\u0941\u0927\u0935\u093e\u0930 \u0915\u093e \u0926\u093e\u0928 \u0914\u0930 \u0939\u0930\u0947 \u0938\u0902\u0915\u0947\u0924 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0ab8\u0abe\u0a82\u0aa7\u0abe / \u0aaa\u0abe\u0a9a\u0aa8 / \u0aa5\u0abe\u0a95 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0acd\u0aaf\u0acb \u0a9b\u0ac7 \u2014 \u0a86 \u0aac\u0ac1\u0aa7 \u0a95\u0abf\u0a9f \u0ab6\u0abe\u0a82\u0aa4 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0a8f\u0a95 \u0ab8\u0aae\u0aaf\u0ac7 \u0a8f\u0a95 \u0a95\u0abe\u0aae \u0a85\u0aa8\u0ac7 \u0ab5\u0ab9\u0ac7\u0ab2\u0acb \u0ab5\u0abf\u0ab6\u0acd\u0ab0\u0abe\u0aae \u2014 \u0ab5\u0aa7\u0ac1 \u0a9c\u0abe\u0aaa \u0a95\u0ab0\u0aa4\u0abe\u0a82 \u0ab8\u0abe\u0ab0\u0abe \u0a9b\u0ac7. \u0aac\u0ac1\u0aa7\u0aa8\u0acb \u0a9a\u0ab2 \u0aad\u0abe\u0ab0 \u0aa5\u0abe\u0a95\u0ac7\u0ab2\u0ac0 \u0aa8\u0ab8\u0acb\u0aa8\u0ac7 \u0a85\u0aa4\u0abf-\u0a89\u0aa4\u0acd\u0aa4\u0ac7\u0a9c\u0abf\u0aa4 \u0a95\u0ab0\u0ac7 \u0a9b\u0ac7; \u0a8a\u0a82\u0a98 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0aa5\u0aaf\u0abe \u0aaa\u0a9b\u0ac0 \u0a9c \u0ab2\u0ac0\u0ab2\u0aae \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0acb. \u0aac\u0ac1\u0aa7\u0ab5\u0abe\u0ab0\u0aa8\u0ac1\u0a82 \u0aa6\u0abe\u0aa8 \u0a85\u0aa8\u0ac7 \u0ab2\u0ac0\u0ab2\u0abe \u0ab8\u0a82\u0a95\u0ac7\u0aa4 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Mercury remedies carry Chala (mobile) load on the nervous system. If prone to overthinking, broken sleep or frayed nerves, keep the routine rhythmic \u2014 regular warm meals, single-tasking, early nights. Trial Emerald only once sleep is steady.",
+        hi: "\u092c\u0941\u0927 \u0909\u092a\u093e\u092f \u0924\u0902\u0924\u094d\u0930\u093f\u0915\u093e-\u0924\u0902\u0924\u094d\u0930 \u092a\u0930 \u091a\u0932 (\u0905\u0938\u094d\u0925\u093f\u0930) \u092d\u093e\u0930 \u0921\u093e\u0932\u0924\u0947 \u0939\u0948\u0902\u0964 \u092f\u0926\u093f \u0905\u0924\u093f\u0935\u093f\u091a\u093e\u0930, \u091f\u0942\u091f\u0940 \u0928\u0940\u0902\u0926 \u092f\u093e \u091a\u093f\u0921\u093c\u091a\u093f\u0921\u093c\u0940 \u0928\u0938\u094b\u0902 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0926\u093f\u0928\u091a\u0930\u094d\u092f\u093e \u0932\u092f\u092c\u0926\u094d\u0927 \u0930\u0916\u0947\u0902 \u2014 \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u090f\u0915 \u0938\u092e\u092f \u092e\u0947\u0902 \u090f\u0915 \u0915\u093e\u092e, \u091c\u0932\u094d\u0926\u0940 \u0938\u094b\u0928\u093e\u0964 \u0928\u0940\u0902\u0926 \u0938\u094d\u0925\u093f\u0930 \u0939\u094b\u0928\u0947 \u092a\u0930 \u0939\u0940 \u092a\u0928\u094d\u0928\u093e \u0906\u091c\u092e\u093e\u090f\u0902\u0964",
+        gu: "\u0aac\u0ac1\u0aa7 \u0a89\u0aaa\u0abe\u0aaf\u0acb \u0a9a\u0ac7\u0aa4\u0abe-\u0aa4\u0a82\u0aa4\u0acd\u0ab0 \u0aaa\u0ab0 \u0a9a\u0ab2 (\u0a85\u0ab8\u0acd\u0aa5\u0abf\u0ab0) \u0aad\u0abe\u0ab0 \u0aa8\u0abe\u0a96\u0ac7 \u0a9b\u0ac7. \u0a9c\u0acb \u0a85\u0aa4\u0abf\u0ab5\u0abf\u0a9a\u0abe\u0ab0, \u0aa4\u0ac2\u0a9f\u0ac7\u0ab2\u0ac0 \u0a8a\u0a82\u0a98 \u0a95\u0ac7 \u0a9a\u0abf\u0aa1\u0abe\u0aaf\u0ac7\u0ab2\u0ac0 \u0aa8\u0ab8\u0acb\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0aa6\u0abf\u0aa8\u0a9a\u0ab0\u0acd\u0aaf\u0abe \u0ab2\u0aaf\u0aac\u0aa6\u0acd\u0aa7 \u0ab0\u0abe\u0a96\u0acb \u2014 \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0a8f\u0a95 \u0ab8\u0aae\u0aaf\u0ac7 \u0a8f\u0a95 \u0a95\u0abe\u0aae, \u0ab5\u0ab9\u0ac7\u0ab2\u0abe \u0ab8\u0ac2\u0ab5\u0ac1\u0a82. \u0a8a\u0a82\u0a98 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0aa5\u0aaf\u0abe \u0aaa\u0a9b\u0ac0 \u0a9c \u0ab2\u0ac0\u0ab2\u0aae \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0acb."
+      },
+      micro: {
+        en: "run it calm \u2014 regular warm meals, single-tasking, early nights",
+        hi: "\u0907\u0938\u0947 \u0936\u093e\u0902\u0924 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u090f\u0915 \u0938\u092e\u092f \u092e\u0947\u0902 \u090f\u0915 \u0915\u093e\u092e, \u091c\u0932\u094d\u0926\u0940 \u0928\u0940\u0902\u0926",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0ab6\u0abe\u0a82\u0aa4 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0a8f\u0a95 \u0ab8\u0aae\u0aaf\u0ac7 \u0a8f\u0a95 \u0a95\u0abe\u0aae, \u0ab5\u0ab9\u0ac7\u0ab2\u0ac0 \u0a8a\u0a82\u0a98"
+      }
+    },
+    6: {
+      planet: { en: "Venus", hi: "\u0936\u0941\u0915\u094d\u0930", gu: "\u0ab6\u0ac1\u0a95\u0acd\u0ab0" },
+      declared: {
+        en: "You flagged Allergies / Respiratory / Cold \u2014 run this Venus kit light: ease off sweets and heavy dairy, keep water lukewarm, and move the body each morning. Venus carries a Sheeta-damp load that thickens Kapha and mucus. Diamond/Opal trials wait until the airway is clear; Friday charity in moderation continues.",
+        hi: "\u0906\u092a\u0928\u0947 \u090f\u0932\u0930\u094d\u091c\u0940 / \u0936\u094d\u0935\u0938\u0928 / \u0938\u0930\u094d\u0926\u0940 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u0936\u0941\u0915\u094d\u0930 \u0915\u093f\u091f \u0915\u094b \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u092e\u093f\u0920\u093e\u0908 \u0914\u0930 \u092d\u093e\u0930\u0940 \u0921\u0947\u092f\u0930\u0940 \u0915\u092e \u0915\u0930\u0947\u0902, \u092a\u093e\u0928\u0940 \u0917\u0941\u0928\u0917\u0941\u0928\u093e \u0930\u0916\u0947\u0902, \u0939\u0930 \u0938\u0941\u092c\u0939 \u0936\u0930\u0940\u0930 \u0939\u093f\u0932\u093e\u090f\u0902\u0964 \u0936\u0941\u0915\u094d\u0930 \u092e\u0947\u0902 \u0936\u0940\u0924-\u0928\u092e \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948 \u091c\u094b \u0915\u092b \u0914\u0930 \u092c\u0932\u0917\u092e \u092c\u0922\u093c\u093e\u0924\u093e \u0939\u0948\u0964 \u0936\u094d\u0935\u093e\u0938\u092e\u093e\u0930\u094d\u0917 \u0938\u093e\u092b \u0939\u094b\u0928\u0947 \u0924\u0915 \u0939\u0940\u0930\u093e/\u0913\u092a\u0932 \u0906\u091c\u092e\u093e\u090f\u0902; \u0938\u0902\u092f\u092e\u093f\u0924 \u0936\u0941\u0915\u094d\u0930\u0935\u093e\u0930 \u0926\u093e\u0928 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0a8f\u0ab2\u0ab0\u0acd\u0a9c\u0ac0 / \u0ab6\u0acd\u0ab5\u0ab8\u0aa8 / \u0ab6\u0ab0\u0aa6\u0ac0 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0ac0 \u0a9b\u0ac7 \u2014 \u0a86 \u0ab6\u0ac1\u0a95\u0acd\u0ab0 \u0a95\u0abf\u0a9f \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0aae\u0ac0\u0aa0\u0abe\u0a88 \u0a85\u0aa8\u0ac7 \u0aad\u0abe\u0ab0\u0ac7 \u0aa1\u0ac7\u0ab0\u0ac0 \u0a93\u0a9b\u0ac0 \u0a95\u0ab0\u0acb, \u0aaa\u0abe\u0aa3\u0ac0 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0ac1\u0a82 \u0ab0\u0abe\u0a96\u0acb, \u0aa6\u0ab0 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0ab6\u0ab0\u0ac0\u0ab0 \u0ab9\u0ab2\u0abe\u0ab5\u0acb. \u0ab6\u0ac1\u0a95\u0acd\u0ab0\u0aae\u0abe\u0a82 \u0ab6\u0ac0\u0aa4-\u0aad\u0ac7\u0a9c \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7 \u0a9c\u0ac7 \u0a95\u0aab \u0a85\u0aa8\u0ac7 \u0ab6\u0acd\u0ab2\u0ac7\u0ab7\u0acd\u0aae \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7. \u0ab6\u0acd\u0ab5\u0abe\u0ab8\u0aae\u0abe\u0ab0\u0acd\u0a97 \u0ab8\u0abe\u0aab \u0aa5\u0abe\u0aaf \u0aaa\u0a9b\u0ac0 \u0a9c \u0ab9\u0ac0\u0ab0\u0acb/\u0a93\u0aaa\u0ab2 \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0acb; \u0ab8\u0a82\u0aaf\u0aae\u0abf\u0aa4 \u0ab6\u0ac1\u0a95\u0acd\u0ab0\u0ab5\u0abe\u0ab0 \u0aa6\u0abe\u0aa8 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Venus remedies carry a Sheeta (cool, damp) load. If prone to congestion, morning heaviness or sweet cravings, lighten sweets and dairy, drink lukewarm water, and add morning movement. Trial Diamond/Opal only on a clear airway.",
+        hi: "\u0936\u0941\u0915\u094d\u0930 \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0936\u0940\u0924 (\u0920\u0902\u0921\u093e, \u0928\u092e) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u091c\u0915\u0921\u093c\u0928, \u0938\u0941\u092c\u0939 \u092d\u093e\u0930\u0940\u092a\u0928 \u092f\u093e \u092e\u093f\u0920\u093e\u0908 \u0915\u0940 \u0932\u093e\u0932\u0938\u093e \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u092e\u093f\u0920\u093e\u0908-\u0921\u0947\u092f\u0930\u0940 \u0939\u0932\u094d\u0915\u0940 \u0915\u0930\u0947\u0902, \u0917\u0941\u0928\u0917\u0941\u0928\u093e \u092a\u093e\u0928\u0940 \u092a\u093f\u090f\u0902, \u0938\u0941\u092c\u0939 \u0917\u0924\u093f \u091c\u094b\u0921\u093c\u0947\u0902\u0964 \u0936\u094d\u0935\u093e\u0938\u092e\u093e\u0930\u094d\u0917 \u0938\u093e\u092b \u0939\u094b\u0928\u0947 \u092a\u0930 \u0939\u0940 \u0939\u0940\u0930\u093e/\u0913\u092a\u0932 \u0906\u091c\u092e\u093e\u090f\u0902\u0964",
+        gu: "\u0ab6\u0ac1\u0a95\u0acd\u0ab0 \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0ab6\u0ac0\u0aa4 (\u0aa0\u0a82\u0aa1\u0acb, \u0aad\u0ac7\u0a9c\u0ab5\u0abe\u0ab3\u0acb) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0a9c\u0a95\u0aa1\u0abe\u0aa3, \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0aad\u0abe\u0ab0\u0ac7\u0aaa\u0aa3\u0ac1\u0a82 \u0a95\u0ac7 \u0aae\u0ac0\u0aa0\u0abe\u0a88\u0aa8\u0ac0 \u0ab2\u0abe\u0ab2\u0ab8\u0abe\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0aae\u0ac0\u0aa0\u0abe\u0a88-\u0aa1\u0ac7\u0ab0\u0ac0 \u0ab9\u0ab3\u0ab5\u0ac0 \u0a95\u0ab0\u0acb, \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0ac1\u0a82 \u0aaa\u0abe\u0aa3\u0ac0 \u0aaa\u0ac0\u0a93, \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a97\u0aa4\u0abf \u0a89\u0aae\u0ac7\u0ab0\u0acb. \u0ab6\u0acd\u0ab5\u0abe\u0ab8\u0aae\u0abe\u0ab0\u0acd\u0a97 \u0ab8\u0abe\u0aab \u0ab9\u0acb\u0aaf \u0aa4\u0acd\u0aaf\u0abe\u0ab0\u0ac7 \u0a9c \u0ab9\u0ac0\u0ab0\u0acb/\u0a93\u0aaa\u0ab2 \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0acb."
+      },
+      micro: {
+        en: "run it light \u2014 ease off sweets, lukewarm water, morning movement",
+        hi: "\u0907\u0938\u0947 \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u092e\u093f\u0920\u093e\u0908 \u0915\u092e, \u0917\u0941\u0928\u0917\u0941\u0928\u093e \u092a\u093e\u0928\u0940, \u0938\u0941\u092c\u0939 \u0917\u0924\u093f",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0aae\u0ac0\u0aa0\u0abe\u0a88 \u0a93\u0a9b\u0ac0, \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0ac1\u0a82 \u0aaa\u0abe\u0aa3\u0ac0, \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a97\u0aa4\u0abf"
+      }
+    },
+    7: {
+      planet: { en: "Ketu", hi: "\u0915\u0947\u0924\u0941", gu: "\u0a95\u0ac7\u0aa4\u0ac1" },
+      declared: {
+        en: "You flagged Acidity / Inflammation / Heat \u2014 run this Ketu kit cool: practise in the morning or evening only, avoid noon heat and over-fasting, and keep the detachment discipline gentle. Ketu's smoky Ushna load feeds Pitta flare-ups. Cool with moonlight grounding and silver-vessel water; charity cues continue.",
+        hi: "\u0906\u092a\u0928\u0947 \u090f\u0938\u093f\u0921\u093f\u091f\u0940 / \u0938\u0942\u091c\u0928 / \u0917\u0930\u094d\u092e\u0940 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u0915\u0947\u0924\u0941 \u0915\u093f\u091f \u0915\u094b \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0915\u0947\u0935\u0932 \u0938\u0941\u092c\u0939 \u092f\u093e \u0936\u093e\u092e \u0905\u092d\u094d\u092f\u093e\u0938 \u0915\u0930\u0947\u0902, \u0926\u094b\u092a\u0939\u0930 \u0915\u0940 \u0917\u0930\u094d\u092e\u0940 \u0914\u0930 \u0905\u0924\u093f-\u0909\u092a\u0935\u093e\u0938 \u0938\u0947 \u092c\u091a\u0947\u0902, \u0935\u0948\u0930\u093e\u0917\u094d\u092f-\u0905\u0928\u0941\u0936\u093e\u0938\u0928 \u0915\u094b\u092e\u0932 \u0930\u0916\u0947\u0902\u0964 \u0915\u0947\u0924\u0941 \u0915\u093e \u0927\u0942\u092e\u093f\u0932 \u0909\u0937\u094d\u0923 \u092d\u093e\u0930 \u092a\u093f\u0924\u094d\u0924-\u092a\u094d\u0930\u0915\u094b\u092a \u092c\u0922\u093c\u093e\u0924\u093e \u0939\u0948\u0964 \u091a\u093e\u0902\u0926\u0928\u0940 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0914\u0930 \u091a\u093e\u0902\u0926\u0940 \u0915\u0947 \u092c\u0930\u094d\u0924\u0928 \u0915\u0947 \u091c\u0932 \u0938\u0947 \u0920\u0902\u0921\u0915 \u0932\u093e\u090f\u0902; \u0926\u093e\u0928 \u0938\u0902\u0915\u0947\u0924 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0 / \u0ab8\u0acb\u0a9c\u0acb / \u0a97\u0ab0\u0aae\u0ac0 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0ac0 \u0a9b\u0ac7 \u2014 \u0a86 \u0a95\u0ac7\u0aa4\u0ac1 \u0a95\u0abf\u0a9f \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a95\u0ac7 \u0ab8\u0abe\u0a82\u0a9c\u0ac7 \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0a95\u0ab0\u0acb, \u0aac\u0aaa\u0acb\u0ab0\u0aa8\u0ac0 \u0a97\u0ab0\u0aae\u0ac0 \u0a85\u0aa8\u0ac7 \u0a85\u0aa4\u0abf-\u0a89\u0aaa\u0ab5\u0abe\u0ab8\u0aa5\u0ac0 \u0aac\u0a9a\u0acb, \u0ab5\u0ac8\u0ab0\u0abe\u0a97\u0acd\u0aaf-\u0ab6\u0abf\u0ab8\u0acd\u0aa4 \u0a95\u0acb\u0aae\u0ab3 \u0ab0\u0abe\u0a96\u0acb. \u0a95\u0ac7\u0aa4\u0ac1\u0aa8\u0acb \u0aa7\u0ac1\u0a82\u0aa7\u0ab3\u0acb \u0a89\u0ab7\u0acd\u0aa3 \u0aad\u0abe\u0ab0 \u0aaa\u0abf\u0aa4\u0acd\u0aa4-\u0aaa\u0acd\u0ab0\u0a95\u0acb\u0aaa \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7. \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95 \u0a85\u0aa8\u0ac7 \u0a9a\u0abe\u0a82\u0aa6\u0ac0\u0aa8\u0abe \u0ab5\u0abe\u0ab8\u0aa3\u0aa8\u0abe \u0a9c\u0ab3\u0aa5\u0ac0 \u0aa0\u0a82\u0aa1\u0a95 \u0ab2\u0abe\u0ab5\u0acb; \u0aa6\u0abe\u0aa8 \u0ab8\u0a82\u0a95\u0ac7\u0aa4 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Ketu remedies carry a smoky Ushna (heating) load. If prone to acidity, rashes or a burning temper, practise morning or evening only \u2014 never at noon \u2014 and keep fasts gentle. Moonlight grounding and silver-vessel water carry the cooling.",
+        hi: "\u0915\u0947\u0924\u0941 \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0927\u0942\u092e\u093f\u0932 \u0909\u0937\u094d\u0923 (\u0917\u0930\u094d\u092e) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u090f\u0938\u093f\u0921\u093f\u091f\u0940, \u091a\u0915\u0924\u094d\u0924\u0947 \u092f\u093e \u091c\u0932\u0924\u0947 \u0915\u094d\u0930\u094b\u0927 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0915\u0947\u0935\u0932 \u0938\u0941\u092c\u0939 \u092f\u093e \u0936\u093e\u092e \u0905\u092d\u094d\u092f\u093e\u0938 \u0915\u0930\u0947\u0902 \u2014 \u0926\u094b\u092a\u0939\u0930 \u092e\u0947\u0902 \u0915\u092d\u0940 \u0928\u0939\u0940\u0902 \u2014 \u0914\u0930 \u0909\u092a\u0935\u093e\u0938 \u0915\u094b\u092e\u0932 \u0930\u0916\u0947\u0902\u0964 \u091a\u093e\u0902\u0926\u0928\u0940 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0914\u0930 \u091a\u093e\u0902\u0926\u0940 \u0915\u0947 \u092c\u0930\u094d\u0924\u0928 \u0915\u093e \u091c\u0932 \u0936\u0940\u0924\u0932\u0928 \u0915\u0930\u093e\u0924\u0947 \u0939\u0948\u0902\u0964",
+        gu: "\u0a95\u0ac7\u0aa4\u0ac1 \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0aa7\u0ac1\u0a82\u0aa7\u0ab3\u0acb \u0a89\u0ab7\u0acd\u0aa3 (\u0a97\u0ab0\u0aae) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0, \u0aab\u0acb\u0ab2\u0acd\u0ab2\u0ac0\u0a93 \u0a95\u0ac7 \u0aac\u0ab3\u0aa4\u0abe \u0a97\u0ac1\u0ab8\u0acd\u0ab8\u0abe\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a95\u0ac7 \u0ab8\u0abe\u0a82\u0a9c\u0ac7 \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0a95\u0ab0\u0acb \u2014 \u0aac\u0aaa\u0acb\u0ab0\u0ac7 \u0a95\u0acd\u0aaf\u0abe\u0ab0\u0ac7\u0aaf \u0aa8\u0ab9\u0ac0\u0a82 \u2014 \u0a85\u0aa8\u0ac7 \u0a89\u0aaa\u0ab5\u0abe\u0ab8 \u0a95\u0acb\u0aae\u0ab3 \u0ab0\u0abe\u0a96\u0acb. \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95 \u0a85\u0aa8\u0ac7 \u0a9a\u0abe\u0a82\u0aa6\u0ac0\u0aa8\u0abe \u0ab5\u0abe\u0ab8\u0aa3\u0aa8\u0ac1\u0a82 \u0a9c\u0ab3 \u0ab6\u0ac0\u0aa4\u0ab2\u0aa8 \u0a95\u0ab0\u0abe\u0ab5\u0ac7 \u0a9b\u0ac7."
+      },
+      micro: {
+        en: "run it cool \u2014 moonlight grounding, never at noon",
+        hi: "\u0907\u0938\u0947 \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u091a\u093e\u0902\u0926\u0928\u0940 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915, \u0926\u094b\u092a\u0939\u0930 \u092e\u0947\u0902 \u0915\u092d\u0940 \u0928\u0939\u0940\u0902",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95, \u0aac\u0aaa\u0acb\u0ab0\u0ac7 \u0a95\u0acd\u0aaf\u0abe\u0ab0\u0ac7\u0aaf \u0aa8\u0ab9\u0ac0\u0a82"
+      }
+    },
+    8: {
+      planet: { en: "Saturn", hi: "\u0936\u0928\u093f", gu: "\u0ab6\u0aa8\u0abf" },
+      declared: {
+        en: "You flagged a respiratory or fatigue sensitivity \u2014 run this Saturn kit warm and oiled: regular warm meals, steady sleep hours, and a warm sesame oil massage. Saturn's Ruksha (dry) load deepens Vata dryness \u2014 avoid dry fasting and cold exposure. Blue Sapphire/Amethyst trials wait until sleep and breath are steady.",
+        hi: "\u0906\u092a\u0928\u0947 \u0936\u094d\u0935\u0938\u0928 \u092f\u093e \u0925\u0915\u093e\u0928 \u0915\u0940 \u0938\u0902\u0935\u0947\u0926\u0928\u0936\u0940\u0932\u0924\u093e \u092c\u0924\u093e\u0908 \u0939\u0948 \u2014 \u0907\u0938 \u0936\u0928\u093f \u0915\u093f\u091f \u0915\u094b \u0917\u0930\u094d\u092e \u0914\u0930 \u0938\u094d\u0928\u093f\u0917\u094d\u0927 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u0938\u094d\u0925\u093f\u0930 \u0928\u0940\u0902\u0926 \u0915\u0947 \u0918\u0902\u091f\u0947 \u0914\u0930 \u0917\u0930\u094d\u092e \u0924\u093f\u0932-\u0924\u0947\u0932 \u092e\u093e\u0932\u093f\u0936\u0964 \u0936\u0928\u093f \u0915\u093e \u0930\u0942\u0915\u094d\u0937 (\u0936\u0941\u0937\u094d\u0915) \u092d\u093e\u0930 \u0935\u093e\u0924-\u0936\u0941\u0937\u094d\u0915\u0924\u093e \u092c\u0922\u093c\u093e\u0924\u093e \u0939\u0948 \u2014 \u0936\u0941\u0937\u094d\u0915 \u0909\u092a\u0935\u093e\u0938 \u0914\u0930 \u0920\u0902\u0921 \u0938\u0947 \u092c\u091a\u0947\u0902\u0964 \u0928\u0940\u0902\u0926 \u0914\u0930 \u0936\u094d\u0935\u093e\u0938 \u0938\u094d\u0925\u093f\u0930 \u0939\u094b\u0928\u0947 \u0924\u0915 Blue Sapphire/Amethyst \u0928 \u0906\u091c\u092e\u093e\u090f\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0ab6\u0acd\u0ab5\u0ab8\u0aa8 \u0a95\u0ac7 \u0aa5\u0abe\u0a95\u0aa8\u0ac0 \u0ab8\u0a82\u0ab5\u0ac7\u0aa6\u0aa8\u0ab6\u0ac0\u0ab2\u0aa4\u0abe \u0aac\u0aa4\u0abe\u0ab5\u0ac0 \u0a9b\u0ac7 \u2014 \u0a86 \u0ab6\u0aa8\u0abf \u0a95\u0abf\u0a9f \u0a97\u0ab0\u0aae \u0a85\u0aa8\u0ac7 \u0ab8\u0acd\u0aa8\u0abf\u0a97\u0acd\u0aa7 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0a8a\u0a82\u0a98\u0aa8\u0abe \u0a95\u0ab2\u0abe\u0a95\u0acb \u0a85\u0aa8\u0ac7 \u0a97\u0ab0\u0aae \u0aa4\u0ab2-\u0aa4\u0ac7\u0ab2 \u0aae\u0abe\u0ab2\u0abf\u0ab6. \u0ab6\u0aa8\u0abf\u0aa8\u0acb \u0ab0\u0ac2\u0a95\u0acd\u0ab7 (\u0ab6\u0ac1\u0ab7\u0acd\u0a95) \u0aad\u0abe\u0ab0 \u0ab5\u0abe\u0aa4-\u0ab6\u0ac1\u0ab7\u0acd\u0a95\u0aa4\u0abe \u0ab5\u0aa7\u0abe\u0ab0\u0ac7 \u0a9b\u0ac7 \u2014 \u0ab6\u0ac1\u0ab7\u0acd\u0a95 \u0a89\u0aaa\u0ab5\u0abe\u0ab8 \u0a85\u0aa8\u0ac7 \u0aa0\u0a82\u0aa1\u0ac0\u0aa5\u0ac0 \u0aac\u0a9a\u0acb. \u0a8a\u0a82\u0a98 \u0a85\u0aa8\u0ac7 \u0ab6\u0acd\u0ab5\u0abe\u0ab8 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0aa5\u0abe\u0aaf \u0aa4\u0acd\u0aaf\u0abe\u0a82 \u0ab8\u0ac1\u0aa7\u0ac0 Blue Sapphire/Amethyst \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0ab6\u0acb \u0aa8\u0ab9\u0ac0\u0a82."
+      },
+      potential: {
+        en: "Saturn remedies carry Ruksha (dry, rough) load. If prone to dry skin, constipation, joint stiffness or light broken sleep, oil the routine \u2014 warm sesame oil massage, regular warm meals, fixed bedtime. Trial the stone only once sleep and breath are steady.",
+        hi: "\u0936\u0928\u093f \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0930\u0942\u0915\u094d\u0937 (\u0936\u0941\u0937\u094d\u0915, \u0916\u0941\u0930\u0926\u0930\u093e) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u0936\u0941\u0937\u094d\u0915 \u0924\u094d\u0935\u091a\u093e, \u0915\u092c\u094d\u091c, \u091c\u094b\u0921\u093c\u094b\u0902 \u0915\u0940 \u091c\u0915\u0921\u093c\u0928 \u092f\u093e \u0939\u0932\u094d\u0915\u0940 \u091f\u0942\u091f\u0940 \u0928\u0940\u0902\u0926 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0926\u093f\u0928\u091a\u0930\u094d\u092f\u093e \u0915\u094b \u0938\u094d\u0928\u093f\u0917\u094d\u0927 \u0915\u0930\u0947\u0902 \u2014 \u0917\u0930\u094d\u092e \u0924\u093f\u0932-\u0924\u0947\u0932 \u092e\u093e\u0932\u093f\u0936, \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928, \u0928\u093f\u092f\u0924 \u0938\u094b\u0928\u0947 \u0915\u093e \u0938\u092e\u092f\u0964 \u0928\u0940\u0902\u0926-\u0936\u094d\u0935\u093e\u0938 \u0938\u094d\u0925\u093f\u0930 \u0939\u094b\u0928\u0947 \u092a\u0930 \u0939\u0940 \u0930\u0924\u094d\u0928 \u0906\u091c\u092e\u093e\u090f\u0902\u0964",
+        gu: "\u0ab6\u0aa8\u0abf \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0ab0\u0ac2\u0a95\u0acd\u0ab7 (\u0ab6\u0ac1\u0ab7\u0acd\u0a95, \u0a96\u0ab0\u0aac\u0a9a\u0aa1\u0acb) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0ab6\u0ac1\u0ab7\u0acd\u0a95 \u0aa4\u0acd\u0ab5\u0a9a\u0abe, \u0a95\u0aac\u0a9c\u0abf\u0aaf\u0abe\u0aa4, \u0ab8\u0abe\u0a82\u0aa7\u0abe\u0aa8\u0ac0 \u0a9c\u0a95\u0aa1\u0abe\u0aa3 \u0a95\u0ac7 \u0ab9\u0ab3\u0ab5\u0ac0 \u0aa4\u0ac2\u0a9f\u0ac7\u0ab2\u0ac0 \u0a8a\u0a82\u0a98\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0aa6\u0abf\u0aa8\u0a9a\u0ab0\u0acd\u0aaf\u0abe\u0aa8\u0ac7 \u0ab8\u0acd\u0aa8\u0abf\u0a97\u0acd\u0aa7 \u0a95\u0ab0\u0acb \u2014 \u0a97\u0ab0\u0aae \u0aa4\u0ab2-\u0aa4\u0ac7\u0ab2 \u0aae\u0abe\u0ab2\u0abf\u0ab6, \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8, \u0aa8\u0abf\u0aaf\u0aa4 \u0ab8\u0ac2\u0ab5\u0abe\u0aa8\u0acb \u0ab8\u0aae\u0aaf. \u0a8a\u0a82\u0a98-\u0ab6\u0acd\u0ab5\u0abe\u0ab8 \u0ab8\u0acd\u0aa5\u0abf\u0ab0 \u0aa5\u0aaf\u0abe \u0aaa\u0a9b\u0ac0 \u0a9c \u0ab0\u0aa4\u0acd\u0aa8 \u0a85\u0a9c\u0aae\u0abe\u0ab5\u0acb."
+      },
+      micro: {
+        en: "run it oiled \u2014 warm sesame oil massage, regular warm meals",
+        hi: "\u0907\u0938\u0947 \u0938\u094d\u0928\u093f\u0917\u094d\u0927 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u0917\u0930\u094d\u092e \u0924\u093f\u0932-\u0924\u0947\u0932 \u092e\u093e\u0932\u093f\u0936, \u0928\u093f\u092f\u092e\u093f\u0924 \u0917\u0930\u094d\u092e \u092d\u094b\u091c\u0928",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0ab8\u0acd\u0aa8\u0abf\u0a97\u0acd\u0aa7 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0a97\u0ab0\u0aae \u0aa4\u0ab2-\u0aa4\u0ac7\u0ab2 \u0aae\u0abe\u0ab2\u0abf\u0ab6, \u0aa8\u0abf\u0aaf\u0aae\u0abf\u0aa4 \u0a97\u0ab0\u0aae \u0aad\u0acb\u0a9c\u0aa8"
+      }
+    },
+    9: {
+      planet: { en: "Mars", hi: "\u092e\u0902\u0917\u0932", gu: "\u0aae\u0a82\u0a97\u0ab3" },
+      declared: {
+        en: "You flagged Acidity / Inflammation / Heat \u2014 run this Mars kit cool: morning-only Hanuman practice, no noon exertion or overheated argument, and keep Tuesday food simple. Mars adds Ushna (heating) load to a Pitta channel. Cool with moonlight grounding and lukewarm water; keep Red Coral trials brief and supervised.",
+        hi: "\u0906\u092a\u0928\u0947 \u090f\u0938\u093f\u0921\u093f\u091f\u0940 / \u0938\u0942\u091c\u0928 / \u0917\u0930\u094d\u092e\u0940 \u091a\u0941\u0928\u0940 \u0939\u0948 \u2014 \u0907\u0938 \u092e\u0902\u0917\u0932 \u0915\u093f\u091f \u0915\u094b \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902: \u0915\u0947\u0935\u0932 \u0938\u0941\u092c\u0939 \u0939\u0928\u0941\u092e\u093e\u0928-\u0905\u092d\u094d\u092f\u093e\u0938, \u0926\u094b\u092a\u0939\u0930 \u092e\u0947\u0902 \u092a\u0930\u093f\u0936\u094d\u0930\u092e \u092f\u093e \u0917\u0930\u094d\u092e \u092c\u0939\u0938 \u0928\u0939\u0940\u0902, \u092e\u0902\u0917\u0932\u0935\u093e\u0930 \u0915\u093e \u092d\u094b\u091c\u0928 \u0938\u093e\u0926\u093e \u0930\u0916\u0947\u0902\u0964 \u092e\u0902\u0917\u0932 \u092a\u093f\u0924\u094d\u0924-\u092e\u093e\u0930\u094d\u0917 \u092e\u0947\u0902 \u0909\u0937\u094d\u0923 (\u0917\u0930\u094d\u092e) \u092d\u093e\u0930 \u091c\u094b\u0921\u093c\u0924\u093e \u0939\u0948\u0964 \u091a\u093e\u0902\u0926\u0928\u0940 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0914\u0930 \u0917\u0941\u0928\u0917\u0941\u0928\u0947 \u092a\u093e\u0928\u0940 \u0938\u0947 \u0920\u0902\u0921\u0915 \u0932\u093e\u090f\u0902; Red Coral \u0915\u0940 \u0906\u091c\u092e\u093e\u0907\u0936 \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0914\u0930 \u0926\u0947\u0916\u0930\u0947\u0916 \u092e\u0947\u0902 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aa4\u0aae\u0ac7 \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0 / \u0ab8\u0acb\u0a9c\u0acb / \u0a97\u0ab0\u0aae\u0ac0 \u0aaa\u0ab8\u0a82\u0aa6 \u0a95\u0ab0\u0ac0 \u0a9b\u0ac7 \u2014 \u0a86 \u0aae\u0a82\u0a97\u0ab3 \u0a95\u0abf\u0a9f \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb: \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0ab9\u0aa8\u0ac1\u0aae\u0abe\u0aa8-\u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8, \u0aac\u0aaa\u0acb\u0ab0\u0ac7 \u0aaa\u0ab0\u0bbf\u0ab6\u0acd\u0ab0\u0aae \u0a95\u0ac7 \u0a97\u0ab0\u0aae \u0aa6\u0ab2\u0ac0\u0ab2 \u0aa8\u0ab9\u0ac0\u0a82, \u0aae\u0a82\u0a97\u0ab3\u0ab5\u0abe\u0ab0\u0aa8\u0ac1\u0a82 \u0aad\u0acb\u0a9c\u0aa8 \u0ab8\u0abe\u0aa6\u0ac1\u0a82 \u0ab0\u0abe\u0a96\u0acb. \u0aae\u0a82\u0a97\u0ab3 \u0aaa\u0abf\u0aa4\u0acd\u0aa4-\u0aae\u0abe\u0ab0\u0acd\u0a97\u0aae\u0abe\u0a82 \u0a89\u0ab7\u0acd\u0aa3 (\u0a97\u0ab0\u0aae) \u0aad\u0abe\u0ab0 \u0a89\u0aae\u0ac7\u0ab0\u0ac7 \u0a9b\u0ac7. \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95 \u0a85\u0aa8\u0ac7 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0abe \u0aaa\u0abe\u0aa3\u0ac0\u0aa5\u0ac0 \u0aa0\u0a82\u0aa1\u0a95 \u0ab2\u0abe\u0ab5\u0acb; Red Coral \u0a85\u0a9c\u0aae\u0abe\u0aaf\u0ab6 \u0a9f\u0ac2\u0a82\u0a95\u0ac0 \u0a85\u0aa8\u0ac7 \u0aa6\u0ac7\u0a96\u0ab0\u0ac7\u0a96 \u0ab9\u0ac7\u0aa0\u0ab3 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      potential: {
+        en: "Mars remedies carry Ushna (heating) load. If prone to acidity, inflammation or a quick temper, practise in the morning only, avoid noon heat and heated confrontation. Moonlight grounding and lukewarm water carry the cooling; keep Red Coral trials brief.",
+        hi: "\u092e\u0902\u0917\u0932 \u0909\u092a\u093e\u092f\u094b\u0902 \u092e\u0947\u0902 \u0909\u0937\u094d\u0923 (\u0917\u0930\u094d\u092e) \u092d\u093e\u0930 \u0939\u094b\u0924\u093e \u0939\u0948\u0964 \u092f\u0926\u093f \u090f\u0938\u093f\u0921\u093f\u091f\u0940, \u0938\u0942\u091c\u0928 \u092f\u093e \u091c\u0932\u094d\u0926\u0940 \u0915\u094d\u0930\u094b\u0927 \u0915\u0940 \u092a\u094d\u0930\u0935\u0943\u0924\u094d\u0924\u093f \u0939\u094b, \u0924\u094b \u0915\u0947\u0935\u0932 \u0938\u0941\u092c\u0939 \u0905\u092d\u094d\u092f\u093e\u0938 \u0915\u0930\u0947\u0902, \u0926\u094b\u092a\u0939\u0930 \u0915\u0940 \u0917\u0930\u094d\u092e\u0940 \u0914\u0930 \u0917\u0930\u094d\u092e \u091f\u0915\u0930\u093e\u0935 \u0938\u0947 \u092c\u091a\u0947\u0902\u0964 \u091a\u093e\u0902\u0926\u0928\u0940 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0914\u0930 \u0917\u0941\u0928\u0917\u0941\u0928\u093e \u092a\u093e\u0928\u0940 \u0936\u0940\u0924\u0932\u0928 \u0915\u0930\u093e\u0924\u0947 \u0939\u0948\u0902; Red Coral \u0915\u0940 \u0906\u091c\u092e\u093e\u0907\u0936 \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0930\u0916\u0947\u0902\u0964",
+        gu: "\u0aae\u0a82\u0a97\u0ab3 \u0a89\u0aaa\u0abe\u0aaf\u0acb\u0aae\u0abe\u0a82 \u0a89\u0ab7\u0acd\u0aa3 (\u0a97\u0ab0\u0aae) \u0aad\u0abe\u0ab0 \u0ab9\u0acb\u0aaf \u0a9b\u0ac7. \u0a9c\u0acb \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0, \u0ab8\u0acb\u0a9c\u0acb \u0a95\u0ac7 \u0a9c\u0ab2\u0acd\u0aa6\u0ac0 \u0a97\u0ac1\u0ab8\u0acd\u0ab8\u0abe\u0aa8\u0ac0 \u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf, \u0aa4\u0acb \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8 \u0a95\u0ab0\u0acb, \u0aac\u0aaa\u0acb\u0ab0\u0aa8\u0ac0 \u0a97\u0ab0\u0aae\u0ac0 \u0a85\u0aa8\u0ac7 \u0a97\u0ab0\u0aae \u0a9f\u0a95\u0ab0\u0abe\u0ab5\u0aa5\u0ac0 \u0aac\u0a9a\u0acb. \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95 \u0a85\u0aa8\u0ac7 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0ac1\u0a82 \u0aaa\u0abe\u0aa3\u0ac0 \u0ab6\u0ac0\u0aa4\u0ab2\u0aa8 \u0a95\u0ab0\u0abe\u0ab5\u0ac7 \u0a9b\u0ac7; Red Coral \u0a85\u0a9c\u0aae\u0abe\u0aaf\u0ab6 \u0a9f\u0ac2\u0a82\u0a95\u0ac0 \u0ab0\u0abe\u0a96\u0acb."
+      },
+      micro: {
+        en: "run it cool \u2014 morning-only practice, no noon exertion",
+        hi: "\u0907\u0938\u0947 \u0920\u0902\u0921\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902 \u2014 \u0915\u0947\u0935\u0932 \u0938\u0941\u092c\u0939 \u0905\u092d\u094d\u092f\u093e\u0938, \u0926\u094b\u092a\u0939\u0930 \u092e\u0947\u0902 \u092a\u0930\u093f\u0936\u094d\u0930\u092e \u0928\u0939\u0940\u0902",
+        gu: "\u0aa4\u0ac7\u0aa8\u0ac7 \u0aa0\u0a82\u0aa1\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb \u2014 \u0aab\u0a95\u0acd\u0aa4 \u0ab8\u0ab5\u0abe\u0ab0\u0ac7 \u0a85\u0aad\u0acd\u0aaf\u0abe\u0ab8, \u0aac\u0aaa\u0acb\u0ab0\u0ac7 \u0aaa\u0ab0\u0bbf\u0ab6\u0acd\u0ab0\u0aae \u0aa8\u0ab9\u0ac0\u0a82"
+      }
+    }
+  };
+  function doshaContraBadge(n, lang) {
+    const num = Number(n);
+    const l = lang || "en";
+    const copy = DOSHA_CONTRA_COPY[num] || {};
+    const planet = ((copy.planet || {}))[l] || copy.planet.en;
+    const rule = DOSHA_CONTRA_RULES[num] || {};
+    const dosha = doshaLabel(rule.channel, l);
+    return `🛡 ${DOSHA_CONTRA_SAFETY[l] || DOSHA_CONTRA_SAFETY.en} \u2014 ${planet} \u00d7 ${dosha} ${DOSHA_CONTRA_LOAD[l] || DOSHA_CONTRA_LOAD.en}`;
+  }
+  /* Advisory shape mirroring getRemedyClinicalGuardrail(2, p): badge + note
+     for a loaded number, or null when no rule leg fires. */
+  function doshaContraGuardrail(num, profile, langOverride) {
+    const n = Number(num);
+    if (n === 2) return null;
+    const sensitivity = doshaContraSensitivity(n, profile);
+    if (!sensitivity) return null;
+    const lang = langOverride || getLang();
+    const copy = DOSHA_CONTRA_COPY[n];
+    if (!copy) return null;
+    const declared = sensitivity.level === "declared";
+    const note = declared ? (copy.declared[lang] || copy.declared.en) : (copy.potential[lang] || copy.potential.en);
+    return { type: "warning", level: sensitivity.level, reasons: sensitivity.reasons, badge: doshaContraBadge(n, lang), note };
+  }
+  /* Kit-card banner rendered as the first overlay row of a loaded kit, below
+     any Moon-cold banner (which only Number 2 carries) and above the
+     canonical Beej mantra row. Section 4, goal focuses, triage Tier-1 and
+     the daily ritual share it through this one helper. */
+  function doshaContraKitGuardrailHtml(n, p, lang) {
+    const num = Number(n);
+    if (num === 2) return "";
+    const guardrail = doshaContraGuardrail(num, p, lang || getLang());
+    if (!guardrail) return "";
+    return `<div class="kit-row clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="dosha-contra" data-contra-number="${num}" data-guardrail-level="${esc(guardrail.level)}"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${esc(guardrail.badge)}</div><div class="kit-value">${esc(guardrail.note)}</div></div></div>`;
+  }
+  /* Latent Tier-2 suffix: one short clause, mirroring moonLatentSuffix. */
+  function doshaContraLatentSuffix(item, p, lang) {
+    const num = Number(item && item.n);
+    if (num === 2 || !doshaContraSensitivity(num, p)) return "";
+    const copy = DOSHA_CONTRA_COPY[num];
+    if (!copy) return "";
+    const l = lang || getLang();
+    const micro = copy.micro[l] || copy.micro.en;
+    return l === "hi" ? ` \u0938\u0915\u094d\u0930\u093f\u092f \u0939\u094b\u0928\u0947 \u092a\u0930 ${micro}\u0964` : l === "gu" ? ` \u0ab8\u0a95\u0acd\u0ab0\u0abf\u0aaf \u0aa5\u0abe\u0aaf \u0aa4\u0acd\u0aaf\u0abe\u0ab0\u0ac7 ${micro}.` : ` When it activates, ${micro}.`;
+  }
+  /* One-line practitioner flag for the cockpit core cell. Unlike the Moon
+     fact, this one always renders beside it: the two flags never overlap
+     (Moon 2 is excluded here) and the cockpit must show every loaded
+     missing number at a glance. */
+  function doshaContraCockpitFactHtml(p, lang) {
+    if (!p) return "";
+    const flagged = (p.loShuMissing || []).map(Number).filter((n) => doshaContraSensitivity(n, p));
+    if (!flagged.length) return "";
+    const l = lang || getLang();
+    const nums = flagged.join(" \u00b7 ");
+    const text = l === "hi"
+      ? `\u26a0 \u0926\u094b\u0937-\u0935\u093f\u0930\u0941\u0926\u094d\u0927 \u0905\u0902\u0915: ${nums} \u2014 \u0915\u093f\u091f \u092c\u0948\u0928\u0930 \u0926\u0947\u0916\u0947\u0902; \u091a\u093f\u0939\u094d\u0928\u093f\u0924 \u0915\u093f\u091f \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902`
+      : l === "gu"
+        ? `\u26a0 \u0aa6\u0acb\u0ab7-\u0ab5\u0abf\u0ab0\u0ac1\u0aa6\u0acd\u0aa7 \u0a85\u0a82\u0a95: ${nums} \u2014 \u0a95\u0abf\u0a9f \u0aac\u0ac7\u0aa8\u0ab0 \u0a9c\u0ac1\u0a93; \u0a9a\u0abf\u0ab9\u0acd\u0aa8\u0abf\u0aa4 \u0a95\u0abf\u0a9f \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb`
+        : `\u26a0 Dosha-contra numbers: ${nums} \u2014 see kit banners; run flagged kits in mild form`;
+    return `<div class="cockpit-fact" data-cockpit-guardrail="dosha-contra" data-contra-numbers="${esc(flagged.join(","))}">${esc(text)}</div>`;
+  }
+  /* Health-focus section card (Section 19+): Health-governed kits 1/7/9
+     carry the overlay at section level under a Health focus, mirroring
+     moonColdHealthFocusHtml for Number 2. */
+  function doshaContraHealthFocusHtml(p, lang) {
+    if (!hasHealthFocus(p)) return "";
+    const flagged = HEALTH_GOVERNED_NUMBERS.filter((n) => n !== 2 && doshaContraSensitivity(n, p));
+    if (!flagged.length) return "";
+    const l = lang || getLang();
+    const nums = flagged.join(" \u00b7 ");
+    const title = l === "hi" ? "🛡 \u0928\u0948\u0926\u093e\u0928\u093f\u0915 \u0938\u0941\u0930\u0915\u094d\u0937\u093e \u2014 \u0938\u094d\u0935\u093e\u0938\u094d\u0925\u094d\u092f-\u0936\u093e\u0938\u093f\u0924 \u0915\u093f\u091f" : l === "gu" ? "🛡 \u0a95\u0acd\u0ab2\u0abf\u0aa8\u0abf\u0a95\u0ab2 \u0ab8\u0ab2\u0abe\u0aae\u0aa4\u0ac0 \u2014 \u0a86\u0ab0\u0acb\u0a97\u0acd\u0aaf-\u0ab6\u0abe\u0ab8\u0abf\u0aa4 \u0a95\u0abf\u0a9f" : "🛡 Clinical Safety Guardrail \u2014 Health-Governed Kits";
+    const body = l === "hi"
+      ? `\u0905\u0902\u0915 ${nums} \u0938\u094d\u0935\u093e\u0938\u094d\u0925\u094d\u092f \u0915\u0947 \u0936\u093e\u0938\u0915 \u0939\u0948\u0902 \u0914\u0930 \u0907\u0938 \u091a\u093e\u0930\u094d\u091f \u0915\u0947 \u0935\u093f\u0930\u0941\u0926\u094d\u0927 \u0926\u094b\u0937-\u092d\u093e\u0930 \u0930\u0916\u0924\u0947 \u0939\u0948\u0902 \u2014 \u0907\u0928\u0915\u0947 \u0915\u093f\u091f \u0928\u0940\u091a\u0947 \u0926\u093f\u090f \u092c\u0948\u0928\u0930\u094b\u0902 \u0915\u0947 \u0939\u0932\u094d\u0915\u0947 \u0928\u0948\u0926\u093e\u0928\u093f\u0915 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902\u0964 \u0930\u0902\u0917, \u0926\u093e\u0928 \u0914\u0930 \u092d\u0942\u092e\u093f-\u0938\u0902\u092a\u0930\u094d\u0915 \u0938\u0902\u0915\u0947\u0924 \u092f\u0925\u093e\u0935\u0924 \u091c\u093e\u0930\u0940 \u0930\u0916\u0947\u0902\u0964`
+      : l === "gu"
+        ? `\u0a85\u0a82\u0a95 ${nums} \u0a86\u0ab0\u0acb\u0a97\u0acd\u0aaf\u0aa8\u0abe \u0ab6\u0abe\u0ab8\u0a95 \u0a9b\u0ac7 \u0a85\u0aa8\u0ac7 \u0a86 \u0a9a\u0abe\u0ab0\u0acd\u0a9f \u0ab5\u0abf\u0ab0\u0ac1\u0aa6\u0acd\u0aa7 \u0aa6\u0acb\u0ab7-\u0aad\u0abe\u0ab0 \u0ab0\u0abe\u0a96\u0ac7 \u0a9b\u0ac7 \u2014 \u0aa4\u0ac7\u0aa8\u0abe \u0a95\u0abf\u0a9f \u0aa8\u0ac0\u0a9a\u0ac7 \u0a86\u0aaa\u0ac7\u0ab2\u0abe \u0aac\u0ac7\u0aa8\u0ab0\u0acb\u0aa8\u0abe \u0ab9\u0ab3\u0ab5\u0abe \u0a95\u0acd\u0ab2\u0abf\u0aa8\u0abf\u0a95\u0ab2 \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb. \u0ab0\u0a82\u0a97, \u0aa6\u0abe\u0aa8 \u0a85\u0aa8\u0ac7 \u0aad\u0ac2\u0aae\u0abf-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95 \u0ab8\u0a82\u0a95\u0ac7\u0aa4 \u0aaf\u0aa5\u0abe\u0ab5\u0aa4 \u0a9a\u0abe\u0ab2\u0ac1 \u0ab0\u0abe\u0a96\u0acb.`
+        : `Numbers ${nums} govern Health and carry a dosha load against this chart \u2014 run their kits in the mild clinical form shown in the banners below. Colour, charity and grounding cues continue unchanged.`;
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="dosha-contra" data-contra-scope="health-focus" data-contra-numbers="${esc(flagged.join(","))}"><div class="goal-head"><div class="card-title">${esc(title)}</div></div><div class="kit-value">${esc(body)}</div></div>`;
+  }
+  /* Crystal Guide note: Ruby / Red Coral / Carnelian are Ushna stones, so a
+     Pitta-loaded chart trials them briefly and on cool skin. */
+  const HEAT_STONE_KEYS = ["Ruby", "Red Coral", "Carnelian", "Red Jasper", "Red Aventurine"];
+  function doshaContraCrystalNoteHtml(p, picks, lang) {
+    if (!p) return "";
+    const list = picks || [];
+    if (!list.some((key) => HEAT_STONE_KEYS.includes(key))) return "";
+    if (![1, 7, 9].some((n) => doshaContraSensitivity(n, p))) return "";
+    const l = lang || getLang();
+    const text = l === "hi"
+      ? "\u0917\u0930\u094d\u092e\u0940-\u0938\u0902\u0935\u0947\u0926\u0928\u0936\u0940\u0932\u0924\u093e: Ruby / Red Coral / Carnelian \u0915\u0940 \u0906\u091c\u092e\u093e\u0907\u0936 \u0938\u0902\u0915\u094d\u0937\u093f\u092a\u094d\u0924 \u0914\u0930 \u0920\u0902\u0921\u0940 \u0924\u094d\u0935\u091a\u093e \u092a\u0930 \u0915\u0930\u0947\u0902; \u090f\u0938\u093f\u0921\u093f\u091f\u0940-\u092a\u094d\u0930\u0935\u0923 \u0939\u094b\u0902 \u0924\u094b \u0932\u093e\u0932-\u092a\u0924\u094d\u0925\u0930 \u0915\u0947 \u0938\u093e\u0925 \u091a\u093e\u0902\u0926\u0928\u0940-\u0938\u0902\u092a\u0930\u094d\u0915\u093f\u0924 \u091a\u093e\u0902\u0926\u0940 \u0914\u0930 \u0917\u0941\u0928\u0917\u0941\u0928\u0947 \u092a\u093e\u0928\u0940 \u0915\u0940 \u0906\u0926\u0924 \u0930\u0916\u0947\u0902\u0964"
+      : l === "gu"
+        ? "\u0a97\u0ab0\u0aae\u0ac0-\u0ab8\u0a82\u0ab5\u0ac7\u0aa6\u0aa8\u0ab6\u0ac0\u0ab2\u0aa4\u0abe: Ruby / Red Coral / Carnelian \u0a85\u0a9c\u0aae\u0abe\u0aaf\u0ab6 \u0a9f\u0ac2\u0a82\u0a95\u0ac0 \u0a85\u0aa8\u0ac7 \u0aa0\u0a82\u0aa1\u0ac0 \u0aa4\u0acd\u0ab5\u0a9a\u0abe \u0aaa\u0ab0 \u0a95\u0ab0\u0acb; \u0a8f\u0ab8\u0abf\u0aa1\u0abf\u0a9f\u0ac0-\u0ab5\u0ac3\u0aa4\u0acd\u0aa4\u0abf \u0ab9\u0acb\u0aaf \u0aa4\u0acb \u0ab2\u0abe\u0ab2-\u0aaa\u0aa5\u0acd\u0aa5\u0ab0 \u0ab8\u0abe\u0aa5\u0ac7 \u0a9a\u0abe\u0a82\u0aa6\u0aa8\u0ac0-\u0ab8\u0a82\u0aaa\u0ab0\u0acd\u0a95\u0abf\u0aa4 \u0a9a\u0abe\u0a82\u0aa6\u0ac0 \u0a85\u0aa8\u0ac7 \u0a97\u0ac1\u0aa8\u0a97\u0ac1\u0aa8\u0abe \u0aaa\u0abe\u0aa3\u0ac0\u0aa8\u0ac0 \u0a9f\u0ac7\u0ab5 \u0ab0\u0abe\u0a96\u0acb."
+        : "Heat-sensitive: trial Ruby / Red Coral / Carnelian briefly and on cool skin; if acidity-prone, favour moonlight-charged silver and lukewarm water habits alongside any red-stone trial.";
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="dosha-contra" data-contra-scope="crystal-heat"><div class="kit-value">🛡 ${esc(text)}</div></div>`;
+  }
+
   const GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
   const SAMBANDHA_HOSTILE_PAIRS = new Set([
     "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
@@ -1112,6 +1570,27 @@
   bindBirthPlaceUi();
 
   const selectedGoals = new Set();
+  /* Optional Health sub-tags. Shown only while the Health focus is selected;
+     "respiratory" (Allergies / Respiratory / Cold) switches Moon kits to
+     their warm clinical form. The tags are Health details, so deselecting
+     Health clears them. */
+  const selectedHealthTags = new Set();
+  function syncHealthTagChips(tags) {
+    selectedHealthTags.clear();
+    const incoming = new Set((tags || []).map((tag) => String(tag || "").trim().toLowerCase()));
+    $$("#healthTagChips .chip").forEach((chip) => {
+      const on = incoming.has(chip.dataset.healthTag);
+      chip.classList.toggle("selected", on);
+      if (on) selectedHealthTags.add(chip.dataset.healthTag);
+    });
+  }
+  function updateHealthTagsVisibility() {
+    const wrap = $("#healthTagsWrap");
+    if (!wrap) return;
+    const show = selectedGoals.has("Health");
+    wrap.classList.toggle("hidden", !show);
+    if (!show) syncHealthTagChips([]);
+  }
   function syncGoalChips(goals) {
     selectedGoals.clear();
     const incoming = new Set(goals || []);
@@ -1121,6 +1600,7 @@
       if (on) selectedGoals.add(chip.dataset.goal);
     });
     if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
+    updateHealthTagsVisibility();
   }
   $$("#goalChips .chip").forEach((chip) => {
     chip.addEventListener("click", () => {
@@ -1128,6 +1608,14 @@
       if (selectedGoals.has(g)) { selectedGoals.delete(g); chip.classList.remove("selected"); }
       else { selectedGoals.add(g); chip.classList.add("selected"); }
       if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
+      updateHealthTagsVisibility();
+    });
+  });
+  $$("#healthTagChips .chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const tag = chip.dataset.healthTag;
+      if (selectedHealthTags.has(tag)) { selectedHealthTags.delete(tag); chip.classList.remove("selected"); }
+      else { selectedHealthTags.add(tag); chip.classList.add("selected"); }
     });
   });
 
@@ -1155,6 +1643,8 @@
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
     if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(snapshot.input.partnerDob || "");
     syncGoalChips(snapshot.input.goals || []);
+    syncHealthTagChips(snapshot.input.healthTags || []);
+    updateHealthTagsVisibility();
   }
 
   /* ---------------- DOB input (dd-mm-yyyy) ----------------
@@ -1350,6 +1840,13 @@
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
       goals: input.goals || [],
+      // Optional Health sub-tags from the intake form (respiratory / heat /
+      // fatigue). "respiratory" drives the Moon-cold guardrail; all three
+      // feed the Dosha x planet overlay (heat -> Ushna kits 1/7/9, fatigue ->
+      // Guru/Chala kits 3/4/5/8, respiratory also flags Venus 6/Saturn 8).
+      healthTags: Array.isArray(input.healthTags)
+        ? [...new Set(input.healthTags.map((tag) => String(tag || "").trim().toLowerCase()).filter((tag) => HEALTH_TAG_VALUES.includes(tag)))]
+        : [],
       entrance: input.entrance || "unsure",
       kitchen: input.kitchen || "unsure",
       bedroom: input.bedroom || "unsure",
@@ -2587,6 +3084,8 @@
             <div class="cockpit-fact">${esc(L.name)}: ${c.core.nameCompound} → ${c.core.nameNumber}${c.core.kua ? ` · Kua ${c.core.kua}` : ""}</div>
             ${isMinorProfile(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="under-18">⚠ ${lang === "hi" ? "18 से कम — भारी रत्न स्थगित; खंड 4A तत्व आधार + हल्के पत्थर (Amethyst/Citrine)" : lang === "gu" ? "18 થી ઓછી — ભારે રત્ન મુલ્તવી; વિભાગ 4A તત્વ આધાર + હળવા પથ્થર (Amethyst/Citrine)" : "Under 18 — heavy gems deferred; 4A Tattva anchors + mild stones (Amethyst/Citrine)"}</div>` : ""}
             ${solarOverload(p) && pittaInBaseline(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="solar">☀ ${lang === "hi" ? `सूर्य 1×${solarLoadOf(p)} + पित्त — अर्घ्य लघु रखें; चंद्र भेदन/शाम भूमि-संपर्क से ठंडा करें` : lang === "gu" ? `સૂર્ય 1×${solarLoadOf(p)} + પિત્ત — અર્ઘ્ય ટૂંકો રાખો; ચંદ્ર ભેદન/સાંજ ભૂમિ-સંપર્કથી ઠંડક આપો` : `Sun 1×${solarLoadOf(p)} + Pitta — keep arghya brief; cool via Chandra Bhedana / evening grounding`}</div>` : ""}
+            ${moonColdCockpitFactHtml(p, lang)}
+            ${doshaContraCockpitFactHtml(p, lang)}
           </div>
           <div class="cockpit-cell"><div class="cockpit-label">${esc(L.loshu)}</div>
             <div class="cockpit-fact" data-cockpit-loshu-missing="${c.core.loShuMissing.join(",")}">${esc(L.missing)}: <strong>${numList(c.core.loShuMissing)}</strong></div>
@@ -2645,14 +3144,33 @@
       : t1.mode === "environmental"
         ? `${esc(t1.japa)} — ${esc(t1.zone)}: ${esc(t1.zoneRemedy)}`
         : `<strong>${t1.n} · ${esc(t1.planet)}</strong> — ${esc(t1.japa)}`;
+    // Latent Moon (Tier 2 · hold) prescribes no japa yet, but its future
+    // activation must run warm — one short suffix, no extra triage row.
+    const moonLatentSuffix = (item) => {
+      if (item.n !== 2 || !moonColdSensitivity(p)) return "";
+      return lang === "hi"
+        ? " सक्रिय होने पर उष्ण रूप में चलाएं — शिव जप, गुनगुना चांदी-जल, नाड़ी शोधन।"
+        : lang === "gu"
+          ? " સક્રિય થાય ત્યારે ઉષ્ણ રૂપે ચલાવો — શિવ જાપ, ગુનગુનું ચાંદી-જળ, નાડી શોધન."
+          : " When it activates, run it warm — Shiva japa, lukewarm silver water, Nadi Shodhana.";
+    };
     const tier2Rows = tr.tier2.length
-      ? tr.tier2.map((item) => `<div class="kit-row" data-triage-tier="2" data-triage-number="${item.n}"><div class="kit-ico"><strong>${item.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(item.planet)} — ${lang === "hi" ? "प्रतीक्षित" : lang === "gu" ? "પ્રતીક્ષિત" : "latent"}</div><div class="kit-value">${esc(item.colour)} · ${esc(item.cue)}</div><div class="card-sub">${esc(item.hold)} ${lang === "hi" ? "सक्रिय होगा" : lang === "gu" ? "સક્રિય થશે" : "Activates"}: ${esc(item.unlockLabel)}</div></div></div>`).join("")
+      ? tr.tier2.map((item) => `<div class="kit-row" data-triage-tier="2" data-triage-number="${item.n}"><div class="kit-ico"><strong>${item.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(item.planet)} — ${lang === "hi" ? "प्रतीक्षित" : lang === "gu" ? "પ્રતીક્ષિત" : "latent"}</div><div class="kit-value">${esc(item.colour)} · ${esc(item.cue)}</div><div class="card-sub">${esc(item.hold)} ${lang === "hi" ? "सक्रिय होगा" : lang === "gu" ? "સક્રિય થશે" : "Activates"}: ${esc(item.unlockLabel)}${esc(moonLatentSuffix(item))}${esc(doshaContraLatentSuffix(item, p, lang))}</div></div></div>`).join("")
       : `<div class="kit-row"><div class="kit-ico">✓</div><div class="kit-body"><div class="kit-value">${lang === "hi" ? "कोई प्रतीक्षित लक्ष्य नहीं — केवल एक ही उपाय-भार है।" : lang === "gu" ? "કોઈ પ્રતીક્ષિત લક્ષ્ય નથી — ફક્ત એક જ ઉપાય-ભાર છે." : "No latent targets — the acute target is the only remedy load."}</div></div></div>`;
+    // An acute/maintenance Tier-1 Moon target prescribes live japa, so the
+    // Moon-cold guardrail rides the triage card itself. Environmental Tier-1
+    // holds all japa and needs no mantra guardrail.
+    const moonTier1Guardrail = (t1.n === 2 && t1.mode !== "environmental") ? moonColdKitGuardrailHtml(t1.n, p, lang) : "";
+    // Other acute/maintenance Tier-1 targets ride the generic Dosha x planet
+    // guardrail; environmental Tier-1 holds all japa and needs no mantra flag.
+    const doshaTier1Guardrail = (t1.n !== 2 && t1.mode !== "environmental") ? doshaContraKitGuardrailHtml(t1.n, p, lang) : "";
     return `<div class="card triage-card" id="remedy-triage" data-remedy-authority="lo-shu" data-tier1-mode="${esc(t1.mode)}" data-tier1-number="${t1.n}">
       <div class="goal-head"><div class="card-title">${esc(head)}</div><span class="badge good">${lang === "hi" ? "टियर १ · अभी" : lang === "gu" ? "ટિયર ૧ · હમણાં" : "Tier 1 · now"}</span></div>
       <div class="card-sub">${esc(intro)}</div>
       <div class="kit">
         <div class="kit-row" data-triage-tier="1"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "टियर १ — तीव्र लक्ष्य" : lang === "gu" ? "ટિયર ૧ — તીવ્ર લક્ષ્ય" : "Tier 1 — acute target"}</div><div class="kit-value">${tier1Line}</div><div class="card-sub">${esc(t1.reasons.join(" · "))}</div></div></div>
+        ${moonTier1Guardrail}
+        ${doshaTier1Guardrail}
         ${tier2Rows}
       </div>
       ${tr.withheld.length ? `<div class="judge-note"><strong>${lang === "hi" ? "जानबूझकर रोका गया:" : lang === "gu" ? "ઇરાદાપૂર્વક રોકેલું:" : "Deliberately withheld this cycle:"}</strong> ${tr.withheld.map(esc).join(" · ")}</div>` : ""}
@@ -3680,7 +4198,7 @@
       rows: [
         { ico: "🌬", label: { en: "Breathwork (Pranayama)", hi: "श्वास-अभ्यास (प्राणायाम)", gu: "શ્વાસ-અભ્યાસ (પ્રાણાયામ)" }, value: { en: "Chandra Bhedana (left-nostril) or a 4–6 calming breath: inhale left 4, hold 2, exhale right 6. 5–8 rounds before sleep.", hi: "चंद्र भेदन (बाईं नासिका) या 4–6 शांत श्वास: बाईं से 4 खींचें, 2 रोकें, दाईं से 6 छोड़ें। सोने से पहले 5–8 चक्र।", gu: "ચંદ્ર ભેદન (ડાબી નાસિકા) અથવા 4–6 શાંત શ્વાસ: ડાબીથી 4 ખેંચો, 2 રોકો, જમણીથી 6 છોડો. સૂતા પહેલાં 5–8 ચક્ર." } },
         { ico: "🛁", label: { en: "Aushadhi Snan & Aroma", hi: "औषधि स्नान और सुगंध", gu: "ઔષધિ સ્નાન અને સુગંધ" }, value: { en: "Warm bath with a drop of rose or sandalwood hydrosol; a light lavender or sandalwood aroma at night.", hi: "गुलाब या चंदन जल की बूंद के साथ गुनगुना स्नान; रात को लैवेंडर या चंदन की हल्की सुगंध।", gu: "ગુલાબ કે ચંદન જળના ટીપા સાથે ગુનગુનું સ્નાન; રાત્રે લેવેન્ડર કે ચંદનની હળવી સુગંધ." } },
-        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Regular sips; coconut water or cumin-coriander water in the afternoon; ease caffeine after dusk.", hi: "नियमित घूंट; दोपहर में नारियल पानी या जीरा-धनिया पानी; शाम के बाद कैफीन कम करें।", gu: "નિયમિત ઘૂંટ; બપોરે નારિયેળ પાણી કે જીરું-ધાણા પાણી; સાંજ પછી કેફીન ઓછું." } },
+        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Regular sips of room-temperature or lukewarm water (ideally stored in a pure silver vessel); cumin-coriander warm infusion in the afternoon; strictly avoid refrigerated drinks, ice, or late-night cooling fluids if prone to morning nasal allergies; ease caffeine after dusk.", hi: "कमरे के तापमान या गुनगुने पानी के नियमित घूंट (शुद्ध चांदी के बर्तन में रखा जल उत्तम); दोपहर में जीरा-धनिया का गुनगुना काढ़ा; सुबह की नाक-एलर्जी हो तो फ्रिज के पेय, बर्फ या रात के ठंडे तरल से सख्त परहेज करें; शाम के बाद कैफीन कम करें।", gu: "રૂમ-તાપમાન કે ગુનગુના પાણીના નિયમિત ઘૂંટ (શુદ્ધ ચાંદીના વાસણમાં રાખેલું જળ ઉત્તમ); બપોરે જીરું-ધાણાનો ગરમ ઉકાળો; સવારની નાક-એલર્જી હોય તો ફ્રિજના પીણાં, બરફ કે રાત્રિના ઠંડા પ્રવાહીનો સખત પરહેજ કરો; સાંજ પછી કેફીન ઓછું." } },
         { ico: "🌱", label: { en: "Grounding Anchor", hi: "भूमि-संपर्क", gu: "ભૂમિ-સંપર્ક" }, value: { en: "Bare feet on soil or grass 5–10 minutes; a warm foot-soak in the evening.", hi: "नंगे पाँव मिट्टी या घास पर 5–10 मिनट; शाम को गुनगुना पैर-स्नान।", gu: "નંગા પગે માટી કે ઘાસ પર 5–10 મિનિટ; સાંજે ગુનગુનું પગ-સ્નાન." } },
         { ico: "✦", label: { en: "Behavioral Micro-Habit", hi: "व्यवहार की छोटी आदत", gu: "વ્યવહારની નાની ટેવ" }, value: { en: "Three lines at night — what you felt, what you finished, one small step for tomorrow.", hi: "रात को तीन पंक्तियाँ — क्या महसूस किया, क्या पूरा किया, कल का एक छोटा कदम।", gu: "રાત્રે ત્રણ લીટીઓ — શું અનુભવ્યું, શું પૂરું કર્યું, કાલનું એક નાનું પગલું." } }
       ]
@@ -3732,6 +4250,7 @@
           <div class="kit-row"><div class="kit-ico">◎</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "न्यूनता संकेत" : lang === "gu" ? "ઊણપનું ચિહ્ન" : "Deficiency Signature"}</div><div class="kit-value">${esc(plane.signature)}</div></div></div>
           ${rows}
           ${plane.key === "practical" ? solarModerationNote(p, lang, { context: "agni" }) : ""}
+          ${plane.key === "emotional" ? moonColdTattvaOverlayHtml(p, lang) : ""}
         </div>
       </article>`;
     }).join("");
@@ -3780,6 +4299,8 @@
         </div>
       </div>
       <div class="kit">
+        ${moonColdKitGuardrailHtml(n, p, lang)}
+        ${doshaContraKitGuardrailHtml(n, p, lang)}
         <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">${t("beejMantra", "Beej Mantra")}</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">${t("dailyShortMantra", "Daily Short Mantra")}</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">${t("wishPaperAffirmation", "Wish-Paper Affirmation")}</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">${lang === "hi" ? "इसे अपने संकल्प पत्र पर रोज ११ बार लिखें और पर्स या तकिए के नीचे रखें।" : lang === "gu" ? "આને તમારા સંકલ્પ પત્ર પર રોજ ૧૧ વખત લખો અને પર્સમાં કે ઓશીકા નીચે રાખો." : "Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow."}</span></div></div></div>
@@ -4056,6 +4577,8 @@
       <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>${t("secCrystal", "Crystal Companion Guide")}</h2>
       <p class="rsection-desc">${lang === "hi" ? `ये crystal और Rudraksha सुझाव केवल लो शू में अनुपस्थित अंक ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "के अभाव"} से आते हैं। मूलांक/भाग्यांक, राशि और उन्नत वैदिक grid इन्हें नहीं बदलते।` : lang === "gu" ? `આ crystal અને Rudraksha સૂચનો ફક્ત લો શુંમાં ખૂટતા અંક ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "ના અભાવ"} પરથી આવે છે. મૂળાંક/ભાગ્યાંક, રાશિ અને ઉન્નત વૈદિક grid તેને બદલતા નથી.` : `These crystal and Rudraksha suggestions come only from missing Lo Shu number${cg.remedyNumbers.length === 1 ? "" : "s"} ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "— none are required"}. Driver/Conductor, zodiac and the advanced Vedic grid do not change them.`}</p>
       ${minorChart && cgPicks.length ? `<div class="card" data-age-guardrail="under-18"><div class="goal-head"><div class="card-title">${lang === "hi" ? "🛡 अभिभावकों के लिए — 18 से कम आयु की पट्टिका" : lang === "gu" ? "🛡 વાલીઓ માટે — 18 થી ઓછી ઉંમરની પટ્ટિકા" : "🛡 For parents — an under-18 chart"}</div><span class="badge info">${lang === "hi" ? `आयु ${p.ageYears}` : lang === "gu" ? `ઉંમર ${p.ageYears}` : `Age ${p.ageYears}`}</span></div><div class="kit-value">${lang === "hi" ? `इस आयु में कोई भारी ग्रह-रत्न नहीं: ब्लू सैफायर (नीलम), हेसोनाइट (गोमेद) और कैट्स आई (लहसुनिया) 18 वर्ष तक स्थगित रहते हैं और तब भी विशेषज्ञ परीक्षण मांगते हैं। ऊपर की सूची पहले से ही हल्के विकल्प दिखाती है। असली उपाय विद्यार्थी-आयु में खंड 4A के तत्व आधार और प्रत्येक किट की जीवनशैली पंक्तियाँ हैं; पत्थर चाहिए भी, तो Amethyst या Citrine जैसा हल्का, जैविक पत्थर ही सुरक्षित शुरुआत है।` : lang === "gu" ? `આ ઉંમરે કોઈ ભારે ગ્રહ-રત્ન નહીં: બ્લુ સેફાયર (નીલમ), હેસોનાઇટ (ગોમેદ) અને કૅટ્સ આય (લહસુનિયા) 18 વર્ષ સુધી મુલ્તવી રહે છે અને પછી પણ નિષ્ણાત પરીક્ષણ માંગે છે. ઉપરની યાદી પહેલેથી હળવા વિકલ્પો બતાવે છે. વિદ્યાર્થી-ઉંમરે સાચો ઉપાય વિભાગ 4A ના તત્વ આધાર અને દરેક કિટની જીવનશૈલી હરોળ છે; પથ્થર જ જોઈતો હોય તો Amethyst કે Citrine જેવો હળવો, ઓર્ગેનિક પથ્થર જ સુરક્ષિત શરૂઆત છે.` : `No heavy planetary gems at this age: Blue Sapphire (Neelam), Hessonite (Gomed) and Cat's Eye (Lehsunia) stay deferred until 18 and demand an expert trial even then — the list above already shows the gentle substitutes. The real remedy at school age is the Section 4A Tattva anchors plus each kit's lifestyle rows; if a stone is still wanted, keep it mild and organic — Amethyst or Citrine are the safe starters.`}</div></div>` : ""}
+      ${moonColdCrystalNoteHtml(p, cgPicks, lang)}
+      ${doshaContraCrystalNoteHtml(p, cgPicks, lang)}
       ${cgPicks.length ? `<div class="card-grid two">${cgPicks.map((k) => {
         const c = db.crystals[k];
         return `<div class="card"${cgSubstituteOf[k] ? ` data-gentle-substitute="${esc(cgSubstituteOf[k])}"` : ""}>
@@ -4618,13 +5141,26 @@
     </section>`;
 
     const goalsStart = SECTION.goalsStart;
-    const goalSections = goals.map((g, i) => `<section class="rsection" data-remedy-authority="lo-shu">
+    const goalSections = goals.map((g, i) => {
+      // Health focus carries the Moon-cold banner at section level (the Moon
+      // governs Health), plus an echo of any intake Health sub-tags.
+      const healthBanner = g.goal === "Health" ? moonColdHealthFocusHtml(p, lang) : "";
+      const doshaHealthBanner = g.goal === "Health" ? doshaContraHealthFocusHtml(p, lang) : "";
+      const taggedHealth = g.goal === "Health" ? healthTagsOf(p) : [];
+      const healthTagLine = taggedHealth.length
+        ? `<p class="rsection-desc" data-health-tags="${esc(taggedHealth.join(","))}">${lang === "hi" ? "आपने चुना" : lang === "gu" ? "તમે પસંદ કર્યું" : "You flagged"}: <strong>${taggedHealth.map((tag) => esc(healthTagLabel(tag, lang))).join(" · ")}</strong></p>`
+        : "";
+      return `<section class="rsection" data-remedy-authority="lo-shu">
       <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — ${lang === "hi" ? "लो शू उपाय फोकस" : lang === "gu" ? "લો શુ ઉપાય ફોકસ" : "Lo Shu Remedy Focus"}</h2>
       <p class="rsection-desc">${g.weak.length
         ? (lang === "hi" ? `आपके लो शू जन्म-ग्रिड में अनुपस्थित अंक <strong>${g.weak.join(", ")}</strong> इस लक्ष्य के लिए practice targets हैं।` : lang === "gu" ? `તમારા લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંક <strong>${g.weak.join(", ")}</strong> આ લક્ષ્ય માટે practice targets છે.` : `Missing Lo Shu Birth Grid number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> are the practice targets for this focus.`)
         : (lang === "hi" ? "इस लक्ष्य से जुड़े लो शू अंक उपस्थित हैं — कोई अतिरिक्त remedy kit आवश्यक नहीं है।" : lang === "gu" ? "આ લક્ષ્ય સાથે જોડાયેલા લો શુ અંકો હાજર છે — વધારાની remedy kit જરૂરી નથી." : `The Lo Shu numbers connected to this focus are present — no extra remedy kit is required.`)}</p>
+      ${healthTagLine}
+      ${healthBanner}
+      ${doshaHealthBanner}
       ${g.weak.length ? `<div class="card-grid two">${g.focus.map((f) => kitCard(f.n, undefined, p)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
-    </section>`).join("");
+    </section>`;
+    }).join("");
 
     const cadenceLabel = {
       daily: lang === "hi" ? "दैनिक" : lang === "gu" ? "દૈનિક" : "Daily",
@@ -4651,6 +5187,8 @@
           <div class="card-title">${lang === "hi" ? "आपकी लो शू दैनिक मुख्य साधना" : lang === "gu" ? "તમારી લો શુ દૈનિક મુખ્ય સાધના" : "Your Lo Shu Daily Core Ritual"}</div>
           <div class="kit">
             ${activation.daily.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${row.label}</div><div class="kit-value">${row.value}<br><span class="card-sub">${row.sub}</span></div></div></div>`).join("")}
+            ${(activation.targetN === 2 && !activation.holdJapa) ? moonColdKitGuardrailHtml(activation.targetN, p, lang) : ""}
+            ${!activation.holdJapa ? doshaContraKitGuardrailHtml(activation.targetN, p, lang) : ""}
             <div class="kit-row ritual-triage-sync" data-ritual-sync="${activation.tier1Mode}"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "ट्राइएज सिंक" : lang === "gu" ? "ટ્રાયએજ સિંક" : "Triage sync"}</div><div class="kit-value">${activation.triageNote}</div></div></div>
           </div>
         </div>
@@ -4685,7 +5223,23 @@
           : tier === 2
             ? `<span class="badge warn triage-flag">${lang === "hi" ? "टियर २ · प्रतीक्षा" : lang === "gu" ? "ટિયર ૨ · રાહ" : "Tier 2 · hold"}</span>`
             : "";
-        return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}</div>`;
+        // Moon checklist rows that chant the lunar mantra carry a warm-form flag.
+        const moonPriorityNote = (item.n === 2 && moonColdSensitivity(p))
+          ? `<span class="priority-guardrail" data-clinical-guardrail="moon-cold">${lang === "hi" ? "🛡 सर्दी-संवेदनशील: उष्ण रूप — शिव जप, गुनगुना चांदी-जल" : lang === "gu" ? "🛡 શરદી-સંવેદનશીલ: ઉષ્ણ રૂપ — શિવ જાપ, ગુનગુનું ચાંદી-જળ" : "🛡 Cold-sensitive: run warm — Shiva japa, lukewarm silver water"}</span>`
+          : "";
+        // Checklist rows for other loaded numbers carry the mild-form flag.
+        const doshaPriorityNote = (() => {
+          if (item.n === 2) return "";
+          if (!doshaContraSensitivity(item.n, p)) return "";
+          const rule = DOSHA_CONTRA_RULES[item.n];
+          const copy = DOSHA_CONTRA_COPY[item.n];
+          if (!rule || !copy) return "";
+          const micro = copy.micro[lang] || copy.micro.en;
+          const dosha = doshaLabel(rule.channel, lang);
+          const text = lang === "hi" ? `🛡 ${dosha}-\u0938\u0902\u0935\u0947\u0926\u0928\u0936\u0940\u0932: ${micro}` : lang === "gu" ? `🛡 ${dosha}-\u0ab8\u0a82\u0ab5\u0ac7\u0aa6\u0aa8\u0ab6\u0ac0\u0ab2: ${micro}` : `🛡 ${dosha}-sensitive: ${micro}`;
+          return `<span class="priority-guardrail" data-clinical-guardrail="dosha-contra" data-contra-number="${item.n}">${esc(text)}</span>`;
+        })();
+        return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}${moonPriorityNote}${doshaPriorityNote}</div>`;
       }).join("")}
       </div>
       <div class="card tracker-card" id="plan-tracker">
@@ -5168,6 +5722,7 @@
       mobile: $("#mobile").value.replace(/[^\d+]/g, ""),
       vehicle: $("#vehicle").value.trim(),
       goals: Array.from(selectedGoals),
+      healthTags: Array.from(selectedHealthTags),
       entrance: $("#entrance").value,
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
@@ -5211,6 +5766,8 @@
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
+    healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
+    moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
     normalizeDobInput, formatDobForDisplay,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,

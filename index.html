@@ -201,6 +201,15 @@
             <button type="button" class="chip" data-goal="Relationship" data-i18n="focusRelationship">Relationship</button>
           </div>
           <p class="field-error" id="err-goals" hidden data-i18n="errGoals">Select at least one focus area.</p>
+          <div class="health-tags-wrap hidden" id="healthTagsWrap">
+            <span class="field-label field-label-sm" id="healthTagsLabel"><span data-i18n="healthTagsLabel">Health details (optional)</span></span>
+            <div class="chip-group chip-group-sm" role="group" aria-labelledby="healthTagsLabel" id="healthTagChips">
+              <button type="button" class="chip chip-sm" data-health-tag="respiratory" data-i18n="healthTagRespiratory">Allergies / Respiratory / Cold</button>
+              <button type="button" class="chip chip-sm" data-health-tag="heat" data-i18n="healthTagHeat">Acidity / Inflammation / Heat</button>
+              <button type="button" class="chip chip-sm" data-health-tag="fatigue" data-i18n="healthTagFatigue">Joints / Digestion / Fatigue</button>
+            </div>
+            <p class="field-hint" data-i18n="healthTagsHint">Optional — refines lunar remedy safety. Allergies / Respiratory / Cold switches Moon kits to their warm form.</p>
+          </div>
         </div>
       </div>
 
