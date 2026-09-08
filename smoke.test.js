@@ -672,13 +672,13 @@ const moonWaliaDecl = profile({ name: "Randeep Walia", dob: "1976-08-05", goals:
 const moonClean = profile({ name: "Clean Pitta", dob: "1999-09-09", goals: ["Money"] });
 check("Moon-cold sensitivity fires for a Driver-5 Vata-carrying Health chart", same(window.__NV.moonColdSensitivity(moonWalia), { level: "potential", reasons: ["vata-baseline", "mercury-5", "health-focus"] }));
 check("respiratory sub-tag upgrades Moon-cold to declared", window.__NV.moonColdSensitivity(moonWaliaDecl).level === "declared" && window.__NV.moonColdSensitivity(moonWaliaDecl).reasons[0] === "declared-respiratory");
-check("pure-Pitta non-Health chart has no Moon-cold signal", window.__NV.moonColdSensitivity(moonClean) === null && window.__NV.getRemedyClinicalGuardrail(1, moonWalia) === null && window.__NV.getRemedyClinicalGuardrail(5, moonWalia) === null);
+check("pure-Pitta non-Health chart has no Moon-cold signal", window.__NV.moonColdSensitivity(moonClean) === null && window.__NV.getRemedyClinicalGuardrail(3, moonWalia) === null && window.__NV.getRemedyClinicalGuardrail(6, moonWalia) === null);
 check("clinical guardrail object carries badge and warm substitutes", (() => { const g = window.__NV.getRemedyClinicalGuardrail(2, moonWalia); return !!g && g.type === "warning" && /Respiratory & Cold Sensitivity/.test(g.badge) && /Vataja Pratishyaya/.test(g.note) && /Chandrashekhara/.test(g.note) && /Nadi Shodhana/.test(g.note); })());
 const moonReportDom = mount(window.__NV.renderReport(moonWalia));
 const moonKitCards = $$("#remedy-section .card", moonReportDom);
 const moonKitOf = (label) => moonKitCards.find((card) => new RegExp(label).test(($(".card-title", card) || { textContent: "" }).textContent));
 check("Section 4 Moon kit leads with the guardrail and keeps canonical copy", (() => { const kit = moonKitOf("Moon"); return !!kit && !!$('[data-clinical-guardrail="moon-cold"]', kit) && $(".kit", kit).firstElementChild.getAttribute("data-clinical-guardrail") === "moon-cold" && /Om Shram Shreem Shraum Sah Chandraya Namah/.test(kit.textContent); })());
-check("Section 4 non-Moon kits stay free of the Moon guardrail", ["Jupiter", "Rahu"].every((label) => { const kit = moonKitOf(label); return !!kit && !$("[data-clinical-guardrail]", kit); }));
+check("Section 4 non-Moon kits stay free of the Moon guardrail", ["Jupiter", "Rahu"].every((label) => { const kit = moonKitOf(label); return !!kit && !$('[data-clinical-guardrail="moon-cold"]', kit); }) && !$("[data-clinical-guardrail]", moonKitOf("Jupiter")) && !!$('[data-clinical-guardrail="dosha-contra"]', moonKitOf("Rahu")));
 const moonHealthSection = $$("section.rsection", moonReportDom).find((section) => /Health \u2014 Lo Shu Remedy Focus/.test(section.textContent));
 check("Health focus section carries the Moon-cold banner", !!moonHealthSection && !!$('[data-clinical-guardrail="moon-cold"]', moonHealthSection));
 const moonDeclHealthSection = $$("section.rsection", mount(window.__NV.renderReport(moonWaliaDecl))).find((section) => /Health \u2014 Lo Shu Remedy Focus/.test(section.textContent));
@@ -696,7 +696,7 @@ const grahanReportDom = mount(window.__NV.renderReport(waliaProfile));
 check("acute Moon ritual and checklist carry the warm-form flag", $("#remedy-triage", grahanReportDom).dataset.tier1Number === "2" && !!$('.ritual-card [data-clinical-guardrail="moon-cold"]', grahanReportDom) && !!$('#plan-section .priority-guardrail[data-clinical-guardrail="moon-cold"]', grahanReportDom));
 const moonCrystalSection = $$("section.rsection", moonReportDom).find((section) => /Crystal Companion Guide/.test(section.textContent));
 check("Crystal Guide holds Pearl/Moonstone on a congested airway", !!$('[data-clinical-guardrail="moon-cold"]', moonCrystalSection) && /only when the airway is clear/.test(moonCrystalSection.textContent));
-check("clean Pitta report stays free of Moon-cold overlays", !/data-clinical-guardrail/.test(window.__NV.renderReport(moonClean)) && !/moon-cold/.test(window.__NV.renderReport(moonClean)));
+check("clean Pitta report stays free of Moon-cold overlays", !/moon-cold/.test(window.__NV.renderReport(moonClean)) && same(window.__NV.getRemedyClinicalGuardrail(7, moonClean).reasons, ["pitta-baseline"]) && window.__NV.getRemedyClinicalGuardrail(7, moonClean).level === "potential" && $('[data-cockpit-guardrail="dosha-contra"]', mount(window.__NV.renderPractitionerCockpit(moonClean))).dataset.contraNumbers === "7");
 
 /* Health sub-tag intake: the tag row appears only with the Health focus and
    flows into the report as a declared guardrail. Money stays selected so
@@ -723,6 +723,54 @@ $("#birthTime").value = "20:15";
 $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
 check("dob input: typed dd-mm-yyyy field normalises the live chart", $("#reportRoot").innerHTML.includes("05-08-1976") && window.__NV.computeProfile({ name: "Randeep Walia", dob: "1976-08-05", mobile: "", goals: [] }).day === 5);
 check("dob input: field reformats to day-month-year after submit", $("#dob").value === "05-08-1976");
+
+/* ---- Dosha x planet clinical contraindication overlay (Numbers 1-9) ----
+   Every planetary kit carries an Ayurvedic quality load (Ushna / Sheeta /
+   Guru / Ruksha-Chala) that clashes with a matching dosha channel, a
+   declared Health tag, or a Health focus on Health-governed planets.
+   Number 2 keeps the bespoke Moon-cold path; numbers 1 and 3-9 share the
+   generic matrix below. Render asserts use Dasha-independent touchpoints
+   (kit cards, priority rows, cockpit facts); Tier-1/ritual rows are pinned
+   at object level because the acute target rotates with the wall clock. */
+const kaphaChart = profile({ name: "Kapha Chart", dob: "1970-01-06", goals: ["Money"] });
+const pittaChart = profile({ name: "Pitta Chart", dob: "2000-05-09", goals: ["Money"] });
+const vataChart = profile({ name: "Vata Chart", dob: "1970-01-04", goals: ["Money", "Career"] });
+const tridoshicChart = profile({ name: "Tridoshic Chart", dob: "1970-01-05", goals: ["Money"] });
+const heatDecl = profile({ name: "Randeep Walia", dob: "1976-08-05", goals: ["Health", "Career"], healthTags: ["heat"], gender: "male" });
+const fatigueDecl = profile({ name: "Randeep Walia", dob: "1976-08-05", goals: ["Health", "Career"], healthTags: ["fatigue"], gender: "male" });
+check("contra fixtures plot the intended dosha channels and gaps", kaphaChart.driver === 6 && kaphaChart.conductor === 6 && same(kaphaChart.loShuMissing, [2, 3, 4, 5, 8]) && pittaChart.driver === 9 && pittaChart.conductor === 7 && same(pittaChart.loShuMissing, [1, 3, 4, 6, 8]) && vataChart.driver === 4 && vataChart.conductor === 4 && same(vataChart.loShuMissing, [2, 3, 5, 6, 8]) && tridoshicChart.driver === 5 && tridoshicChart.conductor === 5);
+check("Vata channel reads identically on the generic and Moon paths", [kaphaChart, pittaChart, vataChart, tridoshicChart, moonWalia, moonClean].every((p) => window.__NV.doshaChannelInBaseline(p, "vata") === window.__NV.vataInBaseline(p)));
+check("Tridoshic carries Vata only: Vata rules fire, Pitta/Kapha rules stay null", same(window.__NV.doshaContraSensitivity(5, tridoshicChart).reasons, ["vata-baseline", "mercury-5"]) && window.__NV.doshaContraSensitivity(4, tridoshicChart) !== null && window.__NV.doshaContraSensitivity(8, tridoshicChart) !== null && window.__NV.doshaContraSensitivity(1, tridoshicChart) === null && window.__NV.doshaContraSensitivity(3, tridoshicChart) === null && window.__NV.doshaContraSensitivity(6, tridoshicChart) === null && window.__NV.doshaContraSensitivity(7, tridoshicChart) === null && window.__NV.doshaContraSensitivity(9, tridoshicChart) === null);
+check("contra reasons follow the dosha x tag x Health matrix", same(window.__NV.getRemedyClinicalGuardrail(1, moonWalia).reasons, ["pitta-baseline", "health-focus"]) && same(window.__NV.getRemedyClinicalGuardrail(4, moonWalia).reasons, ["vata-baseline", "mercury-5"]) && same(window.__NV.getRemedyClinicalGuardrail(3, kaphaChart).reasons, ["kapha-baseline"]) && window.__NV.getRemedyClinicalGuardrail(3, kaphaChart).level === "potential" && window.__NV.getRemedyClinicalGuardrail(2, kaphaChart) !== null && window.__NV.getRemedyClinicalGuardrail(2, kaphaChart).badge !== window.__NV.getRemedyClinicalGuardrail(3, kaphaChart).badge);
+check("declared heat/fatigue tags escalate Ushna and Guru/Chala kits", window.__NV.getRemedyClinicalGuardrail(1, heatDecl).level === "declared" && window.__NV.getRemedyClinicalGuardrail(1, heatDecl).reasons[0] === "declared-heat" && window.__NV.getRemedyClinicalGuardrail(9, heatDecl).level === "declared" && window.__NV.getRemedyClinicalGuardrail(3, fatigueDecl).level === "declared" && window.__NV.getRemedyClinicalGuardrail(3, fatigueDecl).reasons[0] === "declared-fatigue" && window.__NV.getRemedyClinicalGuardrail(8, fatigueDecl).level === "declared" && window.__NV.getRemedyClinicalGuardrail(6, moonWaliaDecl).level === "declared" && window.__NV.getRemedyClinicalGuardrail(6, moonWaliaDecl).reasons[0] === "declared-respiratory");
+const kaphaDom = mount(window.__NV.renderReport(kaphaChart));
+const kaphaKits = $$("#remedy-section .card", kaphaDom);
+const kaphaKitOf = (label) => kaphaKits.find((card) => new RegExp(label).test(($(".card-title", card) || { textContent: "" }).textContent));
+check("Kapha Section 4 flags Jupiter/Rahu/Mercury kits first-row, keeps canonical mantra", ["Jupiter", "Rahu", "Mercury"].every((label) => { const kit = kaphaKitOf(label); return !!kit && !!$('[data-clinical-guardrail="dosha-contra"]', kit) && $(".kit", kit).firstElementChild.getAttribute("data-clinical-guardrail") === "dosha-contra"; }) && /Om Gram Greem Graum Sah Gurave Namah/.test(kaphaKitOf("Jupiter").textContent) && !!$('[data-clinical-guardrail="moon-cold"]', kaphaKitOf("Moon")));
+const pittaDom = mount(window.__NV.renderReport(pittaChart));
+const pittaKits = $$("#remedy-section .card", pittaDom);
+const pittaKitOf = (label) => pittaKits.find((card) => new RegExp(label).test(($(".card-title", card) || { textContent: "" }).textContent));
+check("Pitta Section 4 flags only the loaded Sun kit, keeps canonical copy", (() => { const sun = pittaKitOf("Sun"); return !!sun && !!$('[data-clinical-guardrail="dosha-contra"]', sun) && /Om Hram Hreem Hroum Sah Suryaya Namah/.test(sun.textContent); })() && ["Jupiter", "Rahu", "Venus"].every((label) => !$("[data-clinical-guardrail]", pittaKitOf(label))));
+const pittaCrystal = $$("section.rsection", pittaDom).find((section) => /Crystal Companion Guide/.test(section.textContent));
+check("Crystal Guide cools Ruby/Red Coral trials on a Pitta-loaded chart", !!$('[data-clinical-guardrail="dosha-contra"]', pittaCrystal) && /briefly and on cool skin/.test(pittaCrystal.textContent));
+const vataCareer = $$("section.rsection", mount(window.__NV.renderReport(vataChart))).find((section) => /Career \u2014 Lo Shu Remedy Focus/.test(section.textContent));
+check("Career focus carries the Saturn mild-form kit for a Vata chart", (() => { const kits = $$(".card", vataCareer); const saturn = kits.find((card) => /Saturn/.test(($(".card-title", card) || { textContent: "" }).textContent)); return !!saturn && !!$('[data-clinical-guardrail="dosha-contra"]', saturn) && /Om Pram Preem Praum Sah Shanaishcharaya Namah/.test(saturn.textContent); })());
+const cleanHealth = profile({ name: "Clean Pitta", dob: "1999-09-09", goals: ["Health"] });
+const cleanHealthSection = $$("section.rsection", mount(window.__NV.renderReport(cleanHealth))).find((section) => /Health \u2014 Lo Shu Remedy Focus/.test(section.textContent));
+check("Health focus lists its governed kits and flags the Ketu kit", !!$('[data-contra-scope="health-focus"]', cleanHealthSection) && $('[data-contra-scope="health-focus"]', cleanHealthSection).dataset.contraNumbers === "1,7,9" && (() => { const kits = $$(".card", cleanHealthSection); const ketu = kits.find((card) => /Ketu/.test(($(".card-title", card) || { textContent: "" }).textContent)); return !!ketu && !!$('[data-clinical-guardrail="dosha-contra"]', ketu); })());
+check("cockpit condenses loaded missing numbers per chart", $('[data-cockpit-guardrail="dosha-contra"]', mount(window.__NV.renderPractitionerCockpit(pittaChart))).dataset.contraNumbers === "1" && $('[data-cockpit-guardrail="dosha-contra"]', mount(window.__NV.renderPractitionerCockpit(vataChart))).dataset.contraNumbers === "5,8" && $('[data-cockpit-guardrail="dosha-contra"]', mount(window.__NV.renderPractitionerCockpit(moonClean))).dataset.contraNumbers === "7");
+const waliaTriageFixed = mount(window.__NV.renderTriageCard(waliaProfile, grahanFixedTriage));
+check("latent Mercury/Venus triage rows name their mild form", /When it activates, run it calm/.test(waliaTriageFixed.textContent) && /When it activates, run it light/.test(waliaTriageFixed.textContent));
+const waliaPlanDom = mount(window.__NV.renderReport(waliaProfile));
+check("checklist flags Vata/Kapha rows and repeated Pitta loads", !!$('#plan-section .priority-guardrail[data-contra-number="5"]', waliaPlanDom) && /Vata-sensitive/.test($('#plan-section .priority-guardrail[data-contra-number="5"]', waliaPlanDom).textContent) && !!$('#plan-section .priority-guardrail[data-contra-number="6"]', waliaPlanDom) && /Kapha-sensitive/.test($('#plan-section .priority-guardrail[data-contra-number="6"]', waliaPlanDom).textContent) && !$('#plan-section .priority-guardrail[data-contra-number="1"]', waliaPlanDom) && !!$('#plan-section .priority-guardrail[data-contra-number="9"]', mount(window.__NV.renderReport(moonClean))));
+const cleanKitCards = $$("#remedy-section .card", mount(window.__NV.renderReport(moonClean)));
+check("Pitta-only Section 4 kits without a dosha load stay banner-free", cleanKitCards.length === 4 && cleanKitCards.every((kit) => !$("[data-clinical-guardrail]", kit)));
+window.__NV.setLanguage("hi");
+const hiContra = window.__NV.renderReport(pittaChart);
+window.__NV.setLanguage("gu");
+const guContra = window.__NV.renderReport(pittaChart);
+window.__NV.setLanguage("en");
+check("dosha-contra banners localise to Hindi and Gujarati", /data-clinical-guardrail="dosha-contra"/.test(hiContra) && /\u0928\u0948\u0926\u093e\u0928\u093f\u0915 \u0938\u0941\u0930\u0915\u094d\u0937\u093e/.test(hiContra) && /data-clinical-guardrail="dosha-contra"/.test(guContra) && /\u0a95\u0acd\u0ab2\u0abf\u0aa8\u0abf\u0a95\u0ab2 \u0ab8\u0ab2\u0abe\u0aae\u0aa4\u0ac0/.test(guContra) && window.__NV.getLang() === "en");
 
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
