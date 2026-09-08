@@ -1,6 +1,7 @@
 {
   "manifestVersion": 1,
   "latestVersion": "2.8.0",
+  "appVersion": "2.8.2",
   "packUrl": "knowledge-pack/packs/2.8.0.json",
   "notes": "Hybrid release: restores the classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, keeps Vedic Ank Kundali as a birth-only Planetary Strength Indicator comparison, and retains the independent proportional Vedic Dasha / active Vastu timeline."
 }

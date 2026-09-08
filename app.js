@@ -428,11 +428,13 @@
     const sensitivity = moonColdSensitivity(p);
     if (!sensitivity) return "";
     const l = lang || getLang();
+    /* Kept to one line: the cockpit core cell is ~34 characters wide in
+       print, so the full substitution list lives in the Section 4 banner. */
     const text = l === "hi"
-      ? "🌙 चंद्र २ + सर्दी संवेदनशीलता — केवल उष्ण चंद्र किट; शिव जप, गुनगुना चांदी-जल, नाड़ी शोधन"
+      ? "🌙 चंद्र २ — सर्दी-संवेदनशील: केवल उष्ण चंद्र किट"
       : l === "gu"
-        ? "🌙 ચંદ્ર ૨ + શરદી સંવેદનશીલતા — ફક્ત ઉષ્ણ ચંદ્ર કિટ; શિવ જાપ, ગુનગુનું ચાંદી-જળ, નાડી શોધન"
-        : "🌙 Moon 2 + cold sensitivity — warm lunar kit only; Shiva japa, lukewarm silver water, Nadi Shodhana";
+        ? "🌙 ચંદ્ર ૨ — શરદી-સંવેદનશીલ: ફક્ત ઉષ્ણ ચંદ્ર કિટ"
+        : "🌙 Moon 2 — cold-sensitive: warm lunar kit only";
     return `<div class="cockpit-fact" data-cockpit-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}">${esc(text)}</div>`;
   }
   /* Health-focus section banner (Section 19+): the Moon governs Health, so a
@@ -724,11 +726,12 @@
     if (!flagged.length) return "";
     const l = lang || getLang();
     const nums = flagged.join(" \u00b7 ");
+    /* One line only (narrow print cell); the per-kit banners carry detail. */
     const text = l === "hi"
-      ? `\u26a0 \u0926\u094b\u0937-\u0935\u093f\u0930\u0941\u0926\u094d\u0927 \u0905\u0902\u0915: ${nums} \u2014 \u0915\u093f\u091f \u092c\u0948\u0928\u0930 \u0926\u0947\u0916\u0947\u0902; \u091a\u093f\u0939\u094d\u0928\u093f\u0924 \u0915\u093f\u091f \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902 \u091a\u0932\u093e\u090f\u0902`
+      ? `\u26a0 \u0926\u094b\u0937-\u0935\u093f\u0930\u0941\u0926\u094d\u0927 ${nums} \u2014 \u091a\u093f\u0939\u094d\u0928\u093f\u0924 \u0915\u093f\u091f \u0939\u0932\u094d\u0915\u0947 \u0930\u0942\u092a \u092e\u0947\u0902`
       : l === "gu"
-        ? `\u26a0 \u0aa6\u0acb\u0ab7-\u0ab5\u0abf\u0ab0\u0ac1\u0aa6\u0acd\u0aa7 \u0a85\u0a82\u0a95: ${nums} \u2014 \u0a95\u0abf\u0a9f \u0aac\u0ac7\u0aa8\u0ab0 \u0a9c\u0ac1\u0a93; \u0a9a\u0abf\u0ab9\u0acd\u0aa8\u0abf\u0aa4 \u0a95\u0abf\u0a9f \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7 \u0a9a\u0ab2\u0abe\u0ab5\u0acb`
-        : `\u26a0 Dosha-contra numbers: ${nums} \u2014 see kit banners; run flagged kits in mild form`;
+        ? `\u26a0 \u0aa6\u0acb\u0ab7-\u0ab5\u0abf\u0ab0\u0ac1\u0aa6\u0acd\u0aa7 ${nums} \u2014 \u0a9a\u0abf\u0ab9\u0acd\u0aa8\u0abf\u0aa4 \u0a95\u0abf\u0a9f \u0ab9\u0ab3\u0ab5\u0abe \u0ab0\u0ac2\u0aaa\u0ac7`
+        : `\u26a0 Dosha-contra ${nums} \u2014 run flagged kits mild`;
     return `<div class="cockpit-fact" data-cockpit-guardrail="dosha-contra" data-contra-numbers="${esc(flagged.join(","))}">${esc(text)}</div>`;
   }
   /* Health-focus section card (Section 19+): Health-governed kits 1/7/9
@@ -879,7 +882,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.8.1";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.8.2";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-05";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
