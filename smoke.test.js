@@ -660,6 +660,60 @@ const heldPlan = window.__NV.activationPlan(authorityProfile, { tier1: { mode: "
 check("environmental tier-1 holds japa instead of chanting a non-live missing number", heldPlan.holdJapa === true && /japa on hold/.test(heldPlan.daily[0].label) && /Hold japa/.test(heldPlan.daily[0].value) && !/<span class="mantra">/.test(heldPlan.daily[0].value) && /North-West/.test(heldPlan.daily[0].sub));
 check("maintenance-tier plans keep the classic Lo Shu primary unchanged", window.__NV.activationPlan(alteredGridProfile).targetN === window.__NV.loShuPracticeTargets(alteredGridProfile).primary);
 
+/* ---- Moon-cold clinical guardrail (Number 2 / Chandra) ----
+   Raw lunar remedies are Sheeta Guna (cold potency): for every DOB with a
+   cold-sensitivity signal — a declared Allergies/Respiratory/Cold tag, a
+   Vata channel in the dosha baseline, Mercury 5, or the Health focus — the
+   Number 2 kit, triage, ritual, Tattva water anchor, crystal note and
+   cockpit switch to the warm clinical form. The canonical Moon kit stays
+   untouched; the guardrail is purely additive. */
+const moonWalia = profile({ name: "Randeep Walia", dob: "1976-08-05", goals: ["Health", "Career"], gender: "male", birthTime: "20:15", birthPlace: "Faridabad, Haryana, India" });
+const moonWaliaDecl = profile({ name: "Randeep Walia", dob: "1976-08-05", goals: ["Health", "Career"], healthTags: ["respiratory"], gender: "male", birthTime: "20:15", birthPlace: "Faridabad, Haryana, India" });
+const moonClean = profile({ name: "Clean Pitta", dob: "1999-09-09", goals: ["Money"] });
+check("Moon-cold sensitivity fires for a Driver-5 Vata-carrying Health chart", same(window.__NV.moonColdSensitivity(moonWalia), { level: "potential", reasons: ["vata-baseline", "mercury-5", "health-focus"] }));
+check("respiratory sub-tag upgrades Moon-cold to declared", window.__NV.moonColdSensitivity(moonWaliaDecl).level === "declared" && window.__NV.moonColdSensitivity(moonWaliaDecl).reasons[0] === "declared-respiratory");
+check("pure-Pitta non-Health chart has no Moon-cold signal", window.__NV.moonColdSensitivity(moonClean) === null && window.__NV.getRemedyClinicalGuardrail(1, moonWalia) === null && window.__NV.getRemedyClinicalGuardrail(5, moonWalia) === null);
+check("clinical guardrail object carries badge and warm substitutes", (() => { const g = window.__NV.getRemedyClinicalGuardrail(2, moonWalia); return !!g && g.type === "warning" && /Respiratory & Cold Sensitivity/.test(g.badge) && /Vataja Pratishyaya/.test(g.note) && /Chandrashekhara/.test(g.note) && /Nadi Shodhana/.test(g.note); })());
+const moonReportDom = mount(window.__NV.renderReport(moonWalia));
+const moonKitCards = $$("#remedy-section .card", moonReportDom);
+const moonKitOf = (label) => moonKitCards.find((card) => new RegExp(label).test(($(".card-title", card) || { textContent: "" }).textContent));
+check("Section 4 Moon kit leads with the guardrail and keeps canonical copy", (() => { const kit = moonKitOf("Moon"); return !!kit && !!$('[data-clinical-guardrail="moon-cold"]', kit) && $(".kit", kit).firstElementChild.getAttribute("data-clinical-guardrail") === "moon-cold" && /Om Shram Shreem Shraum Sah Chandraya Namah/.test(kit.textContent); })());
+check("Section 4 non-Moon kits stay free of the Moon guardrail", ["Jupiter", "Rahu"].every((label) => { const kit = moonKitOf(label); return !!kit && !$("[data-clinical-guardrail]", kit); }));
+const moonHealthSection = $$("section.rsection", moonReportDom).find((section) => /Health \u2014 Lo Shu Remedy Focus/.test(section.textContent));
+check("Health focus section carries the Moon-cold banner", !!moonHealthSection && !!$('[data-clinical-guardrail="moon-cold"]', moonHealthSection));
+const moonDeclHealthSection = $$("section.rsection", mount(window.__NV.renderReport(moonWaliaDecl))).find((section) => /Health \u2014 Lo Shu Remedy Focus/.test(section.textContent));
+check("declared tag echoes in the Health section", !!$('[data-health-tags="respiratory"]', moonDeclHealthSection) && $('[data-clinical-guardrail="moon-cold"]', moonDeclHealthSection).dataset.guardrailLevel === "declared");
+const moonTattvaDom = mount(window.__NV.renderVedicTattvaSection(moonWalia));
+const moonEmotional = $$(".tattva-card", moonTattvaDom).find((c) => c.dataset.vedicPlane === "emotional");
+check("Emotional water anchor runs lukewarm via silver, never refrigerated", !!moonEmotional && /silver vessel/.test(moonEmotional.textContent) && /refrigerated drinks/.test(moonEmotional.textContent) && !/coconut water/.test(moonEmotional.textContent) && !!$('[data-clinical-guardrail="moon-cold"]', moonEmotional));
+check("4A banned-word rule still holds with the Moon-cold overlay", (() => { const txt = moonTattvaDom.textContent; return !/Vedic remedy/.test(txt) && !/fast/i.test(txt) && !/crystal/i.test(txt) && !/rudraksha/i.test(txt) && !/yantra/i.test(txt) && !/beej/i.test(txt) && !/\bring\b/i.test(txt) && !/mala/i.test(txt); })());
+check("cockpit flags Moon-cold only for sensitive charts", !!$('[data-cockpit-guardrail="moon-cold"]', mount(window.__NV.renderPractitionerCockpit(moonWalia))) && !$('[data-cockpit-guardrail="moon-cold"]', mount(window.__NV.renderPractitionerCockpit(moonClean))));
+const moonTriageCard = $("#remedy-triage", moonReportDom);
+check("Moon triage carries the guardrail in either tier", moonTriageCard.dataset.tier1Number === "2" ? !!$('#remedy-triage [data-clinical-guardrail="moon-cold"]', moonReportDom) : /run it warm/.test(moonTriageCard.textContent));
+const grahanFixedTriage = window.__NV.remedyTriage(waliaProfile, null, fixedDate);
+check("acute Moon triage prescribes the guardrail beside the japa", grahanFixedTriage.tier1.mode === "acute" && grahanFixedTriage.tier1.n === 2 && !!$('[data-clinical-guardrail="moon-cold"]', mount(window.__NV.renderTriageCard(waliaProfile, grahanFixedTriage))));
+const grahanReportDom = mount(window.__NV.renderReport(waliaProfile));
+check("acute Moon ritual and checklist carry the warm-form flag", $("#remedy-triage", grahanReportDom).dataset.tier1Number === "2" && !!$('.ritual-card [data-clinical-guardrail="moon-cold"]', grahanReportDom) && !!$('#plan-section .priority-guardrail[data-clinical-guardrail="moon-cold"]', grahanReportDom));
+const moonCrystalSection = $$("section.rsection", moonReportDom).find((section) => /Crystal Companion Guide/.test(section.textContent));
+check("Crystal Guide holds Pearl/Moonstone on a congested airway", !!$('[data-clinical-guardrail="moon-cold"]', moonCrystalSection) && /only when the airway is clear/.test(moonCrystalSection.textContent));
+check("clean Pitta report stays free of Moon-cold overlays", !/data-clinical-guardrail/.test(window.__NV.renderReport(moonClean)) && !/moon-cold/.test(window.__NV.renderReport(moonClean)));
+
+/* Health sub-tag intake: the tag row appears only with the Health focus and
+   flows into the report as a declared guardrail. Money stays selected so
+   the reference-chart submit below keeps its context. */
+$("#editBtn").click();
+$("#goalChips .chip[data-goal='Health']").click();
+check("Health focus reveals the clinical sub-tags", !$("#healthTagsWrap").classList.contains("hidden") && $$("#healthTagChips .chip").length === 3);
+$("#healthTagChips .chip[data-health-tag='respiratory']").click();
+$("#fullName").value = "Randeep Walia";
+$("#dob").value = "05-08-1976";
+$("#mobile").value = "9876543210";
+$("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+check("intake respiratory tag renders a declared report guardrail", /data-clinical-guardrail="moon-cold"/.test($("#reportRoot").innerHTML) && /data-guardrail-level="declared"/.test($("#reportRoot").innerHTML) && /You flagged Allergies/.test($("#reportRoot").innerHTML));
+$("#editBtn").click();
+$("#goalChips .chip[data-goal='Health']").click();
+check("deselecting Health clears its sub-tags", $$("#healthTagChips .chip.selected").length === 0 && $("#healthTagsWrap").classList.contains("hidden"));
+
 /* Reference chart authored through the new dd-mm-yyyy text field. */
 $("#editBtn").click();
 $("#fullName").value = "Randeep Walia";

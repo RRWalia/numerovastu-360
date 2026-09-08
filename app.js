@@ -307,6 +307,155 @@
     return `<div class="kit-value solar-moderation" data-solar-moderation="dosha" data-authority="lo-shu-overlay"><strong>${lang === "hi" ? "Overlay (दोहराव-स्तर):" : lang === "gu" ? "ઓવરલે (પુનરાવૃત્તિ-સ્તર):" : "Overlay (repeated-number layer):"}</strong> ${esc(text)}</div>`;
   }
 
+  /* ---- Moon-cold clinical guardrail (Number 2 / Chandra) -------------------
+     Raw lunar remedies carry Sheeta Guna (cold potency): the full Moon Beej
+     mantra, Monday cold fasts, a Pearl/Moonstone trial and raw or
+     refrigerated milk can aggravate an active cold, sinus congestion or
+     allergic rhinitis (Vataja Pratishyaya). The canonical Number 2 kit in
+     data.js stays untouched; this flag only adds a clearly-labelled
+     warm-substitute overlay, using the same additive pattern as
+     solarModerationNote and the under-18 gemstone guardrail.
+     Triggers (any one, for every DOB — never a hard-coded chart):
+       - declared: the intake Health sub-tag "Allergies / Respiratory / Cold"
+       - Vata channel in the Driver/Conductor dosha baseline (a Tridoshic
+         Mercury baseline carries a Vata channel, so Driver/Conductor 5
+         charts read as Pitta-Vata even when the blended headline is Pitta)
+       - Mercury 5 as Driver or Conductor (nervous-system Vata)
+       - Health focus selected (the Moon governs the Health focus)
+     Declared sensitivity uses firmer "run warm only" wording; potential
+     sensitivity uses conditional "if prone to…" wording so charts without
+     symptoms are guided, not alarmed. */
+  const HEALTH_TAG_VALUES = ["respiratory", "heat", "fatigue"];
+  const HEALTH_TAG_RESPIRATORY = "respiratory";
+  function healthTagsOf(p) {
+    const raw = (p && p.healthTags) || [];
+    return raw.map((tag) => String(tag || "").trim().toLowerCase())
+      .filter((tag) => HEALTH_TAG_VALUES.includes(tag));
+  }
+  function hasRespiratoryTag(p) {
+    return healthTagsOf(p).includes(HEALTH_TAG_RESPIRATORY);
+  }
+  function vataInBaseline(p) {
+    if (!p || !p.doshaProfile) return false;
+    const tags = p.doshaProfile.primaryTags || [];
+    if (tags.includes("Vata")) return true;
+    const driverType = String((p.doshaProfile.driverDosha || {}).dominant || "").toLowerCase();
+    const conductorType = String((p.doshaProfile.conductorDosha || {}).dominant || "").toLowerCase();
+    // A Tridoshic (Mercury 5) baseline carries all three channels including Vata.
+    return [driverType, conductorType].some((entry) => entry.includes("vata") || entry.includes("tridoshic"));
+  }
+  function mercuryVataNumber(p) {
+    return !!p && (Number(p.driver) === 5 || Number(p.conductor) === 5);
+  }
+  function hasHealthFocus(p) {
+    return !!p && Array.isArray(p.goals) && p.goals.includes("Health");
+  }
+  function moonColdSensitivity(p) {
+    if (!p) return null;
+    const reasons = [];
+    if (hasRespiratoryTag(p)) reasons.push("declared-respiratory");
+    if (vataInBaseline(p)) reasons.push("vata-baseline");
+    if (mercuryVataNumber(p)) reasons.push("mercury-5");
+    if (hasHealthFocus(p)) reasons.push("health-focus");
+    if (!reasons.length) return null;
+    return { level: hasRespiratoryTag(p) ? "declared" : "potential", reasons };
+  }
+  function healthTagLabel(tag, lang) {
+    const l = lang || getLang();
+    const key = String(tag || "").toLowerCase();
+    if (key === "respiratory") return l === "hi" ? "एलर्जी / श्वसन / सर्दी" : l === "gu" ? "એલર્જી / શ્વસન / શરદી" : "Allergies / Respiratory / Cold";
+    if (key === "heat") return l === "hi" ? "एसिडिटी / सूजन / गर्मी" : l === "gu" ? "એસિડિટી / સોજો / ગરમી" : "Acidity / Inflammation / Heat";
+    if (key === "fatigue") return l === "hi" ? "जोड़ / पाचन / थकान" : l === "gu" ? "સાંધા / પાચન / થાક" : "Joints / Digestion / Fatigue";
+    return String(tag || "");
+  }
+  /* Advisory shape used across the report: getRemedyClinicalGuardrail(2, p)
+     returns the badge + note for the Moon kit, or null for every other
+     number and for charts with no cold-sensitivity signal. */
+  function getRemedyClinicalGuardrail(num, profile, langOverride) {
+    if (Number(num) !== 2 || !profile) return null;
+    const sensitivity = moonColdSensitivity(profile);
+    if (!sensitivity) return null;
+    const lang = langOverride || getLang();
+    const declared = sensitivity.level === "declared";
+    const badge = lang === "hi"
+      ? "🛡 नैदानिक सुरक्षा — श्वसन व सर्दी संवेदनशीलता"
+      : lang === "gu"
+        ? "🛡 ક્લિનિકલ સલામતી — શ્વસન અને શરદી સંવેદનશીલતા"
+        : "🛡 Clinical Safety Guardrail — Respiratory & Cold Sensitivity";
+    const note = lang === "hi"
+      ? (declared
+        ? "आपने एलर्जी / श्वसन / सर्दी चुनी है — इस चंद्र किट को केवल उष्ण रूप में चलाएं: कच्चा चंद्र बीज मंत्र (Om Shram Shreem…), सोमवार का ठंडा उपवास, Pearl/Moonstone परीक्षण और कच्चा या फ्रिज का दूध रोकें। ये शीत गुण और कफ-भार बढ़ाते हैं। विकल्प में भगवान शिव (चंद्रशेखर) जप (Om Namah Shivaya), चांदी के बर्तन का गुनगुना जल और नाड़ी शोधन अपनाएं; वायुमार्ग साफ होने तक रत्न व उपवास होल्ड पर रखें — रंग, दान व भूमि-संपर्क जारी रखें।"
+        : "यदि पुराना जुकाम, एलर्जिक राइनाइटिस, साइनस सूजन या सुबह की छींकें (वातज प्रतिश्याय) रहती हैं, तो कच्चे चंद्र बीज मंत्र, ठंडे उपवास या अत्यधिक कच्चे दूध से सख्त परहेज करें। ये शीत गुण और कफ-भार बढ़ाते हैं। विकल्प में भगवान शिव (चंद्रशेखर) जप, गुनगुना चांदी-जल और नाड़ी शोधन प्राणायाम अपनाएं।")
+      : lang === "gu"
+        ? (declared
+          ? "તમે એલર્જી / શ્વસન / શરદી પસંદ કરી છે — આ ચંદ્ર કિટ ફક્ત ઉષ્ણ રૂપે ચલાવો: કાચો ચંદ્ર બીજ મંત્ર (Om Shram Shreem…), સોમવારનો ઠંડો ઉપવાસ, Pearl/Moonstone અજમાયશ અને કાચું કે ફ્રિજનું દૂધ રોકો. આ શીત ગુણ અને કફ-ભાર વધારે છે. વિકલ્પે ભગવાન શિવ (ચંદ્રશેખર) જાપ (Om Namah Shivaya), ચાંદીના વાસણનું ગુનગુનું જળ અને નાડી શોધન અપનાવો; શ્વાસમાર્ગ સાફ થાય ત્યાં સુધી રત્ન અને ઉપવાસ હોલ્ડ પર રાખો — રંગ, દાન અને ભૂમિ-સંપર્ક ચાલુ રાખો."
+          : "જો જૂની શરદી, એલર્જિક રાઇનાઇટિસ, સાઇનસ સોજો કે સવારની છીંકો (વાતજ પ્રતિશ્યાય) રહેતી હોય, તો કાચા ચંદ્ર બીજ મંત્ર, ઠંડા ઉપવાસ કે વધુ પડતા કાચા દૂધથી સખત પરહેજ કરો. આ શીત ગુણ અને કફ-ભાર વધારે છે. વિકલ્પે ભગવાન શિવ (ચંદ્રશેખર) જાપ, ગુનગુનું ચાંદી-જળ અને નાડી શોધન પ્રાણાયામ અપનાવો.")
+        : (declared
+          ? "You flagged Allergies / Respiratory / Cold — run this Moon kit in its warm form only: pause the raw Moon Beej mantra (Om Shram Shreem…), Monday cold fasts, Pearl/Moonstone trial and raw or refrigerated milk. These raise Sheeta Guna (coldness) and mucus load. Substitute with Lord Shiva (Chandrashekhara) japa (Om Namah Shivaya), lukewarm water from a silver vessel, and Nadi Shodhana (alternate-nostril) breathwork. Keep Pearl/Moonstone and Monday fasts on hold until the airway is clear — colour, charity and grounding cues continue."
+          : "If dealing with chronic cold, allergic rhinitis, sinus inflammation, or morning sneezing (Vataja Pratishyaya), strictly avoid raw Moon Beej mantras, cold fasts, or excessive raw milk. These increase Sheeta Guna (coldness) and mucus buildup. Substitute with Lord Shiva (Chandrashekhara) japa, lukewarm silver-infused water, and Nadi Shodhana breathwork.");
+    return { type: "warning", level: sensitivity.level, reasons: sensitivity.reasons, badge, note };
+  }
+  /* Kit-card banner rendered as the first row of the Number 2 kit — directly
+     below the planet title — so Section 4 and every goal focus share it.
+     The number gate keeps every other kit (Jupiter, Rahu, …) clean. */
+  function moonColdKitGuardrailHtml(n, p, lang) {
+    if (Number(n) !== 2) return "";
+    const guardrail = getRemedyClinicalGuardrail(2, p, lang || getLang());
+    if (!guardrail) return "";
+    return `<div class="kit-row clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(guardrail.level)}"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${esc(guardrail.badge)}</div><div class="kit-value">${esc(guardrail.note)}</div></div></div>`;
+  }
+  /* Section 4A Emotional-plane overlay. Breathwork and water only — never a
+     mantra, mineral or Lo Shu instruction — so the 4A banned-word rule
+     (no fast/crystal/rudraksha/yantra/beej/ring/mala) keeps holding. */
+  function moonColdTattvaOverlayHtml(p, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const l = lang || getLang();
+    const label = l === "hi" ? "सर्दी-संवेदनशीलता overlay" : l === "gu" ? "શરદી-સંવેદનશીલતા ઓવરલે" : "Cold-sensitivity overlay";
+    const text = l === "hi"
+      ? "सुबह की छींक, जकड़न या साइनस-ठंड हो तो: सारा जल गुनगुना रखें (चांदी का बर्तन उत्तम); फ्रिज के पेय, बर्फ या रात के ठंडे तरल बिल्कुल नहीं। लंबी शीतल श्वास के बजाय नाड़ी शोधन (संतुलित, एकांतर नासिका) अपनाएं; सीधे बैठें, पहले नाक साफ करें, और जकड़न हो तो श्वास-अभ्यास रोकें — भूमि-संपर्क और गुनगुना पैर-स्नान जारी रखें।"
+      : l === "gu"
+        ? "સવારની છીંક, જકડાણ કે સાઇનસ-ઠંડી હોય તો: બધું જળ ગુનગુનું રાખો (ચાંદીનું વાસણ ઉત્તમ); ફ્રિજના પીણાં, બરફ કે રાત્રિના ઠંડા પ્રવાહી બિલકુલ નહીં. લાંબા શીતળ શ્વાસને બદલે નાડી શોધન (સંતુલિત, એકાંતર નાસિકા) અપનાવો; સીધા બેસો, પહેલાં નાક સાફ કરો, અને જકડાણ હોય તો શ્વાસ-અભ્યાસ રોકો — ભૂમિ-સંપર્ક અને ગુનગુનું પગ-સ્નાન ચાલુ રાખો."
+        : "If prone to morning sneezing, congestion or sinus chill: keep all water lukewarm (a silver vessel is ideal); strictly no refrigerated drinks, ice or late-night cooling fluids. Prefer Nadi Shodhana (balanced, alternate-nostril) over prolonged cooling breath; sit upright, clear the nose first, and pause breathwork while actively congested — grounding and the warm foot-soak continue.";
+    return `<div class="kit-row clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}"><div class="kit-ico">🛡</div><div class="kit-body"><div class="kit-label">${esc(label)}</div><div class="kit-value">${esc(text)}</div></div></div>`;
+  }
+  /* One-line practitioner flag for the cockpit core cell. */
+  function moonColdCockpitFactHtml(p, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const l = lang || getLang();
+    const text = l === "hi"
+      ? "🌙 चंद्र २ + सर्दी संवेदनशीलता — केवल उष्ण चंद्र किट; शिव जप, गुनगुना चांदी-जल, नाड़ी शोधन"
+      : l === "gu"
+        ? "🌙 ચંદ્ર ૨ + શરદી સંવેદનશીલતા — ફક્ત ઉષ્ણ ચંદ્ર કિટ; શિવ જાપ, ગુનગુનું ચાંદી-જળ, નાડી શોધન"
+        : "🌙 Moon 2 + cold sensitivity — warm lunar kit only; Shiva japa, lukewarm silver water, Nadi Shodhana";
+    return `<div class="cockpit-fact" data-cockpit-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}">${esc(text)}</div>`;
+  }
+  /* Health-focus section banner (Section 19+): the Moon governs Health, so a
+     Health chart carries the guardrail even when Number 2 is not missing. */
+  function moonColdHealthFocusHtml(p, lang) {
+    if (!hasHealthFocus(p)) return "";
+    const guardrail = getRemedyClinicalGuardrail(2, p, lang || getLang());
+    if (!guardrail) return "";
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(guardrail.level)}"><div class="goal-head"><div class="card-title">${esc(guardrail.badge)}</div></div><div class="kit-value">${esc(guardrail.note)}</div></div>`;
+  }
+  /* Crystal Guide note: Pearl / Moonstone / White Opal are Sheeta stones, so
+     a cold-sensitive chart trials them only on a clear airway. */
+  const MOON_STONE_KEYS = ["Pearl", "Moonstone", "White Opal"];
+  function moonColdCrystalNoteHtml(p, picks, lang) {
+    const sensitivity = moonColdSensitivity(p);
+    if (!sensitivity) return "";
+    const list = picks || [];
+    if (!list.some((key) => MOON_STONE_KEYS.includes(key))) return "";
+    const l = lang || getLang();
+    const text = l === "hi"
+      ? "सर्दी-संवेदनशीलता: Pearl/Moonstone की आज़माइश तभी करें जब श्वासमार्ग साफ हो; तब तक चांदी, गुनगुने जल की आदत और नाड़ी शोधन पर रहें।"
+      : l === "gu"
+        ? "શરદી-સંવેદનશીલતા: Pearl/Moonstone અજમાયશ ત્યારે જ કરો જ્યારે શ્વાસમાર્ગ સાફ હોય; ત્યાં સુધી ચાંદી, ગુનગુના જળની ટેવ અને નાડી શોધન પર રહો."
+        : "Cold-sensitive: trial Pearl/Moonstone only when the airway is clear; until then work silver, lukewarm water habits and Nadi Shodhana.";
+    return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="moon-cold" data-guardrail-level="${esc(sensitivity.level)}"><div class="kit-value">🛡 ${esc(text)}</div></div>`;
+  }
+
   const GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
   const SAMBANDHA_HOSTILE_PAIRS = new Set([
     "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
@@ -1112,6 +1261,27 @@
   bindBirthPlaceUi();
 
   const selectedGoals = new Set();
+  /* Optional Health sub-tags. Shown only while the Health focus is selected;
+     "respiratory" (Allergies / Respiratory / Cold) switches Moon kits to
+     their warm clinical form. The tags are Health details, so deselecting
+     Health clears them. */
+  const selectedHealthTags = new Set();
+  function syncHealthTagChips(tags) {
+    selectedHealthTags.clear();
+    const incoming = new Set((tags || []).map((tag) => String(tag || "").trim().toLowerCase()));
+    $$("#healthTagChips .chip").forEach((chip) => {
+      const on = incoming.has(chip.dataset.healthTag);
+      chip.classList.toggle("selected", on);
+      if (on) selectedHealthTags.add(chip.dataset.healthTag);
+    });
+  }
+  function updateHealthTagsVisibility() {
+    const wrap = $("#healthTagsWrap");
+    if (!wrap) return;
+    const show = selectedGoals.has("Health");
+    wrap.classList.toggle("hidden", !show);
+    if (!show) syncHealthTagChips([]);
+  }
   function syncGoalChips(goals) {
     selectedGoals.clear();
     const incoming = new Set(goals || []);
@@ -1121,6 +1291,7 @@
       if (on) selectedGoals.add(chip.dataset.goal);
     });
     if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
+    updateHealthTagsVisibility();
   }
   $$("#goalChips .chip").forEach((chip) => {
     chip.addEventListener("click", () => {
@@ -1128,6 +1299,14 @@
       if (selectedGoals.has(g)) { selectedGoals.delete(g); chip.classList.remove("selected"); }
       else { selectedGoals.add(g); chip.classList.add("selected"); }
       if ($("#err-goals")) $("#err-goals").hidden = selectedGoals.size > 0;
+      updateHealthTagsVisibility();
+    });
+  });
+  $$("#healthTagChips .chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const tag = chip.dataset.healthTag;
+      if (selectedHealthTags.has(tag)) { selectedHealthTags.delete(tag); chip.classList.remove("selected"); }
+      else { selectedHealthTags.add(tag); chip.classList.add("selected"); }
     });
   });
 
@@ -1155,6 +1334,8 @@
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
     if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(snapshot.input.partnerDob || "");
     syncGoalChips(snapshot.input.goals || []);
+    syncHealthTagChips(snapshot.input.healthTags || []);
+    updateHealthTagsVisibility();
   }
 
   /* ---------------- DOB input (dd-mm-yyyy) ----------------
@@ -1350,6 +1531,12 @@
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
       goals: input.goals || [],
+      // Optional Health sub-tags from the intake form (respiratory / heat /
+      // fatigue). Only "respiratory" drives the Moon-cold guardrail today;
+      // the other two are stored for future clinical overlays.
+      healthTags: Array.isArray(input.healthTags)
+        ? [...new Set(input.healthTags.map((tag) => String(tag || "").trim().toLowerCase()).filter((tag) => HEALTH_TAG_VALUES.includes(tag)))]
+        : [],
       entrance: input.entrance || "unsure",
       kitchen: input.kitchen || "unsure",
       bedroom: input.bedroom || "unsure",
@@ -2587,6 +2774,7 @@
             <div class="cockpit-fact">${esc(L.name)}: ${c.core.nameCompound} → ${c.core.nameNumber}${c.core.kua ? ` · Kua ${c.core.kua}` : ""}</div>
             ${isMinorProfile(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="under-18">⚠ ${lang === "hi" ? "18 से कम — भारी रत्न स्थगित; खंड 4A तत्व आधार + हल्के पत्थर (Amethyst/Citrine)" : lang === "gu" ? "18 થી ઓછી — ભારે રત્ન મુલ્તવી; વિભાગ 4A તત્વ આધાર + હળવા પથ્થર (Amethyst/Citrine)" : "Under 18 — heavy gems deferred; 4A Tattva anchors + mild stones (Amethyst/Citrine)"}</div>` : ""}
             ${solarOverload(p) && pittaInBaseline(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="solar">☀ ${lang === "hi" ? `सूर्य 1×${solarLoadOf(p)} + पित्त — अर्घ्य लघु रखें; चंद्र भेदन/शाम भूमि-संपर्क से ठंडा करें` : lang === "gu" ? `સૂર્ય 1×${solarLoadOf(p)} + પિત્ત — અર્ઘ્ય ટૂંકો રાખો; ચંદ્ર ભેદન/સાંજ ભૂમિ-સંપર્કથી ઠંડક આપો` : `Sun 1×${solarLoadOf(p)} + Pitta — keep arghya brief; cool via Chandra Bhedana / evening grounding`}</div>` : ""}
+            ${moonColdCockpitFactHtml(p, lang)}
           </div>
           <div class="cockpit-cell"><div class="cockpit-label">${esc(L.loshu)}</div>
             <div class="cockpit-fact" data-cockpit-loshu-missing="${c.core.loShuMissing.join(",")}">${esc(L.missing)}: <strong>${numList(c.core.loShuMissing)}</strong></div>
@@ -2645,14 +2833,29 @@
       : t1.mode === "environmental"
         ? `${esc(t1.japa)} — ${esc(t1.zone)}: ${esc(t1.zoneRemedy)}`
         : `<strong>${t1.n} · ${esc(t1.planet)}</strong> — ${esc(t1.japa)}`;
+    // Latent Moon (Tier 2 · hold) prescribes no japa yet, but its future
+    // activation must run warm — one short suffix, no extra triage row.
+    const moonLatentSuffix = (item) => {
+      if (item.n !== 2 || !moonColdSensitivity(p)) return "";
+      return lang === "hi"
+        ? " सक्रिय होने पर उष्ण रूप में चलाएं — शिव जप, गुनगुना चांदी-जल, नाड़ी शोधन।"
+        : lang === "gu"
+          ? " સક્રિય થાય ત્યારે ઉષ્ણ રૂપે ચલાવો — શિવ જાપ, ગુનગુનું ચાંદી-જળ, નાડી શોધન."
+          : " When it activates, run it warm — Shiva japa, lukewarm silver water, Nadi Shodhana.";
+    };
     const tier2Rows = tr.tier2.length
-      ? tr.tier2.map((item) => `<div class="kit-row" data-triage-tier="2" data-triage-number="${item.n}"><div class="kit-ico"><strong>${item.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(item.planet)} — ${lang === "hi" ? "प्रतीक्षित" : lang === "gu" ? "પ્રતીક્ષિત" : "latent"}</div><div class="kit-value">${esc(item.colour)} · ${esc(item.cue)}</div><div class="card-sub">${esc(item.hold)} ${lang === "hi" ? "सक्रिय होगा" : lang === "gu" ? "સક્રિય થશે" : "Activates"}: ${esc(item.unlockLabel)}</div></div></div>`).join("")
+      ? tr.tier2.map((item) => `<div class="kit-row" data-triage-tier="2" data-triage-number="${item.n}"><div class="kit-ico"><strong>${item.n}</strong></div><div class="kit-body"><div class="kit-label">${esc(item.planet)} — ${lang === "hi" ? "प्रतीक्षित" : lang === "gu" ? "પ્રતીક્ષિત" : "latent"}</div><div class="kit-value">${esc(item.colour)} · ${esc(item.cue)}</div><div class="card-sub">${esc(item.hold)} ${lang === "hi" ? "सक्रिय होगा" : lang === "gu" ? "સક્રિય થશે" : "Activates"}: ${esc(item.unlockLabel)}${esc(moonLatentSuffix(item))}</div></div></div>`).join("")
       : `<div class="kit-row"><div class="kit-ico">✓</div><div class="kit-body"><div class="kit-value">${lang === "hi" ? "कोई प्रतीक्षित लक्ष्य नहीं — केवल एक ही उपाय-भार है।" : lang === "gu" ? "કોઈ પ્રતીક્ષિત લક્ષ્ય નથી — ફક્ત એક જ ઉપાય-ભાર છે." : "No latent targets — the acute target is the only remedy load."}</div></div></div>`;
+    // An acute/maintenance Tier-1 Moon target prescribes live japa, so the
+    // Moon-cold guardrail rides the triage card itself. Environmental Tier-1
+    // holds all japa and needs no mantra guardrail.
+    const moonTier1Guardrail = (t1.n === 2 && t1.mode !== "environmental") ? moonColdKitGuardrailHtml(t1.n, p, lang) : "";
     return `<div class="card triage-card" id="remedy-triage" data-remedy-authority="lo-shu" data-tier1-mode="${esc(t1.mode)}" data-tier1-number="${t1.n}">
       <div class="goal-head"><div class="card-title">${esc(head)}</div><span class="badge good">${lang === "hi" ? "टियर १ · अभी" : lang === "gu" ? "ટિયર ૧ · હમણાં" : "Tier 1 · now"}</span></div>
       <div class="card-sub">${esc(intro)}</div>
       <div class="kit">
         <div class="kit-row" data-triage-tier="1"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "टियर १ — तीव्र लक्ष्य" : lang === "gu" ? "ટિયર ૧ — તીવ્ર લક્ષ્ય" : "Tier 1 — acute target"}</div><div class="kit-value">${tier1Line}</div><div class="card-sub">${esc(t1.reasons.join(" · "))}</div></div></div>
+        ${moonTier1Guardrail}
         ${tier2Rows}
       </div>
       ${tr.withheld.length ? `<div class="judge-note"><strong>${lang === "hi" ? "जानबूझकर रोका गया:" : lang === "gu" ? "ઇરાદાપૂર્વક રોકેલું:" : "Deliberately withheld this cycle:"}</strong> ${tr.withheld.map(esc).join(" · ")}</div>` : ""}
@@ -3680,7 +3883,7 @@
       rows: [
         { ico: "🌬", label: { en: "Breathwork (Pranayama)", hi: "श्वास-अभ्यास (प्राणायाम)", gu: "શ્વાસ-અભ્યાસ (પ્રાણાયામ)" }, value: { en: "Chandra Bhedana (left-nostril) or a 4–6 calming breath: inhale left 4, hold 2, exhale right 6. 5–8 rounds before sleep.", hi: "चंद्र भेदन (बाईं नासिका) या 4–6 शांत श्वास: बाईं से 4 खींचें, 2 रोकें, दाईं से 6 छोड़ें। सोने से पहले 5–8 चक्र।", gu: "ચંદ્ર ભેદન (ડાબી નાસિકા) અથવા 4–6 શાંત શ્વાસ: ડાબીથી 4 ખેંચો, 2 રોકો, જમણીથી 6 છોડો. સૂતા પહેલાં 5–8 ચક્ર." } },
         { ico: "🛁", label: { en: "Aushadhi Snan & Aroma", hi: "औषधि स्नान और सुगंध", gu: "ઔષધિ સ્નાન અને સુગંધ" }, value: { en: "Warm bath with a drop of rose or sandalwood hydrosol; a light lavender or sandalwood aroma at night.", hi: "गुलाब या चंदन जल की बूंद के साथ गुनगुना स्नान; रात को लैवेंडर या चंदन की हल्की सुगंध।", gu: "ગુલાબ કે ચંદન જળના ટીપા સાથે ગુનગુનું સ્નાન; રાત્રે લેવેન્ડર કે ચંદનની હળવી સુગંધ." } },
-        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Regular sips; coconut water or cumin-coriander water in the afternoon; ease caffeine after dusk.", hi: "नियमित घूंट; दोपहर में नारियल पानी या जीरा-धनिया पानी; शाम के बाद कैफीन कम करें।", gu: "નિયમિત ઘૂંટ; બપોરે નારિયેળ પાણી કે જીરું-ધાણા પાણી; સાંજ પછી કેફીન ઓછું." } },
+        { ico: "💧", label: { en: "Water & Ingestion Anchor", hi: "जल और सेवन आधार", gu: "જળ અને સેવન આધાર" }, value: { en: "Regular sips of room-temperature or lukewarm water (ideally stored in a pure silver vessel); cumin-coriander warm infusion in the afternoon; strictly avoid refrigerated drinks, ice, or late-night cooling fluids if prone to morning nasal allergies; ease caffeine after dusk.", hi: "कमरे के तापमान या गुनगुने पानी के नियमित घूंट (शुद्ध चांदी के बर्तन में रखा जल उत्तम); दोपहर में जीरा-धनिया का गुनगुना काढ़ा; सुबह की नाक-एलर्जी हो तो फ्रिज के पेय, बर्फ या रात के ठंडे तरल से सख्त परहेज करें; शाम के बाद कैफीन कम करें।", gu: "રૂમ-તાપમાન કે ગુનગુના પાણીના નિયમિત ઘૂંટ (શુદ્ધ ચાંદીના વાસણમાં રાખેલું જળ ઉત્તમ); બપોરે જીરું-ધાણાનો ગરમ ઉકાળો; સવારની નાક-એલર્જી હોય તો ફ્રિજના પીણાં, બરફ કે રાત્રિના ઠંડા પ્રવાહીનો સખત પરહેજ કરો; સાંજ પછી કેફીન ઓછું." } },
         { ico: "🌱", label: { en: "Grounding Anchor", hi: "भूमि-संपर्क", gu: "ભૂમિ-સંપર્ક" }, value: { en: "Bare feet on soil or grass 5–10 minutes; a warm foot-soak in the evening.", hi: "नंगे पाँव मिट्टी या घास पर 5–10 मिनट; शाम को गुनगुना पैर-स्नान।", gu: "નંગા પગે માટી કે ઘાસ પર 5–10 મિનિટ; સાંજે ગુનગુનું પગ-સ્નાન." } },
         { ico: "✦", label: { en: "Behavioral Micro-Habit", hi: "व्यवहार की छोटी आदत", gu: "વ્યવહારની નાની ટેવ" }, value: { en: "Three lines at night — what you felt, what you finished, one small step for tomorrow.", hi: "रात को तीन पंक्तियाँ — क्या महसूस किया, क्या पूरा किया, कल का एक छोटा कदम।", gu: "રાત્રે ત્રણ લીટીઓ — શું અનુભવ્યું, શું પૂરું કર્યું, કાલનું એક નાનું પગલું." } }
       ]
@@ -3732,6 +3935,7 @@
           <div class="kit-row"><div class="kit-ico">◎</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "न्यूनता संकेत" : lang === "gu" ? "ઊણપનું ચિહ્ન" : "Deficiency Signature"}</div><div class="kit-value">${esc(plane.signature)}</div></div></div>
           ${rows}
           ${plane.key === "practical" ? solarModerationNote(p, lang, { context: "agni" }) : ""}
+          ${plane.key === "emotional" ? moonColdTattvaOverlayHtml(p, lang) : ""}
         </div>
       </article>`;
     }).join("");
@@ -3780,6 +3984,7 @@
         </div>
       </div>
       <div class="kit">
+        ${moonColdKitGuardrailHtml(n, p, lang)}
         <div class="kit-row"><div class="kit-ico">🕉</div><div class="kit-body"><div class="kit-label">${t("beejMantra", "Beej Mantra")}</div><div class="kit-value"><span class="mantra">${esc(i.mantra)}</span><br>${esc(i.mantraCount)}</div></div></div>
         <div class="kit-row"><div class="kit-ico">🙏</div><div class="kit-body"><div class="kit-label">${t("dailyShortMantra", "Daily Short Mantra")}</div><div class="kit-value"><span class="mantra">${esc(sm.dev)}</span> <em>(${esc(sm.pron)})</em><br><span class="card-sub">${esc(sm.meaning)}</span></div></div></div>
         <div class="kit-row"><div class="kit-ico">📝</div><div class="kit-body"><div class="kit-label">${t("wishPaperAffirmation", "Wish-Paper Affirmation")}</div><div class="kit-value">“${esc(sm.affirmation)}”<br><span class="card-sub">${lang === "hi" ? "इसे अपने संकल्प पत्र पर रोज ११ बार लिखें और पर्स या तकिए के नीचे रखें।" : lang === "gu" ? "આને તમારા સંકલ્પ પત્ર પર રોજ ૧૧ વખત લખો અને પર્સમાં કે ઓશીકા નીચે રાખો." : "Write this on your wish paper 11 times daily, then keep the paper in your wallet or under your pillow."}</span></div></div></div>
@@ -4056,6 +4261,7 @@
       <h2 class="rsection-title"><span class="idx">${SECTION.crystal}</span>${t("secCrystal", "Crystal Companion Guide")}</h2>
       <p class="rsection-desc">${lang === "hi" ? `ये crystal और Rudraksha सुझाव केवल लो शू में अनुपस्थित अंक ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "के अभाव"} से आते हैं। मूलांक/भाग्यांक, राशि और उन्नत वैदिक grid इन्हें नहीं बदलते।` : lang === "gu" ? `આ crystal અને Rudraksha સૂચનો ફક્ત લો શુંમાં ખૂટતા અંક ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "ના અભાવ"} પરથી આવે છે. મૂળાંક/ભાગ્યાંક, રાશિ અને ઉન્નત વૈદિક grid તેને બદલતા નથી.` : `These crystal and Rudraksha suggestions come only from missing Lo Shu number${cg.remedyNumbers.length === 1 ? "" : "s"} ${cg.remedyNumbers.length ? `<strong>${cg.remedyNumbers.join(" / ")}</strong>` : "— none are required"}. Driver/Conductor, zodiac and the advanced Vedic grid do not change them.`}</p>
       ${minorChart && cgPicks.length ? `<div class="card" data-age-guardrail="under-18"><div class="goal-head"><div class="card-title">${lang === "hi" ? "🛡 अभिभावकों के लिए — 18 से कम आयु की पट्टिका" : lang === "gu" ? "🛡 વાલીઓ માટે — 18 થી ઓછી ઉંમરની પટ્ટિકા" : "🛡 For parents — an under-18 chart"}</div><span class="badge info">${lang === "hi" ? `आयु ${p.ageYears}` : lang === "gu" ? `ઉંમર ${p.ageYears}` : `Age ${p.ageYears}`}</span></div><div class="kit-value">${lang === "hi" ? `इस आयु में कोई भारी ग्रह-रत्न नहीं: ब्लू सैफायर (नीलम), हेसोनाइट (गोमेद) और कैट्स आई (लहसुनिया) 18 वर्ष तक स्थगित रहते हैं और तब भी विशेषज्ञ परीक्षण मांगते हैं। ऊपर की सूची पहले से ही हल्के विकल्प दिखाती है। असली उपाय विद्यार्थी-आयु में खंड 4A के तत्व आधार और प्रत्येक किट की जीवनशैली पंक्तियाँ हैं; पत्थर चाहिए भी, तो Amethyst या Citrine जैसा हल्का, जैविक पत्थर ही सुरक्षित शुरुआत है।` : lang === "gu" ? `આ ઉંમરે કોઈ ભારે ગ્રહ-રત્ન નહીં: બ્લુ સેફાયર (નીલમ), હેસોનાઇટ (ગોમેદ) અને કૅટ્સ આય (લહસુનિયા) 18 વર્ષ સુધી મુલ્તવી રહે છે અને પછી પણ નિષ્ણાત પરીક્ષણ માંગે છે. ઉપરની યાદી પહેલેથી હળવા વિકલ્પો બતાવે છે. વિદ્યાર્થી-ઉંમરે સાચો ઉપાય વિભાગ 4A ના તત્વ આધાર અને દરેક કિટની જીવનશૈલી હરોળ છે; પથ્થર જ જોઈતો હોય તો Amethyst કે Citrine જેવો હળવો, ઓર્ગેનિક પથ્થર જ સુરક્ષિત શરૂઆત છે.` : `No heavy planetary gems at this age: Blue Sapphire (Neelam), Hessonite (Gomed) and Cat's Eye (Lehsunia) stay deferred until 18 and demand an expert trial even then — the list above already shows the gentle substitutes. The real remedy at school age is the Section 4A Tattva anchors plus each kit's lifestyle rows; if a stone is still wanted, keep it mild and organic — Amethyst or Citrine are the safe starters.`}</div></div>` : ""}
+      ${moonColdCrystalNoteHtml(p, cgPicks, lang)}
       ${cgPicks.length ? `<div class="card-grid two">${cgPicks.map((k) => {
         const c = db.crystals[k];
         return `<div class="card"${cgSubstituteOf[k] ? ` data-gentle-substitute="${esc(cgSubstituteOf[k])}"` : ""}>
@@ -4618,13 +4824,24 @@
     </section>`;
 
     const goalsStart = SECTION.goalsStart;
-    const goalSections = goals.map((g, i) => `<section class="rsection" data-remedy-authority="lo-shu">
+    const goalSections = goals.map((g, i) => {
+      // Health focus carries the Moon-cold banner at section level (the Moon
+      // governs Health), plus an echo of any intake Health sub-tags.
+      const healthBanner = g.goal === "Health" ? moonColdHealthFocusHtml(p, lang) : "";
+      const taggedHealth = g.goal === "Health" ? healthTagsOf(p) : [];
+      const healthTagLine = taggedHealth.length
+        ? `<p class="rsection-desc" data-health-tags="${esc(taggedHealth.join(","))}">${lang === "hi" ? "आपने चुना" : lang === "gu" ? "તમે પસંદ કર્યું" : "You flagged"}: <strong>${taggedHealth.map((tag) => esc(healthTagLabel(tag, lang))).join(" · ")}</strong></p>`
+        : "";
+      return `<section class="rsection" data-remedy-authority="lo-shu">
       <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — ${lang === "hi" ? "लो शू उपाय फोकस" : lang === "gu" ? "લો શુ ઉપાય ફોકસ" : "Lo Shu Remedy Focus"}</h2>
       <p class="rsection-desc">${g.weak.length
         ? (lang === "hi" ? `आपके लो शू जन्म-ग्रिड में अनुपस्थित अंक <strong>${g.weak.join(", ")}</strong> इस लक्ष्य के लिए practice targets हैं।` : lang === "gu" ? `તમારા લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંક <strong>${g.weak.join(", ")}</strong> આ લક્ષ્ય માટે practice targets છે.` : `Missing Lo Shu Birth Grid number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> are the practice targets for this focus.`)
         : (lang === "hi" ? "इस लक्ष्य से जुड़े लो शू अंक उपस्थित हैं — कोई अतिरिक्त remedy kit आवश्यक नहीं है।" : lang === "gu" ? "આ લક્ષ્ય સાથે જોડાયેલા લો શુ અંકો હાજર છે — વધારાની remedy kit જરૂરી નથી." : `The Lo Shu numbers connected to this focus are present — no extra remedy kit is required.`)}</p>
+      ${healthTagLine}
+      ${healthBanner}
       ${g.weak.length ? `<div class="card-grid two">${g.focus.map((f) => kitCard(f.n, undefined, p)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
-    </section>`).join("");
+    </section>`;
+    }).join("");
 
     const cadenceLabel = {
       daily: lang === "hi" ? "दैनिक" : lang === "gu" ? "દૈનિક" : "Daily",
@@ -4651,6 +4868,7 @@
           <div class="card-title">${lang === "hi" ? "आपकी लो शू दैनिक मुख्य साधना" : lang === "gu" ? "તમારી લો શુ દૈનિક મુખ્ય સાધના" : "Your Lo Shu Daily Core Ritual"}</div>
           <div class="kit">
             ${activation.daily.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${row.label}</div><div class="kit-value">${row.value}<br><span class="card-sub">${row.sub}</span></div></div></div>`).join("")}
+            ${(activation.targetN === 2 && !activation.holdJapa) ? moonColdKitGuardrailHtml(activation.targetN, p, lang) : ""}
             <div class="kit-row ritual-triage-sync" data-ritual-sync="${activation.tier1Mode}"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "ट्राइएज सिंक" : lang === "gu" ? "ટ્રાયએજ સિંક" : "Triage sync"}</div><div class="kit-value">${activation.triageNote}</div></div></div>
           </div>
         </div>
@@ -4685,7 +4903,11 @@
           : tier === 2
             ? `<span class="badge warn triage-flag">${lang === "hi" ? "टियर २ · प्रतीक्षा" : lang === "gu" ? "ટિયર ૨ · રાહ" : "Tier 2 · hold"}</span>`
             : "";
-        return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}</div>`;
+        // Moon checklist rows that chant the lunar mantra carry a warm-form flag.
+        const moonPriorityNote = (item.n === 2 && moonColdSensitivity(p))
+          ? `<span class="priority-guardrail" data-clinical-guardrail="moon-cold">${lang === "hi" ? "🛡 सर्दी-संवेदनशील: उष्ण रूप — शिव जप, गुनगुना चांदी-जल" : lang === "gu" ? "🛡 શરદી-સંવેદનશીલ: ઉષ્ણ રૂપ — શિવ જાપ, ગુનગુનું ચાંદી-જળ" : "🛡 Cold-sensitive: run warm — Shiva japa, lukewarm silver water"}</span>`
+          : "";
+        return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}${moonPriorityNote}</div>`;
       }).join("")}
       </div>
       <div class="card tracker-card" id="plan-tracker">
@@ -5168,6 +5390,7 @@
       mobile: $("#mobile").value.replace(/[^\d+]/g, ""),
       vehicle: $("#vehicle").value.trim(),
       goals: Array.from(selectedGoals),
+      healthTags: Array.from(selectedHealthTags),
       entrance: $("#entrance").value,
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
@@ -5211,6 +5434,8 @@
     zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
+    healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
+    moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel,
     normalizeDobInput, formatDobForDisplay,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
