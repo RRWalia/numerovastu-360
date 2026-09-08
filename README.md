@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.8.1 — Lo Shu Foundation + Vedic Dasha Timeline**
+**Release 2.8.2 — Lo Shu Foundation + Vedic Dasha Timeline**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps two traditions separate:
@@ -14,6 +14,19 @@ personal details are sent to an application server.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.8.2
+
+Clinical contraindications — additive, clearly-labelled guardrails on top of
+the canonical kits (no data-pack change, engines untouched):
+
+| Area | 2.8.2 behaviour |
+| --- | --- |
+| Moon-cold guardrail (Number 2) | Charts carrying a cold/respiratory sensitivity signal (Vata baseline, Mercury-5 driver, Health focus, or a declared *Allergies / Respiratory / Cold* tag) get a `moon-cold` banner at the head of the Moon kit: raw Moon Beej japa, Monday cold fasts, Pearl/Moonstone and cold or refrigerated milk are paused, with Lord Shiva (Chandrashekhara) japa, lukewarm silver-vessel water and *Nadi Shodhana* substituted. The banner carries a `potential` / `declared` level and reason codes. |
+| Dosha × planet overlay (Numbers 1, 3–9) | Each planetary kit checks the constitution against the planet's thermal/kinetic quality (e.g. Sun, Mars and Ketu against Pitta or a declared *Acidity / Inflammation / Heat* tag). Flagged kits render a `dosha-contra` banner with a mild-form instruction (brief sunrise arghya only, morning-only Hanuman practice, no noon heat or over-fasting) while the canonical mantra row stays intact. |
+| Health focus and triage | The Health focus section and the Remedy Triage card carry the same guardrails, so the acute japa target is never prescribed without its caution. |
+| Cockpit | Both guardrails surface as one-line facts in the practitioner core cell; localised to Hindi and Gujarati. |
+| Manifest | `knowledge-pack/latest.json` gains an `appVersion` field (`2.8.2`); `latestVersion` stays `2.8.0` because the knowledge data itself is unchanged. |
 
 ## What changed in 2.8.1
 
