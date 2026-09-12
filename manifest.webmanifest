@@ -1,0 +1,66 @@
+{
+  "id": "/numerovastu-360/",
+  "name": "NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari",
+  "short_name": "NumeroVastu 360",
+  "description": "Private, browser-only numerology and Vastu guidance: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, a true nakshatra-anchored Classical Vimshottari layer, and practitioner-ready reports. All calculation happens on your device.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "any",
+  "background_color": "#1e1b4b",
+  "theme_color": "#1e1b4b",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "lifestyle",
+    "education",
+    "utilities"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/favicon-48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start a new chart",
+      "short_name": "New chart",
+      "description": "Open the intake form for a new consultation",
+      "url": "./index.html#intake",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

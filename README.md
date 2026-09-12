@@ -1,0 +1,425 @@
+# NumeroVastu 360
+
+**Release 2.9.0 — Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
+
+NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
+It intentionally keeps each tradition separate, and says so in the UI:
+
+- **Foundation · Lo Shu** answers *“What patterns do I work with?”*
+- **Timeline · Ank Jyotish Dasha** answers *“What is active now, and when does it change?”*
+- **Timeline · Classical Vimshottari** answers *“What does the nakshatra-anchored Vedic stack say?”*
+- **Cockpit · Practitioner** answers *“What do I actually do in this consultation?”*
+
+Enter a name, date of birth and optional home details to generate a report. No
+personal details are sent to an application server. Installable as an offline
+PWA for use in the field.
+
+Licensed under the [MIT Licence](LICENSE). Contributions are welcome — read
+[CONTRIBUTING.md](CONTRIBUTING.md) first, especially the content-review gate
+for any remedy, dosha or deity change.
+
+> Traditional/spiritual guidance only. It is not medical, legal, financial or
+> mental-health advice.
+
+## What changed in 2.9.0
+
+Three framing and delivery fixes, prompted by an independent senior-numerologist
+review. Two of them are correctness fixes, not cosmetics.
+
+| Area | 2.9.0 behaviour |
+| --- | --- |
+| **Classical Vimshottari layer (new)** | A genuine nakshatra-anchored Vimshottari stack now ships alongside the Ank Jyotish roadmap. It is anchored on the natal Moon's nakshatra, uses the fixed 120-year lord durations (Ketu 7, Venus 20, Sun 6, Moon 10, Mars 7, Rahu 18, Jupiter 16, Saturn 19, Mercury 17), and deducts the traversed fraction of the birth nakshatra from the starting lord's balance. Antardasha and Pratyantar subdivide the parent span by the 120-year weights (`MD × AD ÷ 120`). It carries its own `data-authority="vimshottari"` and **never** feeds Lo Shu remedies, Vastu zones or the Ank Jyotish event windows. Requires Vedic Tier 2 (exact birth time + recognised birthplace); without it the card explains the requirement rather than guessing. |
+| **The two clocks are allowed to disagree — by design** | For the audit chart (05-08-1976, 20:15, Faridabad) the Ank Jyotish clock reads **Venus MD** while the true Vimshottari stack reads **Mars MD**. Both are now shown side by side, with a `data-vimshottari-agrees` flag and a comparison note. This is the honest answer: they are different traditions from different anchors, and neither overrides the other. |
+| **“Vimshottari-derived” claim removed (correctness fix)** | The Dasha card still said *“We use the classical Vimshottari-derived proportional cycle”* after the 2.8.3 relabel — a direct contradiction of the new non-Vimshottari disclosure, and exactly the over-claim the relabel was meant to remove. The note now states plainly that the proportional clock is **not** Vimshottari and points to the separate classical card. A smoke assertion pins that the phrase never returns. |
+| **Friendship-matrix override documented (correctness fix)** | `getDashaRelationship()` has always applied a hard-coded hostile-pair list (Grahan axis, Sun–Saturn, Mars–Saturn, Jupiter–Venus) that overrides part of the pack's `friendship` matrix. That boundary is now declared in the pack schema as `x-classicalSafetyPairs` with a “cannot be removed” description, and a smoke assertion keeps the documented pairs and the enforced pairs in sync. Pack policy remains **additive only** — it can add hostility, never remove it. |
+| **Authority lint widened** | The smoke suite now asserts every `data-authority` value comes from a declared vocabulary, that every remedy-bearing block nests inside Lo Shu authority, and that no Vedic-authority scope carries a remedy obligation. This caught a real leak: the Dasha-selected Vastu zone card was inheriting the `dasha` scope with no authority marker of its own. It now declares `data-authority="dasha-vastu-zone"`. |
+| **Packaging** | MIT `LICENSE` added. CI added (`.github/workflows/ci.yml`) running `npm ci && npm run check` on every PR plus a visual-regression job. `CONTRIBUTING.md`, `CODEOWNERS` and a PR template establish the practitioner content-review gate. PWA manifest + service worker + generated icon set make the app installable and genuinely offline. |
+| **Field read mode** | A phone-first reading mode for consultations away from a desk: larger type, single column, reduced clutter, sticky actions. Purely a presentation switch — it changes no engine output and is neutralised in print so the A4 sheet is identical either way. |
+
+### Reading the two Dasha traditions together
+
+For a professional consultation, use them as a Jyotishi and an Ank Jyotishi
+would each report from their own shastra:
+
+| | Ank Jyotish Dasha | Classical Vimshottari |
+| --- | --- | --- |
+| Anchor | Moolank (birth day number) | Natal Moon's nakshatra |
+| Cycle | 45 years (1+2+…+9) | 120 years, fixed |
+| Mahadasha length | The number itself | Fixed lord years |
+| Sub-period | `MD × AD ÷ 45` | `MD × AD ÷ 120` |
+| Needs birth time | No (refines boundaries) | **Yes** (Tier 2) |
+| Remedies | Owns Lo Shu remedy timing | **Never** — timing read-out only |
+
+## What changed in 2.8.2
+
+Clinical contraindications — additive, clearly-labelled guardrails on top of
+the canonical kits (no data-pack change, engines untouched):
+
+| Area | 2.8.2 behaviour |
+| --- | --- |
+| Moon-cold guardrail (Number 2) | Charts carrying a cold/respiratory sensitivity signal (Vata baseline, Mercury-5 driver, Health focus, or a declared *Allergies / Respiratory / Cold* tag) get a `moon-cold` banner at the head of the Moon kit: raw Moon Beej japa, Monday cold fasts, Pearl/Moonstone and cold or refrigerated milk are paused, with Lord Shiva (Chandrashekhara) japa, lukewarm silver-vessel water and *Nadi Shodhana* substituted. The banner carries a `potential` / `declared` level and reason codes. |
+| Dosha × planet overlay (Numbers 1, 3–9) | Each planetary kit checks the constitution against the planet's thermal/kinetic quality (e.g. Sun, Mars and Ketu against Pitta or a declared *Acidity / Inflammation / Heat* tag). Flagged kits render a `dosha-contra` banner with a mild-form instruction (brief sunrise arghya only, morning-only Hanuman practice, no noon heat or over-fasting) while the canonical mantra row stays intact. |
+| Health focus and triage | The Health focus section and the Remedy Triage card carry the same guardrails, so the acute japa target is never prescribed without its caution. |
+| Cockpit | Both guardrails surface as one-line facts in the practitioner core cell; localised to Hindi and Gujarati. |
+| Manifest | `knowledge-pack/latest.json` gains an `appVersion` field (`2.8.2`); `latestVersion` stays `2.8.0` because the knowledge data itself is unchanged. |
+
+## What changed in 2.8.1
+
+Clinical safety overlays — additive, clearly-labelled notes on top of the
+canonical kits (no data-pack change, engines untouched):
+
+| Area | 2.8.1 behaviour |
+| --- | --- |
+| Solar-load moderation | When digit 1 repeats 3+ times against a Pitta constitution, the Ayurvedic baseline carries a practitioner note tempering *Surya arghya* to a brief, calm sunrise offering, the Section 3 channeling card adds a “Cool the surplus” line, and the Section 4A Agni card directs the reader to its mildest form (skip *Surya Bhedana* / midday solar activation; let the Emotional plane’s *Chandra Bhedana* and evening grounding carry the cooling). |
+| Under-18 gem guardrail | Profiles compute a completed-years age signal. Under 18, the heavy Saturn/Rahu/Ketu gems (Blue Sapphire/Neelam, Hessonite/Gomed, Cat’s Eye/Lehsunia) are deferred in the remedy kits (“gentle substitute first”), the Crystal Companion Guide swaps those picks to Amethyst / Smoky Quartz / Tiger’s Eye, and parent-facing notes route the remedy to the Section 4A Tattva lifestyle anchors and mild organic stones. |
+| Student lens on hostile Dasha stacks | A minor chart running a mutual-enemy MD × AD (e.g. Saturn × Mars) gets an age-aware note in the Annual Transit × Dasha synthesis: authority-versus-independence framing, small reversible steps through academic transitions, and the sub-period closure date. |
+| Daily Core Ritual ↔ Triage binding | The 40-day plan's Daily Core Ritual now resolves through `resolvePracticeTargets()`: when a missing Lo Shu number is live in the Dasha stack / Personal Year, the **acute Tier-1 number** leads the sunrise japa (the stack only re-orders Lo Shu missing numbers — it never imports an outside target); when nothing missing is live, japa is held and the ritual states so instead of contradicting the triage card beside it. A 🎯 “Triage sync” row inside the ritual card states the binding, and the Northstar summary's first move follows the same resolved number. |
+| Cockpit | The practitioner sheet shows the consultee’s age and surfaces both guardrails as compact facts. |
+
+## What changed in 2.8.0
+
+This release makes the hybrid model explicit rather than treating one grid as a
+catch-all source of truth.
+
+| Area | 2.8.0 behaviour |
+| --- | --- |
+| Default report | Opens on **Foundation · Lo Shu** after onboarding |
+| Foundation grid | Classic Lo Shu `4–9–2 / 3–5–7 / 8–1–6` |
+| Grid plotting | Every non-zero digit from the full `DD-MM-YYYY`, including century digits, then Moolank and Bhagyank |
+| Lo Shu views | Birth, Name and Combined grids; eight planes; eight arrows; present, repeated and missing signals |
+| Vedic Ank Kundali | A **birth-grid-only** advanced comparison using `3–1–9 / 6–7–5 / 2–8–4`, with qualitative readings of the three Vedic planes |
+| Timeline | Independent proportional Dasha stack, dates, current/next periods, life-event windows and active Vastu zone |
+| Release data | Schema v2 / knowledge pack v2.8.0 |
+
+### Clinical release additions
+
+| Area | Behaviour |
+| --- | --- |
+| Bhagyank formula | `formatConductorBreakdown()` builds the printed equation from the raw DOB digits (no regex surgery on a formatted label), so no digit can be dropped or replaced by an artifact. Zeros are filtered for the classical display; the sum is unchanged. |
+| Dasha relationship | `getDashaRelationship(md, ad, driver)` judges the Antardasha against its **host Mahadasha** (classical *Sambhandha*). Grahan pairs (Rahu–Moon, Rahu–Sun) and Sun–Saturn, Mars–Saturn, Jupiter–Venus are hostile in both directions and can never render a green badge. Only a genuinely neutral MD × AD falls back to Driver compatibility. |
+| Remedy triage | `remedyTriage()` prescribes **one acute target** — the missing number that is live in the Dasha stack or Personal Year — and demotes the rest to Tier 2 environmental cues with the date they activate. |
+| Event windows | `qualifyEventWindow()` grades windows High / Moderate / Conditional instead of hiding them when a significator is natally absent. |
+| Practitioner Cockpit | A third report module: one printable A4 consultation sheet with identity, both grids, the live stack, triage and graded windows. |
+| Print resilience | `@page { size: A4 portrait; margin: 12mm 10mm; }` plus `break-inside: avoid` on every remedy/kit/cockpit card; the cockpit forces its own page in print (`break-before: page`, marketing intro stripped, 8.5pt/1.2 sheet type, 7.5pt tables) so it stays a single quick-reference sheet; “Print this page” narrows the job to the cockpit alone. |
+
+## Product map
+
+### Foundation · Lo Shu Blueprint
+
+Foundation is the initial personality and practice dashboard. It includes:
+
+- Driver / Moolank and Conductor / Bhagyank as core identity context;
+- classic Lo Shu **Birth**, **Name**, and **Combined** grids;
+- Lo Shu planes, arrows, present/missing/repeated signals;
+- missing-number remedy kits and repeated-number channeling;
+- Lo Shu-led mantras, affirmations, crystals, Rudraksha and habits;
+- a Lo Shu-led 40-day activation tracker;
+- an **Advanced Vedic Comparison** for the Vedic birth grid only (expanded so it prints), with one interpretive card per Vedic plane;
+- **4A Vedic Plane Harmonization — Elemental Tattva Balancing**: physical, breathwork and herbal anchors for Vedic planes that are Partly Active or Deficient (complete planes are omitted).
+
+The Name and Combined grids use the same Lo Shu coordinates as the Birth Grid.
+They do **not** create Vedic Name or Vedic Combined grids.
+
+### Timeline · Ank Jyotish Dasha
+
+This is a proportional numerology (Ank Jyotish) clock seeded from Moolank:
+Mahadasha lengths equal the number and sub-periods are proportional on a
+45-year cycle. It is intentionally **not classical Vimshottari Dasha** and
+does not claim nakshatra-anchored Vimshottari timing.
+
+Timeline is the time-based roadmap. It contains:
+
+- active Mahadasha, Antardasha and Pratyantar Dasha, with the Antardasha badged
+  by its relationship to the Mahadasha lord;
+- a rolling 90-day Pratyantar micro-forecast (including the next Antardasha);
+- an Annual Transit × Dasha synthesis reading the Personal Year through the stack;
+- current-period dates, progress and upcoming transitions;
+- Dasha-led life-event opportunity windows, each graded High / Moderate /
+  Conditional by whether its significators are present in the Vedic birth grid
+  (natal strength grades conversion; it never deletes a window);
+- the exact callout **“Active Vastu Zone: Prioritise this sector now”**;
+- a fixed home-placement context scan, clearly distinguished from the dynamic
+  Dasha zone.
+
+The Active Vastu Zone is chosen from the active Dasha lords and the Vedic
+planetary compass map. It is never inferred from a Lo Shu cell position.
+
+### Cockpit · Practitioner
+
+A single printable page (`#practitioner-cockpit`) for use during a consultation:
+
+- identity band — name, DOB, birth time, place with coordinates, Lagna and
+  Nakshatra when Tier 2 is unlocked;
+- core row — Driver/Conductor, name total, Lo Shu missing/excess, Vedic
+  absent/strong;
+- current timing — Mahadasha, Antardasha (with the Sambhandha verdict and any
+  Grahan Yoga), Pratyantar and the Personal-Year transit;
+- clinical triage — the active planetary conflict, the urgent spatial
+  prescription (primary sub-zone plus anchor zone) and the single japa target
+  with a completable dose;
+- Tier 2 latent leaks, each with its hold instruction and activation date;
+- graded event windows;
+- ruled consultation-notes space.
+
+The cockpit recalculates nothing. It reads the same engines as the full report,
+so the two can never disagree.
+
+In print the sheet is a dedicated page: the section breaks before itself, the
+module’s explanatory heading is screen-only copy and is dropped, and the sheet
+compacts to 8.5pt/1.2 (7.5pt tables) so identity, grids, timing, triage,
+Tier 2, windows and the notes rules all share one A4 page. The sheet header
+carries a print-only title line (module name plus generation date) because the
+toolbar stamp that shows it on screen is also hidden in print.
+
+### Advanced Vedic comparison
+
+The optional Foundation disclosure is a comparison lens, not a second remedy
+engine:
+
+- it is closed by default;
+- it renders only the **Vedic Birth Grid**;
+- its count differences are labelled **Planetary Strength Indicators**;
+- absent/repeated Vedic indicators do not create missing-number remedies,
+  crystals, or another 40-day checklist;
+- Section 4A may add breath, herbal-bath, aroma, water and sunlight anchors for
+  those same planes when they are not fully active — never fasts, rings,
+  crystals or a second mantra/mandala stack.
+
+## Authority boundaries
+
+The report intentionally shows the source of each kind of guidance.
+
+| Output | Sole authority | What does **not** change it |
+| --- | --- | --- |
+| Ayurvedic constitution / baseline | Driver + Conductor | Either grid |
+| Ishta Devta / guardian deities | Driver + Conductor | Either grid |
+| Power days | Driver + Conductor | Either grid |
+| Missing/repeated remedies, crystals, Rudraksha, affirmations, habits and 40-day practice | Lo Shu Birth Grid | Vedic comparison, zodiac and Dasha |
+| Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
+| Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
+| Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
+
+Compatibility uses the four Driver/Conductor pairings to make mutual strengths,
+watch points, potential blind spots and communication cues explicit. It is a
+relationship reflection only: it never adds crystals, Rudraksha, affirmations,
+lifestyle obligations, partner-side remedy kits or a second 40-day plan.
+
+The Driver/Conductor power-day card is a scheduling reference. It does not pick
+or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng
+Shui (Chinese)** and remains separate from the Ank Jyotish Dasha/Vastu direction map.
+
+## Grid calculations
+
+### Primary classic Lo Shu engine
+
+The Foundation grid is fixed as:
+
+```text
+4 | 9 | 2
+3 | 5 | 7
+8 | 1 | 6
+```
+
+For a date of birth, the engine:
+
+1. formats the date as `DD-MM-YYYY`;
+2. keeps every non-zero digit, including the century digits in `YYYY`;
+3. adds Moolank / Driver (reduced birth day);
+4. adds Bhagyank / Conductor (reduced full DOB);
+5. counts each number in the Lo Shu layout.
+
+For example, `30-06-1986` contributes raw digits `3, 6, 1, 9, 8, 6`, then
+Driver `3` and Conductor `6`. Its Lo Shu result therefore differs intentionally
+from the advanced Vedic comparison.
+
+### Advanced Vedic Ank Kundali engine
+
+The comparison grid is fixed as:
+
+```text
+3 | 1 | 9
+6 | 7 | 5
+2 | 8 | 4
+```
+
+It preserves the app's existing filtered-DOB rules:
+
+- zeros are removed;
+- century digits are excluded from plotted year digits;
+- direct date input is de-duplicated for `1–9`, `10`, `20` and `30`;
+- Moolank and Bhagyank are still added.
+
+For `30-06-1986`, the Vedic plotted counts are `3×1`, `6×3`, `8×1`.
+Those counts must never be used as Lo Shu counts or as a remedy checklist.
+
+### Dasha and Vastu timing
+
+The Dasha engine is deterministic and independent of both grid engines:
+
+- Moolank begins the Mahadasha sequence;
+- a Mahadasha has a duration equal to its number of years;
+- Antardasha is proportional: `MD × AD ÷ 45`;
+- Pratyantar Dasha is proportional within its parent Antardasha;
+- event windows use active Dasha-lord significators only.
+
+The Dasha/Vastu bridge uses the Vedic planetary direction map:
+
+| Number | Planet | Vedic Vastu zone |
+| --- | --- | --- |
+| 3 | Jupiter / Guru | North-East / Ishanya |
+| 1 | Sun / Surya | East / Purva |
+| 9 | Mars / Mangal | South / Dakshin |
+| 6 | Venus / Shukra | South-East / Agneya |
+| 7 | Ketu | North-East / Center Axis |
+| 5 | Mercury / Budh | Center / Brahmasthan and North |
+| 2 | Moon / Chandra | North-West / Vayavya |
+| 8 | Saturn / Shani | West / Paschim |
+| 4 | Rahu | South-West / Nairutya |
+
+The optional room-direction scan is a fixed assessment of entered home details.
+It is displayed in Timeline beside the Dasha road map and explicitly cannot
+replace the current Dasha-selected active zone.
+
+## Accessibility, URL state and print
+
+- The module switcher uses `tablist`, `tab` and `tabpanel` semantics.
+- Arrow keys move between the Foundation, Timeline and Cockpit tabs.
+- `#foundation`, `#timeline`, `#cockpit`, `#dasha-section`, `#timing-section`,
+  `#vastu-section` and `#practitioner-cockpit` activate the owning module
+  before scrolling.
+- On narrow screens, module and Timeline anchor navigation remain horizontally
+  reachable rather than wrapping into inaccessible controls.
+- In print/PDF media, all three report modules and the normally closed advanced
+  comparison are expanded in report order, on A4 portrait with 12mm/10mm
+  margins; remedy, kit and cockpit cards never split across a page.
+- The cockpit’s “Print this page” button adds `body.print-cockpit`, which
+  narrows the print job to the single consultation sheet and is always removed
+  afterwards. In that mode the forced page break is lifted again (the sheet is
+  already the first box of the job, so keeping it would emit a blank page).
+- The skip link is stripped in print: its off-screen transform parks it inside
+  page 1 of the paginated output otherwise.
+- On screen only, report sections use `content-visibility: auto` so mobile
+  devices no longer lay out all 40+ pages on first render; print media keeps
+  full layout.
+- English, Hindi and Gujarati distinguish Lo Shu, Vedic comparison, Vedic
+  Dasha and Feng Shui/Kua labels.
+
+## Privacy and knowledge packs
+
+All profile calculations run in the browser. Names, DOBs, phones, vehicles,
+birth time/place and entered home details are not posted to an app backend.
+Local report history, the practice tracker and journal remain in browser local
+storage for that device.
+
+Birthplace matching is offline-first. The default India atlas (`atlas/atlas-in.js`,
+~7,000 towns from GeoNames cities500) plus the curated world-city list in
+`astro.js` never leave the device. Matching is three-tier: packed offline
+lookup, then a nearby district within 25 km (Lagna shift under 0.1°) when
+coordinates are known, then an optional Photon lookup
+(`https://photon.komoot.io/api/?q=`) only when you click **Look up online**.
+Only the typed place name is sent, and only that city string is cached in
+`localStorage` — never coordinates or the chart. Gulf (`atlas-gcc.js`) and extra
+world (`atlas-world.js`, pop ≥ 100k) chunks stay lazy-loaded. Rebuild with
+`npm run atlas:build` (falls back to local GeoNames dumps when
+`download.geonames.org` is blocked). Packed rows stay well under 250 KB for the
+default India chunk.
+
+The public knowledge pack is separate from personal data:
+
+1. `data.js` supplies bundled schema-v2 content for instant/offline use.
+2. A newer public JSON pack can be read from `knowledge-pack/latest.json`.
+3. A pack is validated before it is cached or used.
+4. An older/single-grid pack is rejected rather than mixed into the hybrid UI.
+
+Release 2.8.0 ships `knowledge-pack/packs/2.8.0.json`, generated from the
+bundled pack. The schema requires canonical `loShuGrid` and `vedicGrid`
+configuration as well as the Dasha/Vastu mappings.
+
+## Tech stack and project layout
+
+- Vanilla JavaScript (`app.js`) with a bundled curated knowledge pack (`data.js`)
+- Browser-local Vedic ephemeris (`astro.js`) plus compact regional place atlases (`atlas/`)
+- Plain CSS with responsive and print rules (`styles.css`)
+- Vite for development and static serving
+- jsdom for deterministic engine/report smoke coverage
+- Playwright/Chromium for browser, mobile-navigation and print checks
+
+```text
+numerovastu-360/
+├── index.html                         # App shell and intake form
+├── app.js                             # Engines, renderers, routing and local state
+├── astro.js                           # Browser-local Vedic astronomy helpers
+├── atlas/
+│   ├── atlas-in.js                    # Default India towns (compact packed rows)
+│   ├── atlas-gcc.js                   # Optional Gulf cities (lazy)
+│   └── atlas-world.js                 # Optional world cities pop ≥ 100k (lazy)
+├── data.js                            # Bundled schema-v2 knowledge pack
+├── i18n.js                            # English, Hindi and Gujarati labels
+├── styles.css                         # Responsive and print presentation
+├── smoke.test.js                      # Hybrid engine and jsdom regression suite
+├── tests/visual/                      # Browser/mobile/print Playwright coverage
+├── knowledge-pack/
+│   ├── schema.json                    # Schema-v2 contract
+│   ├── latest.json                    # Current manifest
+│   └── packs/2.8.0.json               # Release JSON pack
+├── scripts/build-atlas.mjs            # GeoNames → compact atlas chunks
+└── scripts/build-static.cjs           # Static distribution builder
+```
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+ (Node 22 is supported)
+
+### Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Vite binds to `0.0.0.0`; open the URL it prints (normally
+`http://localhost:5173`).
+
+### Quality checks
+
+```bash
+npm test                 # Grid, authority, pack, localisation and tab regression suite
+npm run atlas:build      # Rebuild compact India / Gulf / world place chunks
+npm run audit            # Dependency audit
+npm run build            # Rebuilds static dist/ from root sources
+npm run check            # test + audit + build
+
+# Browser checks (Chromium required once)
+npm run browsers:install
+npm run test:visual
+```
+
+The smoke suite checks both grid engines, Lo Shu Name/Combined coordinate
+mapping, Dasha/Vastu independence, authority boundaries, schema/pack validity,
+multilingual labels, accessible tab/hash behavior, and mobile/print CSS hooks.
+The Playwright suite verifies the same report behavior in a real browser,
+including mobile Timeline navigation and print expansion.
+
+### Deploy
+
+The application is static. Publish either:
+
+- the repository root files and the full `knowledge-pack/` directory; or
+- the generated `dist/` directory after `npm run build`.
+
+No server-side runtime is required.
+
+## Disclaimer
+
+NumeroVastu 360 presents traditional numerology, Vastu and spiritual wellness
+content for reflection. It does not diagnose health conditions or guarantee
+outcomes. Seek qualified professional advice for medical, legal, financial,
+relationship or property decisions.
+
+## License
+
+No license file is included. Contact the repository owner
+([`RRWalia/numerovastu-360`](https://github.com/RRWalia/numerovastu-360)) before
+reusing or redistributing the project.
