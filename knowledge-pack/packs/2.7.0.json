@@ -2998,6 +2998,10 @@
           "gu": "દક્ષિણને હૂંફાળી રોશનીથી ઊર્જિત કરો; ત્યાં ઘેરો વાદળી રંગ અને મોટા જળ-સ્ત્રોત ન રાખો."
         }
       },
+      "relationshipPolicy": {
+        "additionalHostilePairs": [],
+        "grahanPairs": []
+      },
       "lifeEvents": {
         "marriage": {
           "icon": "💍",

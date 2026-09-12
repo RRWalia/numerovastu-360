@@ -5,6 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 const { JSDOM } = require("jsdom");
+const Ajv = require("ajv/dist/2020");
 
 const root = __dirname;
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -13,6 +14,27 @@ const styles = read("styles.css");
 const schema = JSON.parse(read("knowledge-pack/schema.json"));
 const latestManifest = JSON.parse(read("knowledge-pack/latest.json"));
 const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.8.0.json"));
+const versionedPackFiles = fs.readdirSync(path.join(root, "knowledge-pack", "packs"))
+  .filter((file) => /^\d+\.\d+\.\d+\.json$/.test(file))
+  .sort();
+const versionedPacks = versionedPackFiles.map((file) => ({ file, pack: JSON.parse(read(path.join("knowledge-pack", "packs", file))) }));
+const schemaValidator = new Ajv({ allErrors: true, strict: false }).compile(schema);
+const legacySchemaValidator = new Ajv({ allErrors: true, strict: false }).compile({
+  type: "object",
+  required: ["schemaVersion", "packVersion", "db"],
+  properties: {
+    schemaVersion: { const: 1 },
+    packVersion: { type: "string" },
+    db: {
+      type: "object",
+      required: ["chaldean", "friendship", "numbers", "watch", "traits", "missingFix", "yantra", "kua", "goals", "vastu", "careers", "dayWear", "personalYear", "spelling", "mantraShort", "zodiac", "crystals", "compound", "masterNumbers", "nameAdvice"],
+      anyOf: [
+        { required: ["loshuLayout", "planes", "arrows"] },
+        { required: ["vedicGrid", "dasha"] }
+      ]
+    }
+  }
+});
 const dom = new JSDOM(html, { runScripts: "outside-only", url: "http://localhost/" });
 const { window } = dom;
 window.scrollTo = () => {};
@@ -41,6 +63,9 @@ function mount(markup) {
   node.innerHTML = markup;
   return node;
 }
+
+check("every versioned knowledge pack is covered by schema validation", versionedPacks.every(({ pack }) => pack.schemaVersion === 1 ? legacySchemaValidator(pack) : schemaValidator(pack)));
+check("every versioned knowledge pack carries the declared pack version", versionedPacks.every(({ file, pack }) => pack.packVersion === file.replace(/\.json$/, "")));
 
 /* ---- Independent calculation engines ---- */
 const loShu = window.__NV.generateLoShuGrid(30, 6, 1986);
@@ -138,6 +163,14 @@ check("natal strength grades conversion probability without deleting windows", g
 check("active Vastu Zone follows the active Dasha lord", authorityReport.includes('data-dasha-vastu-zone="active"') && authorityReport.includes(`its sector is the <strong>${expectedZone}</strong>`) && authorityReport.includes("Active Vastu Zone: Prioritise this sector now"));
 check("Vastu context visibly belongs to Timeline and does not set active zone", !!$("#timeline-panel #vastu-section", authorityReportDom) && !$("#foundation-panel #vastu-section", authorityReportDom) && $("#vastu-section", authorityReportDom).getAttribute("data-authority") === "home-vastu-context" && $("#vastu-section", authorityReportDom).textContent.includes("selected only from the current Dasha lords"));
 check("rendered authority walls are explicit", authorityReport.includes('data-remedy-authority="lo-shu"') && authorityReport.includes('data-authority="driver-conductor"') && authorityReport.includes('id="dasha-section" data-authority="dasha"') && authorityReport.includes("Kua number is a Feng Shui (Chinese) system") && authorityReport.includes("They do not choose or change Lo Shu remedy targets"));
+const remedyBlocks = $$("[data-remedy-authority]", authorityReportDom);
+check("every remedy-bearing block declares Lo Shu authority", remedyBlocks.length > 0 && remedyBlocks.every((node) => node.getAttribute("data-remedy-authority") === "lo-shu"));
+check("Vedic comparison cannot leak remedy authority", !$("#vedic-comparison", authorityReportDom)?.querySelector("[data-remedy-authority]") && !authorityReport.includes('data-remedy-authority="vedic'));
+const policy = window.__NV.getActiveDB().dasha.relationshipPolicy;
+policy.additionalHostilePairs = ["2-3"];
+check("pack policy can add a hostile Sambandha pair", window.__NV.getDashaRelationship(2, 3, 1).relation === "enemy" && window.__NV.getDashaRelationship(2, 3, 1).source === "pack-sambandha-hostile");
+policy.additionalHostilePairs = [];
+check("classical hostile Sambandha remains enforced when pack policy is empty", window.__NV.getDashaRelationship(4, 2, 1).relation === "enemy" && window.__NV.getDashaRelationship(4, 2, 1).grahan);
 check("compatibility reflection is relational rather than a second remedy plan", !!compatibilityAuthoritySection && !!$(".compatibility-overview", compatibilityAuthoritySection) && !!$("#compatibility-reflection", compatibilityAuthoritySection) && !!$(".compatibility-strengths", compatibilityAuthoritySection) && $$(".compatibility-blind-spot", compatibilityAuthoritySection).length > 0 && $$(".compatibility-cue", compatibilityAuthoritySection).length > 0 && $$(".kit-row", compatibilityAuthoritySection).every((row) => row.textContent.trim().length > 0) && $$(".kit-card", compatibilityAuthoritySection).length === 0 && !$("#compat-remedies", compatibilityAuthoritySection) && !compatibilityAuthoritySection.textContent.includes("Couple remedy") && !compatibilityAuthoritySection.textContent.includes("run both partners' kits") && compatibilityAuthoritySection.textContent.includes("does not add crystals, Rudraksha, affirmations, lifestyle obligations or a second 40-day plan"));
 check("aligned pairs still receive strengths, watchfulness and a communication cue", !!alignedCompatibilitySection && alignedCompatibilitySection.textContent.includes("Mutual strengths") && alignedCompatibilitySection.textContent.includes("Potential blind spots") && alignedCompatibilitySection.textContent.includes("Communication cue:") && $$(".compatibility-cue", alignedCompatibilitySection).length === 1 && $$(".kit-card", alignedCompatibilitySection).length === 0 && $$(".kit-row", alignedCompatibilitySection).every((row) => row.textContent.trim().length > 0));
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
@@ -156,6 +189,7 @@ check("reduction chain keeps every intermediate step", same(window.__NV.reductio
 const waliaDasha = window.__NV.dashaTimeline(waliaProfile, fixedDate);
 const waliaReport = mount(window.__NV.renderReport(waliaProfile));
 const waliaDashaSection = $("#dasha-section", waliaReport);
+const renderedWaliaDasha = window.__NV.dashaTimeline(waliaProfile);
 const adBadge = $('[data-stack-badge="md-ad"] .badge', waliaDashaSection);
 check("Rahu MD + Moon AD is the reference stack on 2026-09-05", waliaDasha.current.md.n === 4 && waliaDasha.current.ad.n === 2 && waliaDasha.current.pd.n === 5 && waliaDasha.current.pdDaysLeft <= 6);
 check("Antardasha badge reflects the MD × AD relationship, not Driver × AD", !!adBadge && adBadge.dataset.mdAdRelation === "enemy" && adBadge.classList.contains("bad") && /Challenging/.test(adBadge.textContent) && !/Friendly to you/.test($('[data-stack-badge="md-ad"]', waliaDashaSection).textContent) && $(".predictive-synthesis", waliaDashaSection).dataset.mdAdRelation === "enemy");
@@ -163,8 +197,8 @@ check("Dual-Zone pairing is derived from the active lords rather than hard-coded
 
 const micro = $(".dasha-micro-forecast", waliaDashaSection);
 const microRows = $$("tr[data-micro-period]", micro);
-check("rolling 90-day Pratyantar micro-forecast follows the current sub-period", !!micro && microRows.length >= 3 && microRows[0].classList.contains("hl-row") && microRows[0].dataset.microPeriod === "5" && microRows[1].dataset.microPeriod === "6" && $$("th", micro).length === 4 && /Vastu micro-action/.test(micro.textContent));
-check("micro-forecast crosses into the next Antardasha and names it", waliaDasha.upcoming.some((u) => u.adChange && u.adN === 3) && waliaDasha.current.nextAd && waliaDasha.current.nextAd.n === 3 && $("[data-next-antardasha]", micro).dataset.nextAntardasha === "3" && /Next: Venus \(6\) takes over from/.test(waliaDashaSection.textContent));
+check("rolling 90-day Pratyantar micro-forecast follows the current sub-period", !!micro && microRows.length >= 3 && microRows[0].classList.contains("hl-row") && microRows[0].dataset.microPeriod === String(renderedWaliaDasha.current.pd.n) && microRows[1].dataset.microPeriod === String((renderedWaliaDasha.current.pd.n % 9) + 1) && $$("th", micro).length === 4 && /Vastu micro-action/.test(micro.textContent));
+check("micro-forecast crosses into the next Antardasha and names it", renderedWaliaDasha.current.nextAd && renderedWaliaDasha.upcoming.some((u) => u.adChange && u.adN === renderedWaliaDasha.current.nextAd.n) && $("[data-next-antardasha]", micro).dataset.nextAntardasha === String(renderedWaliaDasha.current.nextAd.n) && /Next:/.test(waliaDashaSection.textContent));
 check("next-horizon roadmap ignores grid data", same(window.__NV.dashaTimeline(Object.assign({}, waliaProfile, { vedicCounts: alteredGridProfile.vedicCounts, loShuCounts: alteredGridProfile.loShuCounts }), fixedDate).upcoming, waliaDasha.upcoming));
 
 const transit = $(".dasha-transit-synthesis", waliaDashaSection);

@@ -768,8 +768,8 @@
     return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="dosha-contra" data-contra-scope="crystal-heat"><div class="kit-value">🛡 ${esc(text)}</div></div>`;
   }
 
-  const GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
-  const SAMBANDHA_HOSTILE_PAIRS = new Set([
+  const CLASSICAL_GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
+  const CLASSICAL_SAMBANDHA_HOSTILE_PAIRS = new Set([
     "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
     "4-1", "1-4", // Rahu – Sun (Grahan / eclipse axis)
     "1-8", "8-1", // Sun – Saturn
@@ -777,15 +777,21 @@
     "3-6", "6-3"  // Jupiter – Venus (Deva guru vs Asura guru)
   ]);
 
+  function configuredDashaPairs(key) {
+    const configured = getActiveDB().dasha && getActiveDB().dasha.relationshipPolicy && getActiveDB().dasha.relationshipPolicy[key];
+    return new Set(Array.isArray(configured) ? configured.map((pair) => String(pair)) : []);
+  }
+
   function getDashaRelationship(mdLord, adLord, driver) {
     const md = Number(mdLord), ad = Number(adLord);
     const pairKey = `${md}-${ad}`;
-    const grahan = GRAHAN_PAIRS.has(pairKey);
+    const grahan = CLASSICAL_GRAHAN_PAIRS.has(pairKey) || configuredDashaPairs("grahanPairs").has(pairKey);
+    const configuredHostile = configuredDashaPairs("additionalHostilePairs").has(pairKey);
     const packRelation = relation(md, ad);
-    if (grahan || SAMBANDHA_HOSTILE_PAIRS.has(pairKey) || packRelation === "enemy") {
+    if (grahan || CLASSICAL_SAMBANDHA_HOSTILE_PAIRS.has(pairKey) || configuredHostile || packRelation === "enemy") {
       return {
         md, ad, relation: "enemy", grahan,
-        source: grahan ? "grahan" : "sambandha-hostile",
+        source: grahan ? "grahan" : configuredHostile ? "pack-sambandha-hostile" : "sambandha-hostile",
         status: "Conflicting / Caution",
         tone: "bad",                 // existing badge palette
         cssClass: "badge-conflict",  // never green
@@ -1181,6 +1187,13 @@
       // North-East / Center axis), never a legacy grid axis.
       if (db.dasha && Object.entries(VEDIC_DASHA_ZONES).some(([number, zone]) => !db.dasha[number] || !db.dasha[number].zone || db.dasha[number].zone.en !== zone)) {
         errs.push("db.dasha zones must retain the canonical Vedic planetary direction mapping");
+      }
+      if (db.dasha && db.dasha.relationshipPolicy) {
+        ["additionalHostilePairs", "grahanPairs"].forEach((key) => {
+          if (!Array.isArray(db.dasha.relationshipPolicy[key]) || db.dasha.relationshipPolicy[key].some((pair) => !/^[1-9]-[1-9]$/.test(String(pair)))) {
+            errs.push(`db.dasha.relationshipPolicy.${key} must contain only number-pair strings such as 4-2`);
+          }
+        });
       }
       if (db.numbers) {
         for (let i = 1; i <= 9; i++) {
@@ -3221,7 +3234,7 @@
       moves = [
         { title: acute ? `अभी का तीव्र gap — अंक ${primary} (Tier 1 · सक्रिय)` : targets.missing.length ? `लो शू का पहला gap — अंक ${primary}` : `लो शू की मुख्य ऊर्जा — अंक ${primary}`, detail: resolved.holdJapa ? `${esc(primaryInfo.planet)} के colour, affirmation और habit को 40-दिन के अभ्यास में रखें — इस चक्र जप होल्ड पर है (Remedy Triage देखें)।` : `${esc(primaryInfo.planet)} के mantra, affirmation, crystal/Rudraksha और habit को 40-दिन के अभ्यास में रखें।` },
         { title: targets.repeated.length ? `दोहराई ऊर्जा को दिशा दें — ${repeatedText}` : "जन्म, नाम और संयुक्त grid देखें", detail: targets.repeated.length ? "उसी अंक को और बढ़ाने के बजाय उसकी क्षमता को अनुशासित काम, सेवा या कला में लगाएं।" : "तीनों लो शू grids के coordinates और planes/arrows से अपने व्यवहारिक pattern पहचानें।" },
-        { title: "अगली समय-सीमा Timeline में देखें", detail: "महादशा, अंतर्दशा, जीवन-घटना windows और Active Vastu Zone केवल Timeline · Vedic Dasha में देखें।" }
+        { title: "अगली समय-सीमा Timeline में देखें", detail: "महादशा, अंतर्दशा, जीवन-घटना windows और Active Vastu Zone केवल Timeline · Ank Jyotish Dasha में देखें।" }
       ];
       checks = [
         "<strong>उपाय-अधिकार:</strong> missing/repeated remedy, crystal, Rudraksha, affirmation और habit केवल लो शू से आते हैं।",
@@ -3232,7 +3245,7 @@
         { label: "Foundation focus", value: `लो शू ${primary}`, note: acute ? `पहले अंक ${primary} — वर्तमान दशा-क्रम में सक्रिय (Tier 1); बाकी अंक टियर २ / होल्ड पर रहते हैं।` : targets.missing.length ? `पहले अनुपस्थित अंक ${missingText} को क्रम से साधें।` : targets.repeated.length ? `दोहराए अंक ${repeatedText} को अधिक fuel देने के बजाय channel करें।` : "संतुलित grid को सरल daily habit से बनाए रखें।" },
         { label: "आपके लक्ष्य", value: esc(goalNames.join(", ")), note: "यह दिशा तय करते हैं; remedy target केवल लो शू signal से आता है।" },
         { label: "Driver / Conductor", value: `${p.driver} / ${p.conductor}`, note: "व्यक्तित्व baseline, guardian deity, Ayurvedic baseline और power days के लिए।" },
-        { label: "Timeline cue", value: "Vedic Dasha", note: "Active Vastu Zone, current/next period dates और life-event windows के लिए Timeline खोलें।" }
+        { label: "Timeline cue", value: "Ank Jyotish Dasha", note: "Active Vastu Zone, current/next period dates और life-event windows के लिए Timeline खोलें।" }
       ];
     } else if (lang === "gu") {
       headline = `${esc(firstNameOf(p.name))}, તમારું Foundation લો શુ સંકેતો સાથે ${esc(goalNames.join(" + "))} માટે વ્યવહારુ અને સતત દિશા આપે છે.`;
@@ -3240,7 +3253,7 @@
       moves = [
         { title: acute ? `હમણાંનો તીવ્ર gap — અંક ${primary} (Tier 1 · સક્રિય)` : targets.missing.length ? `લો શુનો પ્રથમ gap — અંક ${primary}` : `લો શુની મુખ્ય ઊર્જા — અંક ${primary}`, detail: resolved.holdJapa ? `${esc(primaryInfo.planet)} ના colour, affirmation અને habit ૪૦-દિવસના અભ્યાસમાં રાખો — આ ચક્રે જાપ હોલ્ડ પર છે (Remedy Triage જુઓ).` : `${esc(primaryInfo.planet)} નો mantra, affirmation, crystal/Rudraksha અને habit ૪૦-દિવસના અભ્યાસમાં રાખો.` },
         { title: targets.repeated.length ? `પુનરાવર્તિત ઊર્જાને દિશા આપો — ${repeatedText}` : "જન્મ, નામ અને સંયુક્ત grid જુઓ", detail: targets.repeated.length ? "એ જ અંકને વધુ વધારવાને બદલે તેની ક્ષમતાને શિસ્તબદ્ધ કામ, સેવા કે કલામાં લગાવો." : "ત્રણેય લો શુ grids ના coordinates અને planes/arrows થી વર્તનના pattern ઓળખો." },
-        { title: "આગલી સમય-રેખા Timeline માં જુઓ", detail: "મહાદશા, અંતર્દશા, જીવન-ઘટના windows અને Active Vastu Zone ફક્ત સમયરેખા · વૈદિક દશામાં જુઓ." }
+        { title: "આગલી સમય-રેખા Timeline માં જુઓ", detail: "મહાદશા, અંતર્દશા, જીવન-ઘટના windows અને Active Vastu Zone ફક્ત સમયરેખા · અંક-જ્યોતિષ દશામાં જુઓ." }
       ];
       checks = [
         "<strong>ઉપાય-અધિકાર:</strong> missing/repeated remedy, crystal, Rudraksha, affirmation અને habit ફક્ત લો શુમાંથી આવે છે.",
@@ -3251,7 +3264,7 @@
         { label: "Foundation focus", value: `લો શુ ${primary}`, note: acute ? `પહેલાં અંક ${primary} — વર્તમાન દશા-ક્રમમાં સક્રિય (Tier 1); બાકીના અંક ટિયર ૨ / હોલ્ડ પર રહે છે.` : targets.missing.length ? `પહેલાં ખૂટતા અંક ${missingText} ને ક્રમથી સાધો.` : targets.repeated.length ? `પુનરાવર્તિત અંક ${repeatedText} ને વધુ fuel આપવાને બદલે channel કરો.` : "સંતુલિત grid ને સરળ daily habit થી જાળવો." },
         { label: "તમારા લક્ષ્યો", value: esc(goalNames.join(", ")), note: "તે દિશા નક્કી કરે છે; remedy target ફક્ત લો શુ signal પરથી આવે છે." },
         { label: "Driver / Conductor", value: `${p.driver} / ${p.conductor}`, note: "વ્યક્તિત્વ baseline, guardian deity, Ayurvedic baseline અને power days માટે." },
-        { label: "Timeline cue", value: "વૈદિક દશા", note: "Active Vastu Zone, current/next period dates અને life-event windows માટે Timeline ખોલો." }
+        { label: "Timeline cue", value: "અંક-જ્યોતિષ દશા", note: "Active Vastu Zone, current/next period dates અને life-event windows માટે Timeline ખોલો." }
       ];
     } else {
       headline = `${esc(firstNameOf(p.name))}, your Foundation turns Lo Shu signals into a practical, consistent direction for ${esc(goalNames.join(" + ").toLowerCase())}.`;
@@ -3259,7 +3272,7 @@
       moves = [
         { title: acute ? `Acute Lo Shu gap — number ${primary} (Tier 1 · live now)` : targets.missing.length ? `First Lo Shu gap — number ${primary}` : `Primary Lo Shu energy — number ${primary}`, detail: resolved.holdJapa ? `Keep ${esc(primaryInfo.planet)}'s colour, affirmation and habit inside the 40-day practice — japa is held this cycle (see Remedy Triage).` : `Keep ${esc(primaryInfo.planet)}'s mantra, affirmation, crystal/Rudraksha and habit inside the 40-day practice.` },
         { title: targets.repeated.length ? `Channel surplus energy — ${repeatedText}` : "Read the Birth, Name and Combined grids", detail: targets.repeated.length ? "Put capacity into disciplined work, service or craft instead of feeding the same number again." : "Use the matching Lo Shu coordinates and planes/arrows to notice practical behaviour patterns." },
-        { title: "Read the next time window in Timeline", detail: "Mahadasha, Antardasha, life-event windows and the Active Vastu Zone live only in Timeline · Vedic Dasha." }
+        { title: "Read the next time window in Timeline", detail: "Mahadasha, Antardasha, life-event windows and the Active Vastu Zone live only in Timeline · Ank Jyotish Dasha." }
       ];
       checks = [
         "<strong>Remedy authority:</strong> missing/repeated remedies, crystals, Rudraksha, affirmations and habits come only from Lo Shu.",
@@ -3270,7 +3283,7 @@
         { label: "Foundation focus", value: `Lo Shu ${primary}`, note: acute ? `Lead with ${primary} — live in the current Dasha stack (Tier 1); the other numbers stay Tier 2 / held.` : targets.missing.length ? `Work through missing number${targets.missing.length > 1 ? "s" : ""} ${missingText} in order.` : targets.repeated.length ? `Channel repeated number${targets.repeated.length > 1 ? "s" : ""} ${repeatedText}; do not add more fuel.` : "Maintain the balanced grid with one simple daily habit." },
         { label: "Your focus", value: esc(goalNames.join(", ")), note: "Goals set direction; only a Lo Shu signal sets a remedy target." },
         { label: "Driver / Conductor", value: `${p.driver} / ${p.conductor}`, note: "Personality baseline, guardian deity, Ayurvedic baseline and power days." },
-        { label: "Timeline cue", value: "Vedic Dasha", note: "Open Timeline for the Active Vastu Zone, current/next period dates and life-event windows." }
+        { label: "Timeline cue", value: "Ank Jyotish Dasha", note: "Open Timeline for the Active Vastu Zone, current/next period dates and life-event windows." }
       ];
     }
     return { headline, story, cards, checks, moves };
@@ -3371,7 +3384,7 @@
       const thirdRows = secondary ? [`दूसरा लो शू संकेत जोड़ें: <strong>${esc(secondary.planet)} (${secondaryN})</strong> के लिए <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ११ बार और ${esc(secondary.color.split(",")[0])} रंग शामिल करें।`] : [`साधना को गहरा करें: सूर्योदय मंत्र जाप बढ़ाकर <strong>१०८ बार</strong> करें और अपने अनुभव लिखें।`];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`दोहराए अंक ${targets.repeated.join(", ")} को और बढ़ाने के बजाय उनकी ऊर्जा को काम, सेवा या अनुशासन में दिशा दें।`);
       phases.push({ badge: "दिन २२–४०", title: "समन्वय — लो शू संकेत", rows: thirdRows });
-      phases.push({ badge: "दिन ४०+", title: "अवलोकन एवं निरंतरता", rows: [`<strong>४०वें दिन</strong> ट्रैकर और जर्नल में देखें कि ${esc(targetDescriptor)} के साथ क्या बदला।`, `केवल लो शू के अनुपस्थित/दोहराए संकेत के अनुसार हल्का अभ्यास जारी रखें। तिथियों, जीवन-घटना विंडो और सक्रिय वास्तु क्षेत्र के लिए <strong>Timeline · Vedic Dasha</strong> देखें।`] });
+      phases.push({ badge: "दिन ४०+", title: "अवलोकन एवं निरंतरता", rows: [`<strong>४०वें दिन</strong> ट्रैकर और जर्नल में देखें कि ${esc(targetDescriptor)} के साथ क्या बदला।`, `केवल लो शू के अनुपस्थित/दोहराए संकेत के अनुसार हल्का अभ्यास जारी रखें। तिथियों, जीवन-घटना विंडो और सक्रिय वास्तु क्षेत्र के लिए <strong>Timeline · Ank Jyotish Dasha</strong> देखें।`] });
     } else if (lang === "gu") {
       const firstRows = [`ઉપરની <strong>દૈનિક મુખ્ય સાધના</strong> શરૂ કરો — રોજ એક જ સમયે અને એક જ સ્થળે. આ યોજના ફક્ત તમારા ${esc(targetDescriptor)} પરથી પસંદ કરાઈ છે.`];
       if (targetSignal === "repeated") firstRows.push(`ઊર્જાને વધારવાને બદલે દિશા આપો: ${esc(repeatedChannel)}.`);
@@ -3380,7 +3393,7 @@
       const thirdRows = secondary ? [`બીજો લો શુ સંકેત ઉમેરો: <strong>${esc(secondary.planet)} (${secondaryN})</strong> માટે <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ૧૧ વખત અને ${esc(secondary.color.split(",")[0])} રંગ સામેલ કરો.`] : [`અભ્યાસ ઊંડો કરો: સૂર્યોદય મંત્ર જાપ <strong>૧૦૮ વખત</strong> કરો અને અનુભવ લખો.`];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`પુનરાવર્તિત અંક ${targets.repeated.join(", ")} ને વધુ વધારવાને બદલે તેની ઊર્જાને કામ, સેવા કે શિસ્તમાં દિશા આપો.`);
       phases.push({ badge: "દિવસ ૨૨–૪૦", title: "સમન્વય — લો શુ સંકેત", rows: thirdRows });
-      phases.push({ badge: "દિવસ ૪૦+", title: "અવલોકન અને સાતત્ય", rows: [`<strong>૪૦મા દિવસે</strong> ટ્રેકર અને જર્નલમાં જુઓ કે ${esc(targetDescriptor)} સાથે શું બદલાયું.`, `ફક્ત લો શુના ખૂટતા/પુનરાવર્તિત સંકેત મુજબ હળવો અભ્યાસ ચાલુ રાખો. તારીખો, જીવન-ઘટના વિન્ડો અને સક્રિય વાસ્તુ ક્ષેત્ર માટે <strong>સમયરેખા · વૈદિક દશા</strong> જુઓ.`] });
+      phases.push({ badge: "દિવસ ૪૦+", title: "અવલોકન અને સાતત્ય", rows: [`<strong>૪૦મા દિવસે</strong> ટ્રેકર અને જર્નલમાં જુઓ કે ${esc(targetDescriptor)} સાથે શું બદલાયું.`, `ફક્ત લો શુના ખૂટતા/પુનરાવર્તિત સંકેત મુજબ હળવો અભ્યાસ ચાલુ રાખો. તારીખો, જીવન-ઘટના વિન્ડો અને સક્રિય વાસ્તુ ક્ષેત્ર માટે <strong>સમયરેખા · અંક-જ્યોતિષ દશા</strong> જુઓ.`] });
     } else {
       const firstRows = [`Begin the <strong>daily core ritual</strong> above at the same time and place each day. This plan is selected only from your ${esc(targetDescriptor)}.`];
       if (targetSignal === "repeated") firstRows.push(`Give the surplus direction rather than more fuel: ${esc(repeatedChannel)}.`);
@@ -3389,7 +3402,7 @@
       const thirdRows = secondary ? [`Add a second Lo Shu signal: use <strong>${esc(secondary.planet)} (${secondaryN})</strong>'s short mantra <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ×11 and its ${esc(secondary.color.split(",")[0].toLowerCase())} colour.`] : [`Deepen the practice: raise the sunrise mantra to <strong>108 times</strong> and write down what you notice.`];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`Channel repeated number${targets.repeated.length > 1 ? "s" : ""} ${targets.repeated.join(", ")} through work, service or disciplined craft rather than adding more fuel.`);
       phases.push({ badge: "Days 22–40", title: "Integrate — Lo Shu signals", rows: thirdRows });
-      phases.push({ badge: "Day 40+", title: "Review & reset", rows: [`On <strong>Day 40</strong>, use your tracker and journal to review what changed around this ${esc(targetDescriptor)}.`, `Continue only the light practice your Lo Shu missing/repeated signals call for. For dates, life-event windows and the active Vastu zone, open <strong>Timeline · Vedic Dasha</strong>.`] });
+      phases.push({ badge: "Day 40+", title: "Review & reset", rows: [`On <strong>Day 40</strong>, use your tracker and journal to review what changed around this ${esc(targetDescriptor)}.`, `Continue only the light practice your Lo Shu missing/repeated signals call for. For dates, life-event windows and the active Vastu zone, open <strong>Timeline · Ank Jyotish Dasha</strong>.`] });
     }
 
     return { targetN, target: { ...target, short: targetShort }, missingFocus: targets.missing, repeatedFocus: targets.repeated, daily, powerDays, phases, acute, holdJapa, tier1N: tier1.n, tier1Mode: tier1.mode, triageNote };
@@ -5296,7 +5309,7 @@
         </div>
         <div class="module-tabs" role="tablist" aria-label="${t("moduleNavigation", "Report modules")}">
           <button class="module-tab${foundationSelected ? " active" : ""}" id="foundation-tab" type="button" role="tab" aria-selected="${foundationSelected}" aria-controls="foundation-panel" tabindex="${foundationSelected ? "0" : "-1"}" data-module-tab="foundation">${t("tabFoundation", "Foundation · Lo Shu")}</button>
-          <button class="module-tab${timelineSelected ? " active" : ""}" id="timeline-tab" type="button" role="tab" aria-selected="${timelineSelected}" aria-controls="timeline-panel" tabindex="${timelineSelected ? "0" : "-1"}" data-module-tab="timeline">${t("tabTimeline", "Timeline · Vedic Dasha")}</button>
+          <button class="module-tab${timelineSelected ? " active" : ""}" id="timeline-tab" type="button" role="tab" aria-selected="${timelineSelected}" aria-controls="timeline-panel" tabindex="${timelineSelected ? "0" : "-1"}" data-module-tab="timeline">${t("tabTimeline", "Timeline · Ank Jyotish Dasha")}</button>
           <button class="module-tab${cockpitSelected ? " active" : ""}" id="cockpit-tab" type="button" role="tab" aria-selected="${cockpitSelected}" aria-controls="cockpit-panel" tabindex="${cockpitSelected ? "0" : "-1"}" data-module-tab="cockpit">${t("tabCockpit", "Cockpit · Practitioner")}</button>
         </div>
         <nav class="report-nav" aria-label="${t("moduleQuickNavigation", "Module navigation")}">
@@ -5346,7 +5359,7 @@
         ${prioritySection}
       </section>
       <section class="report-module-panel timeline-panel" id="timeline-panel" role="tabpanel" aria-labelledby="timeline-tab"${timelineHidden}>
-        <div class="module-panel-heading timeline-panel-heading" id="timeline-top"><p class="summary-kicker">${t("tabTimeline", "Timeline · Vedic Dasha")}</p><h2>${t("timelinePanelTitle", "Your Dasha roadmap")}</h2><p>${t("timelinePanelDesc", "Read the current Dasha stack, active Vastu zone and life-event windows as a time-based roadmap. This module never uses either grid to alter timing.")}</p><nav class="timeline-anchor-nav" aria-label="${t("timelineNavigation", "Timeline navigation")}"><a href="#timing-section">${t("navTiming", "Timing")}</a><a href="#dasha-section">${t("navDasha", "Dasha roadmap")}</a><a href="#vastu-section">${t("navVastu", "Home Vastu")}</a><a href="#timeline-top">${t("backToTimeline", "Timeline top")}</a></nav></div>
+        <div class="module-panel-heading timeline-panel-heading" id="timeline-top"><p class="summary-kicker">${t("tabTimeline", "Timeline · Ank Jyotish Dasha")}</p><h2>${t("timelinePanelTitle", "Your Dasha roadmap")}</h2><p>${t("timelinePanelDesc", "Read the current Ank Jyotish Dasha stack, active Vastu zone and life-event windows as a time-based roadmap. This proportional numerology clock is not classical Vimshottari and never uses either grid to alter timing.")}</p><nav class="timeline-anchor-nav" aria-label="${t("timelineNavigation", "Timeline navigation")}"><a href="#timing-section">${t("navTiming", "Timing")}</a><a href="#dasha-section">${t("navDasha", "Dasha roadmap")}</a><a href="#vastu-section">${t("navVastu", "Home Vastu")}</a><a href="#timeline-top">${t("backToTimeline", "Timeline top")}</a></nav></div>
         ${timingSection}
         ${dashaSection}
         ${vastuSection}

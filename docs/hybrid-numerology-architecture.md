@@ -13,9 +13,14 @@ Neither grid is allowed to silently change the other system's result.
 | Surface | User question | System of record | Primary output |
 | --- | --- | --- | --- |
 | **Foundation · Lo Shu** | “What patterns and practices support me?” | Classic Lo Shu | Personality blueprint, Name/Combined mapping, planes, arrows, missing/repeated signals and 40-day practice |
-| **Timeline · Vedic Dasha** | “What is active now and when does it change?” | Deterministic Ank Jyotish Dasha | Current MD/AD/PD, dates, event windows and active Vastu zone |
+| **Timeline · Ank Jyotish Dasha** | “What is active now and when does it change?” | Deterministic Ank Jyotish Dasha | Current MD/AD/PD, dates, event windows and active Vastu zone |
 | **Advanced Vedic Comparison** | “What does the Vedic birth matrix show?” | Vedic Ank Kundali | Birth-only planetary-strength indicators |
 | **Kua** | “What are my Feng Shui directions?” | Feng Shui | Separate Chinese-direction reference |
+
+The Ank Jyotish Dasha is a proportional numerology clock: Moolank seeds the
+sequence, Mahadasha lengths equal the number, and sub-periods use the 45-year
+proportional cycle. It is explicitly **not classical Vimshottari Dasha** and
+does not use nakshatra balance to claim Vimshottari timing.
 
 Foundation is the post-onboarding default. Timeline is selected for `#timeline`,
 `#timing-section`, `#dasha-section` and `#vastu-section` routes.
@@ -33,6 +38,11 @@ This table is both a product decision and a regression boundary.
 | Crystals, Rudraksha, affirmations and habits for remedies | Lo Shu Birth Grid | Driver/Conductor, Vedic comparison, Dasha, zodiac |
 | Bio-energetic Tattva anchors (breath, herbal bath, aroma, water, sunlight) | Vedic birth planes that are Partly Active or Deficient (`data-authority="vedic-tattva"`) | Complete Vedic planes, Lo Shu kits, crystals, Dasha timing |
 | 40-day activation target and practice | Lo Shu Birth Grid | Home scan, Dasha, dosha and deity cards |
+
+The knowledge-pack schema permits `db.dasha.relationshipPolicy` to add
+reviewed hostile or Grahan pairs. It cannot remove the application-enforced
+classical hostile/Grahan pairs, so a custom pack cannot weaken the safety
+boundary.
 | Dasha dates and event windows | Dasha engine | Both grids |
 | Dynamic Active Vastu Zone | Active Dasha lords + Vedic compass mapping | Both grids, static room scan, Kua |
 | Compatibility reflection | Four pairwise Driver/Conductor relations | Lo Shu remedy output, Dasha timing, Vastu activation |
@@ -157,7 +167,7 @@ Report
 │   ├── 4A Vedic Plane Harmonization — Elemental Tattva Balancing (cards only for partial/empty planes)
 │   ├── Supporting identity / career / colour / Kua features
 │   └── Lo Shu 40-day activation plan + separate Driver/Conductor power-day reference
-└── Timeline · Vedic Dasha
+└── Timeline · Ank Jyotish Dasha
     ├── Long-range Personal-Year Context (explicitly non-Dasha)
     ├── Current Dasha stack (MD × AD relationship badge, next Pratyantar)
     ├── Next 90 Days — Pratyantar micro-forecast (crosses the AD boundary)

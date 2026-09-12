@@ -1741,6 +1741,12 @@ var DB = {
      activates, its caution, and the Vastu zone to service while its
      sub-period runs (planet → direction mapping). */
   dasha: {
+    relationshipPolicy: {
+      // Additive pack policy only. Classical Grahan and hostile Sambhandha
+      // pairs remain enforced in app.js and cannot be removed by a pack.
+      additionalHostilePairs: [],
+      grahanPairs: []
+    },
     1: {
       theme: { en: "Authority and visibility — a period to lead, build your name and earn recognition from seniors and the state.",
                hi: "अधिकार और पहचान — नेतृत्व करने, नाम बनाने और वरिष्ठों व शासन से मान्यता पाने का काल।",
