@@ -1,6 +1,6 @@
 # NumeroVastu 360 — Senior-Numerologist Evaluation
 
-**Product evaluated:** NumeroVastu 360, Release **2.8.0** ("Lo Shu Foundation + Vedic Dasha Timeline")
+**Product evaluated:** NumeroVastu 360, Release **2.8.0** ("Lo Shu Foundation + Ank Jyotish Dasha Timeline")
 **Method:** Full-source review + live engine run on a real subject chart, cross-checked by hand (independent arithmetic).
 **Audit subject:** **Randeep Walia** — born **05-08-1976**, **20:15 IST**, Faridabad, Haryana, India.
 **Date of review:** 2026-09-07
@@ -48,7 +48,7 @@ Birth, Name and **Combined** grids are plotted by *number key* against the canon
 ### Advanced Vedic comparison
 Correctly kept **birth-grid-only**, closed by default, and framed as *planetary-strength indicators* rather than a second remedy checklist. This is the single most responsible design choice in the product: most hybrid tools would have minted missing-number "remedies" from the Vedic grid. This one refuses, and it states so in the UI.
 
-### Timeline · Vedic Dasha
+### Timeline · Ank Jyotish Dasha
 The proportional 45-year numerology stack (MD duration = the number; AD = MD×AD÷45; PD nested) is **internally exact** — I confirmed boundary dates, `adProgress`, and a Pratyantar ending exactly 7 days out on the review date. Life-event windows are graded High/Moderate/Conditional by natal presence of the *significator lords* rather than being deleted when a significator is natally absent — a mature fix to a classic "windows vanish" bug.
 
 ### Practitioner Cockpit
@@ -71,9 +71,9 @@ I did **not** find a numeric error in the worked output. That is itself the head
 
 These are the reasons I cannot call it "stand the test of time" *without qualification*:
 
-1. **The "Vedic Dasha" label is the weakest claim in the product.** The timeline is a **Moolank-seeded numerology Dasha on a 45-year base**, where each Mahadasha lasts exactly its number of years (here Venus MD = 6 years) and sub-periods are proportional. That is *not* classical Vedic **Vimshottari Dasha** (nakshatra-anchored, fixed 120-year lord durations: Venus 20y, Saturn 19y, Sun 6y, Moon 10y, Mars 7y, Rahu 18y, Jupiter 16y, Mercury 17y, Ketu 7y). This engine computes Jyeshtha (Moon nakshatra) yet does not use it to anchor a Vimshottari balance — so a client told they are in "Venus Mahadasha" from a moolank-proportional clock could be given a different (and, to a Jyotisha, more authoritative) period from their true Vimshottari stack. **Recommendation:** relabel the module *"Numerology (Ank Jyotish) Dasha Timeline"*, and/or add an optional true Vimshottari layer now that Moon-nakshatra is computed. This is a framing fix, not a math fix, but it materially strengthens the "Vedic" authority claim.
+1. **The previous "Vedic Dasha" label required a framing correction.** The timeline is a **Moolank-seeded numerology Dasha on a 45-year base**, where each Mahadasha lasts exactly its number of years (here Venus MD = 6 years) and sub-periods are proportional. That is *not* classical Vedic **Vimshottari Dasha** (nakshatra-anchored, fixed 120-year lord durations: Venus 20y, Saturn 19y, Sun 6y, Moon 10y, Mars 7y, Rahu 18y, Jupiter 16y, Mercury 17y, Ketu 7y). The shipped UI and docs now call this **Ank Jyotish Dasha** and state the non-Vimshottari boundary in English, Hindi and Gujarati. This is a framing fix, not a math fix.
 
-2. **`getDashaRelationship` and the Antardasha badge depend on the knowledge pack's friendship matrix**, with a small hard-coded list of hostile pairs (Grahan axis, Sun–Saturn, Mars–Saturn, Jupiter–Venus). The intent (never show green on a hostile sub-period) is sound, but the hard-coded override list means any future custom pack's friendship edits are partly overridden by code. Keep this, but document it in the pack schema so a pack author isn't surprised.
+2. **`getDashaRelationship` and the Antardasha badge depend on the knowledge pack's friendship matrix**, with a non-removable hard-coded list of hostile pairs (Grahan axis, Sun–Saturn, Mars–Saturn, Jupiter–Venus). The pack schema now exposes an additive `db.dasha.relationshipPolicy` for reviewed extra hostile or Grahan pairs; pack policy cannot weaken the classical safety boundary.
 
 3. **School-dependence is real but disclosed.** Lo Shu including century digits and re-adding Driver/Conductor; the Vedic grid excluding the century and de-duplicating direct days; challenge values that can read 0 — each is a *legitimate school*, and the app is good about labelling them. A practitioner should still tell clients that numerology has methodological schools and that the two grids here answer different questions by design.
 
@@ -93,7 +93,7 @@ The review was performed on the latest version, which includes the **date-input 
 
 - **Accuracy:** core numerology and astronomy **verified correct** on the worked chart.
 - **Depth:** genuinely deep and layered; the Lo Shu / Vedic / timing separation is best-in-class.
-- **Test-of-time:** strong and improving, provided the **"Vedic Dasha" naming** is reconciled with the actual (numerology-proportional) engine and the project ships its already-scoped quality gates.
+- **Test-of-time:** strong and improving now that the **Ank Jyotish Dasha** naming and non-Vimshottari disclosure match the actual numerology-proportional engine.
 
 **Rating: 4.5 / 5 — recommended for professional reflection use** (with the Vedic-Dasha-framing caveat resolved), and clearly *not* a substitute for medical/legal/financial/relationship advice, which the app itself already states.
 

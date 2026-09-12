@@ -15,7 +15,8 @@ Last reviewed: 2026-09-08
 | Deity protection layer | Pass | Ishta devta mapping for numbers 1–9 (EN/HI/GU) in knowledge pack v2.5.0; smoke suite covers the card, excess-energy cross-ref and 40-day plan line. |
 | Accessibility baseline | Improved | Added keyboard skip link; form labels and aria-live regions already present. |
 | Clinical viability | Improved | Remedy triage stages the prescription (one acute japa target, Tier 2 held on environmental cues with activation dates); the 40-Day Plan opens with the triage card and flags each checklist row Tier 1 / Tier 2. |
-| Predictive rigour | Improved | `getDashaRelationship()` applies classical Sambhandha (MD hosts AD, symmetric Grahan/hostile pairs) to the Antardasha badge, the Pratyantar rows and the cockpit; conflicting stacks can never render green. |
+| Predictive rigour | Improved | The proportional Ank Jyotish Dasha clock is explicitly distinguished from classical Vimshottari; `getDashaRelationship()` applies the non-removable classical Sambhandha safety boundary plus additive pack-reviewed hostile pairs, and conflicting stacks can never render green. |
+| Knowledge-pack schema coverage | Pass | Smoke tests validate the schema contract and semantic pack invariants for every versioned file under `knowledge-pack/packs/`. |
 | Formula integrity | Pass | `formatConductorBreakdown()` derives the printed equation from raw DOB digits; smoke tests assert the 31/01/1978 string exactly. |
 | Practitioner workflow | Added | One-page printable Practitioner Cockpit module (`#practitioner-cockpit`) with its own cockpit-only print mode. |
 | Clinical contraindications | Added (2.8.2) | Moon-cold guardrail for Number 2 (cold/respiratory-sensitive charts run a warm lunar kit: Shiva japa, lukewarm silver water, Nadi Shodhana; raw Beej japa, cold fasts, Pearl/Moonstone and cold milk paused) and a dosha × planet overlay for Numbers 1 and 3–9 (flagged kits carry a mild-form banner; canonical mantra rows untouched). Health-focus section, triage card and cockpit facts carry the same flags in EN/HI/GU; smoke suite pins the levels, reason codes and banner placement. |
@@ -49,8 +50,7 @@ Use `npm run check:full` in CI environments where the Playwright browser is alre
 ## Remaining high-value enhancements
 
 1. Add automated browser accessibility checks with Playwright + axe-core.
-2. Add JSON Schema validation tests for every Knowledge Pack file.
-3. Commit reviewed Playwright screenshot baselines after running `npm run test:visual` in a browser-enabled environment.
-4. Add CI workflow for `npm ci && npm run check:full` on every pull request.
-5. Add a formal content review process for numerology/Vastu remedy updates.
-6. Add optional PWA manifest/service worker only if offline installability becomes a product goal.
+2. Commit reviewed Playwright screenshot baselines after running `npm run test:visual` in a browser-enabled environment.
+3. Add CI workflow for `npm ci && npm run check:full` on every pull request.
+4. Add a formal content review process for numerology/Vastu remedy updates.
+5. Add optional PWA manifest/service worker only if offline installability becomes a product goal.

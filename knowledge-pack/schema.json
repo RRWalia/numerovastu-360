@@ -153,7 +153,29 @@
         },
         "dasha": {
           "type": "object",
-          "description": "Required numerology Dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the independent Dasha timeline and active Vastu zone."
+          "description": "Required proportional Ank Jyotish Dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the independent timeline and active Vastu zone. This is not classical Vimshottari.",
+          "properties": {
+            "relationshipPolicy": {
+              "type": "object",
+              "description": "Optional additive policy for pack-reviewed hostile pairs. These entries may add caution but cannot remove the classical safety boundary enforced by the application.",
+              "properties": {
+                "additionalHostilePairs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[1-9]-[1-9]$"
+                  }
+                },
+                "grahanPairs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[1-9]-[1-9]$"
+                  }
+                }
+              }
+            }
+          }
         },
         "loShuGrid": {
           "type": "object",

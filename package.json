@@ -2,7 +2,7 @@
   "name": "numerovastu-360",
   "private": true,
   "version": "2.8.2",
-  "description": "Hybrid Lo Shu Foundation & Vedic Dasha timeline \u2014 private numerology and Vastu guidance",
+  "description": "Hybrid Lo Shu Foundation & Ank Jyotish Dasha timeline — private numerology and Vastu guidance",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "start": "npm run dev",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "ajv": "^8.20.0",
     "jsdom": "^30.0.1",
     "vite": "^8.2.2"
   }

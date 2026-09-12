@@ -1,12 +1,12 @@
 # NumeroVastu 360
 
-**Release 2.8.2 — Lo Shu Foundation + Vedic Dasha Timeline**
+**Release 2.8.2 — Lo Shu Foundation + Ank Jyotish Dasha Timeline**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps two traditions separate:
 
 - **Foundation · Lo Shu** answers *“What patterns do I work with?”*
-- **Timeline · Vedic Dasha** answers *“What is active now, and when does it change?”*
+- **Timeline · Ank Jyotish Dasha** answers *“What is active now, and when does it change?”*
 - **Cockpit · Practitioner** answers *“What do I actually do in this consultation?”*
 
 Enter a name, date of birth and optional home details to generate a report. No
@@ -85,7 +85,12 @@ Foundation is the initial personality and practice dashboard. It includes:
 The Name and Combined grids use the same Lo Shu coordinates as the Birth Grid.
 They do **not** create Vedic Name or Vedic Combined grids.
 
-### Timeline · Vedic Dasha
+### Timeline · Ank Jyotish Dasha
+
+This is a proportional numerology (Ank Jyotish) clock seeded from Moolank:
+Mahadasha lengths equal the number and sub-periods are proportional on a
+45-year cycle. It is intentionally **not classical Vimshottari Dasha** and
+does not claim nakshatra-anchored Vimshottari timing.
 
 Timeline is the time-based roadmap. It contains:
 
@@ -166,7 +171,7 @@ lifestyle obligations, partner-side remedy kits or a second 40-day plan.
 
 The Driver/Conductor power-day card is a scheduling reference. It does not pick
 or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng
-Shui (Chinese)** and remains separate from the Vedic Dasha/Vastu direction map.
+Shui (Chinese)** and remains separate from the Ank Jyotish Dasha/Vastu direction map.
 
 ## Grid calculations
 
