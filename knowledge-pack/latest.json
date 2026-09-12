@@ -1,7 +1,7 @@
 {
   "manifestVersion": 1,
   "latestVersion": "2.8.0",
-  "appVersion": "2.8.2",
+  "appVersion": "2.9.0",
   "packUrl": "knowledge-pack/packs/2.8.0.json",
-  "notes": "Hybrid release: restores the classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, keeps Vedic Ank Kundali as a birth-only Planetary Strength Indicator comparison, and retains the independent proportional Ank Jyotish Dasha / active Vastu timeline."
+  "notes": "Hybrid release: classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, Vedic Ank Kundali retained as a birth-only Planetary Strength Indicator, the independent proportional Ank Jyotish Dasha / active Vastu timeline, and — new in app 2.9.0 — an additive Classical Vimshottari layer anchored on the natal Moon nakshatra. Knowledge data itself is unchanged; latestVersion stays 2.8.0."
 }

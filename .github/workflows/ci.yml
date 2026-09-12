@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Required gate. Fast, deterministic, no browser needed — this is what a
+  # reviewer blocks on. Mirrors the documented release gate in QUALITY_AUDIT.md.
+  verify:
+    name: Smoke · audit · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Smoke suite, dependency audit, static build and archive freshness
+        run: npm run check
+
+      - name: Confirm the source archive matches this commit
+        run: npm run check:source-zip
+
+      - name: Confirm the static build produced a deployable dist/
+        run: |
+          test -f dist/index.html
+          test -f dist/app.js
+          test -f dist/knowledge-pack/latest.json
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+          test -f dist/icons/icon-512.png
+
+  # Visual regression. Runs strictly when reviewed baselines are committed;
+  # otherwise it says so loudly and uploads freshly generated baselines for a
+  # maintainer to review. It never silently passes.
+  visual:
+    name: Visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Check whether reviewed baselines are committed
+        id: baselines
+        run: |
+          shopt -s nullglob
+          found=(tests/visual/*-snapshots)
+          if [ ${#found[@]} -gt 0 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Visual baselines missing::No Playwright snapshot baselines are committed under tests/visual/*-snapshots/, so screenshot regression cannot gate this PR. Run 'npm run browsers:install && npm run test:visual:update' in a browser-enabled environment and commit the resulting baseline PNGs."
+          fi
+
+      - name: Visual regression (strict)
+        if: steps.baselines.outputs.present == 'true'
+        run: npm run test:visual:ci
+
+      # Best-effort by design. With no committed baselines there is nothing to
+      # compare against, so this run cannot gate the PR; it exists to produce
+      # the baselines and the failure report for a maintainer to review.
+      # The step below states the outcome explicitly either way.
+      - name: Generate baselines for review
+        id: generate
+        if: steps.baselines.outputs.present == 'false'
+        continue-on-error: true
+        run: npm run test:visual
+
+      - name: Report visual regression status
+        if: always()
+        run: |
+          if [ "${{ steps.baselines.outputs.present }}" = "true" ]; then
+            echo "Visual regression ran strictly against committed baselines."
+          elif [ "${{ steps.generate.outcome }}" = "success" ]; then
+            echo "::warning title=Visual regression not gating::No reviewed baselines are committed, so screenshot regression did NOT gate this PR. Freshly generated baselines were uploaded as the 'playwright-baselines' artifact — download, review and commit them."
+          else
+            echo "::warning title=Visual regression not gating (specs errored)::No reviewed baselines are committed, and the baseline-generation run also failed, so screenshot regression did NOT gate this PR. This is a known outstanding item: the Playwright specs have not yet been validated in a browser-enabled environment. Download the 'playwright-report' artifact to see the assertion that failed."
+          fi
+
+      - name: Upload generated baselines
+        if: steps.baselines.outputs.present == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-baselines
+          path: tests/visual/**/*-snapshots/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # `failure()` alone is not enough: continue-on-error on the generation
+      # step absorbs the exit code, so check that step's outcome explicitly.
+      - name: Upload failure traces
+        if: failure() || steps.generate.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

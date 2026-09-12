@@ -806,6 +806,210 @@ const guContra = window.__NV.renderReport(pittaChart);
 window.__NV.setLanguage("en");
 check("dosha-contra banners localise to Hindi and Gujarati", /data-clinical-guardrail="dosha-contra"/.test(hiContra) && /\u0928\u0948\u0926\u093e\u0928\u093f\u0915 \u0938\u0941\u0930\u0915\u094d\u0937\u093e/.test(hiContra) && /data-clinical-guardrail="dosha-contra"/.test(guContra) && /\u0a95\u0acd\u0ab2\u0abf\u0aa8\u0abf\u0a95\u0ab2 \u0ab8\u0ab2\u0abe\u0aae\u0aa4\u0ac0/.test(guContra) && window.__NV.getLang() === "en");
 
+/* ---- Classical Vimshottari layer (true nakshatra anchoring) ----------------
+   The Ank Jyotish roadmap and the classical Vimshottari stack are two separate
+   traditions. These checks pin the classical maths against a by-hand chart so
+   the two can never be silently merged into one claim again. */
+const vimProfile = profile({
+  name: "Vim Fixture", dob: "1976-08-05", goals: ["Career"], gender: "male",
+  birthTime: "20:15", birthPlace: "Faridabad, India"
+});
+const vim = window.__NV.vimshottariTimeline(vimProfile);
+check("Vimshottari anchors on the Moon nakshatra, not the Moolank", !!vim && vim.anchor.nakshatra === "Jyeshtha" && vim.anchor.lord === "Mercury" && vim.anchor.deity === "Indra" && vim.anchor.pada === 3 && vim.anchor.moonSign === "Scorpio" && vimProfile.driver === 5);
+// Moon 234.8744° sidereal → 8.2077° into the 13.3333° Jyeshtha span → 61.56%
+// elapsed → Mercury (17y) balance = (1 − 0.6156) × 17 = 6.535y.
+check("Vimshottari balance deducts the traversed nakshatra fraction", !!vim && vim.anchor.elapsedPct === 61.6 && Math.abs(vim.balanceYears - 6.535) < 0.002 && vim.mahadashas[0].lord === "Mercury" && vim.mahadashas[0].balance === true);
+check("Vimshottari keeps the classical fixed 120-year lord durations", window.__NV.VIMSHOTTARI_TOTAL_YEARS === 120 && same(window.__NV.VIMSHOTTARI_LORDS.map((r) => r[1]), [7, 20, 6, 10, 7, 18, 16, 19, 17]));
+const vimLords = vim.mahadashas.map((m) => m.lord);
+check("Vimshottari advances in the canonical Ketu→Mercury order", same(vimLords.slice(0, 6), ["Mercury", "Ketu", "Venus", "Sun", "Moon", "Mars"]) && vim.mahadashas.slice(1, 6).every((m) => m.years === m.fullYears));
+const vimMars = vim.mahadashas.find((m) => m.lord === "Mars");
+check("Vimshottari places the running Mahadasha at Mars, not the Ank Jyotish Venus", !!vimMars && vimMars.current === true && vim.current.md.lord === "Mars" && vim.current.ad.lord === "Rahu" && vim.agreementSignature === "Mars/Rahu");
+// The decisive framing check: the two clocks must be allowed to disagree.
+const ankNow = window.__NV.dashaTimeline(vimProfile, new Date("2026-09-12"));
+const ankLordNow = (window.__NV.getActiveDB().numbers[ankNow.current.md.n].planet || "").split(" ")[0];
+check("the two Dasha traditions are independently reported and may disagree", ankNow.current.md.n === 6 && ankLordNow === "Venus" && vim.current.md.lord === "Mars" && ankLordNow !== vim.current.md.lord);
+check("Vimshottari sub-periods subdivide by the 120-year weights", (() => {
+  const md = vim.current.md, ad = vim.current.ad;
+  const expected = md.years * (window.__NV.VIMSHOTTARI_LORDS.find((r) => r[0] === ad.lord)[1] / 120);
+  return Math.abs(ad.years - expected) < 1e-9 && ad.startMs >= md.startMs && ad.endMs <= md.endMs + 1 && vim.current.pd.startMs >= ad.startMs && vim.current.pd.endMs <= ad.endMs + 1;
+})());
+// Regression: sub-periods must carry their own age window. An earlier version
+// rendered the parent Mahadasha's ages on the Antardasha and Pratyantar rows,
+// which misreported a 1-year AD as spanning the whole 7-year MD.
+check("each sub-period reports its own age window, not the Mahadasha's", (() => {
+  const { md, ad, pd } = vim.current;
+  return ad.fromAge !== md.fromAge && ad.toAge !== md.toAge &&
+    ad.fromAge >= md.fromAge && ad.toAge <= md.toAge &&
+    pd.fromAge >= ad.fromAge && pd.toAge <= ad.toAge &&
+    ad.fromAge < ad.toAge && pd.fromAge < pd.toAge;
+})());
+const noTimeProfile = profile({ name: "Vim Fixture", dob: "1976-08-05", goals: ["Career"], birthTime: "", birthPlace: "" });
+check("Vimshottari needs Tier-2 birth data and degrades honestly without it", window.__NV.vimshottariTimeline(noTimeProfile) === null);
+const vimReport = window.__NV.renderReport(vimProfile);
+const vimDom = mount(vimReport);
+const vimCard = $("#dasha-section .vimshottari-card", vimDom);
+check("the classical layer renders as its own authority card", !!vimCard && vimCard.getAttribute("data-authority") === "vimshottari" && vimCard.getAttribute("data-vimshottari-md") === "Mars" && vimCard.getAttribute("data-vimshottari-agrees") === "no" && /Mars/.test(vimCard.textContent) && /Jyeshtha/.test(vimCard.textContent) && /6\.535/.test(vimCard.textContent));
+check("the classical layer carries no remedy authority or Vastu zone content", !vimCard.querySelector("[data-remedy-authority]") && !vimCard.querySelector("[data-dasha-vastu-zone]") && !/zone-remedy|Lo Shu remedy target/i.test(vimCard.textContent));
+// Regression: the disagreement note read "Ank Jyotish: 6" — a bare digit —
+// because the lord was looked up on the dasha period entry instead of
+// db.numbers. It must name the planet, and name both lords side by side.
+check("the disagreement note names both lords with their planets", /Ank Jyotish: Venus \(6\)/.test(vimCard.textContent) && /Vimshottari: Mars \(9\)/.test(vimCard.textContent) && /data-vimshottari-comparison="differ"/.test(vimReport));
+check("sub-period rows render their own dates and ages", (() => {
+  const rows = Array.from(vimCard.querySelectorAll("table tr")).map((tr) => tr.textContent.replace(/\s+/g, " ").trim());
+  const ad = rows.find((r) => /Antardasha/.test(r));
+  const md = rows.find((r) => /Mahadasha/.test(r) && /Mars/.test(r));
+  return !!ad && !!md && /Rahu/.test(ad) && /2026/.test(ad) && !/Ages 49\.5–56\.5/.test(ad) && /Ages 49\.5–56\.5/.test(md);
+})());
+const noTimeReport = window.__NV.renderReport(noTimeProfile);
+const noTimeCard = $("#dasha-section .vimshottari-card", mount(noTimeReport));
+check("without birth data the card explains the requirement instead of guessing", !!noTimeCard && noTimeCard.getAttribute("data-vimshottari") === "unavailable" && /exact birth time/.test(noTimeCard.textContent));
+check("the timeline never claims to be Vimshottari-derived", !/Vimshottari-derived/i.test(vimReport) && !/Vimshottari-derived/i.test(read("app.js")) && !/Vimshottari-derived/i.test(read("i18n.js")) && /not classical Vimshottari/i.test(vimReport));
+window.__NV.setLanguage("hi");
+const hiVim = window.__NV.renderReport(vimProfile);
+const hiVimCard = $("#dasha-section .vimshottari-card", mount(hiVim));
+check("the Vimshottari card localises to Hindi", !!hiVimCard && hiVimCard.getAttribute("data-vimshottari-md") === "Mars" && /\u0936\u093e\u0938\u094d\u0924\u094d\u0930\u0940\u092f \u0935\u093f\u092e\u094d\u0936\u094b\u0924\u094d\u0924\u0930\u0940/.test(hiVimCard.textContent) && !/Classical Vimshottari Dasha \u2014 Moon-Nakshatra/.test(hiVimCard.textContent));
+window.__NV.setLanguage("gu");
+const guVim = window.__NV.renderReport(vimProfile);
+const guVimCard = $("#dasha-section .vimshottari-card", mount(guVim));
+check("the Vimshottari card localises to Gujarati", !!guVimCard && guVimCard.getAttribute("data-vimshottari-md") === "Mars" && /\u0ab6\u0abe\u0ab8\u0acd\u0aa4\u0acd\u0ab0\u0ac0\u0aaf \u0ab5\u0abf\u0aae\u0acd\u0ab6\u0acb\u0aa4\u0acd\u0aa4\u0ab0\u0ac0/.test(guVimCard.textContent));
+window.__NV.setLanguage("en");
+check("every localised Vimshottari key is translated in all three languages", (() => {
+  const keys = ["vimshottariTitle", "vimshottariKicker", "vimshottariIntro", "vimshottariAnchorLabel", "vimshottariBalanceLabel", "vimshottariBalanceNote", "vimshottariLadderTitle", "vimshottariCurrentTitle", "vimshottariCompareTitle", "vimshottariCompareAgree", "vimshottariCompareDiffer", "vimshottariNoTime", "vimshottariAge", "vimshottariBalanceTag", "vimshottariMD", "vimshottariAD", "vimshottariPD", "vimshottariElapsed", "vimshottariBoundary", "dashaJudgeNote"];
+  return ["en", "hi", "gu"].every((lang) => keys.every((k) => {
+    const v = window.I18N[lang] && window.I18N[lang].ui && window.I18N[lang].ui[k];
+    return typeof v === "string" && v.trim().length > 0;
+  }));
+})());
+
+/* ---- Authority-vocabulary lint -------------------------------------------
+   Regression guard: as content grows, a remedy-bearing block must never be
+   re-sourced by another module. Every authority tag must come from the known
+   vocabulary, and no non-Lo-Shu scope may contain a remedy obligation. */
+const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "clinical-cockpit", "framework-note"]);
+const authorityNodes = $$("[data-authority]", authorityReportDom);
+check("every data-authority tag comes from the declared vocabulary", authorityNodes.length > 0 && authorityNodes.every((node) => AUTHORITY_VOCAB.has(node.getAttribute("data-authority"))));
+check("every remedy-bearing block nests inside Lo Shu authority", remedyBlocks.every((node) => !!node.closest('[data-authority="lo-shu-overlay"], [data-authority="clinical-cockpit"]') || !node.closest("[data-authority]")) && authorityNodes.filter((node) => node.getAttribute("data-authority") !== "lo-shu-overlay" && node.getAttribute("data-authority") !== "clinical-cockpit").every((node) => !node.querySelector("[data-remedy-authority]")));
+check("no Vedic-authority scope carries a Lo Shu remedy obligation", authorityNodes.filter((node) => ["vedic-tattva", "zodiac-reference", "dasha", "vimshottari"].includes(node.getAttribute("data-authority"))).every((node) => !node.querySelector("[data-remedy-authority]") && !node.querySelector("[data-solar-moderation]")));
+// The zone card is Dasha-selected but Vastu-prescribed, so it must declare
+// its own authority instead of silently inheriting the Dasha scope.
+const zoneCards = $$('[data-dasha-vastu-zone="active"]', authorityReportDom);
+check("the Dasha-selected Vastu zone declares its own authority scope", zoneCards.length === 1 && zoneCards[0].getAttribute("data-authority") === "dasha-vastu-zone" && !!zoneCards[0].closest('[data-authority="dasha"]') && !zoneCards[0].querySelector("[data-remedy-authority]"));
+check("the classical Vimshottari card carries no Vastu or remedy content at all", (() => { const c = $("#dasha-section .vimshottari-card", authorityReportDom); return !!c && !c.querySelector("[data-remedy-authority]") && !c.querySelector("[data-dasha-vastu-zone]") && !/sector|direction|North-East|South-West/i.test(c.getAttribute("data-vimshottari") === "unavailable" ? "" : c.textContent.replace(/never feeds Lo Shu remedies, Vastu zones/g, "")); })());
+
+/* ---- Classical safety boundary is documented, not just hard-coded -------- */
+const packPolicySchema = schema.properties.db.properties.dasha.properties.relationshipPolicy;
+check("the pack schema names the non-removable classical safety pairs", !!packPolicySchema.description && /cannot (be )?remove|non-removable|immutable/i.test(packPolicySchema.description) && Array.isArray(packPolicySchema["x-classicalSafetyPairs"]) && packPolicySchema["x-classicalSafetyPairs"].length > 0);
+check("the documented classical pairs match the pairs the engine enforces", (() => {
+  const documented = packPolicySchema["x-classicalSafetyPairs"].map((p) => `${p.md}-${p.ad}`);
+  const grahan = documented.filter((p) => ["4-2", "2-4", "4-1", "1-4"].includes(p));
+  const hostile = documented.filter((p) => ["1-8", "8-1", "9-8", "8-9", "3-6", "6-3"].includes(p));
+  return grahan.length === 4 && hostile.length === 6 && documented.every((p) => window.__NV.getDashaRelationship(+p.split("-")[0], +p.split("-")[1], 1).relation === "enemy");
+})());
+
+/* ---- Field read mode (phone consultations) -------------------------------
+   Presentation-only. It must never change an engine result or an authority
+   boundary, and it must be suppressed in print. */
+const fieldBtn = $("#fieldBtn");
+check("field mode is an actual toggle button, not a styled div", !!fieldBtn && fieldBtn.tagName === "BUTTON" && fieldBtn.getAttribute("aria-pressed") === "false" && /fieldModeToggle/.test(fieldBtn.getAttribute("data-i18n-aria") || ""));
+fieldBtn.dispatchEvent(new window.Event("click"));
+check("toggling field mode sets the body class and pressed state", window.document.body.classList.contains("field-mode") && fieldBtn.getAttribute("aria-pressed") === "true" && window.localStorage.getItem("nv360.fieldMode.v1") === "1");
+check("field mode leaves every engine output untouched", (() => {
+  const before = JSON.stringify(window.__NV.dashaTimeline(authorityProfile));
+  const vimBefore = JSON.stringify(window.__NV.vimshottariTimeline(authorityProfile));
+  const after = JSON.stringify(window.__NV.dashaTimeline(authorityProfile));
+  const vimAfter = JSON.stringify(window.__NV.vimshottariTimeline(authorityProfile));
+  return before === after && vimBefore === vimAfter;
+})());
+check("field mode localises in all three languages", (() => {
+  const out = [];
+  for (const lang of ["en", "hi", "gu"]) {
+    window.__NV.setLanguage(lang);
+    window.__NV.showReport(authorityProfile, { preserveScroll: true });
+    out.push($("#fieldBtn .btn-text").textContent.trim());
+  }
+  window.__NV.setLanguage("en");
+  return new Set(out).size === 3 && out[1].length > 0 && out[2].length > 0;
+})());
+// Regression: the field-mode block was originally unscoped, so its
+// grid-template-columns:1fr !important would have collapsed the 3-column
+// cockpit grid on a printed sheet. It is now wrapped in @media screen, and
+// this asserts nothing under .field-mode can ever appear in a print block.
+check("print CSS cannot inherit field mode — the A4 sheet is unchanged", (() => {
+  const blockAt = (openBraceIdx) => {
+    let depth = 0;
+    for (let j = openBraceIdx; j < styles.length; j++) {
+      if (styles[j] === "{") depth++;
+      else if (styles[j] === "}") { depth--; if (depth === 0) return styles.slice(openBraceIdx, j + 1); }
+    }
+    return "";
+  };
+  const mediaBlocks = (kind) => {
+    const out = [];
+    const marker = "@media " + kind;
+    let from = 0, at;
+    while ((at = styles.indexOf(marker, from)) !== -1) {
+      const brace = styles.indexOf("{", at);
+      if (brace === -1) break;
+      out.push(blockAt(brace));
+      from = brace + 1;
+    }
+    return out;
+  };
+  const printBlocks = mediaBlocks("print");
+  const screenBlocks = mediaBlocks("screen");
+  return printBlocks.length > 0 &&
+    printBlocks.every((b) => !b.includes(".field-mode")) &&
+    screenBlocks.some((b) => b.includes(".field-mode .cockpit-grid")) &&
+    screenBlocks.some((b) => b.includes(".field-mode .kit-row"));
+})());
+fieldBtn.dispatchEvent(new window.Event("click"));
+check("toggling field mode off restores the report and clears storage", !window.document.body.classList.contains("field-mode") && fieldBtn.getAttribute("aria-pressed") === "false" && window.localStorage.getItem("nv360.fieldMode.v1") === "0");
+
+/* ---- PWA packaging ------------------------------------------------------
+   Offline installability must never break the browser-only app: these checks
+   pin that the worker only touches static assets, that the manifest is
+   install-valid, and that the strict CSP is not defeated by inline script. */
+const manifest = JSON.parse(read("manifest.webmanifest"));
+const swSource = read("sw.js");
+check("the web app manifest declares an installable standalone app", manifest.name && manifest.short_name && manifest.display === "standalone" && manifest.start_url && manifest.scope && manifest.theme_color && manifest.background_color);
+check("every manifest icon exists on disk with a declared size", manifest.icons.length >= 3 && manifest.icons.every((icon) => fs.existsSync(path.join(root, icon.src)) && /^\d+x\d+$/.test(icon.sizes) && icon.type === "image/png"));
+check("the manifest ships a maskable icon for Android adaptive launchers", manifest.icons.some((icon) => String(icon.purpose || "").split(/\s+/).includes("maskable")) && manifest.icons.some((icon) => String(icon.purpose || "").split(/\s+/).includes("any")));
+check("the manifest is linked from the document head with an Apple touch icon", /<link rel="manifest" href="manifest\.webmanifest" \/>/.test(html) && /<link rel="apple-touch-icon" href="icons\/apple-touch-icon\.png" \/>/.test(html) && /name="apple-mobile-web-app-capable" content="yes"/.test(html));
+check("the service worker is versioned and never caches non-GET or cross-origin requests", /^const CACHE_VERSION = "/m.test(swSource) && /request\.method === "GET"/.test(swSource) && /url\.origin === self\.location\.origin/.test(swSource) && /request\.headers\.has\("range"\)/.test(swSource));
+check("the service worker treats the knowledge pack as network-first", /knowledge-pack\//.test(swSource) && /networkFirst\(request, PACK_CACHE\)/.test(swSource));
+check("the service worker precaches only static shell assets, never personal data", (() => {
+  const list = swSource.slice(swSource.indexOf("const SHELL_ASSETS"), swSource.indexOf("];", swSource.indexOf("const SHELL_ASSETS")));
+  return !/localStorage|sessionStorage|indexedDB|\?name=|\bdob\b/i.test(list) && /\.\/index\.html/.test(list) && /\.\/app\.js/.test(list);
+})());
+check("registration is CSP-safe and can be bypassed with ?sw=off", !/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/.test(html) && /serviceWorker\.register\("sw\.js"\)/.test(read("app.js")) && /sw=off/.test(read("app.js")));
+check("the static build copies the manifest, worker and icons into dist/", (() => {
+  const buildSrc = read("scripts/build-static.cjs");
+  return /'sw\.js'/.test(buildSrc) && /'manifest\.webmanifest'/.test(buildSrc) && /'icons'/.test(buildSrc) && /CACHE_VERSION/.test(buildSrc);
+})());
+
+/* ---- Community / packaging gate -----------------------------------------
+   The audit's open packaging items: a licence, a content-review process and
+   CI on every PR. Pinned so they cannot silently disappear. */
+check("the project ships an MIT licence", fs.existsSync(path.join(root, "LICENSE")) && /^MIT License/m.test(read("LICENSE")));
+check("a content-review gate is documented and routed by CODEOWNERS", fs.existsSync(path.join(root, "CONTRIBUTING.md")) && /Content review gate/i.test(read("CONTRIBUTING.md")) && /practitioner sign-off/i.test(read("CONTRIBUTING.md")) && fs.existsSync(path.join(root, ".github", "CODEOWNERS")) && /knowledge-pack\//.test(read(path.join(".github", "CODEOWNERS"))));
+check("every remedy/dosha path is named in the pull-request template", fs.existsSync(path.join(root, ".github", "PULL_REQUEST_TEMPLATE.md")) && /Content review:/i.test(read(path.join(".github", "PULL_REQUEST_TEMPLATE.md"))) && /dosha/i.test(read(path.join(".github", "PULL_REQUEST_TEMPLATE.md"))));
+check("CI runs the full gate on every pull request", fs.existsSync(path.join(root, ".github", "workflows", "ci.yml")) && (() => {
+  const ci = read(path.join(".github", "workflows", "ci.yml"));
+  return /pull_request:/.test(ci) && /npm ci/.test(ci) && /npm run check$|npm run check\b/m.test(ci);
+})());
+
+/* ---- Source archive freshness -------------------------------------------
+   The committed "full source" download had silently gone six releases stale
+   (it still carried a deleted vite.config.js and a two-major-old pack), which
+   is worse than shipping no archive at all. It is now generated from HEAD and
+   verified on every run. */
+const pkgScripts = JSON.parse(read("package.json")).scripts;
+const packSource = read("scripts/package-source.mjs");
+check("the source archive is generated from HEAD, not hand-maintained", !!pkgScripts["package:source"] && !!pkgScripts["check:source-zip"] && /"archive"/.test(packSource) && /"ls-files"/.test(packSource) && /--check/.test(packSource));
+check("the release gate includes the archive freshness check", /check:source-zip/.test(pkgScripts.check) && /check:source-zip/.test(read(path.join(".github", "workflows", "ci.yml"))));
+check("the source archive builder refuses to package a dirty tree", /uncommitted changes/.test(read("scripts/package-source.mjs")) && /status", "--porcelain"/.test(read("scripts/package-source.mjs")));
+check("every generated asset is reproducible from a committed script", fs.existsSync(path.join(root, "scripts", "build-icons.mjs")) && fs.existsSync(path.join(root, "scripts", "build-static.cjs")) && !!pkgScripts["icons:build"]);
+
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
   process.exit(1);

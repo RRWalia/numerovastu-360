@@ -1231,6 +1231,59 @@ body {
 }
 
 /* ---------- Print (Save/Print Report) ---------- */
+/* ---- Classical Vimshottari card (separate Vedic authority layer) ----
+   Visually distinct from the Ank Jyotish cards so the two clocks never
+   read as one stack. Timing read-out only: no remedy or zone affordances. */
+.vimshottari-card {
+  border-left: 3px solid var(--accent, #6366f1);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.06), rgba(99, 102, 241, 0.01));
+}
+.vimshottari-card .vimshottari-subhead { margin-top: 14px; }
+.vimshottari-card .vimshottari-anchor { font-variant-numeric: tabular-nums; }
+.vimshottari-card[data-vimshottari-agrees="no"] .badge.info { background: #fef3c7; color: #92400e; }
+.vimshottari-card .card-sub { color: var(--label-secondary, #555); }
+
+/* ---- Field read mode (phone consultations) --------------------------
+   Presentation-only: bigger type, single column, less chrome. The whole
+   block is wrapped in @media screen so it CANNOT leak into print — the A4
+   report and cockpit sheet are identical whether or not a practitioner
+   happened to have it toggled on. */
+@media screen {
+  /* ---- Field read mode (phone consultations) --------------------------
+     Presentation-only: bigger type, single column, less chrome. Never applied
+     in print, so the A4 report and cockpit sheet are byte-identical whether or
+     not a practitioner happened to have it on. */
+  .field-mode .page { max-width: 100%; padding-left: 14px; padding-right: 14px; }
+  .field-mode .rsection-title { font-size: 1.35rem; line-height: 1.35; }
+  .field-mode .card,
+  .field-mode .priority-item,
+  .field-mode .metric-card { padding: 16px 14px; }
+  .field-mode .card-title { font-size: 1.05rem; }
+  .field-mode .kit-value,
+  .field-mode .card-sub,
+  .field-mode p,
+  .field-mode li { font-size: 1.02rem; line-height: 1.65; }
+  .field-mode .rtable { font-size: 0.98rem; }
+  .field-mode .rtable th,
+  .field-mode .rtable td { padding: 9px 8px; }
+  .field-mode .kit-row { flex-direction: column; gap: 7px; }
+  .field-mode .kit-ico { font-size: 1.4rem; }
+  .field-mode .card-grid,
+  .field-mode .kit,
+  .field-mode .plane-cards,
+  .field-mode .arrow-grid,
+  .field-mode .insight-grid,
+  .field-mode .cockpit-grid,
+  .field-mode .summary-grid { grid-template-columns: 1fr !important; }
+  .field-mode .num-card .num-value,
+  .field-mode .metric-value { font-size: 1.9rem; }
+  .field-mode .report-actions,
+  .field-mode .summary-cta { position: sticky; bottom: 0; z-index: 5; }
+  .field-mode .report-actions { padding: 8px 0; background: var(--surface, #fff); box-shadow: 0 -6px 14px rgba(0, 0, 0, 0.06); }
+  /* Long interpretive prose is the main reading surface on a phone. */
+  .field-mode .judge-note { font-size: 0.98rem; line-height: 1.7; }
+}
+
 @page { size: A4 portrait; margin: 12mm 10mm; }
 @media print {
   /* The skip link is parked above the viewport with a negative transform; in
@@ -1294,7 +1347,8 @@ body {
   .root-group { background: #fff; border: 1px solid #ddd; }
   .root-digit, .root-total, .root-step, .root-result { color: #111; }
   .root-op, .root-arrow, .root-group-label, .root-formula-words { color: #555; }
-  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading, .tattva-card { break-inside: avoid-page; page-break-inside: avoid; }
+  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading, .tattva-card, .vimshottari-card { break-inside: avoid-page; page-break-inside: avoid; }
+  .vimshottari-subhead { break-after: avoid; page-break-after: avoid; }
   #tattva-section { break-inside: auto; page-break-inside: auto; }
   .ritual-card { background: #fff; }
   .phase-badge { background: #eee; color: #111; }

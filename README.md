@@ -1,19 +1,54 @@
 # NumeroVastu 360
 
-**Release 2.8.2 — Lo Shu Foundation + Ank Jyotish Dasha Timeline**
+**Release 2.9.0 — Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
-It intentionally keeps two traditions separate:
+It intentionally keeps each tradition separate, and says so in the UI:
 
 - **Foundation · Lo Shu** answers *“What patterns do I work with?”*
 - **Timeline · Ank Jyotish Dasha** answers *“What is active now, and when does it change?”*
+- **Timeline · Classical Vimshottari** answers *“What does the nakshatra-anchored Vedic stack say?”*
 - **Cockpit · Practitioner** answers *“What do I actually do in this consultation?”*
 
 Enter a name, date of birth and optional home details to generate a report. No
-personal details are sent to an application server.
+personal details are sent to an application server. Installable as an offline
+PWA for use in the field.
+
+Licensed under the [MIT Licence](LICENSE). Contributions are welcome — read
+[CONTRIBUTING.md](CONTRIBUTING.md) first, especially the content-review gate
+for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.9.0
+
+Three framing and delivery fixes, prompted by an independent senior-numerologist
+review. Two of them are correctness fixes, not cosmetics.
+
+| Area | 2.9.0 behaviour |
+| --- | --- |
+| **Classical Vimshottari layer (new)** | A genuine nakshatra-anchored Vimshottari stack now ships alongside the Ank Jyotish roadmap. It is anchored on the natal Moon's nakshatra, uses the fixed 120-year lord durations (Ketu 7, Venus 20, Sun 6, Moon 10, Mars 7, Rahu 18, Jupiter 16, Saturn 19, Mercury 17), and deducts the traversed fraction of the birth nakshatra from the starting lord's balance. Antardasha and Pratyantar subdivide the parent span by the 120-year weights (`MD × AD ÷ 120`). It carries its own `data-authority="vimshottari"` and **never** feeds Lo Shu remedies, Vastu zones or the Ank Jyotish event windows. Requires Vedic Tier 2 (exact birth time + recognised birthplace); without it the card explains the requirement rather than guessing. |
+| **The two clocks are allowed to disagree — by design** | For the audit chart (05-08-1976, 20:15, Faridabad) the Ank Jyotish clock reads **Venus MD** while the true Vimshottari stack reads **Mars MD**. Both are now shown side by side, with a `data-vimshottari-agrees` flag and a comparison note. This is the honest answer: they are different traditions from different anchors, and neither overrides the other. |
+| **“Vimshottari-derived” claim removed (correctness fix)** | The Dasha card still said *“We use the classical Vimshottari-derived proportional cycle”* after the 2.8.3 relabel — a direct contradiction of the new non-Vimshottari disclosure, and exactly the over-claim the relabel was meant to remove. The note now states plainly that the proportional clock is **not** Vimshottari and points to the separate classical card. A smoke assertion pins that the phrase never returns. |
+| **Friendship-matrix override documented (correctness fix)** | `getDashaRelationship()` has always applied a hard-coded hostile-pair list (Grahan axis, Sun–Saturn, Mars–Saturn, Jupiter–Venus) that overrides part of the pack's `friendship` matrix. That boundary is now declared in the pack schema as `x-classicalSafetyPairs` with a “cannot be removed” description, and a smoke assertion keeps the documented pairs and the enforced pairs in sync. Pack policy remains **additive only** — it can add hostility, never remove it. |
+| **Authority lint widened** | The smoke suite now asserts every `data-authority` value comes from a declared vocabulary, that every remedy-bearing block nests inside Lo Shu authority, and that no Vedic-authority scope carries a remedy obligation. This caught a real leak: the Dasha-selected Vastu zone card was inheriting the `dasha` scope with no authority marker of its own. It now declares `data-authority="dasha-vastu-zone"`. |
+| **Packaging** | MIT `LICENSE` added. CI added (`.github/workflows/ci.yml`) running `npm ci && npm run check` on every PR plus a visual-regression job. `CONTRIBUTING.md`, `CODEOWNERS` and a PR template establish the practitioner content-review gate. PWA manifest + service worker + generated icon set make the app installable and genuinely offline. |
+| **Field read mode** | A phone-first reading mode for consultations away from a desk: larger type, single column, reduced clutter, sticky actions. Purely a presentation switch — it changes no engine output and is neutralised in print so the A4 sheet is identical either way. |
+
+### Reading the two Dasha traditions together
+
+For a professional consultation, use them as a Jyotishi and an Ank Jyotishi
+would each report from their own shastra:
+
+| | Ank Jyotish Dasha | Classical Vimshottari |
+| --- | --- | --- |
+| Anchor | Moolank (birth day number) | Natal Moon's nakshatra |
+| Cycle | 45 years (1+2+…+9) | 120 years, fixed |
+| Mahadasha length | The number itself | Fixed lord years |
+| Sub-period | `MD × AD ÷ 45` | `MD × AD ÷ 120` |
+| Needs birth time | No (refines boundaries) | **Yes** (Tier 2) |
+| Remedies | Owns Lo Shu remedy timing | **Never** — timing read-out only |
 
 ## What changed in 2.8.2
 

@@ -1,0 +1,33 @@
+# Review routing for NumeroVastu 360.
+#
+# Content review gate: any change to a remedy, dosha, deity, mantra, crystal,
+# charity, fasting or Vastu prescription field needs a senior-practitioner
+# sign-off before merge. See CONTRIBUTING.md → "Content review gate".
+
+# Default owner for everything.
+*                                       @RRWalia
+
+# Knowledge pack — versioned content, schema contract and the non-removable
+# classical Sambhandha safety boundary.
+/knowledge-pack/                        @RRWalia
+/knowledge-pack/schema.json             @RRWalia
+
+# Bundled content data: numbers, remedy kits, deity layer, Dasha periods,
+# dosha maps, friendship matrix, personal-year content.
+/data.js                                @RRWalia
+/i18n.js                                @RRWalia
+
+# Authority boundaries and the Dasha engines — timing rigour lives here.
+/app.js                                 @RRWalia
+/astro.js                               @RRWalia
+
+# The gate itself. Changes to the tests that enforce the boundaries need the
+# same scrutiny as changes to the boundaries.
+/smoke.test.js                          @RRWalia
+/tests/                                 @RRWalia
+/.github/workflows/                     @RRWalia
+
+# Release documentation and clinical/vastu guardrail descriptions.
+/QUALITY_AUDIT.md                       @RRWalia
+/CONTRIBUTING.md                        @RRWalia
+/README.md                              @RRWalia
