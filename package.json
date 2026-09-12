@@ -1,7 +1,7 @@
 {
   "name": "numerovastu-360",
   "private": true,
-  "version": "2.8.2",
+  "version": "2.9.0",
   "description": "Hybrid Lo Shu Foundation & Ank Jyotish Dasha timeline — private numerology and Vastu guidance",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -14,9 +14,12 @@
     "test:visual:ci": "playwright test --update-snapshots=none",
     "test:visual:update": "playwright test --update-snapshots=all",
     "audit": "npm audit --audit-level=moderate",
-    "check": "npm run test && npm run audit && npm run build",
+    "check": "npm run test && npm run audit && npm run build && npm run check:source-zip",
     "check:full": "npm run check && npm run test:visual:ci",
-    "browsers:install": "playwright install chromium"
+    "browsers:install": "playwright install chromium",
+    "package:source": "node scripts/package-source.mjs",
+    "check:source-zip": "node scripts/package-source.mjs --check",
+    "icons:build": "node scripts/build-icons.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

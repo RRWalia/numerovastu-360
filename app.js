@@ -768,6 +768,12 @@
     return `<div class="card clinical-guardrail-banner guardrail-warning" data-clinical-guardrail="dosha-contra" data-contra-scope="crystal-heat"><div class="kit-value">🛡 ${esc(text)}</div></div>`;
   }
 
+  /* NON-REMOVABLE classical safety boundary. These pairs are owned by the
+     application, not by the knowledge pack: db.dasha.relationshipPolicy can
+     only ADD pairs, never clear these. Any change here must be mirrored in
+     knowledge-pack/schema.json → db.dasha.relationshipPolicy
+     → x-classicalSafetyPairs (smoke.test.js asserts the two stay in sync),
+     and in the "Friendship matrix overrides" note in README.md. */
   const CLASSICAL_GRAHAN_PAIRS = new Set(["4-2", "2-4", "4-1", "1-4"]);
   const CLASSICAL_SAMBANDHA_HOSTILE_PAIRS = new Set([
     "4-2", "2-4", // Rahu – Moon (Grahan / eclipse axis)
@@ -888,7 +894,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.8.2";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.9.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-08";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -899,7 +905,8 @@
     journal: "nv360.journal.v1",
     plan: "nv360.plan.v1",
     contributionEnabled: "nv360.contributionEnabled.v1",
-    contributionOutbox: "nv360.contributionOutbox.v1"
+    contributionOutbox: "nv360.contributionOutbox.v1",
+    fieldMode: "nv360.fieldMode.v1"
   };
   const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
 
@@ -1202,6 +1209,34 @@
       }
     }
     return { ok: errs.length === 0, errors: errs };
+  }
+
+  /* ---- Field read mode --------------------------------------------------
+     A phone-first reading mode for consultations away from a desk. It is a
+     presentation-only switch: no engine, pack or authority behaviour changes,
+     and it is suppressed in print so the A4 cockpit sheet is unaffected.
+     Declared here (above the boot sequence) so the stored preference can be
+     applied on load without hitting the temporal dead zone. */
+  let fieldMode = false;
+  try { fieldMode = window.localStorage.getItem(STORAGE_KEYS.fieldMode) === "1"; } catch (err) { fieldMode = false; }
+
+  function applyFieldMode() {
+    document.body.classList.toggle("field-mode", fieldMode);
+    const btn = $("#fieldBtn");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", fieldMode ? "true" : "false");
+    const label = t(fieldMode ? "fieldModeOff" : "fieldModeOn", fieldMode ? "Exit field mode" : "Field mode");
+    const span = $(".btn-text", btn);
+    if (span) span.textContent = label;
+    btn.setAttribute("title", label);
+  }
+
+  function toggleFieldMode() {
+    fieldMode = !fieldMode;
+    try { window.localStorage.setItem(STORAGE_KEYS.fieldMode, fieldMode ? "1" : "0"); } catch (err) { /* private mode */ }
+    applyFieldMode();
+    showToast(t(fieldMode ? "fieldModeOnToast" : "fieldModeOffToast",
+      fieldMode ? "Field mode on — larger type, single column, reduced clutter." : "Field mode off."), "info");
   }
 
   function showToast(message, tone) {
@@ -2327,6 +2362,123 @@
       cur += ms;
       return seg;
     });
+  }
+
+  /* ---- Classical Vimshottari Dasha (true nakshatra-anchored layer) --------
+     A SEPARATE, additive timing tradition from the Ank Jyotish proportional
+     clock above. This one is the classical Jyotish stack:
+
+       · anchor   – the natal Moon's nakshatra (astro.js already computes it)
+       · total    – fixed 120-year cycle, lord durations never scaled
+                    (Ketu 7, Venus 20, Sun 6, Moon 10, Mars 7, Rahu 18,
+                     Jupiter 16, Saturn 19, Mercury 17)
+       · balance  – the fraction of the birth nakshatra already traversed
+                    removes exactly that fraction of the starting lord's MD
+       · Antardasha / Pratyantar – proportional subdivision of the parent
+                    span by the 120-year weights (AD = MDy × ADy ÷ 120)
+
+     The two clocks are NOT reconciled anywhere: they answer different
+     questions from different anchors and are deliberately allowed to
+     disagree. Nothing here feeds the Lo Shu, Vastu or event-window
+     authorities — it is a standalone Vedic read-out. Requires Vedic Tier 2
+     (exact birth time + recognised birthplace); returns null otherwise. */
+  const VIMSHOTTARI_LORDS = [
+    /* [lord, years, number] — lord order is the canonical Vimshottari
+       sequence; number maps the lord to its Ank Jyotish digit so the
+       existing friendship matrix can grade the stack without a second
+       relationship table. */
+    ["Ketu", 7, 7], ["Venus", 20, 6], ["Sun", 6, 1], ["Moon", 10, 2],
+    ["Mars", 7, 9], ["Rahu", 18, 4], ["Jupiter", 16, 3], ["Saturn", 19, 8],
+    ["Mercury", 17, 5]
+  ];
+  const VIMSHOTTARI_TOTAL_YEARS = 120;
+  const NAKSHATRA_SPAN_DEG = 360 / 27;
+
+  function vimshottariLordIndex(name) {
+    const target = String(name || "").trim().toLowerCase();
+    return VIMSHOTTARI_LORDS.findIndex((row) => row[0].toLowerCase() === target);
+  }
+
+  function vimshottariTimeline(p, refDate) {
+    const astro = p && p.astro && p.astro.ok && p.astro.moon && p.astro.moon.nakshatra ? p.astro : null;
+    if (!astro || astro.tier !== "full") return null;
+    const nak = astro.moon.nakshatra;
+    const startIdx = vimshottariLordIndex(nak.lord);
+    if (startIdx < 0) return null;
+
+    const birth = dashaBirthDate(p);
+    const birthMs = birth.getTime();
+    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+
+    // Balance of the birth lord: how much of that nakshatra was still unspent.
+    const elapsed = Math.max(0, Math.min(1, (nak.within || 0) / NAKSHATRA_SPAN_DEG));
+    const balanceYears = (1 - elapsed) * VIMSHOTTARI_LORDS[startIdx][1];
+
+    // Lifetime Mahadasha ladder (72 of the 120-year cycles is plenty for a life)
+    const mahadashas = [];
+    let cur = birthMs, i = startIdx, years = balanceYears, guard = 0;
+    while (cur < birthMs + 120 * DASHA_YEAR_MS && guard++ < 40) {
+      const ms = years * DASHA_YEAR_MS;
+      const row = VIMSHOTTARI_LORDS[i];
+      mahadashas.push({
+        lord: row[0], n: row[2], fullYears: row[1], years,
+        startMs: cur, endMs: cur + ms,
+        fromAge: +((cur - birthMs) / DASHA_YEAR_MS).toFixed(1),
+        toAge: +((cur + ms - birthMs) / DASHA_YEAR_MS).toFixed(1),
+        current: nowMs >= cur && nowMs < cur + ms,
+        balance: mahadashas.length === 0
+      });
+      cur += ms;
+      i = (i + 1) % VIMSHOTTARI_LORDS.length;
+      years = VIMSHOTTARI_LORDS[i][1];
+    }
+
+    // Subdivide the running Mahadasha by the 120-year weights.
+    const subdivide = (spanStartMs, spanYears, startLordIdx, depth) => {
+      let c = spanStartMs, k = startLordIdx;
+      const segs = [];
+      for (let s = 0; s < VIMSHOTTARI_LORDS.length; s++) {
+        const row = VIMSHOTTARI_LORDS[k];
+        const ms = (spanYears * row[1] / VIMSHOTTARI_TOTAL_YEARS) * DASHA_YEAR_MS;
+        segs.push({
+          lord: row[0], n: row[2], years: spanYears * row[1] / VIMSHOTTARI_TOTAL_YEARS,
+          startMs: c, endMs: c + ms, depth,
+          // Each sub-period carries its OWN age window. Inheriting the
+          // parent Mahadasha's ages would misreport a one-year Antardasha as
+          // spanning the whole seven-year Mahadasha.
+          fromAge: +((c - birthMs) / DASHA_YEAR_MS).toFixed(1),
+          toAge: +((c + ms - birthMs) / DASHA_YEAR_MS).toFixed(1)
+        });
+        c += ms;
+        k = (k + 1) % VIMSHOTTARI_LORDS.length;
+      }
+      return segs;
+    };
+    const pick = (segs) => segs.find((s) => nowMs >= s.startMs && nowMs < s.endMs) || segs[segs.length - 1];
+
+    const md = mahadashas.find((m) => m.current) || mahadashas[mahadashas.length - 1];
+    const mdStartIdx = vimshottariLordIndex(md.lord);
+    const ads = subdivide(md.startMs, md.years, mdStartIdx, 2);
+    const ad = pick(ads);
+    const pds = subdivide(ad.startMs, ad.years, vimshottariLordIndex(ad.lord), 3);
+    const pd = pick(pds);
+
+    return {
+      available: true,
+      anchor: {
+        nakshatra: nak.name, pada: nak.pada, lord: nak.lord, deity: nak.deity,
+        moonSign: astro.moon.sign, moonDeg: astro.moon.degStr,
+        span: nak.spanStr, elapsedPct: Math.round(elapsed * 1000) / 10
+      },
+      balanceYears: Math.round(balanceYears * 1000) / 1000,
+      totalYears: VIMSHOTTARI_TOTAL_YEARS,
+      mahadashas,
+      current: { md, ad, pd },
+      adProgress: Math.max(0, Math.min(100, Math.round(((nowMs - ad.startMs) / (ad.endMs - ad.startMs)) * 100))),
+      // The single most useful professional read-out: does the classical
+      // stack even agree with the Ank Jyotish stack on the active lord?
+      agreementSignature: `${md.lord}/${ad.lord}`
+    };
   }
 
   /* Dasha owns timing and life-event windows. Scores intentionally use only
@@ -4882,7 +5034,7 @@
         </div>
         <div class="kit-value"><strong>${lang === "hi" ? `इस काल का स्वर — महादशा ${cur.md.n} (${planetOf(cur.md.n)}):` : lang === "gu" ? `આ સમયગાળાનો સૂર — મહાદશા ${cur.md.n} (${planetOf(cur.md.n)}):` : `The tone of this chapter — Mahadasha ${cur.md.n} (${planetOf(cur.md.n)}):`}</strong> ${esc(loc(mdInfo.theme, lang))}</div>
         <div class="kit-value"><strong>${lang === "hi" ? `इस वर्ष की धारा — अंतर्दशा ${cur.ad.n} (${planetOf(cur.ad.n)}):` : lang === "gu" ? `આ વર્ષની ધારા — અંતર્દશા ${cur.ad.n} (${planetOf(cur.ad.n)}):` : `The current within it — Antardasha ${cur.ad.n} (${planetOf(cur.ad.n)}):`}</strong> ${esc(loc(adInfo.events, lang))}. <em>${esc(loc(adInfo.caution, lang))}</em></div>
-        <div class="kit-row" data-dasha-vastu-zone="active"><div class="kit-ico">🧭</div><div class="kit-body">
+        <div class="kit-row" data-dasha-vastu-zone="active" data-authority="dasha-vastu-zone"><div class="kit-ico">🧭</div><div class="kit-body">
           <div class="kit-label">${lang === "hi" ? "सक्रिय वास्तु क्षेत्र: इस उप-काल में इसे साधें" : lang === "gu" ? "સક્રિય વાસ્તુ ક્ષેત્ર: આ ઉપ-કાળમાં આને સાધો" : "Active Vastu Zone: Prioritise this sector now"}</div>
           <div class="kit-value">${lang === "hi" ? `आपके वर्तमान उप-स्वामी <strong>${planetOf(cur.ad.n)} (अंतर्दशा ${cur.ad.n})</strong> का क्षेत्र <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) है। ${esc(loc(adInfo.zoneRemedy, lang))}` : lang === "gu" ? `તમારા વર્તમાન ઉપ-સ્વામી <strong>${planetOf(cur.ad.n)} (અંતર્દશા ${cur.ad.n})</strong> નું ક્ષેત્ર <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}) છે. ${esc(loc(adInfo.zoneRemedy, lang))}` : `Your current sub-ruler is <strong>${planetOf(cur.ad.n)} (AD ${cur.ad.n})</strong> — its sector is the <strong>${esc(loc(adInfo.zone, lang))}</strong> (${esc(adInfo.zoneElement || "")}). ${esc(loc(adInfo.zoneRemedy, lang))}`}</div>
           <div class="kit-value">${lang === "hi" ? `सूक्ष्म-काल के लिए: प्रत्यंतर स्वामी ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} को भी स्वच्छ रखें।` : lang === "gu" ? `સૂક્ષ્મ-કાળ માટે: પ્રત્યંતર સ્વામી ${planetOf(cur.pd.n)} — ${esc(loc(pdInfo.zone, lang))} ને પણ સ્વચ્છ રાખો.` : `For the micro-period: Pratyantar lord ${planetOf(cur.pd.n)} — also keep the ${esc(loc(pdInfo.zone, lang))} clean and serviced.`}</div>
@@ -4898,6 +5050,71 @@
             : stackRelation === "friendly"
               ? `The two lords cooperate: the ${planetOf(cur.md.n)} climate actively supports the ${planetOf(cur.ad.n)} themes (${esc(loc(adInfo.events, lang))}). Act on them directly.`
               : `A neutral pairing: the Mahadasha sets the macro climate and the Antardasha filters it into the immediate emotional and practical decisions without either amplifying or blocking the other.`}</div></div>`;
+
+      /* ---- Classical Vimshottari card (separate Vedic tradition) ----------
+         Rendered beside — never inside — the Ank Jyotish roadmap so the two
+         clocks stay visibly independent. Carries its own authority tag and
+         deliberately holds no remedy/zone content: the Classical layer is a
+         timing read-out only. */
+      const vimshottariCard = (function () {
+        const v = vimshottariTimeline(p);
+        if (!v) {
+          return `<div class="card vimshottari-card" data-authority="vimshottari" data-vimshottari="unavailable">
+        <div class="goal-head"><div class="card-title">${t("vimshottariTitle", "Classical Vimshottari Dasha — Moon-Nakshatra Anchored")}</div><span class="badge info">${t("vimshottariKicker", "Vedic · nakshatra-anchored · fixed 120-year cycle")}</span></div>
+        <div class="kit-value">${t("vimshottariNoTime", "")}</div>
+      </div>`;
+        }
+        const fmtD = (ms) => new Date(ms).toLocaleDateString(lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        // The Ank Jyotish lord name lives on db.numbers, not on the dasha
+        // period entry, so read it from the same source planetOf() uses.
+        const ankLordOf = (n) => String(((db.numbers || {})[n] || {}).planet || "").split(" ")[0];
+        const ankMdLord = ankLordOf(cur.md.n);
+        const agree = ankMdLord && ankMdLord.toLowerCase() === v.current.md.lord.toLowerCase();
+        const vmd = v.current.md, vad = v.current.ad, vpd = v.current.pd;
+        const stackRow = (labelKey, fallback, seg) => `<tr>
+          <td><strong>${t(labelKey, fallback)}</strong></td>
+          <td>${esc(seg.lord)} <span class="card-sub">(${seg.n})</span></td>
+          <td>${fmtD(seg.startMs)} → ${fmtD(seg.endMs)}</td>
+          <td>${t("vimshottariAge", "Ages")} ${seg.fromAge}–${seg.toAge}</td>
+        </tr>`;
+        return `<div class="card vimshottari-card" data-authority="vimshottari" data-vimshottari="available" data-vimshottari-md="${esc(vmd.lord)}" data-vimshottari-ad="${esc(vad.lord)}" data-vimshottari-agrees="${agree ? "yes" : "no"}">
+        <div class="goal-head">
+          <div class="card-title">${t("vimshottariTitle", "Classical Vimshottari Dasha — Moon-Nakshatra Anchored")}</div>
+          <span class="badge info">${t("vimshottariKicker", "Vedic · nakshatra-anchored · fixed 120-year cycle")}</span>
+        </div>
+        <div class="kit-value">${t("vimshottariIntro", "")}</div>
+        <div class="kit-value vimshottari-anchor">
+          <strong>${t("vimshottariAnchorLabel", "Anchor")}:</strong> ${esc(v.anchor.nakshatra)} · pada ${v.anchor.pada} · ${esc(v.anchor.lord)} ·
+          ${esc(v.anchor.moonSign)} ${esc(v.anchor.moonDeg)} (${esc(v.anchor.span)}) · ${v.anchor.elapsedPct}% ${t("vimshottariElapsed", "elapsed")}
+        </div>
+        <div class="kit-value">
+          <strong>${t("vimshottariBalanceLabel", "Balance of the birth lord at birth")}:</strong> ${v.balanceYears} ${lang === "hi" ? "वर्ष" : lang === "gu" ? "વર્ષ" : "years"} ${esc(v.anchor.lord)}
+          <div class="card-sub">${t("vimshottariBalanceNote", "")}</div>
+        </div>
+        <div class="card-title vimshottari-subhead">${t("vimshottariCurrentTitle", "Active Vimshottari stack")}</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>${lang === "hi" ? "स्तर" : lang === "gu" ? "સ્તર" : "Level"}</th><th>${lang === "hi" ? "ग्रह" : lang === "gu" ? "ગ્રહ" : "Lord"}</th><th>${lang === "hi" ? "अवधि" : lang === "gu" ? "અવધિ" : "Period"}</th><th>${t("vimshottariAge", "Ages")}</th></tr>
+          ${stackRow("vimshottariMD", "Mahadasha", vmd)}
+          ${stackRow("vimshottariAD", "Antardasha", vad)}
+          ${stackRow("vimshottariPD", "Pratyantar", vpd)}
+        </table></div>
+        <div class="kit-value vimshottari-progress"><strong>${v.adProgress}%</strong> ${t("vimshottariElapsed", "elapsed")} · ${esc(vad.lord)} ${t("vimshottariAD", "Antardasha")}</div>
+        <div class="card-title vimshottari-subhead">${t("vimshottariLadderTitle", "Mahadasha ladder (fixed 120-year cycle)")}</div>
+        <div class="table-scroll"><table class="rtable">
+          <tr><th>${t("vimshottariMD", "Mahadasha")}</th><th>${t("vimshottariAge", "Ages")}</th><th>${lang === "hi" ? "वर्ष" : lang === "gu" ? "વર્ષ" : "Years"}</th></tr>
+          ${v.mahadashas.map((m) => `<tr${m.current ? ' class="hl-row"' : ""}>
+            <td><strong>${esc(m.lord)}</strong> <span class="card-sub">(${m.n})</span>${m.current ? ` <span class="badge info">${nowLbl}</span>` : ""}${m.balance ? ` <span class="badge warn">${t("vimshottariBalanceTag", "balance carried from birth")}</span>` : ""}</td>
+            <td>${t("vimshottariAge", "Ages")} ${m.fromAge}–${m.toAge} <span class="card-sub">(${new Date(m.startMs).getFullYear()}–${new Date(m.endMs).getFullYear()})</span></td>
+            <td>${m.years.toFixed(3)}</td>
+          </tr>`).join("")}
+        </table></div>
+        <div class="card-title vimshottari-subhead">${t("vimshottariCompareTitle", "Why this differs from the Ank Jyotish roadmap")}</div>
+        <div class="kit-value" data-vimshottari-comparison="${agree ? "agree" : "differ"}">${agree
+          ? t("vimshottariCompareAgree", "")
+          : `${t("vimshottariCompareDiffer", "")} <strong>Ank Jyotish: ${esc(ankMdLord ? `${ankMdLord} (${cur.md.n})` : String(cur.md.n))} · Vimshottari: ${esc(vmd.lord)} (${vmd.n}).</strong>`}</div>
+        <div class="card-sub">${t("vimshottariBoundary", "")}</div>
+      </div>`;
+      })();
 
       const ladderCard = `<div class="card">
         <div class="card-title">${lang === "hi" ? "जीवन-भर की महादशा सीढ़ी" : lang === "gu" ? "જીવનભરની મહાદશા સીડી" : "Lifetime Mahadasha Ladder"}</div>
@@ -4964,7 +5181,8 @@
         ${transitSynthesisCard}
         ${ladderCard}
         ${eventsCard}
-        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${lang === "hi" ? "हम शास्त्रीय आनुपातिक चक्र (महादशा × अंतर्दशा ÷ ४५) का उपयोग करते हैं, जो हर उप-काल को ग्रह के भार के अनुपात में रखता है — इससे महादशा, अंतर्दशा और प्रत्यंतर तीनों स्तर गणितीय रूप से एक-दूसरे में सटीक बैठते हैं। <em>वैकल्पिक पद्धति:</em> कुछ आधुनिक अंकशास्त्री अंतर्दशा को जन्मदिन-से-जन्मदिन के ठीक १-वर्ष खंड मानते हैं; दोनों विद्यालय प्रचलित हैं, तिथियां थोड़ी भिन्न आ सकती हैं। घटना-विंडो केवल सक्रिय महादशा-अंतर्दशा के कारक ग्रहों से बनती है; लो शू और वैदिक जन्म-ग्रिड इन्हें नहीं बदलते।" : lang === "gu" ? "અમે શાસ્ત્રીય પ્રમાણસર ચક્ર (મહાદશા × અંતર્દશા ÷ ૪૫) નો ઉપયોગ કરીએ છીએ, જે દરેક ઉપ-કાળને ગ્રહના ભાર પ્રમાણે રાખે છે — તેથી મહાદશા, અંતર્દશા અને પ્રત્યંતર ત્રણેય સ્તર ગણિતની રીતે એકબીજામાં ચોક્કસ બેસે છે. <em>વૈકલ્પિક પદ્ધતિ:</em> કેટલાક આધુનિક અંકશાસ્ત્રીઓ અંતર્દશાને જન્મદિવસ-થી-જન્મદિવસ બરાબર ૧-વર્ષ ખંડ ગણે છે; બંને શાળાઓ પ્રચલિત છે, તારીખો થોડી અલગ આવી શકે છે. ઘટના-વિન્ડો ફક્ત સક્રિય મહાદશા-અંતર્દશાના કારક ગ્રહોથી બને છે; લો શુ અને વૈદિક જન્મ-ગ્રિડ તેને બદલતા નથી." : "We use the classical Vimshottari-derived proportional cycle (MD × AD ÷ 45), which scales each sub-period relative to planetary weight — keeping nested mathematical continuity across the Mahadasha, Antardasha and Pratyantar levels. <em>Note on alternative schools:</em> some modern practitioners run Antardashas as flat 1-year blocks aligned to your solar return (birthday to birthday); both schools are in live use and dates can shift slightly between them. Event windows use only the active Mahadasha–Antardasha significator pattern; neither Lo Shu nor Vedic birth-grid counts can change them." + (p.birthTime ? " Your exact birth time anchors the cycle boundaries." : ` Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.`)}</div>
+        ${vimshottariCard}
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${t("dashaJudgeNote", "")}${p.birthTime ? (lang === "hi" ? " आपका सटीक जन्म समय चक्र-सीमाओं को स्थिर करता है।" : lang === "gu" ? " તમારો ચોક્કસ જન્મ સમય ચક્ર-સીમાઓને સ્થિર કરે છે." : " Your exact birth time anchors the cycle boundaries.") : (lang === "hi" ? " चक्र-सीमाएँ जन्म तिथि की मध्यरात्रि पर टिकी हैं — बारीक सीमाओं के लिए जन्म समय भरें।" : lang === "gu" ? " ચક્ર-સીમાઓ જન્મ તારીખની મધ્યરાત્રિએ ટકે છે — બારીક સીમાઓ માટે જન્મ સમય ભરો." : " Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.")}</div>
       </section>`;
     })();
 
@@ -5621,6 +5839,7 @@
     $("#reportView").classList.remove("hidden");
     $("#editBtn").classList.remove("hidden");
     $("#printBtn").classList.remove("hidden");
+    $("#fieldBtn").classList.remove("hidden");
     bindReportInteractions();
     setReportModule(reportModuleFromHash(), { scrollToHash: !!window.location.hash && !opts.preserveScroll });
     window.scrollTo({ top: opts.preserveScroll ? scrollTop : 0, behavior: "auto" });
@@ -5632,6 +5851,7 @@
     $("#intakeView").classList.remove("hidden");
     $("#editBtn").classList.add("hidden");
     $("#printBtn").classList.add("hidden");
+    $("#fieldBtn").classList.add("hidden");
     document.title = "NumeroVastu 360 — Numerology & Vastu Remedy Report";
     window.scrollTo({ top: 0 });
   }
@@ -5647,6 +5867,8 @@
 
     if ($("#editBtn .btn-text")) $("#editBtn .btn-text").textContent = t("editDetails", "Edit Details");
     if ($("#printBtn .btn-text")) $("#printBtn .btn-text").textContent = t("savePrint", "Save / Print Report");
+    if ($("#fieldBtn .btn-text")) $("#fieldBtn .btn-text").textContent = t(fieldMode ? "fieldModeOff" : "fieldModeOn", fieldMode ? "Exit field mode" : "Field mode");
+    if ($("#fieldBtn")) $("#fieldBtn").setAttribute("aria-label", t("fieldModeToggle", "Toggle field read mode"));
     if ($(".brand-sub")) $(".brand-sub").textContent = t("brandSub", "Numerology & Vastu Remedy Engine");
 
     // Intake intro
@@ -5710,6 +5932,7 @@
   updateKnowledgeUI();
   updateMemoryUI();
   applyLanguageToUI();
+  applyFieldMode();
 
   // DOB fields are plain text expecting day-month-year (e.g. 05-08-1976).
   if ($("#dob")) { maskDobInput($("#dob")); $("#dob").value = formatDobForDisplay($("#dob").value); }
@@ -5770,12 +5993,40 @@
 
   $("#editBtn").addEventListener("click", showIntake);
   $("#printBtn").addEventListener("click", () => window.print());
+  $("#fieldBtn").addEventListener("click", toggleFieldMode);
+
+
   refreshKnowledgePack({ silent: true });
+
+  /* ---- PWA service worker registration -------------------------------
+     Offline installability is a bonus, never a requirement: every failure
+     path is silent and the app runs exactly as before without a worker.
+     Registered from here rather than an inline <script> because the page
+     ships a strict `script-src 'self'` CSP. The worker caches static shell
+     assets only — chart data lives in localStorage and is never uploaded.
+     Append ?sw=off to the URL to unregister, so a bad worker can always be
+     bypassed without clearing browser storage. */
+  (function registerOfflineWorker() {
+    if (!navigator.serviceWorker) return;
+    const https = location.protocol === "https:";
+    const local = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+    if (!https && !local) return;
+    if (/[?&]sw=off\b/.test(location.search)) {
+      navigator.serviceWorker.getRegistrations()
+        .then((regs) => regs.forEach((r) => r.unregister()))
+        .catch(() => {});
+      return;
+    }
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => { /* optional */ });
+    });
+  })();
 
   /* expose for smoke tests and external control */
   window.__NV = {
     computeProfile, generateLoShuGrid, generateVedicGrid, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
+    vimshottariTimeline, VIMSHOTTARI_LORDS, VIMSHOTTARI_TOTAL_YEARS,
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
     formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
