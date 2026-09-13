@@ -652,6 +652,81 @@ const simardeepMobile = mount(window.__NV.renderReport(simardeep)).textContent
   .replace(/\s+/g, " ");
 check("Simardeep report names the ideal mobile totals instead of an empty gap", /pick one whose digits total 9, 12, 14, 18, 21, 23\./.test(simardeepMobile) && !/digits total\s*\./.test(simardeepMobile));
 
+/* ---- Mobile verdict must never contradict its own ideal-total list ---------
+   The reported chart is Driver 5 / Conductor 9 (Mercury / Mars): the only root
+   friendly to *both* is 1 (Sun), so 8155056910 (40 → 4) was hostile to Mars and
+   the report recommended 10/19/28/37/46/55. The replacement 7574011152 totals
+   33 → 6 (Venus): Mercury befriends Venus, Mars is neutral to her — friendly to
+   one, neutral to the other. That is genuinely not hostile, so `needed` stays
+   false; but the old code then printed "vibrates acceptably, no change
+   required" and rendered no ideal totals at all, contradicting the list the
+   same report had just recommended. The engine now classifies three verdicts
+   (hostile / off-target / optimal) and always returns the ideal totals. */
+const mcPairs = [[5, 9], [9, 5]];
+check("mobile verdict: 5x9 and 9x5 both reduce the ideal set to root 1 (totals 10..55)", mcPairs.every(([d, c]) =>
+  JSON.stringify(window.__NV.mobileSuggestion({ driver: d, conductor: c, mobRelD: "enemy", mobRelC: "enemy" }).goodTotals) === "[10,19,28,37,46,55]"
+));
+check("mobile verdict: a hostile total (40 → Rahu 4) is flagged for change", mcPairs.every(([d, c]) => {
+  const sug = window.__NV.mobileSuggestion({ driver: d, conductor: c, mobCompound: 40, mobRelD: window.__NV.relation(d, 4), mobRelC: window.__NV.relation(c, 4) });
+  return sug.needed === true && sug.verdict === "hostile";
+}));
+check("mobile verdict: 33 → 6 is not hostile but is off-target, and still carries the ideal totals", mcPairs.every(([d, c]) => {
+  const sug = window.__NV.mobileSuggestion({ driver: d, conductor: c, mobCompound: 33, mobRelD: window.__NV.relation(d, 6), mobRelC: window.__NV.relation(c, 6) });
+  return sug.needed === false && sug.verdict === "off-target" && JSON.stringify(sug.goodTotals) === "[10,19,28,37,46,55]";
+}));
+check("mobile verdict: a total inside the ideal set (19 → Sun 1) reads as optimal", mcPairs.every(([d, c]) => {
+  const sug = window.__NV.mobileSuggestion({ driver: d, conductor: c, mobCompound: 19, mobRelD: window.__NV.relation(d, 1), mobRelC: window.__NV.relation(c, 1) });
+  return sug.needed === false && sug.verdict === "optimal";
+}));
+/* Membership is judged on the reduced root, not on the sliced top-6, so a
+   larger total that still reduces to the ideal root is not demoted. */
+check("mobile verdict: 64 → 1 is optimal even though 64 is outside the printed top-6", (() => {
+  const sug = window.__NV.mobileSuggestion({ driver: 5, conductor: 9, mobCompound: 64, mobRelD: "friendly", mobRelC: "friendly" });
+  return sug.verdict === "optimal" && !sug.goodTotals.includes(64);
+})());
+/* The fallback tier (Driver 6 x Conductor 1) has no both-friendly root, so
+   every non-enemy root is inside the ideal set and off-target can never fire. */
+check("mobile verdict: a fallback-tier pair can never report off-target", [3, 5, 9].every((r) => {
+  const sug = window.__NV.mobileSuggestion({ driver: 6, conductor: 1, mobCompound: r * 9 + r, mobRelD: window.__NV.relation(6, r), mobRelC: window.__NV.relation(1, r) });
+  return sug.needed === false && sug.verdict === "optimal";
+}));
+
+const mcOffTarget = profile({ dob: "1970-05-05", mobile: "7574011152", gender: "male" });
+check("reported chart: Driver 5 / Conductor 9 with mobile 7574011152 totals 33 → 6", mcOffTarget.driver === 5 && mcOffTarget.conductor === 9 && mcOffTarget.mobCompound === 33 && mcOffTarget.mobNum === 6);
+const mcOffTargetHtml = mount(window.__NV.renderReport(mcOffTarget)).innerHTML
+  .split("Mobile Number Vibration")[1]
+  .split("Vehicle Number Vibration")[0];
+const mcOffTargetText = mcOffTargetHtml.replace(/<[^>]*>/g, "").replace(/\s+/g, " ");
+check("off-target mobile report keeps the number but still names the ideal totals", /not hostile to your birth numbers/.test(mcOffTargetText) && /totals 10, 19, 28, 37, 46, 55 remain your best picks/.test(mcOffTargetText) && !/no change required/.test(mcOffTargetText));
+/* The headline badge must not outrank the verdict: a green "Harmonious"
+   sitting directly above "sits outside your ideal set" is the mixed message
+   that started this. The per-row badges stay accurate, so the assertion skips
+   the leading "Digits total …" info pill and reads the verdict badge. */
+const mcVerdictBadge = (html) => (html.match(/<span class="badge [^"]*"[^>]*>([^<]*)<\/span>/g) || [])
+  .map((m) => m.replace(/^<[^>]*>/, "").replace(/<\/span>$/, ""))
+  .filter((label) => !/^Digits total/.test(label))[0] || "";
+check("off-target headline badge reads 'Acceptable — off ideal set', never 'Harmonious'", mcVerdictBadge(mcOffTargetHtml) === "Acceptable — off ideal set");
+const mcOptimalHtml = mount(window.__NV.renderReport(profile({ dob: "1970-05-05", mobile: "7210000009", gender: "male" }))).innerHTML
+  .split("Mobile Number Vibration")[1]
+  .split("Vehicle Number Vibration")[0];
+check("optimal mobile report still says no change required", /vibrates acceptably with your birth numbers — no change required/.test(mcOptimalHtml.replace(/<[^>]*>/g, "").replace(/\s+/g, " ")));
+check("optimal headline badge stays 'Harmonious'", mcVerdictBadge(mcOptimalHtml) === "Harmonious");
+/* Behaviour change worth pinning: a root neutral to BOTH birth numbers used to
+   print a "Neutral" headline badge. Every such root is by definition outside a
+   both-friendly ideal set, so it now reads off-target instead — more
+   informative, and the prose explains it. (The relBadge("neutral") branch is
+   retained for custom knowledge packs whose friendship rows could make it
+   reachable again; no bundled pack reaches it.) */
+const mcNeutralProfile = profile({ dob: "1971-02-02", mobile: "3000000000", gender: "male" });
+check("a both-neutral root is Driver 2 / Conductor 4 with root 3", mcNeutralProfile.driver === 2 && mcNeutralProfile.conductor === 4 && mcNeutralProfile.mobNum === 3
+  && mcNeutralProfile.mobRelD === "neutral" && mcNeutralProfile.mobRelC === "neutral");
+const mcNeutralHtml = mount(window.__NV.renderReport(mcNeutralProfile)).innerHTML
+  .split("Mobile Number Vibration")[1]
+  .split("Vehicle Number Vibration")[0];
+check("a both-neutral root now reads off-target, not a bare 'Neutral'", mcVerdictBadge(mcNeutralHtml) === "Acceptable — off ideal set"
+  && window.__NV.mobileSuggestion(mcNeutralProfile).verdict === "off-target");
+
+
 /* ---- Clinical safety overlays: solar-load moderation + under-18 gem guard ----
    The reported chart (Simardeep 15-10-2010) repeats the Sun digit 4× with a
    Pitta constitution and was consulted as a 15-year-old student, so the
