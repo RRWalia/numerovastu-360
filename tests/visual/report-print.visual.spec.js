@@ -207,11 +207,14 @@ test.describe('hybrid report browser regression', () => {
       const foundation = getComputedStyle(document.querySelector('#foundation-panel')).display;
       const cockpit = getComputedStyle(document.querySelector('#cockpit-panel')).display;
       const toolbar = getComputedStyle(document.querySelector('.cockpit-toolbar')).display;
+      // The brand/disclaimer footer must stay out of the cockpit-only job, or
+      // it can push the one-A4 consultation sheet onto a second page.
+      const closing = getComputedStyle(document.querySelector('.report-closing')).display;
       document.body.classList.remove('print-cockpit');
       return {
         sheet: !!sheet,
         breaks: blocks.map((block) => getComputedStyle(block).breakInside),
-        foundation, cockpit, toolbar,
+        foundation, cockpit, toolbar, closing,
       };
     });
     expect(cockpitPrint.sheet).toBe(true);
@@ -219,6 +222,7 @@ test.describe('hybrid report browser regression', () => {
     expect(cockpitPrint.foundation).toBe('none');
     expect(cockpitPrint.cockpit).not.toBe('none');
     expect(cockpitPrint.toolbar).toBe('none');
+    expect(cockpitPrint.closing).toBe('none');
 
     // Single-page contract: the sheet owns a dedicated page, the marketing
     // panel heading is gone, and the print type is compact enough that the
