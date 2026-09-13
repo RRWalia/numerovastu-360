@@ -334,6 +334,12 @@ window.document.body.classList.remove("print-cockpit");
 $("#foundation-tab").click();
 const liveReport = $("#reportRoot").innerHTML;
 check("full hybrid report has no undefined or NaN leakage", !liveReport.includes("undefined") && !liveReport.includes("NaN") && liveReport.includes("Lo Shu Blueprint") && liveReport.includes("Dasha Timeline"));
+check("unambiguous international DOB format in hero", liveReport.includes("DOB <strong>20 Aug 2005</strong>"));
+check("report generation date stamped", /Report generated \d{1,2} \w{3,4} \d{4}/.test(liveReport));
+check("reading guide present", liveReport.includes("How to read this report") && liveReport.includes("Driver (Moolank)") && liveReport.includes("Conductor (Bhagyank)") && liveReport.includes("40-Day Activation Plan"));
+check("report closing block: brand + privacy + disclaimer", liveReport.includes("NumeroVastu 360 — Private Report") && liveReport.includes("not a substitute for professional medical, legal or financial advice"));
+check("hero DOB formatter is timezone-safe and locale-aware", window.__NV.formatBirthDate({ day: 5, month: 8, year: 1976 }) === "5 Aug 1976" && window.__NV.formatBirthDate({}) === "");
+check("closing block does not repeat the generation stamp", (() => { const closing = $("#reportRoot .report-closing") || mount(liveReport).querySelector(".report-closing"); return !!closing && !closing.textContent.includes("Report generated"); })());
 
 /* ---- Localisation plus static responsive/print safeguards ---- */
 for (const language of ["hi", "gu"]) {
@@ -345,9 +351,14 @@ for (const language of ["hi", "gu"]) {
     : ["પરસ્પર શક્તિઓ", "સંભવિત સાવચેતીનો મુદ્દો", "સંવાદ સંકેત:"];
   check(`${language} labels localise both modules and advanced comparison`, $("#foundation-tab").textContent.trim().length > 0 && $("#timeline-tab").textContent.trim().length > 0 && report.includes(language === "hi" ? "उन्नत वैदिक तुलना" : "ઉન્નત વૈદિક તુલના") && report.includes(language === "hi" ? "लो शू ब्लूप्रिंट" : "લો શુ બ્લૂપ્રિન્ટ") && !report.includes("undefined") && !report.includes("NaN"));
   check(`${language} compatibility retains strengths, blind spots and communication cues`, !!localizedCompatibility && terms.every((term) => localizedCompatibility.textContent.includes(term)) && !localizedCompatibility.textContent.includes("undefined") && !localizedCompatibility.textContent.includes("NaN"));
+  /* The reading guide, generation stamp and closing block are report-level
+     copy, so they must ship in all three languages — no partial translation. */
+  check(`${language} reading guide, generation line and closing block are localised`, report.includes(language === "hi" ? "इस रिपोर्ट को कैसे पढ़ें" : "આ રિપોર્ટ કેવી રીતે વાંચવો") && report.includes(language === "hi" ? "NumeroVastu 360 — निजी रिपोर्ट" : "NumeroVastu 360 — ખાનગી રિપોર્ટ") && report.includes(language === "hi" ? "रिपोर्ट निर्मित" : "રિપોર્ટ બનાવ્યું") && !report.includes("How to read this report"));
+  check(`${language} hero DOB renders locale month names`, new RegExp(language === "hi" ? "जन्म तिथि: <strong>20 .+ 2005</strong>" : "જન્મ તારીખ: <strong>20 .+ 2005</strong>").test(report));
 }
 check("mobile timeline navigation remains horizontally reachable", /@media \(max-width: 640px\)/.test(styles) && /\.report-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles) && /\.timeline-anchor-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles));
 check("print/PDF expands both panels and the collapsed Vedic comparison", /@media print/.test(styles) && /\.report-module-panel\[hidden\] \{ display: flex !important; \}/.test(styles) && /\.advanced-vedic-comparison:not\(\[open\]\) > \.details-body \{ display: flex !important; \}/.test(styles));
+check("cockpit-only print job keeps its one-A4 contract (closing footer screen-only)", /body\.print-cockpit \.report-closing \{ display: none !important; \}/.test(styles));
 check("print CSS keeps Tattva cards intact", /\.tattva-card/.test(styles) && /#tattva-section \{ break-inside: auto; page-break-inside: auto; \}/.test(styles));
 check("Compatibility print layout keeps its overview and relational rows together", styles.includes("#compatibility-section { display: block; break-inside: auto; page-break-inside: auto; }") && styles.includes("#compatibility-section > * + * { margin-top: 16px; }") && styles.includes("#compatibility-section .compatibility-overview,") && styles.includes("#compatibility-section .compatibility-reflection-intro,") && styles.includes("#compatibility-section .kit-row,") && styles.includes("break-inside: avoid-page;") && styles.includes("#compatibility-section #compatibility-reflection { display: block; break-inside: auto; page-break-inside: auto; }"));
 
@@ -536,11 +547,25 @@ const refRenderChecks = [
   ["ref lagna ♒ Aquarius rendered", rRef.includes("♒") && rRef.includes("Aquarius")],
   ["ref degrees rendered", rRef.includes("24°52′") && rRef.includes("12°26′")],
   ["ref place in footnote", rRef.includes("Faridabad, Haryana, India")],
-  ["ref hero pill", rRef.includes("Vedic chart unlocked") && rRef.includes("Jyeshtha")],
+  ["ref hero pill", rRef.includes("Vedic chart unlocked") && rRef.includes("Aquarius Lagna") && rRef.includes("Jyeshtha Star")],
+  ["star-lord → Driver resonance note (Jyeshtha → Mercury → Driver 5)", rRef.includes("Star–Driver resonance") && rRef.includes("Mercury (Budha)") && rRef.includes("your Driver <strong>5</strong>") && rRef.includes("adds no remedy and changes no timing")],
+  ["ref MC keeps its astronomical identity, never sold as the 10th cusp", rRef.includes("Midheaven (MC)") && !rRef.includes("Midheaven / 10th House Cusp")],
+  ["ref Dasham Bhava names the true 10th-from-Lagna sign (Aquarius → Scorpio)", rRef.includes("Whole-sign Vedic 10th house (Dasham Bhava) from your Lagna: <strong>♏ Scorpio</strong>")],
   ["ref no undefined leaks", !rRef.includes("undefined")],
   ["ref no NaN leaks", !rRef.includes("NaN")],
 ];
 refRenderChecks.forEach(([name, ok]) => check(name, ok));
+
+/* The Midheaven is NOT the Vedic 10th-house cusp. On this chart the Lagna is
+   Libra and the MC falls in Leo, while whole-sign Dasham Bhava (10th from the
+   Lagna) is Cancer — the two disagree by a sign, which happens in roughly a
+   third of charts. The snapshot must keep both identities honest. */
+const mcSplitProfile = window.__NV.computeProfile(Object.assign({}, baseInput, { name: "MC Split", dob: "1950-01-03", birthTime: "03:35", birthPlace: "Faridabad, India" }));
+const rMcSplit = window.__NV.renderReport(mcSplitProfile);
+[
+  ["split chart: MC cell reports the MC sign (Leo), not the 10th house", mcSplitProfile.astro.lagna.sign === "Libra" && mcSplitProfile.astro.mc.sign === "Leo" && rMcSplit.includes("Midheaven (MC)") && rMcSplit.includes("Leo 5°13′")],
+  ["split chart: Dasham Bhava follows the Lagna (Cancer), not the MC", rMcSplit.includes("Whole-sign Vedic 10th house (Dasham Bhava) from your Lagna: <strong>♋ Cancer</strong>")],
+].forEach(([name, ok]) => check(name, ok));
 
 // Unmatched-place path: tier-2 fields given but the atlas can't resolve them
 $("#editBtn").click();

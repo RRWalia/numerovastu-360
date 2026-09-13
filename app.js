@@ -1047,6 +1047,34 @@
       return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
     }
   }
+  /* Unambiguous, locale-aware birth-date line for the report hero.
+     Built from the profile's numeric day/month/year in UTC — never from a
+     parsed date string — so a viewer's timezone can never shift the birth
+     date by a day, and rendered through the active locale so a Hindi or
+     Gujarati report reads its month names in that language. "Short" month
+     names also keep the hero consistent with every other date in the report
+     (en-GB renders September as "Sept", exactly like the Dasha tables). */
+  function formatBirthDate(p) {
+    if (!p || !p.day || !p.month || !p.year) return "";
+    const lang = getLang();
+    const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB";
+    try {
+      return new Date(Date.UTC(p.year, p.month - 1, p.day)).toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    } catch (e) {
+      const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${p.day} ${MONTHS[p.month - 1]} ${p.year}`;
+    }
+  }
+  /* Report generation stamp, same locale rules as formatBirthDate. */
+  function formatStampDate(d) {
+    const lang = getLang();
+    const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB";
+    try {
+      return (d instanceof Date ? d : new Date(d)).toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric" });
+    } catch (e) {
+      return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    }
+  }
   function formatBirthTime(t) {
     if (!t) return "";
     const [hh, mm] = t.split(":").map(Number);
@@ -3701,6 +3729,7 @@
   function vedicSnapshotCard(p) {
     const a = p.astro;
     if (!a || !a.ok) return "";
+    const db = getActiveDB();
     const boundaryNote = a.boundary
       ? `<p class="astro-note astro-boundary">Your Sun sits on the <strong>${esc(a.daySpan[0])} / ${esc(a.daySpan[1])}</strong> boundary on your birth date — the exact hour can tip the final sign. Add your birth time to pin it precisely.</p>`
       : "";
@@ -3712,6 +3741,21 @@
       const caveat = pl.dst
         ? ` · standard-time offset (${fmtTz(pl.tz)}) — if daylight saving applied on the birth date, shift the time accordingly`
         : ` · ${fmtTz(pl.tz)}`;
+      const driverPlanet = db.numbers[p.driver] ? db.numbers[p.driver].planet : "";
+      const nakDriverLink = driverPlanet && driverPlanet.startsWith(nak.lord)
+        ? `<div class="astro-nak-driver">⭐ Star–Driver resonance: <strong>${esc(nak.name)}</strong>'s Vimshottari lord is <strong>${esc(driverPlanet)}</strong> — the same planet behind your Driver <strong>${p.driver}</strong>. A descriptive echo between the Vedic sky and your root number: it adds no remedy and changes no timing.</div>`
+        : "";
+      /* The Midheaven is the ecliptic's highest point — it is NOT the Vedic
+         10th-house cusp. Whole-sign Dasham Bhava is counted from the Lagna,
+         and the two land in different signs for roughly a third of charts
+         (measured: 28,800 sample charts across 16 places, MC sign equals the
+         10th-from-Lagna sign in only ~67% of them). So the cell keeps the MC's
+         true identity and states the real Dasham Bhava sign beside it. */
+      const lagnaCusp = Math.floor(a.lagna.lonSidereal / 30) * 30;
+      const tenthSign = window.NVAstro.signOf((lagnaCusp + 270) % 360);
+      /* Card copy stays English exactly like every other string in this card
+         on main; localising the whole Astro-Identity Snapshot is its own task. */
+      const mcVedicNote = `Whole-sign Vedic 10th house (Dasham Bhava) from your Lagna: <strong>${esc(tenthSign.glyph)} ${esc(tenthSign.name)}</strong>`;
       return `<div class="card astro-snapshot-card" id="vedic-snapshot">
       <div class="goal-head">
         <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
@@ -3721,11 +3765,12 @@
         ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
         ${astroCell("astro-moon", esc(a.moon.glyph), "Moon · Chandra Rashi", `${esc(a.moon.sign)} ${esc(a.moon.degStr)}`, `${esc(a.moon.element)} · ruled by ${esc(a.moon.lord)}`, `<span class="astro-nak-badge">${esc(nak.glyph)} ${esc(nak.name)} · Pada ${nak.pada} · lord ${esc(nak.lord)}</span>`)}
         ${astroCell("astro-lagna", esc(a.lagna.glyph), "Lagna (Ascendant)", `${esc(a.lagna.sign)} ${esc(a.lagna.degStr)}`, `${esc(a.lagna.element)} · ruled by ${esc(a.lagna.lord)}`, "The sign rising on the eastern horizon at your birth minute")}
-        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "Highest point of the ecliptic — career &amp; public life")}
+        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, `Highest point of the ecliptic — career &amp; public life · ${mcVedicNote}`)}
       </div>
       <div class="astro-nak-strip">
         <div class="astro-nak-head">Nakshatra of the Moon — <strong>${esc(nak.name)}</strong> ${esc(nak.glyph)} · <strong>Pada ${nak.pada} of 4</strong> · ${esc(nak.spanStr)} of the sidereal zodiac</div>
         <div class="astro-nak-body">Vimshottari lord <strong>${esc(nak.lord)}</strong> · Deity <strong>${esc(nak.deity)}</strong> — ${esc(nak.trait)}.</div>
+        ${nakDriverLink}
       </div>
       <div class="astro-foot">
         Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Birth moment <strong>${esc(a.moment.localIso)}</strong> local, ${placeLine} (${esc(pl.lat.toFixed(2))}°N, ${esc(Math.abs(pl.lon).toFixed(2))}°${pl.lon >= 0 ? "E" : "W"})${caveat} · Positions are sidereal (Nirayana). Everything is computed locally in your browser — nothing is sent anywhere.
@@ -4525,7 +4570,8 @@
     const evolving = evolvingChartData(p, timing);
     const summary = northstarSummary(p, triage);
     const activation = activationPlan(p, triage);
-    const dobStr = `${String(p.day).padStart(2, "0")}/${String(p.month).padStart(2, "0")}/${p.year}`;
+    const dobDisplay = formatBirthDate(p); // unambiguous, locale-aware, timezone-safe
+    const generatedOn = formatStampDate(new Date());
 
     const summarySection = `<section class="rsection summary-section" id="summary-section">
       <div class="summary-shell">
@@ -5497,7 +5543,7 @@
     let vedicPill;
     if (p.vedicTier === 2 && p.astro && p.astro.tier === "full") {
       const m = p.astro.moon, l = p.astro.lagna;
-      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${m.glyph} ${m.nakshatra.name} · Lagna ${l.glyph}</span>`;
+      vedicPill = `<span class="status-pill status-vedic">Vedic chart unlocked — ${l.glyph} ${esc(l.sign)} Lagna · ${m.glyph} ${esc(m.nakshatra.name)} Star</span>`;
     } else if (p.vedicTier === 2) {
       vedicPill = `<span class="status-pill status-vedic">Vedic Tier 2 — add a recognised birthplace</span>`;
     } else if (p.vedicTier === "partial") {
@@ -5518,7 +5564,11 @@
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>${t("reportHeroTitle", "Remedy Report — {name}").replace("{name}", esc(p.name))}</h1>
-        <p>DOB ${dobStr}${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")} · Generated locally on your device</p>
+        <p>${t("reportHeroMeta", "DOB <strong>{dob}</strong>{birthLine} · Focus: {goals}")
+          .replace("{dob}", esc(dobDisplay))
+          .replace("{birthLine}", birthLine ? ` · ${t("born", "Born")} ${esc(birthLine)}` : "")
+          .replace("{goals}", p.goals.map(esc).join(", "))}</p>
+        <p class="gen-line">${t("reportGenLine", "Report generated {date} · computed locally on your device — nothing leaves your browser").replace("{date}", esc(generatedOn))}</p>
         <div class="report-meta">
           <span class="status-pill status-private">${t("statusPrivate", "Private & local")}</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
@@ -5542,6 +5592,14 @@
       </div>
       <section class="report-module-panel foundation-panel" id="foundation-panel" role="tabpanel" aria-labelledby="foundation-tab"${foundationHidden}>
         <div class="module-panel-heading"><p class="summary-kicker">${t("tabFoundation", "Foundation · Lo Shu")}</p><h2>${t("foundationPanelTitle", "Your psychological blueprint and practice")}</h2><p>${t("foundationPanelDesc", "Use the classic Lo Shu Birth, Name and Combined grids to understand patterns, then build your practical 40-day activation plan.")}</p></div>
+        <div class="card reading-guide">
+          <div class="card-title">${t("readingGuideTitle", "How to read this report")}</div>
+          <div class="reading-guide-grid">
+            <div class="reading-guide-item">${t("readingGuideDriver", "<strong>Driver (Moolank)</strong> — your mind, personality and day-to-day energy; <strong>Conductor (Bhagyank)</strong> — your destiny path. Both derive from your birth date.")}</div>
+            <div class="reading-guide-item">${t("readingGuideGrid", "<strong>Lo Shu grid</strong> — which of the nine number energies (1–9, each ruled by a planet) are present, repeated or missing in your birth date and name. Section {grid} reads every gap: your first gaps get full remedy kits in Section {kits}, the rest get quick balancers, and the Remedy Triage stages one acute target at a time.").replace("{grid}", SECTION.grid).replace("{kits}", SECTION.weak)}</div>
+            <div class="reading-guide-item">${t("readingGuideFlow", "Numbered sections build from identity → remedies → timing → Vastu across the Foundation, Timeline and Cockpit tabs. The <strong>40-Day Activation Plan</strong> at the end of Foundation is your starting point — practise it consistently for 40 days.")}</div>
+          </div>
+        </div>
         ${summarySection}
         <section class="rsection" id="core-profile">
           <h2 class="rsection-title"><span class="idx">${SECTION.core}</span>${t("secProfile", "Core Numerology Profile")}</h2>
@@ -5586,6 +5644,10 @@
         <div class="module-panel-heading cockpit-panel-heading" id="cockpit-top"><p class="summary-kicker">${t("tabCockpit", "Cockpit · Practitioner")}</p><h2>${t("cockpitPanelTitle", "Your one-page clinical cockpit")}</h2><p>${t("cockpitPanelDesc", "A single printable consultation sheet: identity, both grids, the live Dasha stack judged by classical Sambhandha, the triaged prescription and graded event windows. It never recalculates anything — it condenses.")}</p></div>
         ${renderPractitionerCockpit(p)}
       </section>
+      <div class="report-closing">
+        <div class="report-closing-brand">${t("reportClosingBrand", "NumeroVastu 360 — Private Report")}</div>
+        <div class="report-closing-line">${t("reportClosingDisclaimer", "Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.")}</div>
+      </div>
     `;
   }
 
@@ -6035,7 +6097,7 @@
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
-    normalizeDobInput, formatDobForDisplay,
+    normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
