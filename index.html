@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari</title>
 <meta name="description" content="360° numerology and Vastu remedy engine: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, name and mobile analysis, and Vastu guidance." />
-<meta name="nv-version" content="2.9.0" />
-<meta name="nv-build-label" content="Build 2026-09-12" />
+<meta name="nv-version" content="2.10.0" />
+<meta name="nv-build-label" content="Build 2026-09-13" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -113,7 +113,7 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.8.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.9.0 · Meeus engine</span>
+        <span class="status-pill status-app" id="appBadge">App v2.10.0 · Meeus engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-09-08</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>
@@ -223,6 +223,27 @@
             <p class="field-hint" data-i18n="healthTagsHint">Optional — refines lunar remedy safety. Allergies / Respiratory / Cold switches Moon kits to their warm form.</p>
           </div>
         </div>
+      </div>
+
+      <!-- Scaled Sadhana — client-selected practice depth (lifestyle bandwidth) -->
+      <div class="form-block" id="sadhanaBlock">
+        <h2 class="form-block-title" id="lblSadhana" data-i18n="sadhanaTitle">Practice Depth — Scaled Sadhana</h2>
+        <p class="form-block-desc" data-i18n-html="sadhanaDesc">Choose the daily bandwidth you can genuinely sustain. The scale sizes the practice — it never changes your Lo Shu remedy target and never overrides a clinical guardrail.</p>
+        <div class="sadhana-options" id="sadhanaOptions" role="group" aria-labelledby="lblSadhana">
+          <button type="button" class="sadhana-option" data-sadhana="beginner" aria-pressed="false">
+            <span class="sadhana-option-title" data-i18n="sadhanaBeginnerTitle">Beginner · Minimalist / Corporate</span>
+            <span class="sadhana-option-desc" data-i18n="sadhanaBeginnerDesc">11× short mantra or the 11× wish-paper affirmation · 5-minute breathwork · colour cue · declutter one space you see daily</span>
+          </button>
+          <button type="button" class="sadhana-option selected" data-sadhana="intermediate" aria-pressed="true">
+            <span class="sadhana-option-title" data-i18n="sadhanaIntermediateTitle">Intermediate · Practitioner / Sadhak</span>
+            <span class="sadhana-option-desc" data-i18n="sadhanaIntermediateDesc">27× japa (quarter mala) on a dedicated mala · aushadhi snan on your power day · weekly power-day charity</span>
+          </button>
+          <button type="button" class="sadhana-option" data-sadhana="classical" aria-pressed="false">
+            <span class="sadhana-option-title" data-i18n="sadhanaClassicalTitle">Classical · Full Sadhana</span>
+            <span class="sadhana-option-desc" data-i18n="sadhanaClassicalDesc">108× japa (one full mala) on a dedicated mala · full aushadhi snan · weekly power-day charity</span>
+          </button>
+        </div>
+        <p class="field-hint" data-i18n="sadhanaHint">Default: the Practitioner / Sadhak dose. You can change this any time in Edit Details.</p>
       </div>
 
       <!-- Vedic precision (optional, progressive disclosure: Tier 1 now, Tier 2 unlocked on-device) -->

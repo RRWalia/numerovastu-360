@@ -894,8 +894,8 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.9.0";
-  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-08";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.10.0";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-13";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
     lang: "nv_lang",
@@ -909,6 +909,121 @@
     fieldMode: "nv360.fieldMode.v1"
   };
   const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
+
+  /* ---------------- Scaled Sadhana (client lifestyle bandwidth) ----------------
+     A consultation fails on adherence, not on knowledge: a corporate consultee
+     with two hours of commute cannot hold a 108x mala, and a full-time sadhak
+     is not served by an 11x token count. The client therefore picks the depth
+     of practice they can genuinely sustain, and the report sizes the daily
+     practice to it.
+
+     What the scale may change:  the japa count, whether a dedicated mala is
+                                used, the breathwork minutes, the aushadhi snan
+                                form, the charity cadence and the decluttering
+                                cadence — nothing else.
+     What the scale may never change:
+       • the Lo Shu remedy target (the grid chooses it, not the client);
+       • the triage tiers (one acute target stays one acute target);
+       • a clinical guardrail. A held japa stays held, the Moon-cold form
+         stays warm, the dosha x planet mild form and the solar-load
+         moderation still cap the dose, and the under-18 gem deferral stands.
+     Ordering: beginner (Minimalist / Corporate) → intermediate (Practitioner /
+     Sadhak, the historical 27x quarter-mala dose, and therefore the default so
+     an existing chart's prescription cannot silently change) → classical (one
+     full 108x mala, full aushadhi snan, weekly power-day charity). */
+  const SADHANA_LEVELS = ["beginner", "intermediate", "classical"];
+  const SADHANA_DEFAULT = "intermediate";
+  const SADHANA_SCALE = {
+    beginner: { key: "beginner", japa: 11, dedicatedMala: false, breathMinutes: 5, snan: "colour-cue", charity: "monthly", space: "declutter" },
+    intermediate: { key: "intermediate", japa: 27, dedicatedMala: true, breathMinutes: 10, snan: "power-day", charity: "weekly", space: "sector" },
+    classical: { key: "classical", japa: 108, dedicatedMala: true, breathMinutes: 20, snan: "every-practice-day", charity: "weekly", space: "sector" }
+  };
+  /* i18n key profile per level — one place to keep the report and the intake
+     chips reading from the same copy. */
+  const SADHANA_I18N = {
+    beginner: { title: "sadhanaBeginnerTitle", desc: "sadhanaBeginnerDesc", japa: "sadhanaJapaBeginner", breath: "sadhanaBreathBeginner", snan: "sadhanaSnanBeginner", charity: "sadhanaCharityBeginner", space: "sadhanaSpaceBeginner", dose: "sadhanaDoseBeginner", deepen: "sadhanaDeepenBeginner" },
+    intermediate: { title: "sadhanaIntermediateTitle", desc: "sadhanaIntermediateDesc", japa: "sadhanaJapaIntermediate", breath: "sadhanaBreathIntermediate", snan: "sadhanaSnanIntermediate", charity: "sadhanaCharityPractitioner", space: "sadhanaSpacePractitioner", dose: "sadhanaDoseIntermediate", deepen: "sadhanaDeepenIntermediate" },
+    classical: { title: "sadhanaClassicalTitle", desc: "sadhanaClassicalDesc", japa: "sadhanaJapaClassical", breath: "sadhanaBreathClassical", snan: "sadhanaSnanClassical", charity: "sadhanaCharityPractitioner", space: "sadhanaSpacePractitioner", dose: "sadhanaDoseClassical", deepen: "sadhanaDeepenClassical" }
+  };
+
+  function normalizeSadhana(value) {
+    const key = String(value == null ? "" : value).trim().toLowerCase();
+    return SADHANA_LEVELS.indexOf(key) >= 0 ? key : SADHANA_DEFAULT;
+  }
+  function sadhanaScaleOf(p) {
+    return SADHANA_SCALE[normalizeSadhana(p && p.sadhana)] || SADHANA_SCALE[SADHANA_DEFAULT];
+  }
+  function sadhanaI18n(key) {
+    return SADHANA_I18N[normalizeSadhana(key)] || SADHANA_I18N[SADHANA_DEFAULT];
+  }
+  /* Devanagari / Gujarati numerals for practice counts. The app localises its
+     prose but prints ASCII digits by default; japa counts are the one place
+     where a Hindi or Gujarati reader expects ११ / ૨૭, so the scaled counts are
+     rendered through this map. */
+  const LOCAL_DIGITS = {
+    hi: ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"],
+    gu: ["૦", "૧", "૨", "૩", "૪", "૫", "૬", "૭", "૮", "૯"]
+  };
+  function localNumber(value, lang) {
+    const text = String(value == null ? "" : value);
+    const map = LOCAL_DIGITS[lang || getLang()];
+    if (!map) return text;
+    return text.replace(/\d/g, (d) => map[Number(d)]);
+  }
+  /* Upfront Ethical & Health Notice, printed directly inside the Northstar
+     Summary (page 2 of the report). It states plainly what the frameworks are
+     and are not, and it is the sentence the Scaled Sadhana Classical depth
+     points back to before any intense breathwork or herbal routine. It carries
+     the framework-note authority: it never prescribes and never renders a
+     remedy obligation. */
+  function clinicalNoticeHtml() {
+    return `<aside class="summary-notice" role="note" data-authority="framework-note" data-clinical-notice="upfront">
+      <p class="summary-notice-title">${t("clinicalNoticeTitle", "Ethical &amp; Health Notice")}</p>
+      <p class="summary-notice-body">${t("clinicalNoticeBody", "Numerology, Vedic Dasha timelines, and elemental tattva suggestions are traditional interpretive frameworks for personal reflection and lifestyle harmonization. They do not constitute medical, psychological, legal, or financial diagnoses. Always consult a licensed healthcare professional before initiating new dietary fasts, herbal routines, or intense breathwork regimens.")}</p>
+    </aside>`;
+  }
+
+  /* The Scaled Sadhana card: the client's chosen practice depth, rendered with
+     the Lo Shu remedy authority it annotates. Purely additive — it sizes the
+     daily practice and never re-sources the remedy target or overrides a
+     clinical guardrail. */
+  function sadhanaPlanBlock(p, plan) {
+    const lang = getLang();
+    const scale = sadhanaScaleOf(p);
+    const copy = sadhanaI18n(scale.key);
+    const levelTitle = t(copy.title, "Practitioner / Sadhak");
+    /* A held japa is a clinical verdict, not a bandwidth setting: the scale
+       reports the dose it will resume, and says so. */
+    const holdJapa = !!(plan && plan.holdJapa);
+    const japaValue = holdJapa
+      ? `${t(copy.japa, "")} — ${t("sadhanaJapaHeld", "held this cycle by the Remedy Triage; the dose resumes when the target activates.")}`
+      : t(copy.japa, "");
+    const rows = [
+      { key: "japa", ico: "🔢", label: t("sadhanaRowJapa", "Japa / affirmation dose"), value: japaValue },
+      { key: "mala", ico: "📿", label: t("sadhanaRowMala", "Mala"), value: scale.dedicatedMala ? t("sadhanaMalaDedicated", "One dedicated mala, kept only for this japa.") : t("sadhanaMalaOptional", "No mala needed — count the short mantra on your fingers.") },
+      { key: "breath", ico: "🌬", label: t("sadhanaRowBreath", "Breathwork"), value: t(copy.breath, "") },
+      { key: "snan", ico: "🛁", label: t("sadhanaRowSnan", "Aushadhi snan"), value: t(copy.snan, "") },
+      { key: "charity", ico: "🎁", label: t("sadhanaRowCharity", "Charity cadence"), value: t(copy.charity, "") },
+      { key: "space", ico: "🧹", label: t("sadhanaRowSpace", "Space"), value: t(copy.space, "") }
+    ];
+    /* Guardrails are annotations, never rewrites: a held japa stays held, the
+       Moon-cold form stays warm, and the classical depth is the only one that
+       adds an intensity caveat. */
+    const notes = [t("sadhanaScaleNote", "The scale sizes the practice; it never changes the Lo Shu remedy target, and a clinical guardrail always caps the dose.")];
+    if (scale.key === "classical") notes.push(t("sadhanaIntenseNotice", "Classical depth adds an intense breathwork and aushadhi snan regimen — clear it with a licensed healthcare professional first (see the Ethical & Health Notice in the Northstar Summary)."));
+    if (isMinorProfile(p)) notes.push(t("sadhanaMinorNote", "Under-18 chart: a parent or guardian supervises this practice, and the breathwork stays gentle — no breath retention holds."));
+    return `<div class="card sadhana-card" data-remedy-authority="lo-shu" data-sadhana-scale="${scale.key}">
+      <div class="goal-head">
+        <div class="card-title">${t("sadhanaCardTitle", "Your Scaled Sadhana — practice depth")}: <strong>${esc(levelTitle)}</strong></div>
+        <span class="badge info">${localNumber(scale.japa, lang)}×</span>
+      </div>
+      <div class="card-sub">${t("sadhanaCardDesc", "Your chosen practice depth. It sizes the daily practice only — the Lo Shu target, the triage tiers and every clinical guardrail stay exactly as prescribed.")}</div>
+      <div class="kit">
+        ${rows.map((row) => `<div class="kit-row" data-sadhana-row="${row.key}"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${esc(row.label)}</div><div class="kit-value">${esc(row.value)}</div></div></div>`).join("")}
+      </div>
+      <div class="judge-note">${notes.map((line) => `<p>${esc(line)}</p>`).join("")}<p>${t("sadhanaEditHint", "Change this any time in Edit Details → Practice Depth.")}</p></div>
+    </div>`;
+  }
 
   const state = {
     lang: "en",
@@ -1654,6 +1769,23 @@
      their warm clinical form. The tags are Health details, so deselecting
      Health clears them. */
   const selectedHealthTags = new Set();
+  /* Scaled Sadhana depth (Beginner / Intermediate / Classical). Exactly one
+     level is always active; it defaults to the Practitioner / Sadhak 27x
+     quarter-mala dose, so a chart that never touches this control keeps the
+     prescription it has always received. */
+  let selectedSadhana = SADHANA_DEFAULT;
+  function syncSadhanaChips(value) {
+    selectedSadhana = normalizeSadhana(value);
+    $$("#sadhanaOptions .sadhana-option").forEach((btn) => {
+      const on = btn.dataset.sadhana === selectedSadhana;
+      btn.classList.toggle("selected", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+  $$("#sadhanaOptions .sadhana-option").forEach((btn) => {
+    btn.addEventListener("click", () => syncSadhanaChips(btn.dataset.sadhana));
+  });
+  syncSadhanaChips(SADHANA_DEFAULT);
   function syncHealthTagChips(tags) {
     selectedHealthTags.clear();
     const incoming = new Set((tags || []).map((tag) => String(tag || "").trim().toLowerCase()));
@@ -1722,6 +1854,7 @@
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
     if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(snapshot.input.partnerDob || "");
     syncGoalChips(snapshot.input.goals || []);
+    syncSadhanaChips(snapshot.input.sadhana);
     syncHealthTagChips(snapshot.input.healthTags || []);
     updateHealthTagsVisibility();
   }
@@ -1943,6 +2076,10 @@
       partnerDob: input.partnerDob || "",
       zodiac: zodiacSignSidereal(d, m),
       zodiacTropical: zodiacSign(d, m),
+      /* Client-selected practice depth (Section 22 / intake). It sizes the
+         daily practice only — it is never read by an engine that chooses a
+         remedy target, a triage tier or a Dasha/Vastu result. */
+      sadhana: normalizeSadhana(input.sadhana),
       vedicTier, astro, kua
     };
   }
@@ -2948,6 +3085,12 @@
       .map((c) => ({ n: c.n, layers: c.layers, weight: Math.max.apply(null, c.layers.map((l) => l.weight)) }))
       .sort((a, b) => b.weight - a.weight || a.n - b.n);
 
+    /* The client's Scaled Sadhana depth decides how the SAME acute target is
+       dosed. Nothing else about the dose changes: the target number, the
+       mantra, the day and the sector stay exactly as triaged. */
+    const doseScale = sadhanaScaleOf(p);
+    const doseLine = t(sadhanaI18n(doseScale.key).dose, "27× daily (quarter mala), same time each day");
+
     const doseFor = (n) => {
       const info = db.numbers[n] || {};
       const beej = shortMantra[n] || {};
@@ -2957,9 +3100,10 @@
         planet: info.planet || "",
         mantra: beej.pron || info.mantra || "",
         mantraDev: beej.dev || "",
-        // One quarter-mala, once a day. Adherence beats volume: a completed
-        // 27× daily is clinically worth more than an abandoned 108×.
-        japa: "27× daily (quarter mala), same time each day",
+        // Adherence beats volume: a completed dose at the client's chosen
+        // Scaled Sadhana depth is clinically worth more than an abandoned
+        // 108×. The scale sizes the dose only — never the target.
+        japa: doseLine,
         fullCycle: info.mantraCount || "",
         day: info.day || "",
         colour: String(info.color || "").split(",")[0].trim(),
@@ -3466,6 +3610,16 @@
         { label: "Timeline cue", value: "Ank Jyotish Dasha", note: "Open Timeline for the Active Vastu Zone, current/next period dates and life-event windows." }
       ];
     }
+    /* Practice depth is a client choice, not a prescription: the card reports
+       what the client selected so the summary and the 40-day plan agree. It
+       never re-orders the remedy target above. */
+    const summaryScale = sadhanaScaleOf(p);
+    const summaryScaleCopy = sadhanaI18n(summaryScale.key);
+    cards.push({
+      label: t("sadhanaSummaryLabel", "Practice depth"),
+      value: `${t(summaryScaleCopy.title, "Practitioner / Sadhak")} · ${localNumber(summaryScale.japa, lang)}×`,
+      note: t(summaryScaleCopy.desc, "")
+    });
     return { headline, story, cards, checks, moves };
   }
 
@@ -3475,6 +3629,11 @@
   function activationPlan(p, triagePre) {
     const db = getActiveDB();
     const lang = getLang();
+    /* Client-selected practice depth. It sizes the daily practice rows below
+       and nothing else: the Lo Shu target, the triage tiers and every clinical
+       guardrail are resolved exactly as before. */
+    const sadhana = sadhanaScaleOf(p);
+    const sadhanaCopy = sadhanaI18n(sadhana.key);
     const resolved = resolvePracticeTargets(p, triagePre);
     const targets = resolved.targets;
     const triage = resolved.triage;
@@ -3510,27 +3669,30 @@
       daily = [
         holdJapa
           ? { ico: "⏸", label: "सूर्योदय अभ्यास — जप होल्ड पर", value: esc(tier1.japa || "इस चक्र जप रोकें"), sub: `इसके बजाय सक्रिय ${esc(tier1.planet)} क्षेत्र साधें: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "सूर्योदय मंत्र जाप", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — २७ बार, सुबह ८ बजे से पहले`, sub: `${esc(targetShort.meaning)} यह आपके ${esc(targetDescriptor)} के ${esc(target.planet)} संकेत को अभ्यास में लाता है।` },
+          : { ico: "🌅", label: "सूर्योदय मंत्र जाप", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "hi")} बार, सुबह ८ बजे से पहले`, sub: `${esc(targetShort.meaning)} यह आपके ${esc(targetDescriptor)} के ${esc(target.planet)} संकेत को अभ्यास में लाता है।` },
         { ico: "📝", label: "संकल्प पत्र", value: `लिखें: “${esc(targetShort.affirmation)}” ११ बार`, sub: "कागज को पर्स या तकिए के नीचे रखें — लिखित संकल्प निरंतरता को सहारा देता है।" },
         { ico: "🎨", label: "लो शू रंग संकेत", value: `${esc(target.color.split(",")[0])} रंग को अपने दैनिक अभ्यास में शामिल करें।`, sub: `यह रंग केवल लो शू के अंक ${targetN} के अभ्यास के लिए चुना गया है।` },
+        { ico: "🌬", label: t("sadhanaRowBreath", "श्वास अभ्यास"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "अगर सांस रोकनी पड़े या चक्कर आए तो तुरंत रोक दें और सामान्य श्वास पर लौटें।") },
         { ico: "🌿", label: "जीवनशैली संकेत", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} की ऊर्जा को संतुलित दिशा देने वाली छोटी, रोज़ की आदत।` }
       ];
     } else if (lang === "gu") {
       daily = [
         holdJapa
           ? { ico: "⏸", label: "સૂર્યોદય અભ્યાસ — જાપ હોલ્ડ પર", value: esc(tier1.japa || "આ ચક્રે જાપ રોકો"), sub: `તેના બદલે સક્રિય ${esc(tier1.planet)} ક્ષેત્ર સાધો: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "સૂર્યોદય મંત્ર જાપ", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ૨૭ વખત, સવારે ૮ વાગ્યા પહેલાં`, sub: `${esc(targetShort.meaning)} આ તમારા ${esc(targetDescriptor)} ના ${esc(target.planet)} સંકેતને અભ્યાસમાં લાવે છે.` },
+          : { ico: "🌅", label: "સૂર્યોદય મંત્ર જાપ", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "gu")} વખત, સવારે ૮ વાગ્યા પહેલાં`, sub: `${esc(targetShort.meaning)} આ તમારા ${esc(targetDescriptor)} ના ${esc(target.planet)} સંકેતને અભ્યાસમાં લાવે છે.` },
         { ico: "📝", label: "સંકલ્પ પત્ર", value: `લખો: “${esc(targetShort.affirmation)}” ૧૧ વખત`, sub: "કાગળને પર્સમાં કે ઓશીકા નીચે રાખો — લખેલો સંકલ્પ સાતત્યને ટેકો આપે છે." },
         { ico: "🎨", label: "લો શુ રંગ સંકેત", value: `${esc(target.color.split(",")[0])} રંગને દૈનિક અભ્યાસમાં સામેલ કરો.`, sub: `આ રંગ માત્ર લો શુના અંક ${targetN} ના અભ્યાસ માટે પસંદ કરાયો છે.` },
+        { ico: "🌬", label: t("sadhanaRowBreath", "શ્વાસ અભ્યાસ"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "શ્વાસ રોકવો પડે કે ચક્કર આવે તો તરત અટકો અને સામાન્ય શ્વાસ પર પાછા ફરો.") },
         { ico: "🌿", label: "જીવનશૈલી સંકેત", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} ની ઊર્જાને સંતુલિત દિશા આપતી નાની, રોજની ટેવ.` }
       ];
     } else {
       daily = [
         holdJapa
           ? { ico: "⏸", label: "Sunrise practice — japa on hold", value: esc(tier1.japa || "Hold japa this cycle"), sub: `Work the active ${esc(tier1.planet)} sector instead: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — 27 times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This practises the ${esc(target.planet)} signal in your ${esc(targetDescriptor)}.` },
+          : { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "en")} times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This practises the ${esc(target.planet)} signal in your ${esc(targetDescriptor)}.` },
         { ico: "📝", label: "Wish paper", value: `Write “${esc(targetShort.affirmation)}” 11 times`, sub: "Keep the paper in your wallet or under your pillow — a written intention supports consistency." },
         { ico: "🎨", label: "Lo Shu colour cue", value: `Bring ${esc(target.color.split(",")[0].toLowerCase())} into your daily practice.`, sub: `This colour is selected only for the Lo Shu number ${targetN} practice.` },
+        { ico: "🌬", label: t("sadhanaRowBreath", "Breathwork"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "If a hold feels forced, or you feel dizzy, stop and return to normal breathing.") },
         { ico: "🌿", label: "Lifestyle cue", value: esc(target.lifestyle.split(";")[0]), sub: `A small daily habit that gives ${esc(target.planet)} energy a balanced direction.` }
       ];
     }
@@ -3561,7 +3723,7 @@
       if (targetSignal === "repeated") firstRows.push(`ऊर्जा को बढ़ाने के बजाय दिशा दें: ${esc(repeatedChannel)}।`);
       phases.push({ badge: "दिन १–७", title: "आधार — संकेत को देखें", rows: firstRows });
       phases.push({ badge: "दिन ८–२१", title: "लय — आदत को स्थिर करें", rows: [`${esc(target.lifestyle.split(";")[0])} को हर दिन दर्ज करें और नीचे के <strong>४०-दिवसीय ट्रैकर</strong> में निशान लगाएं।`, `किसी भी अनुपस्थित अंक को अतिरिक्त सूची से न चुनें — पहले अंक ${targetN} की निरंतरता बनाएं।`] });
-      const thirdRows = secondary ? [`दूसरा लो शू संकेत जोड़ें: <strong>${esc(secondary.planet)} (${secondaryN})</strong> के लिए <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ११ बार और ${esc(secondary.color.split(",")[0])} रंग शामिल करें।`] : [`साधना को गहरा करें: सूर्योदय मंत्र जाप बढ़ाकर <strong>१०८ बार</strong> करें और अपने अनुभव लिखें।`];
+      const thirdRows = secondary ? [`दूसरा लो शू संकेत जोड़ें: <strong>${esc(secondary.planet)} (${secondaryN})</strong> के लिए <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ११ बार और ${esc(secondary.color.split(",")[0])} रंग शामिल करें।`] : [t(sadhanaCopy.deepen, "साधना को गहरा करें: सूर्योदय मंत्र जाप बढ़ाकर १०८ बार करें और अपने अनुभव लिखें।")];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`दोहराए अंक ${targets.repeated.join(", ")} को और बढ़ाने के बजाय उनकी ऊर्जा को काम, सेवा या अनुशासन में दिशा दें।`);
       phases.push({ badge: "दिन २२–४०", title: "समन्वय — लो शू संकेत", rows: thirdRows });
       phases.push({ badge: "दिन ४०+", title: "अवलोकन एवं निरंतरता", rows: [`<strong>४०वें दिन</strong> ट्रैकर और जर्नल में देखें कि ${esc(targetDescriptor)} के साथ क्या बदला।`, `केवल लो शू के अनुपस्थित/दोहराए संकेत के अनुसार हल्का अभ्यास जारी रखें। तिथियों, जीवन-घटना विंडो और सक्रिय वास्तु क्षेत्र के लिए <strong>Timeline · Ank Jyotish Dasha</strong> देखें।`] });
@@ -3570,7 +3732,7 @@
       if (targetSignal === "repeated") firstRows.push(`ઊર્જાને વધારવાને બદલે દિશા આપો: ${esc(repeatedChannel)}.`);
       phases.push({ badge: "દિવસ ૧–૭", title: "પાયો — સંકેત જુઓ", rows: firstRows });
       phases.push({ badge: "દિવસ ૮–૨૧", title: "લય — ટેવ સ્થિર કરો", rows: [`${esc(target.lifestyle.split(";")[0])} ને રોજ નોંધો અને નીચેના <strong>૪૦-દિવસીય ટ્રેકર</strong> માં નિશાની કરો.`, `કોઈ ખૂટતો અંક વધારાની યાદીમાંથી ન પસંદ કરો — પહેલાં અંક ${targetN} ની સાતત્ય બનાવો.`] });
-      const thirdRows = secondary ? [`બીજો લો શુ સંકેત ઉમેરો: <strong>${esc(secondary.planet)} (${secondaryN})</strong> માટે <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ૧૧ વખત અને ${esc(secondary.color.split(",")[0])} રંગ સામેલ કરો.`] : [`અભ્યાસ ઊંડો કરો: સૂર્યોદય મંત્ર જાપ <strong>૧૦૮ વખત</strong> કરો અને અનુભવ લખો.`];
+      const thirdRows = secondary ? [`બીજો લો શુ સંકેત ઉમેરો: <strong>${esc(secondary.planet)} (${secondaryN})</strong> માટે <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ૧૧ વખત અને ${esc(secondary.color.split(",")[0])} રંગ સામેલ કરો.`] : [t(sadhanaCopy.deepen, "અભ્યાસ ઊંડો કરો: સૂર્યોદય મંત્ર જાપ ૧૦૮ વખત કરો અને અનુભવ લખો.")];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`પુનરાવર્તિત અંક ${targets.repeated.join(", ")} ને વધુ વધારવાને બદલે તેની ઊર્જાને કામ, સેવા કે શિસ્તમાં દિશા આપો.`);
       phases.push({ badge: "દિવસ ૨૨–૪૦", title: "સમન્વય — લો શુ સંકેત", rows: thirdRows });
       phases.push({ badge: "દિવસ ૪૦+", title: "અવલોકન અને સાતત્ય", rows: [`<strong>૪૦મા દિવસે</strong> ટ્રેકર અને જર્નલમાં જુઓ કે ${esc(targetDescriptor)} સાથે શું બદલાયું.`, `ફક્ત લો શુના ખૂટતા/પુનરાવર્તિત સંકેત મુજબ હળવો અભ્યાસ ચાલુ રાખો. તારીખો, જીવન-ઘટના વિન્ડો અને સક્રિય વાસ્તુ ક્ષેત્ર માટે <strong>સમયરેખા · અંક-જ્યોતિષ દશા</strong> જુઓ.`] });
@@ -3579,13 +3741,13 @@
       if (targetSignal === "repeated") firstRows.push(`Give the surplus direction rather than more fuel: ${esc(repeatedChannel)}.`);
       phases.push({ badge: "Days 1–7", title: "Foundation — notice the signal", rows: firstRows });
       phases.push({ badge: "Days 8–21", title: "Rhythm — stabilize the habit", rows: [`Log <strong>${esc(target.lifestyle.split(";")[0])}</strong> each day and mark the <strong>40-Day Tracker</strong> below.`, `Do not add a new missing-number target yet — first build consistency with number ${targetN}.`] });
-      const thirdRows = secondary ? [`Add a second Lo Shu signal: use <strong>${esc(secondary.planet)} (${secondaryN})</strong>'s short mantra <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ×11 and its ${esc(secondary.color.split(",")[0].toLowerCase())} colour.`] : [`Deepen the practice: raise the sunrise mantra to <strong>108 times</strong> and write down what you notice.`];
+      const thirdRows = secondary ? [`Add a second Lo Shu signal: use <strong>${esc(secondary.planet)} (${secondaryN})</strong>'s short mantra <span class="mantra">${esc(db.mantraShort[secondaryN].dev)}</span> ×${localNumber(sadhana.japa, "en")} and its ${esc(secondary.color.split(",")[0].toLowerCase())} colour.`] : [t(sadhanaCopy.deepen, "Deepen the practice: raise the sunrise mantra to 108 times and write down what you notice.")];
       if (targets.repeated.length && targetSignal !== "repeated") thirdRows.push(`Channel repeated number${targets.repeated.length > 1 ? "s" : ""} ${targets.repeated.join(", ")} through work, service or disciplined craft rather than adding more fuel.`);
       phases.push({ badge: "Days 22–40", title: "Integrate — Lo Shu signals", rows: thirdRows });
       phases.push({ badge: "Day 40+", title: "Review & reset", rows: [`On <strong>Day 40</strong>, use your tracker and journal to review what changed around this ${esc(targetDescriptor)}.`, `Continue only the light practice your Lo Shu missing/repeated signals call for. For dates, life-event windows and the active Vastu zone, open <strong>Timeline · Ank Jyotish Dasha</strong>.`] });
     }
 
-    return { targetN, target: { ...target, short: targetShort }, missingFocus: targets.missing, repeatedFocus: targets.repeated, daily, powerDays, phases, acute, holdJapa, tier1N: tier1.n, tier1Mode: tier1.mode, triageNote };
+    return { targetN, target: { ...target, short: targetShort }, missingFocus: targets.missing, repeatedFocus: targets.repeated, daily, powerDays, phases, acute, holdJapa, tier1N: tier1.n, tier1Mode: tier1.mode, triageNote, sadhana: sadhana.key, sadhanaJapa: sadhana.japa };
   }
 
   function saveSnapshot(input, profile, timing) {
@@ -4577,6 +4739,7 @@
       <div class="summary-shell">
         <p class="summary-kicker">${t("secSummary", "Northstar Summary")}</p>
         <h2 class="summary-title">${summary.headline}</h2>
+        ${clinicalNoticeHtml()}
         <p class="summary-story">${summary.story}</p>
         <div class="summary-card-grid">
           ${summary.cards.map((card) => `<div class="summary-card"><div class="summary-label">${card.label}</div><div class="summary-value">${card.value}</div><p>${card.note}</p></div>`).join("")}
@@ -5486,6 +5649,7 @@
           </table></div>
         </div>
       </div>
+      ${sadhanaPlanBlock(p, activation)}
       ${renderTriageCard(p, triage)}
       <div class="plan-subhead">${lang === "hi" ? "मंडल के चार चरण" : lang === "gu" ? "મંડળના ચાર તબક્કા" : "The four phases of your mandala"}</div>
       <div class="phase-grid">
@@ -6024,6 +6188,7 @@
       vehicle: $("#vehicle").value.trim(),
       goals: Array.from(selectedGoals),
       healthTags: Array.from(selectedHealthTags),
+      sadhana: selectedSadhana,
       entrance: $("#entrance").value,
       kitchen: $("#kitchen").value,
       bedroom: $("#bedroom").value,
@@ -6096,6 +6261,7 @@
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
+    normalizeSadhana, sadhanaScaleOf, sadhanaI18n, sadhanaPlanBlock, clinicalNoticeHtml, localNumber,
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
     normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,

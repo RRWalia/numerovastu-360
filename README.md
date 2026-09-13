@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.9.0 — Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
+**Release 2.10.0 — Scaled Sadhana depth, upfront ethics notice: Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,18 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.10.0
+
+Two practitioner refinements: one makes the prescription survivable in a real
+week, the other states the frame before the reader meets any claim.
+
+| Area | 2.10.0 behaviour |
+| --- | --- |
+| **Scaled Sadhana depth (new)** | The intake form now asks for the consultee's *lifestyle bandwidth* — **Beginner · Minimalist / Corporate**, **Intermediate · Practitioner / Sadhak** and **Classical · Full Sadhana**. The choice is stored as `profile.sadhana` and sizes the daily practice: the japa dose (`11×` / `27×` / `108×`), whether a dedicated mala is used, breathwork minutes (5 / 10 / 20), the aushadhi snan form, the charity cadence (monthly / weekly power-day) and the decluttering cadence. The Practitioner / Sadhak `27×` quarter-mala dose is the default, so a chart that never touches the control keeps the prescription it has always received. |
+| **The scale sizes the practice — nothing else** | It never re-sources the Lo Shu remedy target, never re-orders the triage tiers and never overrides a clinical guardrail: a held japa stays held (the scale card says the dose resumes when the target activates), the Moon-cold warm form, the dosha × planet mild form, the solar-load moderation and the under-18 gem deferral all still cap the dose. Classical depth carries an explicit “clear it with a licensed healthcare professional first” line that points back at the upfront notice, and an under-18 chart is routed to guardian supervision with no breath-retention holds. Smoke assertions pin the 11× / 27× / 108× doses, the identical target and tier at every depth, and the guardrails surviving the strongest setting. |
+| **Upfront Ethical & Health Notice (new)** | A bordered notice now opens the **Northstar Summary** — the report's page-2 summary card, before the story and the remedy cards: *“Ethical & Health Notice: Numerology, Vedic Dasha timelines, and elemental tattva suggestions are traditional interpretive frameworks for personal reflection and lifestyle harmonization. They do not constitute medical, psychological, legal, or financial diagnoses. Always consult a licensed healthcare professional before initiating new dietary fasts, herbal routines, or intense breathwork regimens.”* It carries `data-authority="framework-note"` (never remedy authority), is localised EN/HI/GU, and is pinned in print as an unbreakable bordered block. It is placed *inside* the summary rather than as a forced page break on purpose: the summary deliberately flows across the page break, and forcing a break reintroduces the near-blank page 1 that the print stylesheet exists to prevent. |
+| **Localised practice counts** | Japa counts in the report are rendered in Devanagari (`११ / २७ / १०८`) and Gujarati (`૧૧ / ૨૭ / ૧૦૮`) numerals for Hindi and Gujarati readers, instead of ASCII digits inside localised prose. |
 
 ## What changed in 2.9.0
 
@@ -113,7 +125,14 @@ Foundation is the initial personality and practice dashboard. It includes:
 - Lo Shu planes, arrows, present/missing/repeated signals;
 - missing-number remedy kits and repeated-number channeling;
 - Lo Shu-led mantras, affirmations, crystals, Rudraksha and habits;
+- a **Scaled Sadhana** depth (Beginner / Intermediate / Classical) chosen at
+  intake that sizes the daily japa dose, mala, breathwork, aushadhi snan and
+  charity cadence without moving the remedy target;
 - a Lo Shu-led 40-day activation tracker;
+- an **upfront Ethical & Health Notice** inside the Northstar Summary, stating
+  what the frameworks are and are not before any remedy copy;
+- a Scaled Sadhana card in the 40-day plan that prints the chosen depth and its
+  guardrail limits alongside the ritual and the Remedy Triage card.
 - an **Advanced Vedic Comparison** for the Vedic birth grid only (expanded so it prints), with one interpretive card per Vedic plane;
 - **4A Vedic Plane Harmonization — Elemental Tattva Balancing**: physical, breathwork and herbal anchors for Vedic planes that are Partly Active or Deficient (complete planes are omitted).
 
@@ -197,6 +216,7 @@ The report intentionally shows the source of each kind of guidance.
 | Missing/repeated remedies, crystals, Rudraksha, affirmations, habits and 40-day practice | Lo Shu Birth Grid | Vedic comparison, zodiac and Dasha |
 | Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
 | Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
+| Practice depth (Scaled Sadhana) | Client intake choice | The Lo Shu remedy target, the triage tiers, Dasha/Vastu timing, and every clinical guardrail — a scale sizes the practice, it never selects or re-sources a remedy |
 | Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
 
 Compatibility uses the four Driver/Conductor pairings to make mutual strengths,
@@ -426,6 +446,8 @@ relationship or property decisions.
 
 ## License
 
-No license file is included. Contact the repository owner
+MIT — see [LICENSE](LICENSE), which covers the source and the knowledge-pack
+content (with a scope note for the Meeus/`astronomia` portions of `astro.js`).
+Contact the repository owner
 ([`RRWalia/numerovastu-360`](https://github.com/RRWalia/numerovastu-360)) before
 reusing or redistributing the project.

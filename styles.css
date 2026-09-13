@@ -331,6 +331,27 @@ body {
 .chip-group-sm { gap: 6px; }
 .chip-sm { height: 28px; padding: 4px 10px; font-size: 12.5px; line-height: 18px; }
 
+/* Scaled Sadhana — client-selected practice depth (intake picker). The three
+   options differ only in practice size, so they are shown as equal cards with
+   the selected one ringed; the description carries the 11x / 27x / 108x dose. */
+.sadhana-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.sadhana-option {
+  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  padding: 12px 14px;
+  font-family: var(--font); font-size: 14px; line-height: 20px;
+  color: var(--label-primary);
+  background: var(--fill-f1);
+  border: 1.5px solid transparent; border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+.sadhana-option:hover { background: var(--fill-f2); }
+.sadhana-option:active { transform: scale(0.99); }
+.sadhana-option:focus-visible { outline: 2px solid var(--kimi-blue); outline-offset: 2px; }
+.sadhana-option.selected { border-color: var(--purple); background: rgba(152, 95, 251, 0.08); }
+.sadhana-option-title { font-weight: 650; }
+.sadhana-option-desc { color: var(--label-secondary); font-size: 12.5px; line-height: 18px; }
+
 .toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 14px 16px;
@@ -527,6 +548,24 @@ body {
   mask-image: linear-gradient(135deg, rgba(0,0,0,.9), transparent 70%);
 }
 .summary-shell > * { position: relative; z-index: 1; }
+/* Upfront Ethical & Health Notice — the bordered notice that opens the
+   Northstar Summary. A quiet frame, not an alarm: gold rule, small caps title,
+   readable body on the dark shell. */
+.summary-notice {
+  margin: 14px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 215, 130, 0.55);
+  border-left: 3px solid #ffd782;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.06);
+}
+.summary-notice-title {
+  margin: 0 0 4px;
+  color: #ffd782;
+  font-size: 12px; line-height: 16px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.summary-notice-body { margin: 0; color: rgba(255, 255, 255, 0.86); font-size: 13px; line-height: 20px; }
 .summary-kicker {
   margin-bottom: 6px;
   color: #ffd782;
@@ -1324,7 +1363,7 @@ body {
      client PDF: keep each prescription block atomic. */
   .kit-card, .kit-row, .ritual-card, .phase-card, .priority-item, .goal-block,
   .num-card, .plane-card, .arrow-card, .tier, .summary-card, .cockpit-cell,
-  .cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }
+  .sadhana-card, .cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }
   .card-grid, .kit, .plane-cards, .arrow-grid, .cockpit-grid { break-inside: auto; page-break-inside: auto; }
   .report-module-panel { gap: 20px; margin-top: 18px; }
   .module-panel-heading { background: #fff; border-color: #ddd; }
@@ -1361,6 +1400,11 @@ body {
   .summary-section { break-inside: auto; }
   .summary-kicker, .summary-title { break-after: avoid-page; }
   .summary-card, .summary-actions li, .summary-way-forward, .summary-cta { break-inside: avoid-page; }
+  /* The Ethical & Health Notice is a bordered block on paper too: it must stay
+     whole (never split across the page break) and print as ink on white. */
+  .summary-notice { break-inside: avoid-page; page-break-inside: avoid; background: #fff; border: 1px solid #999; border-left: 3px solid #8a5a00; }
+  .summary-notice-title { color: #8a5a00; }
+  .summary-notice-body { color: #333; }
   /* The decorative overlay is off in print, so the shell no longer needs to
      clip; overflow: hidden can make some engines treat it as unbreakable. */
   .summary-shell { overflow: visible; background: #fff; color: #111; border: 1px solid #ddd; box-shadow: none; }
