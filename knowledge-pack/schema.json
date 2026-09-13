@@ -157,7 +157,19 @@
           "properties": {
             "relationshipPolicy": {
               "type": "object",
-              "description": "Optional additive policy for pack-reviewed hostile pairs. These entries may add caution but cannot remove the classical safety boundary enforced by the application.",
+              "description": "Optional ADDITIVE policy for pack-reviewed hostile pairs. Pack entries can only ever add caution; they cannot remove, weaken or override the classical safety boundary that the application enforces in getDashaRelationship(). READ THIS BEFORE EDITING the friendship matrix: the pairs listed in x-classicalSafetyPairs below are hard boundaries owned by app.js, not by the pack. A pair you mark 'friendly' in db.friendship will still render as Conflicting/Caution when it appears in this list, and conflicting stacks can never render green. Treat that as intentional — the classical Sambhandha safety rule is non-negotiable by design.",
+              "x-classicalSafetyPairs": [
+                { "md": 4, "ad": 2, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 2, "ad": 4, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 4, "ad": 1, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 1, "ad": 4, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 1, "ad": 8, "rule": "Classical Sambhandha hostility (Sun/Saturn)", "removable": false },
+                { "md": 8, "ad": 1, "rule": "Classical Sambhandha hostility (Sun/Saturn)", "removable": false },
+                { "md": 9, "ad": 8, "rule": "Classical Sambhandha hostility (Mars/Saturn)", "removable": false },
+                { "md": 8, "ad": 9, "rule": "Classical Sambhandha hostility (Mars/Saturn)", "removable": false },
+                { "md": 3, "ad": 6, "rule": "Classical Sambhandha hostility (Jupiter/Venus)", "removable": false },
+                { "md": 6, "ad": 3, "rule": "Classical Sambhandha hostility (Jupiter/Venus)", "removable": false }
+              ],
               "properties": {
                 "additionalHostilePairs": {
                   "type": "array",

@@ -4,6 +4,12 @@ const PORT = process.env.PORT || 4173;
 
 export default defineConfig({
   testDir: './tests/visual',
+  outputDir: './test-results',
+  /* Baselines are addressed by spec + project + platform, e.g.
+     tests/visual/report-print.visual.spec.js-snapshots/loshu-birth-grid-chromium-desktop-linux.png
+     Keeping the platform suffix means a baseline generated on ubuntu-latest is
+     never accidentally compared against one from macOS or Windows. */
+  snapshotPathTemplate: '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}',
   timeout: 60_000,
   expect: {
     timeout: 10_000,

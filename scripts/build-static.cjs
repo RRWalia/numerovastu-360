@@ -9,8 +9,9 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
-const files = ['index.html', 'app.js', 'astro.js', 'data.js', 'i18n.js', 'styles.css'];
-const dirs = ['knowledge-pack', 'atlas'];
+const files = ['index.html', 'app.js', 'astro.js', 'data.js', 'i18n.js', 'styles.css',
+  'sw.js', 'manifest.webmanifest'];
+const dirs = ['knowledge-pack', 'atlas', 'icons'];
 
 function rm(target) {
   fs.rmSync(target, { recursive: true, force: true });
@@ -53,6 +54,16 @@ const html = fs.readFileSync(distIndex, 'utf8').replace(
   `<meta name="nv-build-label" content="${buildLabel.replace(/"/g, '&quot;')}" />`
 );
 fs.writeFileSync(distIndex, html);
+
+/* Stamp the service-worker cache name with the build so a deployment always
+   invalidates the previous shell cache, without anyone having to remember to
+   bump CACHE_VERSION by hand. */
+const distSw = path.join(dist, 'sw.js');
+const swSrc = fs.readFileSync(distSw, 'utf8');
+fs.writeFileSync(distSw, swSrc.replace(
+  /^const CACHE_VERSION = "([^"]+)";/m,
+  (match, version) => `const CACHE_VERSION = "${version}-${buildLabel.replace(/[^0-9A-Za-z.-]/g, '')}";`
+));
 
 const outputs = [];
 function collect(dir) {

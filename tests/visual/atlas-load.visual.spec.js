@@ -17,7 +17,10 @@ test('India atlas loads in the browser and Etah/Etawah top a short query', async
   const input = page.locator('#birthPlace');
   await input.fill('Et');
   const options = page.locator('#birthPlaceList option');
-  await expect(options.first()).toHaveValue(/^Etah, /);
+  // `toHaveValue` only applies to input/textarea/select — an <option> is none
+  // of those, so Playwright rejected it with "Not an input element". Assert
+  // the value attribute instead.
+  await expect(options.first()).toHaveAttribute('value', /^Etah, /);
   const values = await options.evaluateAll((opts) => opts.map((o) => o.value));
   expect(values.length).toBeGreaterThanOrEqual(3);
   expect(values.slice(0, 3).some((v) => v.startsWith('Etawah, '))).toBe(true);
