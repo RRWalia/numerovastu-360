@@ -1455,4 +1455,9 @@ body {
   body.print-cockpit .cockpit-panel-heading { display: none !important; }
   body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }
   body.print-cockpit .cockpit-section { margin: 0; break-before: auto; page-break-before: auto; }
+  /* The closing brand/disclaimer footer is screen-only in a cockpit job: it
+     sits after the one-A4 consultation sheet, and on charts where the sheet
+     already fills the page it would push the "Print this page" job onto a
+     second page — breaking the single-page contract the sheet is packed for. */
+  body.print-cockpit .report-closing { display: none !important; }
 }

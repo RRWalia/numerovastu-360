@@ -1047,6 +1047,34 @@
       return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
     }
   }
+  /* Unambiguous, locale-aware birth-date line for the report hero.
+     Built from the profile's numeric day/month/year in UTC — never from a
+     parsed date string — so a viewer's timezone can never shift the birth
+     date by a day, and rendered through the active locale so a Hindi or
+     Gujarati report reads its month names in that language. "Short" month
+     names also keep the hero consistent with every other date in the report
+     (en-GB renders September as "Sept", exactly like the Dasha tables). */
+  function formatBirthDate(p) {
+    if (!p || !p.day || !p.month || !p.year) return "";
+    const lang = getLang();
+    const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB";
+    try {
+      return new Date(Date.UTC(p.year, p.month - 1, p.day)).toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    } catch (e) {
+      const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${p.day} ${MONTHS[p.month - 1]} ${p.year}`;
+    }
+  }
+  /* Report generation stamp, same locale rules as formatBirthDate. */
+  function formatStampDate(d) {
+    const lang = getLang();
+    const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB";
+    try {
+      return (d instanceof Date ? d : new Date(d)).toLocaleDateString(loc, { day: "numeric", month: "short", year: "numeric" });
+    } catch (e) {
+      return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    }
+  }
   function formatBirthTime(t) {
     if (!t) return "";
     const [hh, mm] = t.split(":").map(Number);
@@ -3715,8 +3743,19 @@
         : ` · ${fmtTz(pl.tz)}`;
       const driverPlanet = db.numbers[p.driver] ? db.numbers[p.driver].planet : "";
       const nakDriverLink = driverPlanet && driverPlanet.startsWith(nak.lord)
-        ? `<div class="astro-nak-driver">⭐ Star–Driver link: <strong>${esc(nak.name)}</strong> is ruled by <strong>${esc(driverPlanet)}</strong> — the same planet behind your Driver <strong>${p.driver}</strong>, so birth star and root number run on one current.</div>`
+        ? `<div class="astro-nak-driver">⭐ Star–Driver resonance: <strong>${esc(nak.name)}</strong>'s Vimshottari lord is <strong>${esc(driverPlanet)}</strong> — the same planet behind your Driver <strong>${p.driver}</strong>. A descriptive echo between the Vedic sky and your root number: it adds no remedy and changes no timing.</div>`
         : "";
+      /* The Midheaven is the ecliptic's highest point — it is NOT the Vedic
+         10th-house cusp. Whole-sign Dasham Bhava is counted from the Lagna,
+         and the two land in different signs for roughly a third of charts
+         (measured: 28,800 sample charts across 16 places, MC sign equals the
+         10th-from-Lagna sign in only ~67% of them). So the cell keeps the MC's
+         true identity and states the real Dasham Bhava sign beside it. */
+      const lagnaCusp = Math.floor(a.lagna.lonSidereal / 30) * 30;
+      const tenthSign = window.NVAstro.signOf((lagnaCusp + 270) % 360);
+      /* Card copy stays English exactly like every other string in this card
+         on main; localising the whole Astro-Identity Snapshot is its own task. */
+      const mcVedicNote = `Whole-sign Vedic 10th house (Dasham Bhava) from your Lagna: <strong>${esc(tenthSign.glyph)} ${esc(tenthSign.name)}</strong>`;
       return `<div class="card astro-snapshot-card" id="vedic-snapshot">
       <div class="goal-head">
         <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
@@ -3726,7 +3765,7 @@
         ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
         ${astroCell("astro-moon", esc(a.moon.glyph), "Moon · Chandra Rashi", `${esc(a.moon.sign)} ${esc(a.moon.degStr)}`, `${esc(a.moon.element)} · ruled by ${esc(a.moon.lord)}`, `<span class="astro-nak-badge">${esc(nak.glyph)} ${esc(nak.name)} · Pada ${nak.pada} · lord ${esc(nak.lord)}</span>`)}
         ${astroCell("astro-lagna", esc(a.lagna.glyph), "Lagna (Ascendant)", `${esc(a.lagna.sign)} ${esc(a.lagna.degStr)}`, `${esc(a.lagna.element)} · ruled by ${esc(a.lagna.lord)}`, "The sign rising on the eastern horizon at your birth minute")}
-        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven / 10th House Cusp (Dasham Bhava)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, "The 10th-house cusp (Dasham Bhava) — career, status &amp; public life")}
+        ${astroCell("astro-mc", esc(a.mc.glyph), "Midheaven (MC)", `${esc(a.mc.sign)} ${esc(a.mc.degStr)}`, `${esc(a.mc.element)} · ruled by ${esc(a.mc.lord)}`, `Highest point of the ecliptic — career &amp; public life · ${mcVedicNote}`)}
       </div>
       <div class="astro-nak-strip">
         <div class="astro-nak-head">Nakshatra of the Moon — <strong>${esc(nak.name)}</strong> ${esc(nak.glyph)} · <strong>Pada ${nak.pada} of 4</strong> · ${esc(nak.spanStr)} of the sidereal zodiac</div>
@@ -4531,9 +4570,8 @@
     const evolving = evolvingChartData(p, timing);
     const summary = northstarSummary(p, triage);
     const activation = activationPlan(p, triage);
-    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const dobDisplay = `${p.day} ${MONTHS[p.month - 1]} ${p.year}`; // unambiguous international format
-    const generatedOn = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    const dobDisplay = formatBirthDate(p); // unambiguous, locale-aware, timezone-safe
+    const generatedOn = formatStampDate(new Date());
 
     const summarySection = `<section class="rsection summary-section" id="summary-section">
       <div class="summary-shell">
@@ -5526,8 +5564,11 @@
       <div class="report-hero">
         <div class="invocation">ॐ श्री गणेशाय नमः</div>
         <h1>${t("reportHeroTitle", "Remedy Report — {name}").replace("{name}", esc(p.name))}</h1>
-        <p>DOB <strong>${esc(dobDisplay)}</strong>${birthLine ? ` · Born ${esc(birthLine)}` : ""} · Focus: ${p.goals.map(esc).join(", ")}</p>
-        <p class="gen-line">Report generated ${esc(generatedOn)} · computed locally on your device — nothing leaves your browser</p>
+        <p>${t("reportHeroMeta", "DOB <strong>{dob}</strong>{birthLine} · Focus: {goals}")
+          .replace("{dob}", esc(dobDisplay))
+          .replace("{birthLine}", birthLine ? ` · ${t("born", "Born")} ${esc(birthLine)}` : "")
+          .replace("{goals}", p.goals.map(esc).join(", "))}</p>
+        <p class="gen-line">${t("reportGenLine", "Report generated {date} · computed locally on your device — nothing leaves your browser").replace("{date}", esc(generatedOn))}</p>
         <div class="report-meta">
           <span class="status-pill status-private">${t("statusPrivate", "Private & local")}</span>
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
@@ -5552,11 +5593,11 @@
       <section class="report-module-panel foundation-panel" id="foundation-panel" role="tabpanel" aria-labelledby="foundation-tab"${foundationHidden}>
         <div class="module-panel-heading"><p class="summary-kicker">${t("tabFoundation", "Foundation · Lo Shu")}</p><h2>${t("foundationPanelTitle", "Your psychological blueprint and practice")}</h2><p>${t("foundationPanelDesc", "Use the classic Lo Shu Birth, Name and Combined grids to understand patterns, then build your practical 40-day activation plan.")}</p></div>
         <div class="card reading-guide">
-          <div class="card-title">How to read this report</div>
+          <div class="card-title">${t("readingGuideTitle", "How to read this report")}</div>
           <div class="reading-guide-grid">
-            <div class="reading-guide-item"><strong>Driver (Moolank)</strong> — your mind, personality and day-to-day energy; <strong>Conductor (Bhagyank)</strong> — your destiny path. Both derive from your birth date.</div>
-            <div class="reading-guide-item"><strong>Lo Shu grid</strong> — which of the eight planet energies are present, repeated or missing in your name and birth date. Each missing number gets its own remedy kit inside.</div>
-            <div class="reading-guide-item">Numbered sections build from identity → remedies → timing → Vastu. The <strong>40-Day Activation Plan</strong> at the end is your starting point — practise it consistently for 40 days.</div>
+            <div class="reading-guide-item">${t("readingGuideDriver", "<strong>Driver (Moolank)</strong> — your mind, personality and day-to-day energy; <strong>Conductor (Bhagyank)</strong> — your destiny path. Both derive from your birth date.")}</div>
+            <div class="reading-guide-item">${t("readingGuideGrid", "<strong>Lo Shu grid</strong> — which of the nine number energies (1–9, each ruled by a planet) are present, repeated or missing in your birth date and name. Section {grid} reads every gap: your first gaps get full remedy kits in Section {kits}, the rest get quick balancers, and the Remedy Triage stages one acute target at a time.").replace("{grid}", SECTION.grid).replace("{kits}", SECTION.weak)}</div>
+            <div class="reading-guide-item">${t("readingGuideFlow", "Numbered sections build from identity → remedies → timing → Vastu across the Foundation, Timeline and Cockpit tabs. The <strong>40-Day Activation Plan</strong> at the end of Foundation is your starting point — practise it consistently for 40 days.")}</div>
           </div>
         </div>
         ${summarySection}
@@ -5604,9 +5645,8 @@
         ${renderPractitionerCockpit(p)}
       </section>
       <div class="report-closing">
-        <div class="report-closing-brand">NumeroVastu 360 — Private Report</div>
-        <div class="report-closing-line">Report generated ${esc(generatedOn)} · Computed locally on your device — nothing leaves your browser.</div>
-        <div class="report-closing-line">Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.</div>
+        <div class="report-closing-brand">${t("reportClosingBrand", "NumeroVastu 360 — Private Report")}</div>
+        <div class="report-closing-line">${t("reportClosingDisclaimer", "Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.")}</div>
       </div>
     `;
   }
@@ -6057,7 +6097,7 @@
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
-    normalizeDobInput, formatDobForDisplay,
+    normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
