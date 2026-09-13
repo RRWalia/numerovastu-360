@@ -693,16 +693,38 @@ check("mobile verdict: a fallback-tier pair can never report off-target", [3, 5,
 
 const mcOffTarget = profile({ dob: "1970-05-05", mobile: "7574011152", gender: "male" });
 check("reported chart: Driver 5 / Conductor 9 with mobile 7574011152 totals 33 → 6", mcOffTarget.driver === 5 && mcOffTarget.conductor === 9 && mcOffTarget.mobCompound === 33 && mcOffTarget.mobNum === 6);
-const mcOffTargetText = mount(window.__NV.renderReport(mcOffTarget)).textContent
+const mcOffTargetHtml = mount(window.__NV.renderReport(mcOffTarget)).innerHTML
   .split("Mobile Number Vibration")[1]
-  .split("Vehicle Number Vibration")[0]
-  .replace(/\s+/g, " ");
+  .split("Vehicle Number Vibration")[0];
+const mcOffTargetText = mcOffTargetHtml.replace(/<[^>]*>/g, "").replace(/\s+/g, " ");
 check("off-target mobile report keeps the number but still names the ideal totals", /not hostile to your birth numbers/.test(mcOffTargetText) && /totals 10, 19, 28, 37, 46, 55 remain your best picks/.test(mcOffTargetText) && !/no change required/.test(mcOffTargetText));
-const mcOptimalText = mount(window.__NV.renderReport(profile({ dob: "1970-05-05", mobile: "7210000009", gender: "male" }))).textContent
+/* The headline badge must not outrank the verdict: a green "Harmonious"
+   sitting directly above "sits outside your ideal set" is the mixed message
+   that started this. The per-row badges stay accurate, so the assertion skips
+   the leading "Digits total …" info pill and reads the verdict badge. */
+const mcVerdictBadge = (html) => (html.match(/<span class="badge [^"]*"[^>]*>([^<]*)<\/span>/g) || [])
+  .map((m) => m.replace(/^<[^>]*>/, "").replace(/<\/span>$/, ""))
+  .filter((label) => !/^Digits total/.test(label))[0] || "";
+check("off-target headline badge reads 'Acceptable — off ideal set', never 'Harmonious'", mcVerdictBadge(mcOffTargetHtml) === "Acceptable — off ideal set");
+const mcOptimalHtml = mount(window.__NV.renderReport(profile({ dob: "1970-05-05", mobile: "7210000009", gender: "male" }))).innerHTML
   .split("Mobile Number Vibration")[1]
-  .split("Vehicle Number Vibration")[0]
-  .replace(/\s+/g, " ");
-check("optimal mobile report still says no change required", /vibrates acceptably with your birth numbers — no change required/.test(mcOptimalText));
+  .split("Vehicle Number Vibration")[0];
+check("optimal mobile report still says no change required", /vibrates acceptably with your birth numbers — no change required/.test(mcOptimalHtml.replace(/<[^>]*>/g, "").replace(/\s+/g, " ")));
+check("optimal headline badge stays 'Harmonious'", mcVerdictBadge(mcOptimalHtml) === "Harmonious");
+/* Behaviour change worth pinning: a root neutral to BOTH birth numbers used to
+   print a "Neutral" headline badge. Every such root is by definition outside a
+   both-friendly ideal set, so it now reads off-target instead — more
+   informative, and the prose explains it. (The relBadge("neutral") branch is
+   retained for custom knowledge packs whose friendship rows could make it
+   reachable again; no bundled pack reaches it.) */
+const mcNeutralProfile = profile({ dob: "1971-02-02", mobile: "3000000000", gender: "male" });
+check("a both-neutral root is Driver 2 / Conductor 4 with root 3", mcNeutralProfile.driver === 2 && mcNeutralProfile.conductor === 4 && mcNeutralProfile.mobNum === 3
+  && mcNeutralProfile.mobRelD === "neutral" && mcNeutralProfile.mobRelC === "neutral");
+const mcNeutralHtml = mount(window.__NV.renderReport(mcNeutralProfile)).innerHTML
+  .split("Mobile Number Vibration")[1]
+  .split("Vehicle Number Vibration")[0];
+check("a both-neutral root now reads off-target, not a bare 'Neutral'", mcVerdictBadge(mcNeutralHtml) === "Acceptable — off ideal set"
+  && window.__NV.mobileSuggestion(mcNeutralProfile).verdict === "off-target");
 
 
 /* ---- Clinical safety overlays: solar-load moderation + under-18 gem guard ----

@@ -4916,7 +4916,16 @@
         <div class="goal-head">
           <div class="card-title">${esc(p.mobile)}</div>
           <span class="badge info">Digits total ${p.mobCompound} → Number ${p.mobNum} (${esc(db.numbers[p.mobNum].planet)})</span>
-          ${relBadge(p.mobRelD === "enemy" || p.mobRelC === "enemy" ? "enemy" : p.mobRelD === "neutral" && p.mobRelC === "neutral" ? "neutral" : "friendly")}
+          ${(p.mobRelD === "enemy" || p.mobRelC === "enemy")
+            ? relBadge("enemy")
+            : mobSug.verdict === "off-target"
+              /* The headline badge must not outrank the verdict below it. A
+                 root that is friendly to one birth number and neutral to the
+                 other used to print a green "Harmonious" — which read as a
+                 clean bill of health directly above prose saying the number
+                 sits outside the ideal set. */
+              ? `<span class="badge warn" data-mobile-badge="off-target">${lang === "hi" ? "स्वीकार्य — आदर्श सूची से बाहर" : lang === "gu" ? "સ્વીકાર્ય — આદર્શ યાદીની બહાર" : "Acceptable — off ideal set"}</span>`
+              : (p.mobRelD === "neutral" && p.mobRelC === "neutral" ? relBadge("neutral") : relBadge("friendly"))}
         </div>
         <table class="rtable">
           <tr><th>vs Driver ${p.driver}</th><td>${relBadge(p.mobRelD)}</td></tr>
