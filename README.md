@@ -393,14 +393,20 @@ npm run check            # test + audit + build
 
 # Browser checks (Chromium required once)
 npm run browsers:install
-npm run test:visual
+npm run test:visual          # compare against committed baselines (read-only)
+npm run test:visual:update   # regenerate baselines after an intentional layout change
 ```
 
 The smoke suite checks both grid engines, Lo Shu Name/Combined coordinate
 mapping, Dasha/Vastu independence, authority boundaries, schema/pack validity,
 multilingual labels, accessible tab/hash behavior, and mobile/print CSS hooks.
 The Playwright suite verifies the same report behavior in a real browser,
-including mobile Timeline navigation and print expansion.
+including mobile Timeline navigation and print expansion. Three element-scoped
+pixel tests additionally pin the Lo Shu square, the Vimshottari card and the
+single-page A4 cockpit — guarantees that cannot be expressed as computed styles.
+Those baselines are generated on the CI image: a baseline rendered by a
+different Chromium build or font stack diffs against CI, so treat
+`npm run test:visual:update` as a deliberate, reviewed act rather than a fixup.
 
 ### Deploy
 

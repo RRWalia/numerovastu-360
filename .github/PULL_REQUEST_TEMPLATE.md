@@ -50,7 +50,8 @@ npm run check
 
 - [ ] `npm run check` passes locally.
 - [ ] `npm run test:visual` passes, or this PR intentionally changes layout and
-      the baselines are updated in this PR.
+      the baselines (`npm run test:visual:update`, generated on the CI image) are
+      updated in this PR.
 
 ## Privacy
 
