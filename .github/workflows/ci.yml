@@ -1,0 +1,200 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Required gate. Fast, deterministic, no browser needed — this is what a
+  # reviewer blocks on. Mirrors the documented release gate in QUALITY_AUDIT.md.
+  verify:
+    name: Smoke · audit · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Smoke suite, dependency audit, static build and archive freshness
+        run: npm run check
+
+      - name: Confirm the source archive matches this commit
+        run: npm run check:source-zip
+
+      - name: Confirm the static build produced a deployable dist/
+        run: |
+          test -f dist/index.html
+          test -f dist/app.js
+          test -f dist/knowledge-pack/latest.json
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+          test -f dist/icons/icon-512.png
+
+  # Visual regression. Runs strictly when reviewed baselines are committed;
+  # otherwise it says so loudly and uploads freshly generated baselines for a
+  # maintainer to review. It never silently passes.
+  visual:
+    name: Visual regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Check whether reviewed baselines are committed
+        id: baselines
+        run: |
+          shopt -s nullglob
+          found=(tests/visual/*-snapshots)
+          if [ ${#found[@]} -gt 0 ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Visual baselines missing::No Playwright snapshot baselines are committed under tests/visual/*-snapshots/, so screenshot regression cannot gate this PR. Run the 'Generate visual baselines' workflow (workflow_dispatch) to produce them on this runner and open a PR with them. Do not commit baselines generated on a developer machine: a different Chromium build or font stack will diff against this runner."
+          fi
+
+      # The gate: read-only comparison against committed baselines.
+      - name: Visual regression (strict)
+        id: strict
+        if: steps.baselines.outputs.present == 'true'
+        run: |
+          set -o pipefail
+          npm run test:visual 2>&1 | tee "$RUNNER_TEMP/visual.log"
+
+      # Best-effort by design: with no committed baselines there is nothing to
+      # compare against, so this run cannot gate the PR. It exists to produce
+      # the baselines and a readable failure report.
+      #
+      # NOTE: this must be `:update` (`--update-snapshots=all`), NOT
+      # `--update-snapshots=missing`. Both write a missing baseline, but
+      # `missing` still reports the assertion as failed ("A snapshot doesn't
+      # exist at ..., writing actual"), so a step whose whole purpose is to run
+      # when baselines are absent could never exit 0. `all` writes and passes.
+      - name: Generate baselines for review
+        id: generate
+        if: steps.baselines.outputs.present == 'false'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run test:visual:update 2>&1 | tee "$RUNNER_TEMP/visual.log"
+
+      # Proves the baselines a maintainer is about to commit actually pass
+      # strictly on this same image, and that the render is deterministic. A
+      # baseline that only passes the run that created it is worthless.
+      - name: Verify generated baselines reproduce strictly
+        id: verify
+        if: steps.baselines.outputs.present == 'false' && steps.generate.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run test:visual 2>&1 | tee -a "$RUNNER_TEMP/visual.log"
+
+      - name: Report visual regression status
+        if: always()
+        run: |
+          # NOTE: `steps.<id>.outcome` is the result BEFORE `continue-on-error`
+          # is applied, which is the honest signal here — `.conclusion` would
+          # always read "success" on those steps.
+          PRESENT="${{ steps.baselines.outputs.present }}"
+          GEN="${{ steps.generate.outcome }}"
+          VER="${{ steps.verify.outcome }}"
+
+          {
+            echo "### Visual regression"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| baselines committed | \`$PRESENT\` |"
+            echo "| strict run | \`${{ steps.strict.outcome }}\` |"
+            echo "| generation raw outcome | \`$GEN\` |"
+            echo "| post-generation verification | \`$VER\` |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Mirror the Playwright output into the job summary for a human
+          # reading the run page, AND put the first failure into the annotation
+          # below: annotations are exposed by the REST API, so a failing run
+          # stays diagnosable even when log and artifact blob storage are
+          # unreachable. (Job summaries themselves are not in the REST API.)
+          if [ -f "$RUNNER_TEMP/visual.log" ]; then
+            { echo '<details><summary>Playwright output</summary>'; echo; echo '```'; tail -80 "$RUNNER_TEMP/visual.log"; echo '```'; echo '</details>'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # List exactly what was generated, with hashes, so a maintainer can
+          # confirm the artifact without downloading it.
+          if [ "$PRESENT" = "false" ]; then
+            shopt -s nullglob globstar
+            images=(tests/visual/**/*-snapshots/*.png)
+            if [ ${#images[@]} -gt 0 ]; then
+              { echo; echo "Generated \`${#images[@]}\` baseline image(s):"; echo; echo '```'; sha256sum "\${images[@]}" | sed 's|tests/visual/||'; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+          first_failure() {
+            grep -m1 -E '^[[:space:]]*[0-9]+\) |Error: ' "$RUNNER_TEMP/visual.log" 2>/dev/null \
+              | sed 's/^[[:space:]]*//' | cut -c1-200 || true
+          }
+
+          if [ "$PRESENT" = "true" ]; then
+            echo "Visual regression ran strictly against committed baselines."
+          elif [ "$GEN" != "success" ]; then
+            FF="$(first_failure)"
+            echo "::error title=Visual regression broken::The Playwright specs are failing (not merely missing baselines), so the suite is red independently of baselines. The generation step exits non-zero only for a real spec failure now that it uses --update-snapshots=all. First failure: ${FF:-see job summary}."
+            { echo; echo "**The Playwright specs are failing.** First failure: \`${FF:-see log above}\`"; } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$VER" = "success" ]; then
+            echo "::warning title=Visual regression not gating::No committed baselines, so screenshot regression did NOT gate this PR. Fresh baselines were generated on this runner AND verified to reproduce strictly against it, so they are safe to commit; they are attached as the 'playwright-baselines' artifact. Run the 'Generate visual baselines' workflow (workflow_dispatch) to regenerate them on this exact image and open a PR with them."
+          else
+            FF="$(first_failure)"
+            echo "::error title=Generated baselines are not deterministic::The pixel tests passed when writing the baselines but failed when re-run strictly against them on the same runner. A baseline that does not reproduce is not committable, and committing it would turn the visual gate into permanent red. Most likely cause is un-stabilised content (animation, lazy image, font swap, timestamp) inside a screenshot region. First failure: ${FF:-see job summary}."
+            { echo; echo "**Generated baselines did not reproduce.** First failure: \`${FF:-see log above}\`"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload generated baselines
+        if: steps.baselines.outputs.present == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-baselines
+          path: tests/visual/**/*-snapshots/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # `failure()` alone is not enough: continue-on-error on the generation
+      # step absorbs the exit code, so check that step's outcome explicitly.
+      - name: Upload failure traces
+        if: failure() || steps.generate.outcome == 'failure' || steps.verify.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            ${{ runner.temp }}/visual.log
+          if-no-files-found: ignore
+          retention-days: 7

@@ -3,22 +3,30 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NumeroVastu 360 — Lo Shu Foundation & Ank Jyotish Dasha</title>
+<title>NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari</title>
 <meta name="description" content="360° numerology and Vastu remedy engine: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, name and mobile analysis, and Vastu guidance." />
-<meta name="nv-version" content="2.8.2" />
-<meta name="nv-build-label" content="Build 2026-09-08" />
+<meta name="nv-version" content="2.9.0" />
+<meta name="nv-build-label" content="Build 2026-09-12" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta name="robots" content="index,follow" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="NumeroVastu 360 — Lo Shu Foundation & Ank Jyotish Dasha" />
-<meta property="og:description" content="Private, browser-only Lo Shu Foundation and Ank Jyotish Dasha reports with separately governed remedies and Vastu timing." />
+<meta property="og:description" content="Private, browser-only Lo Shu Foundation, Ank Jyotish Dasha and Classical Vimshottari reports with separately governed remedies and Vastu timing." />
 <meta property="og:site_name" content="NumeroVastu 360" />
 <meta name="twitter:card" content="summary" />
 <meta name="twitter:title" content="NumeroVastu 360" />
 <meta name="twitter:description" content="Private, browser-only Numerology and Vastu remedy reports." />
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://photon.komoot.io; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="application-name" content="NumeroVastu 360" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="NumeroVastu 360" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png" />
 <link rel="stylesheet" href="styles.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%231e1b4b'/%3E%3Cstop offset='.6' stop-color='%236d28d9'/%3E%3Cstop offset='1' stop-color='%23b45309'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='2' y='2' width='44' height='44' rx='11' fill='url(%23b)'/%3E%3Cg stroke='%23ffd782' stroke-width='1.6' stroke-linecap='round' opacity='.95'%3E%3Cpath d='M18.7 9v30M29.3 9v30M9 18.7h30M9 29.3h30'/%3E%3C/g%3E%3Ctext x='24' y='29.5' text-anchor='middle' font-size='15' fill='%23ffd782' font-family='Noto Sans Devanagari,sans-serif'%3E%E0%A5%90%3C/text%3E%3C/svg%3E" />
 </head>
@@ -83,6 +91,10 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
         <span class="btn-text">Edit Details</span>
       </button>
+      <button id="fieldBtn" class="btn btn-secondary btn-32 hidden" type="button" aria-pressed="false" aria-label="Toggle field read mode" data-i18n-aria="fieldModeToggle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span class="btn-text" data-i18n="fieldModeOn">Field mode</span>
+      </button>
       <button id="printBtn" class="btn btn-primary btn-32 hidden" type="button" aria-label="Save or Print Report">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
         <span class="btn-text">Save / Print Report</span>
@@ -101,7 +113,7 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.8.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.8.2 · Meeus engine</span>
+        <span class="status-pill status-app" id="appBadge">App v2.9.0 · Meeus engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-09-08</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>

@@ -14,6 +14,7 @@ Neither grid is allowed to silently change the other system's result.
 | --- | --- | --- | --- |
 | **Foundation · Lo Shu** | “What patterns and practices support me?” | Classic Lo Shu | Personality blueprint, Name/Combined mapping, planes, arrows, missing/repeated signals and 40-day practice |
 | **Timeline · Ank Jyotish Dasha** | “What is active now and when does it change?” | Deterministic Ank Jyotish Dasha | Current MD/AD/PD, dates, event windows and active Vastu zone |
+| **Timeline · Classical Vimshottari** | “What does the nakshatra-anchored Vedic stack say?” | Classical Vimshottari | Moon-nakshatra anchor, balance of the birth lord, MD/AD/PD, 120-year ladder — timing only |
 | **Advanced Vedic Comparison** | “What does the Vedic birth matrix show?” | Vedic Ank Kundali | Birth-only planetary-strength indicators |
 | **Kua** | “What are my Feng Shui directions?” | Feng Shui | Separate Chinese-direction reference |
 
@@ -21,6 +22,29 @@ The Ank Jyotish Dasha is a proportional numerology clock: Moolank seeds the
 sequence, Mahadasha lengths equal the number, and sub-periods use the 45-year
 proportional cycle. It is explicitly **not classical Vimshottari Dasha** and
 does not use nakshatra balance to claim Vimshottari timing.
+
+Beside it, and computed independently, the **Classical Vimshottari** layer
+(`vimshottariTimeline()`) implements the real thing: the natal Moon's nakshatra
+anchors the sequence, the lords use their fixed 120-year durations, the
+traversed fraction of the birth nakshatra is deducted from the starting lord's
+balance, and Antardasha/Pratyantar subdivide the parent span by the 120-year
+weights (`MD × AD ÷ 120`). It requires Vedic Tier 2 (exact birth time and a
+recognised birthplace) and returns `null` without it, in which case the UI
+explains the requirement rather than substituting a guess.
+
+The two clocks are **not reconciled** and are allowed to disagree — they are
+different traditions with different anchors. The UI states the disagreement
+explicitly (`data-vimshottari-agrees`). Neither clock can alter the other, and
+the classical layer holds no remedy or Vastu-zone authority.
+
+| | Ank Jyotish Dasha | Classical Vimshottari |
+| --- | --- | --- |
+| Anchor | Moolank (birth day number) | Natal Moon nakshatra |
+| Cycle | 45 years (1+2+…+9) | 120 years, fixed |
+| MD length | The number itself | Fixed lord years |
+| Sub-period | `MD × AD ÷ 45` | `MD × AD ÷ 120` |
+| Tier 2 required | No (refines boundaries) | Yes |
+| Authority tag | `data-authority="dasha"` | `data-authority="vimshottari"` |
 
 Foundation is the post-onboarding default. Timeline is selected for `#timeline`,
 `#timing-section`, `#dasha-section` and `#vastu-section` routes.
@@ -31,6 +55,8 @@ This table is both a product decision and a regression boundary.
 
 | Output | Authority | Non-authorities |
 | --- | --- | --- |
+| Classical Vimshottari timing (`data-authority="vimshottari"`) | Moon nakshatra → Vimshottari | Lo Shu remedies, Vastu zones, Ank Jyotish event windows |
+| Active Vastu zone (`data-authority="dasha-vastu-zone"`) | Dasha lords select the sector | Lo Shu remedies, Vimshottari, Driver/Conductor |
 | Ayurvedic constitution / baseline | Driver + Conductor | Lo Shu, Vedic comparison |
 | Ishta Devta / guardian deity | Driver + Conductor | Lo Shu, Vedic comparison |
 | Power days | Driver + Conductor | Lo Shu, Vedic comparison |
