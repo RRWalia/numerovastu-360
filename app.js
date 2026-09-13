@@ -2266,9 +2266,26 @@
      neither number — then, as a last resort for a custom knowledge pack whose
      friendship rows leave even that empty, to totals friendly to the Driver.
      relation(n, n) is always "friendly", so that final tier cannot be empty. */
+  /* The verdict and the recommendation deliberately use *different* thresholds,
+     and that gap used to be invisible to the reader. "Change it" fires on an
+     enemy; the ideal-total list is built from totals friendly to *both* birth
+     numbers. A root that is friendly to one and merely neutral to the other
+     (Driver 5 / Conductor 9 against Number 6 is exactly that: Mercury befriends
+     Venus, Mars is neutral to her) therefore landed in neither branch — the
+     report said "vibrates acceptably, no change required" while the same report
+     had, one screen earlier, recommended 10/19/28/37/46/55 and then rendered no
+     list at all. The reader was told their number was fine and was given no way
+     to see it was off-target.
+
+     So: keep `needed` on the enemy threshold (a neutral root is genuinely not
+     hostile, and forcing a SIM change for it would be wrong), but classify the
+     result into three honest verdicts and ALWAYS return the ideal totals.
+       hostile    — an outright enemy of either birth number: change it
+       off-target — not hostile, but outside the ideal set: keepable, upgradable
+       optimal    — inside the ideal set: no change required
+     Membership is tested on the reduced root, never on the sliced top-6, so a
+     larger total such as 64 (also a 1) still reads as optimal. */
   function mobileSuggestion(p) {
-    const bad = p.mobRelD === "enemy" || p.mobRelC === "enemy";
-    if (!bad) return { needed: false };
     const bothGood = [], acceptable = [], driverGood = [];
     for (let t = 9; t <= 60; t++) {
       const r = reduce(t);
@@ -2277,8 +2294,18 @@
       else if (rd !== "enemy" && rc !== "enemy") acceptable.push(t);
       if (rd === "friendly") driverGood.push(t);
     }
-    const goodTotals = bothGood.length ? bothGood : acceptable.length ? acceptable : driverGood;
-    return { needed: true, goodTotals: goodTotals.slice(0, 6) };
+    const tier = bothGood.length ? bothGood : acceptable.length ? acceptable : driverGood;
+    const goodTotals = tier.slice(0, 6);
+    const tierRoots = new Set(tier.map((t) => reduce(t)));
+
+    const hostile = p.mobRelD === "enemy" || p.mobRelC === "enemy";
+    if (hostile) return { needed: true, verdict: "hostile", goodTotals };
+
+    // A caller that only passed relations (no compound total) cannot be judged
+    // for membership; treat it as not hostile rather than guessing a verdict.
+    const root = Number.isFinite(p.mobCompound) ? reduce(p.mobCompound) : null;
+    const onTarget = root !== null && tierRoots.has(root);
+    return { needed: false, verdict: onTarget ? "optimal" : "off-target", goodTotals };
   }
 
   function compatibility(a, b) {
@@ -4896,9 +4923,11 @@
           <tr><th>vs Conductor ${p.conductor}</th><td>${relBadge(p.mobRelC)}</td></tr>
         </table>
         ${compoundMeaning(p.mobCompound) ? `<div class="judge-note"><strong>Compound Number ${p.mobCompound}:</strong> ${esc(compoundMeaning(p.mobCompound))}</div>` : ""}
-        ${mobSug.needed
+        ${mobSug.verdict === "hostile"
           ? `<div class="kit-value">${lang === "hi" ? `आपका मोबाइल नंबर जन्म अंकों के साथ अनुकूल नहीं है — भविष्य में ऐसा नंबर चुनें जिसका कुल योग <strong>${mobSug.goodTotals.join(", ")}</strong> हो।` : lang === "gu" ? `તમારો મોબાઈલ નંબર જન્મ અંકો સાથે સુમેળભર્યો નથી — ભવિષ્યમાં એવો નંબર પસંદ કરો જેનો કુલ સરવાળો <strong>${mobSug.goodTotals.join(", ")}</strong> થતો હોય.` : `Your mobile number works against your birth numbers — since your phone is your most-used device, this is a high-impact change. When choosing a new number, pick one whose digits total <strong>${mobSug.goodTotals.join(", ")}</strong>. Activate the new SIM on a ${dayOf(p.driver)} or ${dayOf(p.conductor)} morning.`}</div>`
-          : `<div class="kit-value">${lang === "hi" ? "आपका मोबाइल नंबर आपके जन्म अंकों के अनुकूल है — बदलने की आवश्यकता नहीं है।" : lang === "gu" ? "તમારો મોબાઈલ નંબર તમારા જન્મ અંકો સાથે સુમેળભર્યો છે — બદલવાની જરૂર નથી." : "Your mobile number vibrates acceptably with your birth numbers — no change required."}</div>`}
+          : mobSug.verdict === "off-target"
+            ? `<div class="kit-value" data-mobile-verdict="off-target">${lang === "hi" ? `आपका मोबाइल नंबर जन्म अंकों के विरुद्ध नहीं है — कोई तत्काल बदलाव आवश्यक नहीं। परन्तु कुल योग <strong>${p.mobCompound}</strong> अंक <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}) तक जाता है, जो आपके चालक ${p.driver} और कंडक्टर ${p.conductor} दोनों के साथ मैत्रीपूर्ण नहीं है। यदि आप अपने सर्वाधिक प्रयुक्त उपकरण के लिए सर्वश्रेष्ठ कंपन चाहते हैं, तो कुल योग <strong>${mobSug.goodTotals.join(", ")}</strong> वाले नंबर अभी भी आपके सर्वोत्तम विकल्प हैं।` : lang === "gu" ? `તમારો મોબાઈલ નંબર જન્મ અંકોની વિરુદ્ધ નથી — કોઈ તાત્કાલિક ફેરફાર જરૂરી નથી. પરંતુ કુલ સરવાળો <strong>${p.mobCompound}</strong> અંક <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}) સુધી જાય છે, જે તમારા ડ્રાઈવર ${p.driver} અને કંડક્ટર ${p.conductor} બંને સાથે મૈત્રીપૂર્ણ નથી. જો તમે તમારા સૌથી વધુ વપરાતા ઉપકરણ માટે શ્રેષ્ઠ કંપન ઈચ્છતા હો, તો કુલ સરવાળો <strong>${mobSug.goodTotals.join(", ")}</strong> વાળા નંબર હજી પણ તમારા શ્રેષ્ઠ વિકલ્પો છે.` : `Your mobile number is not hostile to your birth numbers — no urgent change required. But it totals <strong>${p.mobCompound}</strong>, reducing to Number <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}), which is not friendly to <em>both</em> Driver ${p.driver} and Conductor ${p.conductor}, so it sits outside your ideal set. Your number is keepable; if you want the strongest vibration for your most-used device, totals <strong>${mobSug.goodTotals.join(", ")}</strong> remain your best picks. Activate any new SIM on a ${dayOf(p.driver)} or ${dayOf(p.conductor)} morning.`}</div>`
+            : `<div class="kit-value" data-mobile-verdict="optimal">${lang === "hi" ? "आपका मोबाइल नंबर आपके जन्म अंकों के अनुकूल है — बदलने की आवश्यकता नहीं है।" : lang === "gu" ? "તમારો મોબાઈલ નંબર તમારા જન્મ અંકો સાથે સુમેળભર્યો છે — બદલવાની જરૂર નથી." : "Your mobile number vibrates acceptably with your birth numbers — no change required."}</div>`}
       </div>
     </section>`;
 
