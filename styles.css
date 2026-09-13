@@ -958,7 +958,10 @@ body {
   display: flex; align-items: center; justify-content: center;
   margin-top: 1px;
 }
-.priority-text { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+/* Keep the checklist copy wide enough for its leading label (for example,
+   "Strengthen Rahu") instead of letting the flex row collapse it into
+   word-thin lines in narrow print columns. */
+.priority-text { min-width: 140px; flex: 1; overflow-wrap: anywhere; }
 .cadence {
   flex: none; margin-top: 1px;
   padding: 3px 9px; border-radius: var(--r-full);
