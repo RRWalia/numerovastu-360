@@ -13,7 +13,7 @@ const html = read("index.html");
 const styles = read("styles.css");
 const schema = JSON.parse(read("knowledge-pack/schema.json"));
 const latestManifest = JSON.parse(read("knowledge-pack/latest.json"));
-const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.8.0.json"));
+const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.9.0.json"));
 const versionedPackFiles = fs.readdirSync(path.join(root, "knowledge-pack", "packs"))
   .filter((file) => /^\d+\.\d+\.\d+\.json$/.test(file))
   .sort();
@@ -217,6 +217,14 @@ check("Personal Year is synthesised with the active Dasha stack", !!transit && t
 
 const waliaEvents = Object.fromEntries(waliaDasha.events.map((e) => [e.key, e]));
 check("Venus wealth windows are retained and graded rather than purged", waliaEvents.wealth.future.some((w) => w.adN === 6) && waliaEvents.wealth.future.filter((w) => w.adN === 6).every((w) => w.conversion.grade !== "high") && waliaEvents.wealth.future.filter((w) => w.adN === 3).every((w) => w.conversion.grade === "high"));
+const waliaWealthCoverage = waliaEvents.wealth.coverage;
+check("wealth windows span the full 21–75 band with lifetime coverage printed", waliaEvents.wealth.future.length <= 5 && waliaWealthCoverage.total > waliaEvents.wealth.future.length && waliaWealthCoverage.last.toAge >= 74 && waliaDasha.mahadashas.some((m) => m.fromAge <= 80 && m.toAge >= 80) && $$("[data-lifetime-coverage]", waliaDashaSection).length === 5 && /Lifetime coverage: .*significator windows inside the 21–75 age band/.test(waliaDashaSection.textContent));
+const waliaMarriage = waliaEvents.marriage;
+const DASHA_YEAR_MS = 365.2425 * 86400000;
+check("closed marriage band surfaces late windows scanned till the 80-year horizon", waliaMarriage.bandClosed === true && waliaMarriage.future.length > 0 && waliaMarriage.future.length <= 3 && waliaMarriage.future.every((w) => w.beyondBand === true) && Math.round((waliaMarriage.lateHorizonMs - waliaDasha.birthMs) / DASHA_YEAR_MS) === 80 && /Late window — beyond the classical 18–45 age band/.test(waliaDashaSection.textContent) && /80-year average lifespan/.test(waliaDashaSection.textContent));
+const elderDasha = window.__NV.dashaTimeline(profile({ dob: "1948-06-15" }), fixedDate);
+const elderMarriage = elderDasha.events.find((e) => e.key === "marriage");
+check("late scan keeps a 15-year floor past the 80-year horizon", elderMarriage.lateHorizonMs > elderDasha.birthMs + 80 * DASHA_YEAR_MS && Math.round((elderMarriage.lateHorizonMs - elderDasha.birthMs) / DASHA_YEAR_MS) === Math.round((new Date(fixedDate).getTime() - elderDasha.birthMs) / DASHA_YEAR_MS + 15));
 check("event windows render a conversion-probability grade", $$('[data-window-grade="conditional"]', waliaDashaSection).length > 0 && $$('[data-window-grade="high"]', waliaDashaSection).length > 0 && /Conditional — activate the Vastu sector first/.test(waliaDashaSection.textContent) && /High probability — direct conversion/.test(waliaDashaSection.textContent));
 
 /* ---- Clinical release: formula string, Sambhandha, triage, cockpit ---- */
@@ -305,7 +313,8 @@ legacySchemaPack.schemaVersion = 1;
 const missingDashaPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
 delete missingDashaPack.db.dasha;
 check("hybrid knowledge pack validates and schema requires both grids plus Dasha", validPack.ok && schema.properties.schemaVersion.minimum === 2 && schema.properties.db.required.includes("loShuGrid") && schema.properties.db.required.includes("vedicGrid") && schema.properties.db.required.includes("dasha"));
-check("serialized 2.8.0 release pack exactly matches the bundled hybrid pack", same(serializedReleasePack, window.__NV_BUNDLED_PACK) && window.__NV.validatePack(serializedReleasePack).ok && latestManifest.latestVersion === "2.8.0" && latestManifest.packUrl === "knowledge-pack/packs/2.8.0.json");
+check("serialized 2.9.0 release pack exactly matches the bundled hybrid pack", same(serializedReleasePack, window.__NV_BUNDLED_PACK) && window.__NV.validatePack(serializedReleasePack).ok && latestManifest.latestVersion === "2.9.0" && latestManifest.packUrl === "knowledge-pack/packs/2.9.0.json");
+check("life-event bands cover wealth till 75 inside the 80-year lifespan horizon", same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.wealth.band, [21, 75]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.property.band, [24, 75]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.career.band, [21, 70]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.abroad.band, [16, 60]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.marriage.band, [18, 45]) && window.__NV.DASHA_LIFESPAN_YEARS === 80 && window.__NV.DASHA_FUTURE_WINDOWS === 5 && window.__NV.DASHA_LATE_WINDOWS === 3);
 check("validator rejects crossed grids, malformed Dasha zones and legacy hybrid pack shapes", !window.__NV.validatePack(malformedLoShu).ok && !window.__NV.validatePack(malformedVedic).ok && !window.__NV.validatePack(malformedDasha).ok && !window.__NV.validatePack(legacySchemaPack).ok && !window.__NV.validatePack(missingDashaPack).ok);
 check("canonical Vastu and Dasha mappings remain Vedic and independent of layouts", window.__NV_BUNDLED_PACK.db.vastu.directions.NE.planet === 3 && window.__NV_BUNDLED_PACK.db.vastu.directions.SW.planet === 4 && window.__NV_BUNDLED_PACK.db.dasha[7].zone.en === "North-East / Center Axis");
 

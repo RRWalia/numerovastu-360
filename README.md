@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.10.0 — Scaled Sadhana depth, upfront ethics notice: Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
+**Release 2.11.0 — Dasha coverage to 75/80: Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,19 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.11.0
+
+Wealth & business windows previously stopped at age 70 and the report showed
+only the three strongest upcoming windows, so a chart could read as “covered
+only till 56” even though later windows existed. Every Dasha horizon now
+assumes an 80-year average lifespan, and each event prints its lifetime span.
+
+| Area | 2.11.0 behaviour |
+| --- | --- |
+| Wealth & business band | Scanned across ages **21–75** (was 21–70); career runs to 70, property to 75, abroad to 60, marriage to 45. Pack v2.9.0. |
+| Dasha horizons | Mahadasha ladder, event scan and late-window scan are guaranteed inside an **80-year** coverage window; once a band closes, late significator windows are scanned till age 80 (or 15 years ahead, whichever reaches further). |
+| Event display | Five detailed upcoming windows per event (was three), three late windows once a band closes (was two), plus a printed **Lifetime coverage** line per event naming the total windows in band and the furthest one. |
 
 ## What changed in 2.10.0
 
@@ -351,7 +364,7 @@ The public knowledge pack is separate from personal data:
 3. A pack is validated before it is cached or used.
 4. An older/single-grid pack is rejected rather than mixed into the hybrid UI.
 
-Release 2.8.0 ships `knowledge-pack/packs/2.8.0.json`, generated from the
+Release 2.11.0 ships `knowledge-pack/packs/2.9.0.json`, generated from the
 bundled pack. The schema requires canonical `loShuGrid` and `vedicGrid`
 configuration as well as the Dasha/Vastu mappings.
 
@@ -381,7 +394,7 @@ numerovastu-360/
 ├── knowledge-pack/
 │   ├── schema.json                    # Schema-v2 contract
 │   ├── latest.json                    # Current manifest
-│   └── packs/2.8.0.json               # Release JSON pack
+│   └── packs/2.9.0.json               # Release JSON pack
 ├── scripts/build-atlas.mjs            # GeoNames → compact atlas chunks
 └── scripts/build-static.cjs           # Static distribution builder
 ```
@@ -451,3 +464,4 @@ content (with a scope note for the Meeus/`astronomia` portions of `astro.js`).
 Contact the repository owner
 ([`RRWalia/numerovastu-360`](https://github.com/RRWalia/numerovastu-360)) before
 reusing or redistributing the project.
+
