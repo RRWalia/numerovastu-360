@@ -270,19 +270,22 @@ grading as a standalone, testable function (`natalStatus`, `probability`,
 `clinicalNote`) and is what the cockpit prints. A natal void never scrubs a
 window: it downgrades it to remedy-dependent.
 
-If an event's classical age band has already closed, the next significator
-windows (15-year look-ahead) are shown as *late windows* instead of an empty
-card.
+Wealth & business windows are scanned across ages 21–75 and every Dasha
+horizon assumes an 80-year average lifespan. If an event's classical age band
+has already closed, the next significator windows — scanned till age 80, or
+15 years ahead, whichever reaches further — are shown as *late windows*
+instead of an empty card, and each event prints a lifetime-coverage line
+naming the total windows in band and the furthest one.
 
 ## 6. Data contract and release safety
 
-The bundled data and serialized pack use schema v2 / pack version 2.8.0.
+The bundled data and serialized pack use schema v2 / pack version 2.9.0.
 Relevant data lives in:
 
 ```text
 KNOWLEDGE_PACK
 ├── schemaVersion: 2
-├── packVersion: "2.8.0"
+├── packVersion: "2.9.0"
 └── db
     ├── loShuGrid       # canonical layout, planes, arrows and plotting policy
     ├── vedicGrid       # canonical Vedic layout and filtered plotting policy
@@ -291,7 +294,7 @@ KNOWLEDGE_PACK
 ```
 
 `validatePack()` rejects malformed or crossed layouts and invalid Dasha/Vastu
-mappings. The release JSON pack at `knowledge-pack/packs/2.8.0.json` is derived
+mappings. The release JSON pack at `knowledge-pack/packs/2.9.0.json` is derived
 from the bundled `KNOWLEDGE_PACK`; it is not maintained as a divergent copy.
 
 The profile model uses namespaced grid state:

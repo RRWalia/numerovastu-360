@@ -1,7 +1,7 @@
 {
   "manifestVersion": 1,
-  "latestVersion": "2.8.0",
-  "appVersion": "2.10.0",
-  "packUrl": "knowledge-pack/packs/2.8.0.json",
-  "notes": "Hybrid release: classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, Vedic Ank Kundali retained as a birth-only Planetary Strength Indicator, the independent proportional Ank Jyotish Dasha / active Vastu timeline, the additive Classical Vimshottari layer anchored on the natal Moon nakshatra, and — new in app 2.10.0 — a client-selected Scaled Sadhana practice depth (Beginner 11x / Practitioner-Sadhak 27x / Classical 108x) plus an upfront Ethical & Health Notice inside the Northstar Summary. Knowledge data itself is unchanged; latestVersion stays 2.8.0."
+  "latestVersion": "2.9.0",
+  "appVersion": "2.11.0",
+  "packUrl": "knowledge-pack/packs/2.9.0.json",
+  "notes": "Hybrid release: classic Lo Shu Foundation (Birth, Name and Combined grids) as the primary remedy blueprint, Vedic Ank Kundali retained as a birth-only Planetary Strength Indicator, the independent proportional Ank Jyotish Dasha / active Vastu timeline, the additive Classical Vimshottari layer anchored on the natal Moon nakshatra, and a client-selected Scaled Sadhana practice depth (Beginner 11x / Practitioner-Sadhak 27x / Classical 108x) plus an upfront Ethical & Health Notice inside the Northstar Summary. New in pack 2.9.0 / app 2.11.0: wealth & business life-event windows extended to ages 21–75 (career to 70, property to 75, abroad to 60, marriage to 45), every Dasha horizon assumes an 80-year average lifespan with late significator windows scanned till age 80, and each event prints its lifetime coverage span."
 }

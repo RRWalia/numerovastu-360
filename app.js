@@ -894,7 +894,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.10.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.11.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-13";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -1268,7 +1268,7 @@
     return {
       app: raw.app || "NumeroVastu 360",
       schemaVersion: raw.schemaVersion || 2,
-      packVersion: raw.packVersion || "2.8.0",
+      packVersion: raw.packVersion || "2.9.0",
       generatedAt: raw.generatedAt || isoDate(),
       manifestPath: raw.manifestPath || DEFAULT_MANIFEST_PATH,
       source: source || "bundled",
@@ -2520,6 +2520,21 @@
      user has provided an exact birth time (Vedic Tier 2) the cycle is
      anchored to that time for finer boundaries. */
   const DASHA_YEAR_MS = 365.2425 * 86400000;
+  /* Average-lifespan horizon for every Dasha read-out. Wealth & business
+     life-event windows are scanned across ages 21–75 (db.dasha.lifeEvents),
+     and every other Dasha horizon — the Mahadasha ladder, the late-window
+     scan once a classical band closes, and the Vimshottari ladder — is
+     guaranteed inside an 80-year coverage window. The Mahadasha ladder is
+     still computed to 100 years so sub-period boundaries stay exact past 80;
+     the late scan reaches till age 80, or 15 years ahead of today, whichever
+     reaches further, so a chart already near 80 still sees a useful horizon.
+     Five detailed upcoming windows per event (three late windows once a band
+     closes) keep the far end of a 75-year wealth band visible instead of
+     collapsing it into the three strongest early peaks. */
+  const DASHA_LIFESPAN_YEARS = 80;
+  const DASHA_LATE_LOOKAHEAD_YEARS = 15;
+  const DASHA_FUTURE_WINDOWS = 5;
+  const DASHA_LATE_WINDOWS = 3;
 
   function dashaSequenceFrom(n) {
     return Array.from({ length: 9 }, (_, i) => ((n - 1 + i) % 9) + 1);
@@ -2715,7 +2730,10 @@
     const birthMs = birth.getTime();
     const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
 
-    // Lifetime Mahadasha ladder (birth → ~100 years)
+    // Lifetime Mahadasha ladder. Computed to 100 years so Antardasha and
+    // Pratyantar boundaries stay exact past the 80-year average-lifespan
+    // horizon (DASHA_LIFESPAN_YEARS); every Dasha read-out is guaranteed
+    // inside that 80-year coverage window.
     const mahadashas = [];
     let cur = birthMs, n = p.driver;
     while (cur < birthMs + 100 * DASHA_YEAR_MS) {
@@ -2798,19 +2816,34 @@
       });
       // Keep the strongest upcoming windows by Dasha score alone; a
       // conditional (natal-absent) window is still shown, only graded lower.
-      let future = windows.filter((w) => !w.past).sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 3).sort((x, y) => x.startMs - y.startMs);
+      // Five windows (not three) keep the far end of a 75-year wealth band
+      // visible instead of collapsing it into the earliest peaks.
+      let future = windows.filter((w) => !w.past).sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, DASHA_FUTURE_WINDOWS).sort((x, y) => x.startMs - y.startMs);
       const pastBest = windows.filter((w) => w.past).sort((x, y) => y.score - x.score)[0] || null;
+      // Lifetime coverage for this event: how many significator windows the
+      // band holds in total and where the furthest one lands. The renderer
+      // prints this so a 21–75 wealth band reads as covered till 75 even
+      // though only the next few windows are detailed above it.
+      const lastInBand = windows.length ? windows[windows.length - 1] : null;
+      const coverage = {
+        total: windows.length,
+        futureTotal: windows.filter((w) => !w.past).length,
+        last: lastInBand ? { fromAge: lastInBand.fromAge, toAge: lastInBand.toAge, mdN: lastInBand.mdN, adN: lastInBand.adN, startMs: lastInBand.startMs, endMs: lastInBand.endMs } : null
+      };
       // If the classical age band has already closed, do not leave the event
-      // blank: surface the next significator windows beyond the band (next
-      // 15 years) and flag them as late windows so nothing is silently purged.
+      // blank: surface the next significator windows beyond the band and flag
+      // them as late windows so nothing is silently purged. The late scan
+      // reaches till the 80-year average-lifespan horizon, or 15 years ahead
+      // of today, whichever reaches further.
       const ageNow = (nowMs - birthMs) / DASHA_YEAR_MS;
+      const lateHorizonMs = Math.max(birthMs + DASHA_LIFESPAN_YEARS * DASHA_YEAR_MS, nowMs + DASHA_LATE_LOOKAHEAD_YEARS * DASHA_YEAR_MS);
       let bandClosed = false;
       if (!future.length && ageNow > ev.band[1]) {
         bandClosed = true;
         const late = [];
         mahadashas.forEach((m) => {
           buildAntardashas(m.n, m.startMs).forEach((a) => {
-            if (a.endMs < nowMs || a.startMs > nowMs + 15 * DASHA_YEAR_MS) return;
+            if (a.endMs < nowMs || a.startMs > lateHorizonMs) return;
             const score = scoreEventWindow(ev, m.n, a.n);
             if (score >= 3) late.push({
               mdN: m.n, adN: a.n, score, beyondBand: true,
@@ -2822,9 +2855,9 @@
             });
           });
         });
-        future = late.sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, 2).sort((x, y) => x.startMs - y.startMs);
+        future = late.sort((x, y) => y.score - x.score || x.startMs - y.startMs).slice(0, DASHA_LATE_WINDOWS).sort((x, y) => x.startMs - y.startMs);
       }
-      return { key, def: ev, future, pastBest, bandClosed };
+      return { key, def: ev, future, pastBest, bandClosed, coverage, lateHorizonMs };
     });
 
     // Personal Year is the annual transit engine the Dasha operates through.
@@ -4555,7 +4588,7 @@
      or Deficient. Complete planes are omitted. This is Dinacharya /
      Aushadhi / Pranayama only — Lo Shu keeps mantras, minerals and the
      40-day mandala; Dasha keeps spatial timing. Copy lives here (same
-     pattern as VEDIC_PLANE_READINGS) so pack 2.8.0 stays in lockstep. */
+     pattern as VEDIC_PLANE_READINGS) so pack 2.9.0 stays in lockstep. */
   const VEDIC_TATTVA_KIT = {
     practical: {
       tattva: { en: "Agni / Fire Tattva", hi: "अग्नि तत्व", gu: "અગ્નિ તત્વ" },
@@ -5365,6 +5398,7 @@
 
       const ladderCard = `<div class="card">
         <div class="card-title">${lang === "hi" ? "जीवन-भर की महादशा सीढ़ी" : lang === "gu" ? "જીવનભરની મહાદશા સીડી" : "Lifetime Mahadasha Ladder"}</div>
+        <div class="card-sub">${t("dashaLadderNote", "The ladder is computed well past the 80-year average-lifespan horizon so every life-event band — including wealth & business till 75 — stays covered for the whole of life.")}</div>
         <div class="table-scroll"><table class="rtable">
           <tr><th>${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "Mahadasha"}</th><th>${lang === "hi" ? "आयु व वर्ष" : lang === "gu" ? "ઉંમર અને વર્ષ" : "Ages & Years"}</th><th>${lang === "hi" ? "काल का विषय" : lang === "gu" ? "કાળનો વિષય" : "Theme of the period"}</th></tr>
           ${dl.mahadashas.map((m) => {
@@ -5405,17 +5439,23 @@
         const pastLine = e.pastBest
           ? `<div class="card-sub">${lang === "hi" ? `पिछली प्रबल विंडो: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (आयु ${e.pastBest.fromAge}–${e.pastBest.toAge}) — मिलान करें कि उस दौर में क्या घटा था।` : lang === "gu" ? `ગત પ્રબળ વિન્ડો: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ઉંમર ${e.pastBest.fromAge}–${e.pastBest.toAge}) — તે સમયગાળામાં શું બન્યું હતું તે સરખાવો.` : `Strongest past window: ${yearOfMs(e.pastBest.startMs)}–${yearOfMs(e.pastBest.endMs)} (ages ${e.pastBest.fromAge}–${e.pastBest.toAge}) — cross-check what actually happened then; it is your personal proof of how this cycle speaks.`}</div>`
           : "";
+        const coverage = e.coverage || { total: 0, last: null };
+        const coverageLine = coverage.last
+          ? `<div class="card-sub" data-lifetime-coverage="${coverage.total}" data-coverage-last="${coverage.last.fromAge}-${coverage.last.toAge}">${lang === "hi" ? `जीवन-भर कवरेज: ${e.def.band[0]}–${e.def.band[1]} आयु-पट्टी में ${coverage.total} कारक-विंडो; अंतिम विंडो ${coverage.last.fromAge}–${coverage.last.toAge} आयु (महादशा ${coverage.last.mdN} · अंतर्दशा ${coverage.last.adN})। ऊपर केवल निकटतम प्रबल विंडो विस्तृत हैं।` : lang === "gu" ? `જીવનભર કવરેજ: ${e.def.band[0]}–${e.def.band[1]} ઉંમર-પટ્ટીમાં ${coverage.total} કારક-વિન્ડો; છેલ્લી વિન્ડો ${coverage.last.fromAge}–${coverage.last.toAge} ઉંમર (મહાદશા ${coverage.last.mdN} · અંતર્દશા ${coverage.last.adN}). ઉપર ફક્ત નજીકની પ્રબળ વિન્ડો વિગતવાર છે.` : `Lifetime coverage: ${coverage.total} significator windows inside the ${e.def.band[0]}–${e.def.band[1]} age band; the furthest lands at ages ${coverage.last.fromAge}–${coverage.last.toAge} (MD ${coverage.last.mdN} · AD ${coverage.last.adN}). Only the nearest strong windows are detailed above.`}</div>`
+          : "";
         return `<div class="kit-row"><div class="kit-ico">${e.def.icon || "★"}</div><div class="kit-body">
           <div class="kit-label">${lbl}</div>
           ${windows}
           ${bandLine}
           ${pastLine}
+          ${coverageLine}
         </div></div>`;
       }).join("");
 
       const eventsCard = `<div class="card">
         <div class="card-title">${lang === "hi" ? "जीवन-घटना विंडो — विवाह, विदेश, करियर, संपत्ति, धन" : lang === "gu" ? "જીવન-ઘટના વિન્ડો — લગ્ન, વિદેશ, કારકિર્દી, મિલકત, ધન" : "Life-Event Windows — marriage, abroad, career, property, wealth"}</div>
         <div class="card-sub">${lang === "hi" ? "प्रत्येक विंडो वह अवधि है जब उस घटना के शास्त्रीय कारक ग्रह (जैसे विवाह के लिए शुक्र-चंद्र, विदेश के लिए राहु-केतु) महादशा-अंतर्दशा में सक्रिय होते हैं। ये दशा-आधारित अनुकूल अवसर-काल हैं, निश्चित भविष्यवाणी नहीं।" : lang === "gu" ? "દરેક વિન્ડો એ સમયગાળો છે જ્યારે તે ઘટનાના શાસ્ત્રીય કારક ગ્રહો (જેમ કે લગ્ન માટે શુક્ર-ચંદ્ર, વિદેશ માટે રાહુ-કેતુ) મહાદશા-અંતર્દશામાં સક્રિય હોય છે. આ દશા-આધારિત અનુકૂળ તક-કાળ છે, નિશ્ચિત ભવિષ્યવાણી નથી." : "Each window marks when the classical significators of that event (Venus–Moon for marriage, Rahu–Ketu for abroad, Sun–Saturn for career, and so on) become active in your Mahadasha–Antardasha stack. Read them as Dasha-based favourable opportunity periods, not fixed predictions."}</div>
+        <div class="card-sub">${t("dashaCoverageNote", "Coverage: wealth & business windows are scanned across ages 21–75, and every Dasha horizon assumes an 80-year average lifespan. Once a classical band closes, late significator windows are scanned till age 80 (or 15 years ahead, whichever reaches further) rather than leaving the card blank.")}</div>
         <div class="kit">${eventRows}</div>
       </div>`;
 
@@ -6292,6 +6332,7 @@
     computeProfile, generateLoShuGrid, generateVedicGrid, nameSuggestions, buildOptionalSpellings, brandAnalysis, spellingCandidates,
     mobileSuggestion, vehicleAnalysis, timingAnalysis, pinnacleAnalysis, dashaTimeline, zodiacSign,
     vimshottariTimeline, VIMSHOTTARI_LORDS, VIMSHOTTARI_TOTAL_YEARS,
+    DASHA_LIFESPAN_YEARS, DASHA_LATE_LOOKAHEAD_YEARS, DASHA_FUTURE_WINDOWS, DASHA_LATE_WINDOWS,
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
     formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,

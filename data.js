@@ -1883,17 +1883,20 @@ var DB = {
                     gu: "દક્ષિણને હૂંફાળી રોશનીથી ઊર્જિત કરો; ત્યાં ઘેરો વાદળી રંગ અને મોટા જળ-સ્ત્રોત ન રાખો." }
     },
     /* Life-event window definitions: primary lords trigger the event, support
-       lords strengthen it; band = the classical age range scanned. */
+       lords strengthen it; band = the classical age range scanned.
+       Wealth & business coverage runs 21–75 and every Dasha horizon assumes
+       an 80-year average lifespan (late significator windows are scanned
+       till age 80, or 15 years ahead, whichever reaches further). */
     lifeEvents: {
-      marriage: { icon: "💍", primary: [6, 2], support: [3], band: [18, 42],
+      marriage: { icon: "💍", primary: [6, 2], support: [3], band: [18, 45],
                   label: { en: "Marriage & committed partnership", hi: "विवाह व स्थायी साथ", gu: "લગ્ન અને સ્થાયી સાથ" } },
-      abroad:   { icon: "✈️", primary: [4, 7], support: [5], band: [16, 55],
+      abroad:   { icon: "✈️", primary: [4, 7], support: [5], band: [16, 60],
                   label: { en: "Going abroad — travel or settlement", hi: "विदेश गमन — यात्रा या बसना", gu: "વિદેશગમન — મુસાફરી કે વસવાટ" } },
-      career:   { icon: "📈", primary: [1, 8], support: [3], band: [21, 65],
+      career:   { icon: "📈", primary: [1, 8], support: [3], band: [21, 70],
                   label: { en: "Career peak & recognition", hi: "करियर शिखर व मान्यता", gu: "કારકિર્દી શિખર અને માન્યતા" } },
-      property: { icon: "🏠", primary: [8, 9], support: [4], band: [24, 65],
+      property: { icon: "🏠", primary: [8, 9], support: [4], band: [24, 75],
                   label: { en: "Property, home & land", hi: "संपत्ति, घर व भूमि", gu: "મિલકત, ઘર અને જમીન" } },
-      wealth:   { icon: "💰", primary: [3, 6], support: [5], band: [21, 70],
+      wealth:   { icon: "💰", primary: [3, 6], support: [5], band: [21, 75],
                   label: { en: "Wealth expansion & business growth", hi: "धन-विस्तार व व्यापार-वृद्धि", gu: "ધન-વિસ્તાર અને વેપાર-વૃદ્ધિ" } }
     }
   }
@@ -1902,8 +1905,8 @@ var DB = {
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 2,
-  packVersion: "2.8.0",
-  generatedAt: "2026-09-05T00:00:00Z",
+  packVersion: "2.9.0",
+  generatedAt: "2026-09-13T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",
