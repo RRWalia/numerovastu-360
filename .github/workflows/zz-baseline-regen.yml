@@ -1,0 +1,48 @@
+name: temp-regen-combined-baselines
+
+# TEMPORARY one-shot helper. Regenerates the three Playwright screenshot
+# baselines on the ubuntu-latest CI image from THIS branch's code and commits
+# them back to the branch, because PR #38's baselines were captured from plain
+# main and no longer match the combined report refinements. Removed after use.
+on:
+  push:
+    branches: [arena/01a0995d-numerovastu-360]
+    paths-ignore:
+      - 'tests/visual/**'
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    name: Regenerate baselines from this branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Regenerate every baseline from this branch
+        run: npm run test:visual:update
+
+      - name: Commit regenerated baselines back to the branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f tests/visual/**/*-snapshots/** 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No baseline changes — committed baselines already match this branch's render."
+          else
+            git commit -m "chore(visual): regenerate baselines for combined report refinements"
+            git push origin HEAD:arena/01a0995d-numerovastu-360
+          fi
