@@ -1,0 +1,116 @@
+name: Generate visual baselines
+
+# Screenshot baselines MUST be generated on the same image that gates them.
+# Playwright's Chromium build and the system font stack both affect glyph
+# rasterisation, so a baseline produced on macOS or on a different Linux
+# distribution will diff against ubuntu-latest and poison the gate with
+# failures no one can fix.
+#
+# Run this from the Actions tab (workflow_dispatch). It regenerates every
+# baseline on ubuntu-latest, uploads them as an artifact, and opens a pull
+# request containing them. Merge that PR and the Visual regression job in
+# ci.yml switches from "generate and warn" to a strict, blocking comparison.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Branch to open the baseline pull request against
+        required: true
+        default: main
+
+concurrency:
+  group: visual-baselines
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  baselines:
+    name: Regenerate baselines on ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.base_branch || 'main' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The exact Chromium the gate uses — this is the whole point.
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Record the renderer identity
+        run: |
+          {
+            echo "## Baseline renderer"
+            echo
+            echo '```'
+            node -e "console.log('playwright', require('@playwright/test/package.json').version)"
+            npx playwright --version
+            uname -a
+            echo '--- chromium ---'
+            node -e "const {chromium}=require('@playwright/test'); console.log(chromium.executablePath())"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Regenerate every baseline
+        run: npm run test:visual:update
+
+      - name: List what changed
+        id: changed
+        run: |
+          # Baselines are binary; force-add so a fresh checkout that has no
+          # snapshot directory yet still stages the new files.
+          git add -f tests/visual/**/*-snapshots/** 2>/dev/null || true
+          git add -f tests/visual 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No baseline changes — committed baselines already match this renderer."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "### Baselines regenerated" >> "$GITHUB_STEP_SUMMARY"
+            git diff --cached --stat | tail -20 >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload baselines as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-baselines-${{ github.run_id }}
+          path: tests/visual/**/*-snapshots/**
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Open a pull request with the baselines
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE: ${{ github.event.inputs.base_branch || 'main' }}
+        run: |
+          BRANCH="chore/visual-baselines-${GITHUB_RUN_ID}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git commit -m "chore(visual): regenerate Playwright baselines on ubuntu-latest"
+          git push origin "$BRANCH"
+          # Body lives in a checked-in file so the workflow stays readable and
+          # no heredoc has to survive YAML block-scalar indentation rules.
+          BODY_FILE=".github/visual-baselines-pr-body.md"
+          echo "Body file present: $(test -f "$BODY_FILE" && echo yes || echo no)"
+          if ! gh pr create --base "$BASE" --head "$BRANCH" \
+               --title "chore(visual): regenerate Playwright baselines on ubuntu-latest" \
+               --body-file "$BODY_FILE" --label "visual-baselines"; then
+            # Label may not exist in a fresh repository; retry without it.
+            gh pr create --base "$BASE" --head "$BRANCH" \
+              --title "chore(visual): regenerate Playwright baselines on ubuntu-latest" \
+              --body-file "$BODY_FILE"
+          fi

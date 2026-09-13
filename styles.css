@@ -42,7 +42,7 @@
   --dur-fast: 150ms;
   --dur-med: 250ms;
 
-  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", sans-serif;
+  --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Noto Sans Gujarati", "Gujarati Sangam MN", "Shruti", "Mangal", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 
   --z-header: 500;
 }
@@ -61,6 +61,23 @@ body {
 }
 
 .hidden { display: none !important; }
+
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: calc(var(--z-header) + 1);
+  transform: translateY(-140%);
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: #1e1b4b;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-small);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.skip-link:focus { transform: translateY(0); outline: 3px solid rgba(255, 215, 130, 0.9); outline-offset: 2px; }
 
 /* ---------- Header (components-web/header pattern) ---------- */
 .app-header {
@@ -82,7 +99,88 @@ body {
 .brand-text { display: flex; flex-direction: column; min-width: 0; }
 .brand-name { font-size: 16px; font-weight: 500; line-height: 24px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-sub { font-size: 12px; line-height: 18px; color: var(--label-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-actions { display: flex; gap: 8px; flex: none; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+
+/* ---------- Language Switchers ---------- */
+.lang-selector {
+  display: inline-flex;
+  align-items: center;
+  background: var(--fill-f1);
+  border: 1px solid var(--separator);
+  border-radius: var(--r-full);
+  padding: 2px;
+  gap: 2px;
+}
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: var(--label-secondary);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  line-height: 16px;
+  user-select: none;
+}
+.lang-btn:hover {
+  color: var(--label-primary);
+  background: var(--fill-f2);
+}
+.lang-btn.active {
+  background: #1e1b4b;
+  color: #ffd782;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.form-block-lang {
+  background: linear-gradient(135deg, rgba(109, 40, 217, 0.05) 0%, rgba(180, 83, 9, 0.05) 100%);
+  border: 1px solid rgba(109, 40, 217, 0.2);
+}
+.lang-picker-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.lang-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--separator);
+  background: var(--bg-primary);
+  color: var(--label-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  user-select: none;
+}
+.lang-chip:hover {
+  border-color: var(--purple);
+  background: var(--fill-f1);
+  transform: scale(1.02);
+}
+.lang-chip:active {
+  transform: scale(0.98);
+}
+.lang-chip.active {
+  background: #1e1b4b;
+  color: #ffd782;
+  border-color: #1e1b4b;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(30, 27, 75, 0.25);
+}
+.lang-flag {
+  font-size: 16px;
+  line-height: 1;
+}
 
 /* ---------- Buttons (components-web/button.md) ---------- */
 .btn {
@@ -103,7 +201,6 @@ body {
 /* ---------- Layout ---------- */
 .page { max-width: 880px; margin: 0 auto; padding: 32px 16px 48px; }
 .view { display: flex; flex-direction: column; gap: 32px; }
-#reportRoot { display: flex; flex-direction: column; gap: 32px; }
 
 /* ---------- Intro ---------- */
 .intro { display: flex; flex-direction: column; gap: 8px; }
@@ -121,6 +218,7 @@ body {
 .status-private { background: rgba(22, 196, 86, 0.12); color: #0b7c39; border-color: rgba(22, 196, 86, 0.18); }
 .status-knowledge { background: rgba(23, 131, 255, 0.1); color: #0f63c9; border-color: rgba(23, 131, 255, 0.16); }
 .status-app { background: rgba(255, 149, 0, 0.12); color: #a05c00; border-color: rgba(255, 149, 0, 0.2); }
+.status-build { background: rgba(0, 0, 0, 0.05); color: var(--label-secondary); border-color: rgba(0, 0, 0, 0.1); }
 .status-memory { background: rgba(152, 95, 251, 0.12); color: #6d28d9; border-color: rgba(152, 95, 251, 0.18); }
 .status-vedic { background: rgba(255, 149, 0, 0.12); color: #a05c00; border-color: rgba(255, 149, 0, 0.2); }
 
@@ -169,6 +267,31 @@ body {
 .field-hint { font-size: 12px; line-height: 18px; color: var(--label-tertiary); }
 .field-error { font-size: 14px; line-height: 20px; color: var(--danger); }
 
+.place-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.geo-manual {
+  margin-top: 4px; padding: 12px 14px;
+  border: 0.5px dashed var(--separator);
+  border-radius: var(--r-md);
+  background: var(--fill-f1);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.photon-results {
+  list-style: none; margin: 6px 0 0; padding: 0;
+  border: 0.5px solid var(--separator);
+  border-radius: var(--r-md);
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+.photon-results li { border-bottom: 0.5px solid var(--separator); }
+.photon-results li:last-child { border-bottom: none; }
+.photon-pick {
+  width: 100%; text-align: left; border: none; background: transparent;
+  font-family: var(--font); font-size: 13px; line-height: 20px;
+  padding: 8px 12px; cursor: pointer; color: var(--label-primary);
+}
+.photon-pick:hover { background: var(--fill-f1); }
+.photon-notice { padding: 8px 12px; font-size: 12px; color: var(--label-tertiary); }
+
 .input {
   height: 40px; width: 100%;
   padding: 10px 12px;
@@ -200,6 +323,13 @@ body {
 .chip:active { transform: scale(0.97); }
 .chip:focus-visible { outline: 2px solid var(--kimi-blue); outline-offset: 2px; }
 .chip.selected { background: var(--label-primary); color: #fff; }
+
+/* Optional Health sub-tags (shown only while the Health focus is on) */
+.health-tags-wrap { margin-top: 12px; padding: 12px 14px; background: var(--fill-f1); border-radius: var(--r-md); display: flex; flex-direction: column; gap: 8px; }
+.health-tags-wrap.hidden { display: none; }
+.field-label-sm { font-size: 13px; line-height: 18px; }
+.chip-group-sm { gap: 6px; }
+.chip-sm { height: 28px; padding: 4px 10px; font-size: 12.5px; line-height: 18px; }
 
 .toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -277,28 +407,64 @@ body {
 .reading-guide-item { font-size: 13px; line-height: 20px; color: var(--label-secondary); }
 .reading-guide-item strong { color: var(--label-primary); font-weight: 600; }
 
-/* Executive summary (key takeaways) */
-.summary-card {
-  border: 1px solid rgba(234, 179, 8, 0.4);
-  background: linear-gradient(180deg, rgba(234, 179, 8, 0.07), rgba(234, 179, 8, 0.02) 40%, var(--bg-primary) 100%);
+/* Foundation / Timeline product navigation. Tabs use native ARIA semantics;
+   the compact rail remains scrollable rather than clipping on small screens. */
+.module-tabs {
+  display: inline-flex; align-self: flex-start; gap: 4px;
+  margin-top: 10px; padding: 4px; max-width: 100%;
+  border: 1px solid var(--separator); border-radius: var(--r-full);
+  background: var(--fill-f1); overflow-x: auto;
 }
-.summary-lead { font-size: 14px; line-height: 22px; color: var(--label-secondary); }
-.summary-lead strong { color: var(--label-primary); }
-.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-.summary-item {
-  background: var(--bg-primary);
-  border: 0.5px solid var(--separator);
-  border-radius: var(--r-md);
-  padding: 10px 12px;
+.module-tab {
+  appearance: none; border: 0; cursor: pointer; white-space: nowrap;
+  min-height: 36px; padding: 7px 14px; border-radius: var(--r-full);
+  background: transparent; color: var(--label-secondary);
+  font: inherit; font-size: 13px; font-weight: 700;
 }
-.summary-label {
-  font-size: 11px; font-weight: 600; line-height: 16px;
-  text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--label-tertiary);
-  margin-bottom: 4px;
+.module-tab:hover { color: var(--label-primary); }
+.module-tab.active { background: var(--label-primary); color: #fff; box-shadow: var(--shadow-small); }
+.module-tab:focus-visible, .timeline-anchor-nav a:focus-visible { outline: 3px solid var(--kimi-blue); outline-offset: 2px; }
+.report-module-panel { display: flex; flex-direction: column; gap: 28px; margin-top: 24px; }
+.report-module-panel[hidden] { display: none; }
+.module-panel-heading {
+  padding: 18px 20px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, rgba(30, 27, 75, .07), rgba(109, 40, 217, .05));
+  border: 1px solid rgba(109, 40, 217, .16);
 }
-.summary-text { font-size: 13px; line-height: 20px; color: var(--label-secondary); }
-.summary-text strong { color: var(--label-primary); }
+.module-panel-heading h2 { margin-top: 3px; font-size: 21px; line-height: 29px; }
+.module-panel-heading p:not(.summary-kicker) { margin-top: 5px; color: var(--label-secondary); font-size: 14px; line-height: 21px; }
+.timeline-panel-heading { border-color: rgba(15, 99, 201, .2); background: linear-gradient(135deg, rgba(15, 99, 201, .08), rgba(22, 196, 86, .05)); }
+.timeline-anchor-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.timeline-anchor-nav a { min-height: 32px; padding: 6px 11px; border-radius: var(--r-full); background: #fff; border: 1px solid var(--separator); color: var(--label-primary); text-decoration: none; font-size: 13px; font-weight: 600; }
+
+/* Classic Lo Shu Foundation grid (4-9-2 / 3-5-7 / 8-1-6). It deliberately
+   has separate class names from the advanced Vedic birth comparison. */
+.loshu-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.loshu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 300px; flex: none; }
+.loshu-cell { aspect-ratio: 1; border-radius: var(--r-md); background: var(--bg-primary); border: 1px solid var(--separator); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: relative; }
+.loshu-cell .digits { font-size: 20px; font-weight: 700; line-height: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.loshu-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
+.loshu-cell.present { background: rgba(22, 196, 86, .11); border-color: rgba(22, 196, 86, .36); }
+.loshu-cell.present.multi { background: var(--light-yellow-bg); border-color: rgba(200, 160, 0, .32); }
+.loshu-cell.missing .digits { color: var(--label-quaternary); }
+.loshu-cell.missing::after { content: attr(data-missing-label); position: absolute; bottom: 6px; color: var(--danger); font-size: 10px; line-height: 14px; font-weight: 600; }
+.loshu-grid.compact { max-width: 100%; margin-top: 4px; }
+.loshu-grid.compact .loshu-cell .digits { font-size: 16px; }
+.arrow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.arrow-card { min-height: 134px; }
+.arrow-formed { border-color: rgba(22, 196, 86, .35); }
+.arrow-open { border-color: rgba(255, 149, 0, .28); }
+
+/* Advanced Vedic content is intentionally collapsed by default and remains a
+   birth-only strength comparison rather than another remedy surface. */
+.vedic-comparison-section { margin-top: -8px; }
+.advanced-vedic-comparison { border: 1px solid rgba(109, 40, 217, .24); border-radius: var(--r-lg); background: rgba(109, 40, 217, .035); overflow: hidden; }
+.advanced-vedic-comparison > summary { cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 15px 16px; color: var(--label-primary); font-size: 15px; font-weight: 700; }
+.advanced-vedic-comparison > summary::marker { color: var(--purple); }
+.advanced-vedic-comparison[open] > summary { border-bottom: 1px solid var(--separator); }
+.details-hint { color: var(--label-tertiary); font-size: 12px; font-weight: 500; }
+.details-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+.details-body .rsection-title { margin: 0; }
 
 /* Ganesh invocation — Vitality & Wisdom (yellow / gold / orange) */
 .invocation {
@@ -315,6 +481,14 @@ body {
 }
 
 .rsection { display: flex; flex-direction: column; gap: 16px; animation: rise 300ms var(--ease-out) both; }
+/* The report is a 40+ page DOM tree. On screen (never in print, where every
+   section must be laid out) we let the browser skip layout/paint for sections
+   that are still off-viewport, which removes the main-thread lock mobile
+   devices hit on first render. The size hint keeps the scrollbar stable. */
+@media screen {
+  .rsection { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+  .rsection:first-child, #summary-section, #core-profile, .cockpit-section { content-visibility: visible; }
+}
 .rsection:nth-child(2) { animation-delay: 50ms; }
 .rsection:nth-child(3) { animation-delay: 100ms; }
 .rsection-title { font-size: 18px; font-weight: 600; line-height: 26px; display: flex; align-items: center; gap: 8px; }
@@ -323,7 +497,134 @@ body {
   background: var(--fill-f2); color: var(--label-secondary);
   font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center;
 }
+.rsection-title .idx.idx-wide {
+  width: auto; min-width: 28px; padding: 0 6px; font-size: 11px;
+}
 .rsection-desc { font-size: 14px; color: var(--label-secondary); margin-top: -8px; }
+
+.summary-section { margin-top: 4px; }
+.summary-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(255, 215, 130, 0.18), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(152, 95, 251, 0.20), transparent 30%),
+    linear-gradient(135deg, #111827 0%, #1e1b4b 54%, #3b0764 100%);
+  color: #fff;
+  box-shadow: 0 18px 42px rgba(30, 27, 75, 0.22);
+}
+.summary-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(135deg, rgba(0,0,0,.9), transparent 70%);
+}
+.summary-shell > * { position: relative; z-index: 1; }
+.summary-kicker {
+  margin-bottom: 6px;
+  color: #ffd782;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+.summary-title {
+  max-width: 780px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 38px;
+}
+.summary-story {
+  max-width: 780px;
+  margin-top: 10px;
+  color: rgba(255,255,255,0.88);
+  font-size: 16px;
+  line-height: 27px;
+}
+.summary-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.summary-card {
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  background: rgba(255,255,255,0.09);
+  backdrop-filter: blur(10px);
+}
+.summary-label {
+  color: rgba(255,255,255,0.62);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+.summary-value { margin-top: 4px; font-size: 16px; font-weight: 700; line-height: 23px; }
+.summary-card p { margin-top: 6px; color: rgba(255,255,255,0.76); font-size: 13px; line-height: 20px; }
+.summary-next {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+.summary-next h3 { margin-bottom: 10px; color: #ffd782; font-size: 15px; line-height: 22px; }
+.summary-actions { display: flex; flex-direction: column; gap: 10px; list-style: none; }
+.summary-actions li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  color: rgba(255,255,255,0.88);
+  font-size: 14px;
+  line-height: 22px;
+}
+.summary-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-full);
+  background: #ffd782;
+  color: #1e1b4b;
+  font-weight: 800;
+}
+.summary-way-forward {
+  border-radius: var(--r-lg);
+  padding: 14px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+.summary-way-forward p { color: rgba(255,255,255,0.84); font-size: 14px; line-height: 22px; }
+.summary-way-forward p + p { margin-top: 10px; }
+.summary-shell strong, .summary-actions strong { color: #fff; }
+.summary-actions .mantra { color: #ffe9b0; }
+.summary-move { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.summary-move-title { display: block; color: #fff; font-weight: 700; font-size: 14px; line-height: 21px; }
+.summary-move-detail { display: block; color: rgba(255,255,255,0.72); font-size: 13px; line-height: 20px; }
+.summary-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 16px; padding: 10px 16px;
+  border-radius: var(--r-full);
+  background: #ffd782; color: #1e1b4b;
+  font-size: 13px; font-weight: 800; line-height: 18px;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(255, 215, 130, 0.28);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.summary-cta:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(255, 215, 130, 0.38); }
+.summary-cta:focus-visible { outline: 3px solid rgba(255,255,255,0.85); outline-offset: 2px; }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(8px) scale(0.99); }
@@ -369,13 +670,13 @@ body {
 .badge.bad  { background: var(--light-red-bg); color: #c92a36; }
 .badge.info { background: var(--kimi-blue-10); color: #0f63c9; }
 
-/* Loshu grid */
-.loshu-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.loshu-grid {
+/* Advanced Vedic Ank Kundali birth comparison */
+.vedic-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.vedic-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
   width: 100%; max-width: 300px; flex: none;
 }
-.loshu-cell {
+.vedic-cell {
   aspect-ratio: 1;
   border-radius: var(--r-md);
   background: var(--bg-primary);
@@ -384,19 +685,19 @@ body {
   transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease;
   position: relative;
 }
-.loshu-cell .digits { font-size: 20px; font-weight: 600; line-height: 1; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
-.loshu-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
-.loshu-cell.present { background: var(--light-green-bg); border-color: transparent; }
-.loshu-cell.present.multi { background: var(--light-yellow-bg); }
-.loshu-cell.missing { background: var(--bg-primary); }
-.loshu-cell.missing .digits { color: var(--label-quaternary); }
-.loshu-cell.missing::after {
-  content: "missing"; position: absolute; bottom: 6px;
+.vedic-cell .digits { font-size: 20px; font-weight: 600; line-height: 1; display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+.vedic-cell .cnt { font-size: 10px; line-height: 14px; color: var(--label-tertiary); }
+.vedic-cell.present { background: var(--light-green-bg); border-color: transparent; }
+.vedic-cell.present.multi { background: var(--light-yellow-bg); }
+.vedic-cell.missing { background: var(--bg-primary); }
+.vedic-cell.missing .digits { color: var(--label-quaternary); }
+.vedic-cell.missing::after {
+  content: attr(data-missing-label); position: absolute; bottom: 6px;
   font-size: 10px; line-height: 14px; color: var(--danger); font-weight: 500;
 }
-.loshu-cell:hover { transform: scale(1.02); }
-.loshu-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--label-secondary); }
-.loshu-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.vedic-cell:hover { transform: scale(1.02); }
+.vedic-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--label-secondary); }
+.vedic-legend span { display: inline-flex; align-items: center; gap: 4px; }
 .dot { width: 10px; height: 10px; border-radius: var(--r-xxs); display: inline-block; }
 .dot.g { background: var(--light-green-bg); border: 1px solid rgba(22,196,86,.35); }
 .dot.y { background: var(--light-yellow-bg); border: 1px solid rgba(200,160,0,.35); }
@@ -425,6 +726,17 @@ body {
 .kit-body { min-width: 0; }
 .kit-label { font-size: 12px; font-weight: 500; line-height: 18px; color: var(--label-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
 .kit-value { font-size: 14px; line-height: 22px; }
+
+/* Compatibility is a compact relationship reflection rather than a remedy
+   surface. The grouped overview keeps its heading with the four D/C-pair
+   table, while the reflection rows stay easy to scan on screen and in print. */
+.compatibility-overview,
+.compatibility-reflection-intro { display: flex; flex-direction: column; gap: 12px; }
+.compatibility-overview { gap: 16px; }
+#compatibility-reflection .kit-row { padding-top: 12px; border-top: 0.5px solid var(--separator); }
+.compatibility-cue { margin-top: 6px; color: var(--label-secondary); font-size: 14px; line-height: 22px; }
+.compatibility-cue strong { color: var(--label-primary); }
+
 .mantra { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--fill-f1); padding: 2px 6px; border-radius: var(--r-xxs); }
 
 /* Tables */
@@ -434,6 +746,25 @@ body {
 .rtable tr:last-child td { border-bottom: none; }
 .rtable tr.hl-row td { background: var(--light-green-bg); }
 .table-scroll { overflow-x: auto; border: 0.5px solid var(--separator); border-radius: var(--r-lg); background: var(--bg-primary); }
+.vedic-calculation-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
+.vedic-formula { margin-top: 4px; font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 21px; color: var(--label-secondary); }
+.vedic-formula strong { color: var(--label-primary); }
+/* Root-number equations: grouped, proportional-font digit tokens (never a
+   monospace digit string — mono zeros print/OCR as 8 in PDFs). */
+.root-formula { margin-top: 6px; font-family: var(--font); font-variant-numeric: lining-nums tabular-nums; color: var(--label-secondary); }
+.root-formula-line { display: flex; flex-wrap: wrap; align-items: center; row-gap: 6px; column-gap: 2px; font-size: 13px; line-height: 20px; }
+.root-group { display: inline-flex; flex-direction: column; align-items: center; padding: 2px 6px; border-radius: var(--r-xs); background: var(--fill-f1); }
+.root-group-label { font-size: 10px; line-height: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--label-tertiary); }
+.root-group-digits { display: inline-flex; align-items: center; white-space: nowrap; }
+.root-digit { display: inline-block; min-width: 12px; text-align: center; font-weight: 600; color: var(--label-primary); }
+.root-op { display: inline-block; padding: 0 3px; color: var(--label-tertiary); }
+.root-op-group { padding: 0 6px; font-weight: 600; }
+.root-total, .root-step { font-weight: 600; color: var(--label-primary); white-space: nowrap; }
+.root-arrow { padding: 0 4px; color: var(--label-tertiary); }
+.root-result { font-size: 16px; color: var(--label-primary); }
+.root-formula-words { margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--label-tertiary); }
+.root-formula-check { margin-top: 6px; font-variant-numeric: lining-nums tabular-nums; }
+.vedic-role-line { font-size: 12px; line-height: 18px; }
 
 /* Goal plan */
 .goal-block { display: flex; flex-direction: column; gap: 12px; }
@@ -485,6 +816,35 @@ body {
   border-radius: var(--r-sm); font-size: 13px; line-height: 20px; color: var(--label-secondary);
 }
 
+/* Clinical safety overlays (2.8.1): solar-load moderation and the minor
+   gemstone guardrail are additive notes over canonical kit/baseline copy. */
+.solar-moderation {
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--kimi-blue-10); border-left: 3px solid var(--purple);
+  border-radius: var(--r-sm); break-inside: avoid; page-break-inside: avoid;
+}
+
+/* Moon-cold clinical guardrail (Number 2 / Chandra): warm-substitute banner
+   over the canonical lunar kit. Amber edge marks a clinical warning. */
+.clinical-guardrail-banner {
+  background: var(--light-orange-bg); border-left: 3px solid var(--amber);
+  border-radius: var(--r-sm); break-inside: avoid; page-break-inside: avoid;
+}
+.kit .clinical-guardrail-banner { margin: 0; padding: 8px 12px; }
+.card.clinical-guardrail-banner { padding: 14px 16px; }
+.clinical-guardrail-banner .kit-label { color: var(--label-primary); font-weight: 700; }
+.priority-guardrail {
+  display: inline-block; margin-top: 4px; padding: 2px 8px;
+  font-size: 12px; line-height: 18px; font-weight: 600;
+  background: var(--light-orange-bg); color: #a05c00; border-radius: var(--r-full);
+}
+.tattva-card .solar-moderation { margin-top: 2px; padding-left: 12px; }
+.student-stack-note {
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--light-orange-bg); border-left: 3px solid var(--amber);
+  border-radius: var(--r-sm); break-inside: avoid; page-break-inside: avoid;
+}
+
 /* Vedic precision — progressive disclosure tiers (Tier 1 ready / Tier 2 prepare) */
 .tier-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .tier {
@@ -506,7 +866,7 @@ body {
 .tier-body { min-width: 0; }
 .tier-body strong { color: var(--label-primary); }
 
-/* Cross-system harmony note (zodiac ruler vs Lo Shu grid) — warm gold accent */
+/* Cross-system harmony note (zodiac ruler vs Vedic birth grid) — warm gold accent */
 .harmony-note {
   margin-top: 4px; padding: 12px 14px;
   background: var(--light-yellow-bg); border-left: 3px solid var(--amber);
@@ -530,6 +890,8 @@ body {
 /* 8-plane analysis cards */
 .plane-cards { display: flex; flex-direction: column; gap: 16px; }
 .plane-card { display: flex; flex-direction: column; gap: 8px; }
+.tattva-section { gap: 16px; }
+.tattva-card { display: flex; flex-direction: column; gap: 8px; }
 .plane-chips { display: flex; gap: 8px; }
 .plane-chip {
   width: 28px; height: 28px; border-radius: var(--r-full);
@@ -540,7 +902,7 @@ body {
 .plane-chip.off { background: var(--light-red-bg); color: var(--label-quaternary); text-decoration: line-through; }
 .plane-about { color: var(--label-secondary); font-style: italic; }
 
-/* Priority plan */
+/* Priority plan — action checklist with cadence chips */
 .priority-list { counter-reset: p; display: flex; flex-direction: column; gap: 8px; }
 .priority-item {
   counter-increment: p;
@@ -557,10 +919,89 @@ body {
   display: flex; align-items: center; justify-content: center;
   margin-top: 1px;
 }
-.priority-copy {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
+.priority-text { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.cadence {
+  flex: none; margin-top: 1px;
+  padding: 3px 9px; border-radius: var(--r-full);
+  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; line-height: 16px;
+  text-transform: uppercase; white-space: nowrap;
+}
+.cadence-daily { background: var(--kimi-blue-10); color: var(--kimi-blue); }
+.cadence-weekly { background: rgba(152, 95, 251, 0.12); color: var(--purple); }
+.cadence-once { background: var(--light-orange-bg); color: #a05c00; }
+
+/* 40-Day Activation Plan */
+.plan-subhead {
+  margin: 22px 0 10px;
+  font-size: 15px; font-weight: 700; line-height: 22px; color: var(--label-primary);
+}
+.ritual-card { border: 1px solid rgba(255, 149, 0, 0.35); background: linear-gradient(180deg, rgba(255, 200, 0, 0.06), transparent 42%), var(--bg-primary); }
+.phase-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+  gap: 12px;
+}
+.phase-card {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg-primary); border: 0.5px solid var(--separator);
+  border-radius: var(--r-lg); padding: 14px;
+}
+.phase-badge {
+  align-self: flex-start;
+  padding: 3px 10px; border-radius: var(--r-full);
+  background: linear-gradient(135deg, #1e1b4b, #3b0764); color: #ffd782;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.06em; line-height: 16px;
+  text-transform: uppercase;
+}
+.phase-title { font-size: 14px; font-weight: 700; line-height: 20px; color: var(--label-primary); }
+.phase-rows { display: flex; flex-direction: column; gap: 8px; }
+.phase-row {
+  position: relative; padding-left: 16px;
+  font-size: 13px; line-height: 20px; color: var(--label-secondary);
+}
+.phase-row::before {
+  content: ""; position: absolute; left: 2px; top: 8px;
+  width: 6px; height: 6px; border-radius: var(--r-full);
+  background: var(--amber);
+}
+.phase-row strong { color: var(--label-primary); }
+.phase-row .mantra { color: var(--label-primary); font-weight: 600; }
+
+/* 40-day tracker */
+.tracker-card { margin-top: 22px; }
+.progress-track {
+  height: 8px; margin: 12px 0 14px;
+  border-radius: var(--r-full); background: var(--fill-f2);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--amber), var(--positive));
+  transition: width var(--dur-med) var(--ease-out);
+}
+.tracker-grid {
+  display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+}
+.tracker-cell {
+  appearance: none; border: 1px solid var(--separator);
+  background: var(--bg-secondary); color: var(--label-secondary);
+  border-radius: var(--r-sm); padding: 0;
+  min-height: 34px;
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.tracker-cell:hover { border-color: var(--amber); transform: translateY(-1px); }
+.tracker-cell:focus-visible { outline: 3px solid rgba(23, 131, 255, 0.5); outline-offset: 1px; }
+.tracker-cell.done {
+  background: var(--positive); border-color: var(--positive);
+  color: #fff; font-weight: 800;
+}
+.tracker-cell.next { border-color: var(--amber); color: #a05c00; box-shadow: 0 0 0 2px var(--light-yellow-bg); }
+.tracker-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12px; line-height: 18px; color: var(--label-tertiary);
 }
 
 /* Footer */
@@ -604,9 +1045,26 @@ body {
   .status-row .btn, .engagement-item .btn, .mini-form .btn { width: 100%; }
   .field-row { flex-direction: column; gap: 16px; }
   .form-block { padding: 16px; }
-  .loshu-wrap { flex-direction: column; }
-  .loshu-grid { max-width: 100%; }
+  .vedic-grid-wrap, .loshu-grid-wrap { flex-direction: column; }
+  .vedic-grid, .loshu-grid { max-width: 100%; }
+  .module-tabs { width: 100%; align-self: stretch; }
+  .module-tab { flex: 1; padding-left: 11px; padding-right: 11px; }
+  .report-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .report-nav a { white-space: nowrap; flex: none; }
+  .module-panel-heading { padding: 16px; }
+  .timeline-anchor-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .timeline-anchor-nav a { white-space: nowrap; flex: none; }
+  .arrow-grid { grid-template-columns: 1fr; }
   .adopt-release { grid-template-columns: 1fr; }
+  .summary-shell { padding: 18px; border-radius: 18px; }
+  .summary-title { font-size: 22px; line-height: 31px; }
+  .summary-story { font-size: 15px; line-height: 24px; }
+  .summary-next { grid-template-columns: 1fr; }
+  .summary-cta { width: 100%; justify-content: center; }
+  .tracker-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  .tracker-cell { min-height: 38px; }
+  .cadence { padding: 2px 7px; }
+  .phase-grid { grid-template-columns: 1fr; }
   .nature-pair { gap: 20px; }
   .header-actions { gap: 6px; }
   .header-actions .btn { padding: 6px 9px; min-width: 34px; }
@@ -701,24 +1159,300 @@ body {
 }
 .astro-foot strong { color: var(--label-secondary); }
 
+/* ---------- Sambhandha badge semantics ----------
+   badge-conflict must never render green, whatever palette class it is
+   paired with; badge-friendly / badge-neutral simply document intent. */
+.badge.badge-conflict { background: var(--light-red-bg); color: #c92a36; }
+.badge.badge-friendly { background: var(--light-green-bg); color: #0d8a3e; }
+.badge.badge-neutral { background: var(--kimi-blue-10); color: #0f63c9; }
+.stack-badge-guidance { color: var(--label-tertiary); }
+.root-formula-plain {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--label-secondary);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.triage-card { border-left: 3px solid var(--kimi-blue, #0f63c9); }
+.triage-flag { margin-left: auto; align-self: flex-start; }
+.priority-item[data-triage-tier="2"] { opacity: 0.92; }
+
+/* ---------- Practitioner Clinical Cockpit (one printable page) ---------- */
+.cockpit-section { gap: 12px; }
+.cockpit-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cockpit-stamp { font-size: 12px; color: var(--label-tertiary); }
+.cockpit-sheet {
+  border: 1px solid var(--separator);
+  border-radius: var(--r-md);
+  background: var(--bg-primary);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+/* Print-only sheet title. On screen the toolbar stamp already carries the
+   module name and generation date; in print the toolbar and the marketing
+   panel heading are stripped, so the sheet must identify itself. */
+.cockpit-sheet-title { display: none; }
+.cockpit-head { border-bottom: 2px solid var(--label-primary); padding-bottom: 8px; }
+.cockpit-identity { font-size: 14px; line-height: 21px; color: var(--label-primary); }
+.cockpit-kicker { margin-top: 4px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
+.cockpit-grid { display: grid; gap: 10px; }
+.cockpit-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cockpit-cell, .cockpit-block {
+  border: 1px solid var(--separator);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.cockpit-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--label-tertiary);
+  margin-bottom: 4px;
+}
+.cockpit-fact { font-size: 13px; line-height: 19px; color: var(--label-primary); }
+.cockpit-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.cockpit-list.numbered { counter-reset: cockpit-step; }
+.cockpit-list li { font-size: 13px; line-height: 19px; color: var(--label-primary); break-inside: avoid; }
+.cockpit-list.numbered li::before {
+  counter-increment: cockpit-step;
+  content: counter(cockpit-step) ". ";
+  font-weight: 700;
+  color: var(--label-secondary);
+}
+.cockpit-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-right: 6px;
+  border-radius: var(--r-xs);
+  background: var(--fill-f1);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-secondary);
+}
+.cockpit-tag.warn { background: var(--light-orange-bg); color: #a05c00; }
+.cockpit-dev { color: var(--label-secondary); }
+.cockpit-hold { color: #a05c00; }
+.cockpit-unlock { color: var(--label-tertiary); }
+.cockpit-why { margin-top: 6px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
+.cockpit-mini { font-size: 11px; line-height: 15px; color: var(--label-tertiary); }
+.cockpit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cockpit-table th, .cockpit-table td {
+  border-bottom: 1px solid var(--separator);
+  padding: 5px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+.cockpit-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--label-tertiary); }
+.cockpit-table tr { break-inside: avoid; page-break-inside: avoid; }
+.cockpit-foot { display: flex; flex-direction: column; gap: 8px; }
+.cockpit-notes { display: flex; flex-direction: column; gap: 10px; }
+.cockpit-rule { display: block; border-bottom: 1px dashed var(--separator); height: 14px; }
+.cockpit-disclaimer { font-size: 10px; line-height: 15px; color: var(--label-tertiary); }
+@media (max-width: 760px) {
+  .cockpit-grid.three { grid-template-columns: 1fr; }
+}
+
 /* ---------- Print (Save/Print Report) ---------- */
+/* ---- Classical Vimshottari card (separate Vedic authority layer) ----
+   Visually distinct from the Ank Jyotish cards so the two clocks never
+   read as one stack. Timing read-out only: no remedy or zone affordances. */
+.vimshottari-card {
+  border-left: 3px solid var(--accent, #6366f1);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.06), rgba(99, 102, 241, 0.01));
+}
+.vimshottari-card .vimshottari-subhead { margin-top: 14px; }
+.vimshottari-card .vimshottari-anchor { font-variant-numeric: tabular-nums; }
+.vimshottari-card[data-vimshottari-agrees="no"] .badge.info { background: #fef3c7; color: #92400e; }
+.vimshottari-card .card-sub { color: var(--label-secondary, #555); }
+
+/* ---- Field read mode (phone consultations) --------------------------
+   Presentation-only: bigger type, single column, less chrome. The whole
+   block is wrapped in @media screen so it CANNOT leak into print — the A4
+   report and cockpit sheet are identical whether or not a practitioner
+   happened to have it toggled on. */
+@media screen {
+  /* ---- Field read mode (phone consultations) --------------------------
+     Presentation-only: bigger type, single column, less chrome. Never applied
+     in print, so the A4 report and cockpit sheet are byte-identical whether or
+     not a practitioner happened to have it on. */
+  .field-mode .page { max-width: 100%; padding-left: 14px; padding-right: 14px; }
+  .field-mode .rsection-title { font-size: 1.35rem; line-height: 1.35; }
+  .field-mode .card,
+  .field-mode .priority-item,
+  .field-mode .metric-card { padding: 16px 14px; }
+  .field-mode .card-title { font-size: 1.05rem; }
+  .field-mode .kit-value,
+  .field-mode .card-sub,
+  .field-mode p,
+  .field-mode li { font-size: 1.02rem; line-height: 1.65; }
+  .field-mode .rtable { font-size: 0.98rem; }
+  .field-mode .rtable th,
+  .field-mode .rtable td { padding: 9px 8px; }
+  .field-mode .kit-row { flex-direction: column; gap: 7px; }
+  .field-mode .kit-ico { font-size: 1.4rem; }
+  .field-mode .card-grid,
+  .field-mode .kit,
+  .field-mode .plane-cards,
+  .field-mode .arrow-grid,
+  .field-mode .insight-grid,
+  .field-mode .cockpit-grid,
+  .field-mode .summary-grid { grid-template-columns: 1fr !important; }
+  .field-mode .num-card .num-value,
+  .field-mode .metric-value { font-size: 1.9rem; }
+  .field-mode .report-actions,
+  .field-mode .summary-cta { position: sticky; bottom: 0; z-index: 5; }
+  .field-mode .report-actions { padding: 8px 0; background: var(--surface, #fff); box-shadow: 0 -6px 14px rgba(0, 0, 0, 0.06); }
+  /* Long interpretive prose is the main reading surface on a phone. */
+  .field-mode .judge-note { font-size: 0.98rem; line-height: 1.7; }
+}
+
+@page { size: A4 portrait; margin: 12mm 10mm; }
 @media print {
-  @page { margin: 14mm 11mm; }
-  .app-header, .app-footer, .form-note, .toast-viewport, .report-nav { display: none !important; }
+  /* The skip link is parked above the viewport with a negative transform; in
+     print that box lands on page 1 as a stray grey pill, so it is stripped. */
+  .app-header, .app-footer, .form-note, .toast-viewport, .skip-link, .report-nav, .module-tabs, .timeline-anchor-nav, .cockpit-toolbar { display: none !important; }
+  .report-module-panel[hidden] { display: flex !important; }
+  /* Remedy cards, kits and grids must never be split down the middle of a
+     client PDF: keep each prescription block atomic. */
+  .kit-card, .kit-row, .ritual-card, .phase-card, .priority-item, .goal-block,
+  .num-card, .plane-card, .arrow-card, .tier, .summary-card, .cockpit-cell,
+  .cockpit-block, .cockpit-sheet > * { break-inside: avoid; page-break-inside: avoid; }
+  .card-grid, .kit, .plane-cards, .arrow-grid, .cockpit-grid { break-inside: auto; page-break-inside: auto; }
+  .report-module-panel { gap: 20px; margin-top: 18px; }
+  .module-panel-heading { background: #fff; border-color: #ddd; }
+  .advanced-vedic-comparison:not([open]) > .details-body { display: flex !important; }
+  .advanced-vedic-comparison { background: #fff; }
+  .loshu-cell, .vedic-cell { break-inside: avoid; }
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
-  #reportRoot { gap: 24px; }
   /* Professional print conventions: no orphan/widow lines; the closing
      block (brand + privacy note + disclaimer) prints together. */
   p, li { orphans: 2; widows: 2; }
   .report-closing { break-inside: avoid; }
-  /* Let the report flow across pages. Protect only small atomic units so
-     headings/labels are never orphaned and rows/cells are not torn in half;
-     big cards (remedy kits, snapshot) fragment at their row boundaries. */
-  .rsection { animation: none; break-inside: auto; }
-  .card { break-inside: auto; }
-  .rsection-title, .rsection-desc, .card-title, .card-sub, .goal-head, .kit-label, .num-label, .summary-label { break-after: avoid; }
-  .report-hero, .num-card, .arrow-card, .plane-card, .metric-card, .tier, .kit-row, .priority-item, .table-scroll, .loshu-cell, .astro-cell, .astro-nak-strip, .astro-foot, .timeline-item, .engagement-item, .summary-item { break-inside: avoid; }
-  .card, .priority-item, .table-scroll, .loshu-cell { border: 1px solid #ddd; }
+  .rsection { animation: none; break-inside: avoid-page; }
+  /* Let Compatibility flow only between its meaningful blocks. The heading,
+     introductory pair table and each reflection row remain atomic, so removing
+     the former bulky remedy kits cannot leave a title, blank shell or cue orphaned. */
+  #compatibility-section { display: block; break-inside: auto; page-break-inside: auto; }
+  #compatibility-section > * + * { margin-top: 16px; }
+  #compatibility-section .compatibility-overview,
+  #compatibility-section .compatibility-reflection-intro,
+  #compatibility-section .kit-row,
+  #compatibility-section .judge-note {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+  #compatibility-section #compatibility-reflection { display: block; break-inside: auto; page-break-inside: auto; }
+  #compatibility-section #compatibility-reflection > * + * { margin-top: 12px; }
+  #compatibility-section .table-scroll { overflow: visible; }
+  /* The Northstar Summary is taller than the space left on page 1 (below the
+     header) but shorter than a full page. The blanket avoid-page rule above
+     made Chrome push the whole section onto page 2, printing page 1 almost
+     entirely blank. Let the summary flow across the page break instead, and
+     keep only its small inner blocks atomic so breaks land between cards. */
+  .summary-section { break-inside: auto; }
+  .summary-kicker, .summary-title { break-after: avoid-page; }
+  .summary-card, .summary-actions li, .summary-way-forward, .summary-cta { break-inside: avoid-page; }
+  /* The decorative overlay is off in print, so the shell no longer needs to
+     clip; overflow: hidden can make some engines treat it as unbreakable. */
+  .summary-shell { overflow: visible; background: #fff; color: #111; border: 1px solid #ddd; box-shadow: none; }
+  .summary-shell::after { display: none; }
+  .summary-kicker, .summary-next h3 { color: #8a5a00; }
+  .summary-story, .summary-card p, .summary-actions li, .summary-way-forward p { color: #333; }
+  .summary-move-title { color: #111; }
+  .summary-move-detail { color: #555; }
+  .summary-cta { background: #eee; color: #111; box-shadow: none; }
+  .summary-card, .summary-way-forward { background: #fff; border: 1px solid #ddd; }
+  .summary-label { color: #666; }
+  .summary-step { background: #eee; color: #111; }
+  .summary-shell strong, .summary-actions strong, .summary-actions .mantra { color: #111; }
+  .card, .priority-item, .table-scroll, .vedic-cell, .phase-card { border: 1px solid #ddd; }
+  /* Root equations must survive PDF rasterisation: keep each group on one
+     line, no background fill that could swallow a digit, plain black ink. */
+  .root-formula, .root-formula-line { break-inside: avoid; page-break-inside: avoid; }
+  .root-group { background: #fff; border: 1px solid #ddd; }
+  .root-digit, .root-total, .root-step, .root-result { color: #111; }
+  .root-op, .root-arrow, .root-group-label, .root-formula-words { color: #555; }
+  .dasha-micro-forecast, .dasha-transit-synthesis, .vedic-plane-reading, .tattva-card, .vimshottari-card { break-inside: avoid-page; page-break-inside: avoid; }
+  .vimshottari-subhead { break-after: avoid; page-break-after: avoid; }
+  #tattva-section { break-inside: auto; page-break-inside: auto; }
+  .ritual-card { background: #fff; }
+  .phase-badge { background: #eee; color: #111; }
+  .cadence-daily, .cadence-weekly, .cadence-once { background: #eee; color: #111; }
+  .tracker-cell { border: 1px solid #999; background: #fff; color: #333; }
+  .tracker-cell.done { background: #e6f4ea; border-color: #16a34a; color: #111; }
+  .tracker-cell.next { box-shadow: none; }
   .btn { display: none; }
+  /* The cockpit is a one-page consultation sheet: flat ink, tight leading. */
+  .triage-card { border-left: 3px solid #111; }
+  /* ---- Practitioner Cockpit: one dedicated A4 page ----
+     A practitioner reads this sheet during a live consultation, so print gives
+     it a page of its own. Without a forced break the section started wherever
+     the previous page had room left, and its height — screen-only panel heading
+     plus screen-sized block paddings and 16px leading — spilled the graded
+     event windows table (and on denser charts the header block too) onto the
+     following pages. The heading is now stripped in print, the section breaks
+     before itself, and the sheet packs to 8.5pt/1.2 (7.5pt in the table) so
+     identity, both grids, timing, triage, Tier 2, windows and the notes rules
+     all share one page. */
+  .cockpit-panel-heading { display: none !important; }
+  #cockpit-panel { margin-top: 0; gap: 0; }
+  #practitioner-cockpit.cockpit-section {
+    margin: 0;
+    break-before: page;
+    page-break-before: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .cockpit-sheet {
+    border: 1px solid #999;
+    padding: 6mm 8mm;
+    gap: 4px;
+    font-size: 8.5pt;
+    line-height: 1.2;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .cockpit-sheet-title { display: block; font-size: 9.5pt; line-height: 1.2; font-weight: 700; color: #111; }
+  .cockpit-cell, .cockpit-block { border: 1px solid #ccc; border-radius: 0; padding: 3px 5px; }
+  .cockpit-grid { gap: 4px; }
+  /* Keep the three comparison grids side by side: stacking them costs a third
+     of the page and breaks the single-page contract on narrower paper. */
+  .cockpit-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cockpit-head { border-bottom: 2px solid #111; padding-bottom: 3px; }
+  .cockpit-identity { font-size: 8.5pt; line-height: 1.2; color: #111; }
+  .cockpit-kicker { margin-top: 2px; font-size: 7pt; line-height: 1.15; }
+  .cockpit-label { font-size: 7pt; line-height: 1.15; letter-spacing: 0.04em; margin-bottom: 2px; }
+  .cockpit-fact, .cockpit-list li { font-size: 8.5pt; line-height: 1.2; color: #111; }
+  .cockpit-list { gap: 2px; }
+  .cockpit-tag { padding: 0 4px; margin-right: 4px; font-size: 7pt; line-height: 1.2; }
+  .cockpit-sheet .badge { padding: 0 4px; font-size: 7pt; line-height: 1.2; }
+  .cockpit-mini, .cockpit-why { font-size: 7pt; line-height: 1.15; }
+  .cockpit-why { margin-top: 3px; }
+  .cockpit-table { font-size: 7.5pt; line-height: 1.15; }
+  .cockpit-table th, .cockpit-table td { padding: 2px 4px; }
+  .cockpit-table th { font-size: 6.5pt; }
+  .cockpit-foot { gap: 4px; }
+  .cockpit-notes { gap: 5px; }
+  .cockpit-rule { border-bottom: 1px dashed #999; height: 9px; }
+  .cockpit-disclaimer { font-size: 7pt; line-height: 1.15; }
+  /* "Print this page" narrows the job to the cockpit alone. The sheet is
+     already the first box on the job, so the forced break is dropped — leaving
+     it in would emit a blank page before the consultation sheet. */
+  body.print-cockpit .report-hero,
+  body.print-cockpit #foundation-panel,
+  body.print-cockpit #timeline-panel,
+  body.print-cockpit .cockpit-panel-heading { display: none !important; }
+  body.print-cockpit #cockpit-panel { display: block !important; margin: 0; }
+  body.print-cockpit .cockpit-section { margin: 0; break-before: auto; page-break-before: auto; }
 }

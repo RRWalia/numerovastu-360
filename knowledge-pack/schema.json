@@ -2,20 +2,47 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "NumeroVastu 360 Knowledge Pack",
   "type": "object",
-  "required": ["schemaVersion", "packVersion", "db"],
+  "required": [
+    "schemaVersion",
+    "packVersion",
+    "db"
+  ],
   "properties": {
-    "schemaVersion": { "type": "integer", "minimum": 1 },
-    "packVersion": { "type": "string" },
-    "generatedAt": { "type": ["string", "null"] },
-    "manifestPath": { "type": "string" },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "packVersion": {
+      "type": "string"
+    },
+    "generatedAt": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "manifestPath": {
+      "type": "string"
+    },
     "contribution": {
       "type": "object",
       "properties": {
-        "mode": { "type": "string" },
-        "endpoint": { "type": ["string", "null"] },
-        "description": { "type": "string" }
+        "mode": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
       },
-      "required": ["mode"]
+      "required": [
+        "mode"
+      ]
     },
     "db": {
       "type": "object",
@@ -24,12 +51,12 @@
         "friendship",
         "numbers",
         "watch",
-        "loshuLayout",
-        "planes",
+        "loShuGrid",
+        "vedicGrid",
+        "dasha",
         "traits",
         "missingFix",
         "yantra",
-        "arrows",
         "kua",
         "goals",
         "vastu",
@@ -43,7 +70,203 @@
         "compound",
         "masterNumbers",
         "nameAdvice"
-      ]
+      ],
+      "properties": {
+        "vedicGrid": {
+          "type": "object",
+          "required": [
+            "layout",
+            "planes",
+            "filtering"
+          ],
+          "properties": {
+            "layout": {
+              "const": [
+                [
+                  3,
+                  1,
+                  9
+                ],
+                [
+                  6,
+                  7,
+                  5
+                ],
+                [
+                  2,
+                  8,
+                  4
+                ]
+              ],
+              "description": "Canonical Vedic Ank Kundali order: Practical/Fire, Materialistic/Air, Emotional/Water."
+            },
+            "planes": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "The Practical / Fire, Materialistic / Air and Emotional / Water horizontal planes.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "name",
+                  "element",
+                  "cells",
+                  "governs",
+                  "roles"
+                ]
+              }
+            },
+            "filtering": {
+              "type": "object",
+              "required": [
+                "zeros",
+                "century",
+                "dateDeduplication",
+                "calculations"
+              ],
+              "properties": {
+                "zeros": {
+                  "type": "string"
+                },
+                "century": {
+                  "type": "string"
+                },
+                "dateDeduplication": {
+                  "type": "string"
+                },
+                "calculations": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "description": "Advanced birth-only Vedic Ank Kundali comparison. Its planetary strength indicators never create remedy obligations."
+        },
+        "dosha": {
+          "type": "object",
+          "description": "Optional Ayurvedic dosha layer: numbers 1–9 map to a planetary constitutional signature (dominant, nature, aggravation, balancingFoods, routine, mantraLinkedNote)."
+        },
+        "deity": {
+          "type": "object",
+          "description": "Optional deity protection layer: numbers 1–9 map to an ishta devta (god, mantra, primaryChant, weeklyChant, offerings, support, protectionNote) — traditional spiritual guidance."
+        },
+        "dasha": {
+          "type": "object",
+          "description": "Required proportional Ank Jyotish Dasha layer: numbers 1-9 map to a period signature (theme, events, caution, zone, zoneElement, zoneRemedy — each localised en/hi/gu), plus lifeEvents definitions (icon, primary lords, support lords, age band, localised label) for the independent timeline and active Vastu zone. This is not classical Vimshottari.",
+          "properties": {
+            "relationshipPolicy": {
+              "type": "object",
+              "description": "Optional ADDITIVE policy for pack-reviewed hostile pairs. Pack entries can only ever add caution; they cannot remove, weaken or override the classical safety boundary that the application enforces in getDashaRelationship(). READ THIS BEFORE EDITING the friendship matrix: the pairs listed in x-classicalSafetyPairs below are hard boundaries owned by app.js, not by the pack. A pair you mark 'friendly' in db.friendship will still render as Conflicting/Caution when it appears in this list, and conflicting stacks can never render green. Treat that as intentional — the classical Sambhandha safety rule is non-negotiable by design.",
+              "x-classicalSafetyPairs": [
+                { "md": 4, "ad": 2, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 2, "ad": 4, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 4, "ad": 1, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 1, "ad": 4, "rule": "Grahan axis (Rahu/Sun), both directions", "removable": false },
+                { "md": 1, "ad": 8, "rule": "Classical Sambhandha hostility (Sun/Saturn)", "removable": false },
+                { "md": 8, "ad": 1, "rule": "Classical Sambhandha hostility (Sun/Saturn)", "removable": false },
+                { "md": 9, "ad": 8, "rule": "Classical Sambhandha hostility (Mars/Saturn)", "removable": false },
+                { "md": 8, "ad": 9, "rule": "Classical Sambhandha hostility (Mars/Saturn)", "removable": false },
+                { "md": 3, "ad": 6, "rule": "Classical Sambhandha hostility (Jupiter/Venus)", "removable": false },
+                { "md": 6, "ad": 3, "rule": "Classical Sambhandha hostility (Jupiter/Venus)", "removable": false }
+              ],
+              "properties": {
+                "additionalHostilePairs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[1-9]-[1-9]$"
+                  }
+                },
+                "grahanPairs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[1-9]-[1-9]$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "loShuGrid": {
+          "type": "object",
+          "description": "Primary classic Lo Shu Foundation data. Its Birth, Name and Combined grids own missing/repeated-number remedies and lifestyle practice.",
+          "required": [
+            "layout",
+            "planes",
+            "arrows",
+            "plotting"
+          ],
+          "properties": {
+            "layout": {
+              "const": [
+                [
+                  4,
+                  9,
+                  2
+                ],
+                [
+                  3,
+                  5,
+                  7
+                ],
+                [
+                  8,
+                  1,
+                  6
+                ]
+              ],
+              "description": "Canonical classic Lo Shu order."
+            },
+            "planes": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "cells"
+                ]
+              }
+            },
+            "arrows": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "line",
+                  "present",
+                  "missing"
+                ]
+              }
+            },
+            "plotting": {
+              "type": "object",
+              "required": [
+                "zeros",
+                "year",
+                "calculations"
+              ],
+              "properties": {
+                "zeros": {
+                  "type": "string"
+                },
+                "year": {
+                  "type": "string"
+                },
+                "calculations": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

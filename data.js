@@ -167,89 +167,428 @@ var DB = {
     avoid:   { 2:"Smartwatches with constant pinging; if used, set silver/white minimal watch-face, metallic strap, and Do-Not-Disturb at night", 8:"Flimsy plastic watches — weakens structure", 1:"Overly dark or blacked-out dials", 5:"Overly busy dials that scatter Mercury focus" }
   },
 
-  /* ---- Loshu grid layout (positions of numbers 1-9) ---- */
-  loshuLayout: [
-    [4, 9, 2],
-    [3, 5, 7],
-    [8, 1, 6]
-  ],
-
-  /* ---- The 8 planes of the Loshu grid, fully analysed ----
-     Each plane: zone, about (generic meaning), per-cell role
-     (short label, consequence when weak, fix), complete-text. */
-  planes: [
-    { name: "Mental Plane", zone: "Top row of the Lo Shu Grid", cells: [4, 9, 2],
-      about: "This plane describes your thinking pattern — how you plan, judge, decide, and turn an idea into a practical direction. A strong mental plane does not simply mean intelligence; it shows whether your mind naturally connects planning, confidence, and grounded judgement. A weak or missing pattern does not mean you cannot think well, but it usually means you need external structure, written planning, or better decision systems to avoid scattered or delayed choices.",
-      roles: {
-        4: { short: "Planning", label: "planning & structure", con: "deciding first and structuring later, which can create avoidable reversals", fix: "write the goal, risk, cost, and next three steps before every major choice" },
-        9: { short: "Action", label: "decisive action & confidence", con: "hesitation at the exact moment a decision is needed", fix: "practise small, quick decisions daily to rebuild decision confidence" },
-        2: { short: "Grounding", label: "grounded judgement", con: "judgements made on emotion or urgency rather than ground facts", fix: "pause before concluding and test decisions against facts and one trusted advisor" }
+  /* ---- Classic Lo Shu Grid / Foundation Blueprint ---- */
+  loShuGrid: {
+    "name": "Lo Shu Blueprint — Foundation Grid",
+    "layout": [
+      [
+        4,
+        9,
+        2
+      ],
+      [
+        3,
+        5,
+        7
+      ],
+      [
+        8,
+        1,
+        6
+      ]
+    ],
+    "planes": [
+      {
+        "name": "Mental Plane",
+        "zone": "Top row of the Lo Shu Grid",
+        "cells": [
+          4,
+          9,
+          2
+        ],
+        "about": "This plane describes your thinking pattern — how you plan, judge, decide, and turn an idea into a practical direction. A strong mental plane does not simply mean intelligence; it shows whether your mind naturally connects planning, confidence, and grounded judgement. A weak or missing pattern does not mean you cannot think well, but it usually means you need external structure, written planning, or better decision systems to avoid scattered or delayed choices.",
+        "roles": {
+          "2": {
+            "short": "Grounding",
+            "label": "grounded judgement",
+            "con": "judgements made on emotion or urgency rather than ground facts",
+            "fix": "pause before concluding and test decisions against facts and one trusted advisor"
+          },
+          "4": {
+            "short": "Planning",
+            "label": "planning & structure",
+            "con": "deciding first and structuring later, which can create avoidable reversals",
+            "fix": "write the goal, risk, cost, and next three steps before every major choice"
+          },
+          "9": {
+            "short": "Action",
+            "label": "decisive action & confidence",
+            "con": "hesitation at the exact moment a decision is needed",
+            "fix": "practise small, quick decisions daily to rebuild decision confidence"
+          }
+        },
+        "complete": "Planning, confidence, and grounded judgement work together — this supports clear strategy, confident decisions, and the ability to explain your reasoning. A strong advisory and leadership mind. Guard against over-analysis; even the best mind must eventually decide."
       },
-      complete: "Planning, confidence, and grounded judgement work together — this supports clear strategy, confident decisions, and the ability to explain your reasoning. A strong advisory and leadership mind. Guard against over-analysis; even the best mind must eventually decide." },
-
-    { name: "Emotional Plane", zone: "Middle row of the Lo Shu Grid", cells: [3, 5, 7],
-      about: "This plane describes your emotional processing — how you feel, express, absorb, regulate, and set boundaries. It is not only about being emotional; it shows whether feelings become clear communication, stable self-understanding, and mature limits. A weaker pattern can still give warmth or sensitivity, but the person may need more deliberate reflection before reacting, sharing, or closing themselves off.",
-      roles: {
-        3: { short: "Expression", label: "emotional expression & growth", con: "appearing composed and controlled outside while feelings stay unexpressed — over time this can turn into distance or quiet resentment", fix: "create a safe method of expression — honest conversations, writing, therapy-style reflection, or creative work" },
-        5: { short: "Grounding", label: "emotional grounding", con: "emotions that swing before they settle, especially under pressure", fix: "practise centring rituals — breathwork, journaling, or time near water" },
-        7: { short: "Boundaries", label: "boundaries & refinement", con: "porous boundaries — absorbing other people's moods and problems as your own", fix: "define what you will and will not accept, and communicate it calmly and early" }
+      {
+        "name": "Emotional Plane",
+        "zone": "Middle row of the Lo Shu Grid",
+        "cells": [
+          3,
+          5,
+          7
+        ],
+        "about": "This plane describes your emotional processing — how you feel, express, absorb, regulate, and set boundaries. It is not only about being emotional; it shows whether feelings become clear communication, stable self-understanding, and mature limits. A weaker pattern can still give warmth or sensitivity, but the person may need more deliberate reflection before reacting, sharing, or closing themselves off.",
+        "roles": {
+          "3": {
+            "short": "Expression",
+            "label": "emotional expression & growth",
+            "con": "appearing composed and controlled outside while feelings stay unexpressed — over time this can turn into distance or quiet resentment",
+            "fix": "create a safe method of expression — honest conversations, writing, therapy-style reflection, or creative work"
+          },
+          "5": {
+            "short": "Grounding",
+            "label": "emotional grounding",
+            "con": "emotions that swing before they settle, especially under pressure",
+            "fix": "practise centring rituals — breathwork, journaling, or time near water"
+          },
+          "7": {
+            "short": "Boundaries",
+            "label": "boundaries & refinement",
+            "con": "porous boundaries — absorbing other people's moods and problems as your own",
+            "fix": "define what you will and will not accept, and communicate it calmly and early"
+          }
+        },
+        "complete": "Feelings flow into words cleanly, you read others well, and relationships receive both warmth and mature limits. This is a strong pattern for partnerships, caregiving, public-facing work, and team harmony."
       },
-      complete: "Feelings flow into words cleanly, you read others well, and relationships receive both warmth and mature limits. This is a strong pattern for partnerships, caregiving, public-facing work, and team harmony." },
-
-    { name: "Practical Plane", zone: "Bottom row of the Lo Shu Grid", cells: [8, 1, 6],
-      about: "This plane describes your material execution — how you handle work, money, resources, delivery, and real-world results. A strong practical plane usually supports converting ability into visible outcomes. A weaker pattern does not mean failure; it means the person may need stronger systems, partners, deadlines, distribution habits, or financial discipline so effort does not remain incomplete or unmonetised.",
-      roles: {
-        8: { short: "Resources", label: "responsibility & resource handling", con: "effort that stays incomplete or unmonetised despite hard work", fix: "build systems — budgets, checklists, deadlines — that carry work to completion" },
-        1: { short: "Ownership", label: "drive & personal ownership", con: "waiting for direction instead of owning outcomes end-to-end", fix: "take single-point ownership of one outcome at a time" },
-        6: { short: "Finish Quality", label: "quality & refinement of output", con: "rushed output that undersells your real ability", fix: "define a finish standard before starting and deliver to it" }
+      {
+        "name": "Practical Plane",
+        "zone": "Bottom row of the Lo Shu Grid",
+        "cells": [
+          8,
+          1,
+          6
+        ],
+        "about": "This plane describes your material execution — how you handle work, money, resources, delivery, and real-world results. A strong practical plane usually supports converting ability into visible outcomes. A weaker pattern does not mean failure; it means the person may need stronger systems, partners, deadlines, distribution habits, or financial discipline so effort does not remain incomplete or unmonetised.",
+        "roles": {
+          "1": {
+            "short": "Ownership",
+            "label": "drive & personal ownership",
+            "con": "waiting for direction instead of owning outcomes end-to-end",
+            "fix": "take single-point ownership of one outcome at a time"
+          },
+          "6": {
+            "short": "Finish Quality",
+            "label": "quality & refinement of output",
+            "con": "rushed output that undersells your real ability",
+            "fix": "define a finish standard before starting and deliver to it"
+          },
+          "8": {
+            "short": "Resources",
+            "label": "responsibility & resource handling",
+            "con": "effort that stays incomplete or unmonetised despite hard work",
+            "fix": "build systems — budgets, checklists, deadlines — that carry work to completion"
+          }
+        },
+        "complete": "Resources, ownership, and execution quality work together — a strong pattern for business, career growth, property, operations, and money management. You naturally ask 'how will this actually work?' The area to manage is becoming too outcome-focused; do not let productivity dry out your inner life."
       },
-      complete: "Resources, ownership, and execution quality work together — a strong pattern for business, career growth, property, operations, and money management. You naturally ask 'how will this actually work?' The area to manage is becoming too outcome-focused; do not let productivity dry out your inner life." },
-
-    { name: "Thought Plane", zone: "Left column of the Lo Shu Grid", cells: [4, 3, 8],
-      about: "This plane describes long-form thinking — how you learn, analyse, connect ideas, and build understanding over time. It is different from quick intelligence. It shows whether your thoughts naturally become structured insight, deep study, and useful strategy. When this plane is weak, the person may still be smart, but thinking often improves when it is written down, discussed with the right people, and tested against real-world outcomes.",
-      roles: {
-        4: { short: "Ideas", label: "idea generation", con: "repeating known frames instead of questioning whether the strategy itself needs change", fix: "capture ideas the moment they appear — a notes habit turns sparks into strategy" },
-        3: { short: "Learning", label: "learning & knowledge growth", con: "skill growth that plateaus because new inputs stop arriving", fix: "schedule one new input every week — a book, course, or mentor conversation" },
-        8: { short: "Depth", label: "mental endurance & depth", con: "giving up on hard problems just before the breakthrough", fix: "schedule periodic zoom-outs: review assumptions and check that effort is going in the right direction" }
+      {
+        "name": "Thought Plane",
+        "zone": "Left column of the Lo Shu Grid",
+        "cells": [
+          4,
+          3,
+          8
+        ],
+        "about": "This plane describes long-form thinking — how you learn, analyse, connect ideas, and build understanding over time. It is different from quick intelligence. It shows whether your thoughts naturally become structured insight, deep study, and useful strategy. When this plane is weak, the person may still be smart, but thinking often improves when it is written down, discussed with the right people, and tested against real-world outcomes.",
+        "roles": {
+          "3": {
+            "short": "Learning",
+            "label": "learning & knowledge growth",
+            "con": "skill growth that plateaus because new inputs stop arriving",
+            "fix": "schedule one new input every week — a book, course, or mentor conversation"
+          },
+          "4": {
+            "short": "Ideas",
+            "label": "idea generation",
+            "con": "repeating known frames instead of questioning whether the strategy itself needs change",
+            "fix": "capture ideas the moment they appear — a notes habit turns sparks into strategy"
+          },
+          "8": {
+            "short": "Depth",
+            "label": "mental endurance & depth",
+            "con": "giving up on hard problems just before the breakthrough",
+            "fix": "schedule periodic zoom-outs: review assumptions and check that effort is going in the right direction"
+          }
+        },
+        "complete": "Ideas, learning, and depth reinforce each other — you can master complex subjects and convert study into strategy. This supports advisory roles, research, teaching, and any field where understanding compounds."
       },
-      complete: "Ideas, learning, and depth reinforce each other — you can master complex subjects and convert study into strategy. This supports advisory roles, research, teaching, and any field where understanding compounds." },
-
-    { name: "Will Plane", zone: "Middle column of the Lo Shu Grid", cells: [9, 5, 1],
-      about: "This plane describes willpower — how you push through resistance, stay steady under pressure, and adjust when circumstances change. It is not only about aggression or ambition; it shows whether your drive has stamina and flexibility. When this plane is weak, motivation may come in waves, so external accountability, public commitments, routines, and pressure-based deadlines become especially important.",
-      roles: {
-        9: { short: "Drive", label: "drive & pushing power", con: "strong intentions without force behind them when resistance appears", fix: "use physical training, sport, or competition to build healthy pushing power" },
-        5: { short: "Steadiness", label: "steadiness & adaptability", con: "motivation that wavers whenever conditions change", fix: "anchor yourself with fixed routines that hold you steady through change" },
-        1: { short: "Direction", label: "self-belief & direction", con: "drive that depends on others' approval or borrowed goals", fix: "write your own direction down — self-chosen goals feed this plane" }
+      {
+        "name": "Will Plane",
+        "zone": "Middle column of the Lo Shu Grid",
+        "cells": [
+          9,
+          5,
+          1
+        ],
+        "about": "This plane describes willpower — how you push through resistance, stay steady under pressure, and adjust when circumstances change. It is not only about aggression or ambition; it shows whether your drive has stamina and flexibility. When this plane is weak, motivation may come in waves, so external accountability, public commitments, routines, and pressure-based deadlines become especially important.",
+        "roles": {
+          "1": {
+            "short": "Direction",
+            "label": "self-belief & direction",
+            "con": "drive that depends on others' approval or borrowed goals",
+            "fix": "write your own direction down — self-chosen goals feed this plane"
+          },
+          "5": {
+            "short": "Steadiness",
+            "label": "steadiness & adaptability",
+            "con": "motivation that wavers whenever conditions change",
+            "fix": "anchor yourself with fixed routines that hold you steady through change"
+          },
+          "9": {
+            "short": "Drive",
+            "label": "drive & pushing power",
+            "con": "strong intentions without force behind them when resistance appears",
+            "fix": "use physical training, sport, or competition to build healthy pushing power"
+          }
+        },
+        "complete": "You can start with force, continue with patience, and change tactics when the situation demands — useful for entrepreneurship, sports, leadership, crisis work, and long projects. Strong will can also push past healthy limits; pair ambition with recovery and honest review points."
       },
-      complete: "You can start with force, continue with patience, and change tactics when the situation demands — useful for entrepreneurship, sports, leadership, crisis work, and long projects. Strong will can also push past healthy limits; pair ambition with recovery and honest review points." },
-
-    { name: "Action Plane", zone: "Right column of the Lo Shu Grid", cells: [2, 7, 6],
-      about: "This plane describes follow-through — how you take intention and convert it into disciplined, finished action. It shows patience, boundaries, standards, and the ability to complete work cleanly. A weaker action plane can create delay, overthinking, poor finish, or difficulty enforcing limits, even when the person has good ideas or strong desire. The solution is usually clearer rules, smaller deadlines, and a defined finish standard.",
-      roles: {
-        2: { short: "Patience", label: "patience & grounding in action", con: "over-editing, checking, or holding back instead of completing — hidden perfection does not produce results", fix: "work to practical deadlines and minimum-viable standards — decide what is good enough for the current stage" },
-        7: { short: "Standards", label: "standards & limits", con: "unclear limits, so work expands endlessly past its useful size", fix: "set clear rules for when to stop refining and ship" },
-        6: { short: "Completion", label: "finish quality", con: "many things started, few cleanly finished", fix: "define 'done' before you start, and close tasks fully before opening new ones" }
+      {
+        "name": "Action Plane",
+        "zone": "Right column of the Lo Shu Grid",
+        "cells": [
+          2,
+          7,
+          6
+        ],
+        "about": "This plane describes follow-through — how you take intention and convert it into disciplined, finished action. It shows patience, boundaries, standards, and the ability to complete work cleanly. A weaker action plane can create delay, overthinking, poor finish, or difficulty enforcing limits, even when the person has good ideas or strong desire. The solution is usually clearer rules, smaller deadlines, and a defined finish standard.",
+        "roles": {
+          "2": {
+            "short": "Patience",
+            "label": "patience & grounding in action",
+            "con": "over-editing, checking, or holding back instead of completing — hidden perfection does not produce results",
+            "fix": "work to practical deadlines and minimum-viable standards — decide what is good enough for the current stage"
+          },
+          "6": {
+            "short": "Completion",
+            "label": "finish quality",
+            "con": "many things started, few cleanly finished",
+            "fix": "define 'done' before you start, and close tasks fully before opening new ones"
+          },
+          "7": {
+            "short": "Standards",
+            "label": "standards & limits",
+            "con": "unclear limits, so work expands endlessly past its useful size",
+            "fix": "set clear rules for when to stop refining and ship"
+          }
+        },
+        "complete": "Intentions reliably become finished work — patience, standards, and finish quality combine into a reputation for clean delivery. This supports operations, craftsmanship, and any role where the last 10% decides the value."
       },
-      complete: "Intentions reliably become finished work — patience, standards, and finish quality combine into a reputation for clean delivery. This supports operations, craftsmanship, and any role where the last 10% decides the value." },
-
-    { name: "Golden Rajyoga", zone: "Diagonal of the Lo Shu Grid (4 – 5 – 6)", cells: [4, 5, 6],
-      about: "This diagonal is read as an opportunity-to-output pattern. It shows whether a person can notice openings, stabilise them into a workable structure, and refine them into something valuable. It is useful for business, career growth, freelancing, branding, sales, and opportunity conversion. It does not guarantee wealth by itself; it shows the natural support for converting chances into organised and presentable results.",
-      roles: {
-        4: { short: "Opportunity", label: "spotting fresh opportunities", con: "comfort with known formats while faster-moving openings pass unnoticed", fix: "scan your market weekly — competitors, customer behaviour, new platforms, changing prices" },
-        5: { short: "Structure", label: "structuring what you find", con: "opportunities that stay informal and leak value before they crystallise", fix: "give every opportunity a structure: owner, timeline, and budget" },
-        6: { short: "Refinement", label: "refining results into value", con: "results delivered plain when they could be packaged premium", fix: "polish before you present — packaging converts work into value" }
+      {
+        "name": "Golden Rajyoga",
+        "zone": "Diagonal of the Lo Shu Grid (4 – 5 – 6)",
+        "cells": [
+          4,
+          5,
+          6
+        ],
+        "about": "This diagonal is read as an opportunity-to-output pattern. It shows whether a person can notice openings, stabilise them into a workable structure, and refine them into something valuable. It is useful for business, career growth, freelancing, branding, sales, and opportunity conversion. It does not guarantee wealth by itself; it shows the natural support for converting chances into organised and presentable results.",
+        "roles": {
+          "4": {
+            "short": "Opportunity",
+            "label": "spotting fresh opportunities",
+            "con": "comfort with known formats while faster-moving openings pass unnoticed",
+            "fix": "scan your market weekly — competitors, customer behaviour, new platforms, changing prices"
+          },
+          "5": {
+            "short": "Structure",
+            "label": "structuring what you find",
+            "con": "opportunities that stay informal and leak value before they crystallise",
+            "fix": "give every opportunity a structure: owner, timeline, and budget"
+          },
+          "6": {
+            "short": "Refinement",
+            "label": "refining results into value",
+            "con": "results delivered plain when they could be packaged premium",
+            "fix": "polish before you present — packaging converts work into value"
+          }
+        },
+        "complete": "Opportunity spotting, structure, and refinement connect into a strong wealth-conversion pattern — business, sales, branding, and career growth all benefit directly. Once you identify the right opening, your ability to structure and refine converts it well."
       },
-      complete: "Opportunity spotting, structure, and refinement connect into a strong wealth-conversion pattern — business, sales, branding, and career growth all benefit directly. Once you identify the right opening, your ability to structure and refine converts it well." },
-
-    { name: "Silver Rajyoga", zone: "Diagonal of the Lo Shu Grid (8 – 5 – 2)", cells: [8, 5, 2],
-      about: "This diagonal is read as a material-stability and asset-consolidation pattern. It is connected with property, savings, resource management, patience, and grounded progress. It does not mean instant money. It shows whether the person naturally understands holding, managing, protecting, and slowly building material security. When weak, property or asset growth may still happen, but it usually needs deliberate planning and disciplined external systems.",
-      roles: {
-        8: { short: "Assets", label: "asset & resource structure", con: "assets held without structure, documentation, or protection", fix: "formalise your assets — documentation, insurance, and clear ownership" },
-        5: { short: "Management", label: "balanced management", con: "money and resources handled reactively instead of on a rhythm", fix: "review money and resources on a fixed monthly rhythm" },
-        2: { short: "Patience", label: "patience & continuity", con: "becoming too controlling or pressure-driven when dealing with assets", fix: "let assets mature — add patience, relationship sensitivity, and gradual planning instead of pressure" }
+      {
+        "name": "Silver Rajyoga",
+        "zone": "Diagonal of the Lo Shu Grid (8 – 5 – 2)",
+        "cells": [
+          8,
+          5,
+          2
+        ],
+        "about": "This diagonal is read as a material-stability and asset-consolidation pattern. It is connected with property, savings, resource management, patience, and grounded progress. It does not mean instant money. It shows whether the person naturally understands holding, managing, protecting, and slowly building material security. When weak, property or asset growth may still happen, but it usually needs deliberate planning and disciplined external systems.",
+        "roles": {
+          "2": {
+            "short": "Patience",
+            "label": "patience & continuity",
+            "con": "becoming too controlling or pressure-driven when dealing with assets",
+            "fix": "let assets mature — add patience, relationship sensitivity, and gradual planning instead of pressure"
+          },
+          "5": {
+            "short": "Management",
+            "label": "balanced management",
+            "con": "money and resources handled reactively instead of on a rhythm",
+            "fix": "review money and resources on a fixed monthly rhythm"
+          },
+          "8": {
+            "short": "Assets",
+            "label": "asset & resource structure",
+            "con": "assets held without structure, documentation, or protection",
+            "fix": "formalise your assets — documentation, insurance, and clear ownership"
+          }
+        },
+        "complete": "Asset sense, balanced management, and patience combine into steady material security — property, savings, and long-term holdings grow well under your hand. This is the classic wealth-consolidation diagonal."
+      }
+    ],
+    "arrows": [
+      {
+        "name": "Arrow of Planning",
+        "line": [
+          4,
+          9,
+          2
+        ],
+        "axis": "Top row (4-9-2)",
+        "present": "You think before you act — you plan, weigh options and move with a clear strategy. Strong for business, study and any long project.",
+        "missing": "Arrow of Confusion — decisions come impulsively or too late. Use written plans, cost/benefit checks and a decision checklist before acting."
       },
-      complete: "Asset sense, balanced management, and patience combine into steady material security — property, savings, and long-term holdings grow well under your hand. This is the classic wealth-consolidation diagonal." }
-  ],
+      {
+        "name": "Arrow of Emotions",
+        "line": [
+          3,
+          5,
+          7
+        ],
+        "axis": "Middle row (3-5-7)",
+        "present": "You feel deeply and express it well — warmth, empathy and intuition flow naturally, making you naturally good with people.",
+        "missing": "Arrow of Emotional Restlessness — feelings get bottled up or swing under pressure. Practise daily expression, journaling and centring rituals."
+      },
+      {
+        "name": "Arrow of Practicality",
+        "line": [
+          8,
+          1,
+          6
+        ],
+        "axis": "Bottom row (8-1-6)",
+        "present": "You convert ideas into real results — money, work and delivery come naturally. Strong material, career and business instincts.",
+        "missing": "Arrow of Frustration — effort does not convert into results. Install systems: budgets, deadlines and checklists that carry work to completion."
+      },
+      {
+        "name": "Arrow of Intellect",
+        "line": [
+          4,
+          3,
+          8
+        ],
+        "axis": "Left column (4-3-8)",
+        "present": "A strong analytical mind — you learn deeply, connect ideas and master complex subjects over time.",
+        "missing": "Arrow of Shallow Thinking — learning plateaus and known patterns repeat. Feed the mind weekly with books, courses or a mentor conversation."
+      },
+      {
+        "name": "Arrow of Determination",
+        "line": [
+          9,
+          5,
+          1
+        ],
+        "axis": "Middle column (1-5-9)",
+        "present": "You push through resistance with steady will and self-belief — a natural leader who finishes what they start.",
+        "missing": "Arrow of Wavering Will — motivation comes in waves. Anchor yourself with fixed routines, public commitments and physical training."
+      },
+      {
+        "name": "Arrow of Activity",
+        "line": [
+          2,
+          7,
+          6
+        ],
+        "axis": "Right column (2-7-6)",
+        "present": "You finish what you start — patience, standards and follow-through combine into reliable, clean delivery.",
+        "missing": "Arrow of Unfinished Work — many things started, few completed. Define 'done' before you begin and close tasks fully."
+      },
+      {
+        "name": "Arrow of Prosperity",
+        "line": [
+          4,
+          5,
+          6
+        ],
+        "axis": "Diagonal (4-5-6)",
+        "present": "Opportunity meets structure and polish — you convert chances into wealth, branding and recognition.",
+        "missing": "Openings slip past or leak value. Scan your market weekly and give every opportunity an owner, timeline and budget."
+      },
+      {
+        "name": "Arrow of Spirituality",
+        "line": [
+          8,
+          5,
+          2
+        ],
+        "axis": "Diagonal (8-5-2)",
+        "present": "Inner calm and patience — you hold steady, build assets slowly and stay grounded under stress.",
+        "missing": "Restlessness and money-pressure. Let assets mature; add patience and a fixed monthly review of money and resources."
+      }
+    ],
+    "plotting": {
+      "zeros": "Remove every 0 before plotting.",
+      "year": "Plot all non-zero digits of the full DD-MM-YYYY birth date, including the century digits.",
+      "calculations": "Add the Driver/Moolank and Conductor/Bhagyank after all raw DOB digits."
+    }
+  },
+
+  /* ---- Advanced Vedic Ank Kundali Birth Comparison ----
+     This filtered birth-only lens is intentionally separate from the classic
+     Lo Shu Foundation grid and never generates remedy obligations. */
+  vedicGrid: {
+    name: "Advanced Vedic Ank Kundali Birth Comparison",
+    layout: [
+      [3, 1, 9],
+      [6, 7, 5],
+      [2, 8, 4]
+    ],
+    planes: [
+      {
+        key: "practical",
+        name: "Practical Plane",
+        element: "Fire",
+        cells: [3, 1, 9],
+        governs: "Vision, executive drive, leadership and proactive execution.",
+        roles: {
+          3: "Guru — vision and wise direction",
+          1: "Surya — leadership and executive drive",
+          9: "Mangal — courage and proactive execution"
+        }
+      },
+      {
+        key: "materialistic",
+        name: "Materialistic Plane",
+        element: "Air",
+        cells: [6, 7, 5],
+        governs: "Wealth accumulation, luxury, analytical thinking, business acumen and networking.",
+        roles: {
+          6: "Shukra — wealth, luxury and value",
+          7: "Ketu — analysis, research and discernment",
+          5: "Budh — business, communication and networking"
+        }
+      },
+      {
+        key: "emotional",
+        name: "Emotional Plane",
+        element: "Water",
+        cells: [2, 8, 4],
+        governs: "Intuition, emotional balance, perseverance, discipline and systematic planning.",
+        roles: {
+          2: "Chandra — intuition and emotional balance",
+          8: "Shani — perseverance and discipline",
+          4: "Rahu — adaptive, systematic planning"
+        }
+      }
+    ],
+    filtering: {
+      zeros: "Remove every 0 before plotting; zero has no independent planetary cell.",
+      century: "Plot only the final two digits of the birth year; century digits are generational rather than natal influences.",
+      dateDeduplication: "When the non-zero birth-date digit already equals the Ruling Number (1–9, 10, 20 or 30), plot it once as the Ruling Number rather than twice.",
+      calculations: "Always add the Ruling Number (Moolank) and Destiny Number (Bhagyank) after filtering the DOB digits."
+    }
+  },
 
   /* ---- Core nature per Mulank: traits, strengths & shadows ----
      Mulank = visible day-to-day personality; the same signature set
@@ -331,38 +670,6 @@ var DB = {
     7: "Ketu Yantra", 8: "Shani Yantra", 9: "Mangal Yantra"
   },
 
-  /* ---- The 8 Arrows of the Loshu grid (Chaldean "arrow" framing) ----
-     Same 8 lines as the planes above, but under the classical "arrow" names
-     practitioners and clients search for. When all three numbers of an arrow
-     are present the arrow is "strong"; when they are all missing the arrow is
-     "frustrated/confused" (a recognised weakness in classical practice). */
-  arrows: [
-    { name: "Arrow of Planning", line: [4, 9, 2], axis: "Top row (4-9-2)",
-      present: "You think before you act — you plan, weigh options and move with a clear strategy. Strong for business, study and any long project.",
-      missing: "Arrow of Confusion — decisions come impulsively or too late. Use written plans, cost/benefit checks and a decision checklist before acting." },
-    { name: "Arrow of Emotions", line: [3, 5, 7], axis: "Middle row (3-5-7)",
-      present: "You feel deeply and express it well — warmth, empathy and intuition flow naturally, making you naturally good with people.",
-      missing: "Arrow of Emotional Restlessness — feelings get bottled up or swing under pressure. Practise daily expression, journaling and centring rituals." },
-    { name: "Arrow of Practicality", line: [8, 1, 6], axis: "Bottom row (8-1-6)",
-      present: "You convert ideas into real results — money, work and delivery come naturally. Strong material, career and business instincts.",
-      missing: "Arrow of Frustration — effort does not convert into results. Install systems: budgets, deadlines and checklists that carry work to completion." },
-    { name: "Arrow of Intellect", line: [4, 3, 8], axis: "Left column (4-3-8)",
-      present: "A strong analytical mind — you learn deeply, connect ideas and master complex subjects over time.",
-      missing: "Arrow of Shallow Thinking — learning plateaus and known patterns repeat. Feed the mind weekly with books, courses or a mentor conversation." },
-    { name: "Arrow of Determination", line: [9, 5, 1], axis: "Middle column (1-5-9)",
-      present: "You push through resistance with steady will and self-belief — a natural leader who finishes what they start.",
-      missing: "Arrow of Wavering Will — motivation comes in waves. Anchor yourself with fixed routines, public commitments and physical training." },
-    { name: "Arrow of Activity", line: [2, 7, 6], axis: "Right column (2-7-6)",
-      present: "You finish what you start — patience, standards and follow-through combine into reliable, clean delivery.",
-      missing: "Arrow of Unfinished Work — many things started, few completed. Define 'done' before you begin and close tasks fully." },
-    { name: "Arrow of Prosperity", line: [4, 5, 6], axis: "Diagonal (4-5-6)",
-      present: "Opportunity meets structure and polish — you convert chances into wealth, branding and recognition.",
-      missing: "Openings slip past or leak value. Scan your market weekly and give every opportunity an owner, timeline and budget." },
-    { name: "Arrow of Spirituality", line: [8, 5, 2], axis: "Diagonal (8-5-2)",
-      present: "Inner calm and patience — you hold steady, build assets slowly and stay grounded under stress.",
-      missing: "Restlessness and money-pressure. Let assets mature; add patience and a fixed monthly review of money and resources." }
-  ],
-
   /* ---- Kua number (Feng Shui personal directions) ----
      NOTE: this is a Chinese / Feng Shui system, NOT classical Vastu Shastra.
      It is included (clearly labelled) because Indian numerology-Vastu apps
@@ -388,7 +695,9 @@ var DB = {
     "Relationship": [6, 2, 3, 7]
   },
 
-  /* ---- Vastu: 8 zones, ruling planet, best use, doshas & fixes ---- */
+  /* ---- Vastu: 8 zones, ruling planet, best use, doshas & fixes ----
+     These are Vedic planetary compass directions, never Lo Shu grid positions
+     or Bagua axes. Ketu's NE / Center axis is used in the dasha guidance. */
   vastu: {
     directions: {
       "N":  { planet: 5, element: "Earth", label: "North (Mercury)",        best: "Living room, study, office desk, cash locker", worst: "Master bedroom, toilet, heavy storage",
@@ -756,14 +1065,845 @@ var DB = {
     friendly: "Your name number vibrates in harmony with your birth numbers — no spelling change needed.",
     neutral:  "Your name number is neutral. It neither blocks nor boosts; a tuned spelling could add support.",
     enemy:    "Your name number conflicts with your birth numbers — a spelling correction is strongly recommended."
+  },
+
+  /* ---- Excess energy (numbers repeated 3+ times) — channeling guidance ----
+     A repeated number is a talent amplifier. When it overshoots it shows up as
+     the negative pole of that planet; the "channel" guidance redirects the
+     surplus into a fruitful, happy, wholesome direction — never adds more fuel. */
+  excessEnergy: {
+    1: {
+      overshoot: { en: "Ego and dominance in family/team decisions, needing to be right, friction with father or authority, burnout from carrying everything alone.", hi: "परिवार/टीम के निर्णयों में अहंकार और दबदबा, हमेशा सही होने की ज़िद, पिता या अधिकार से मनमुटाव, सब कुछ अकेले ढोने से थकावट।", gu: "કુટુંબ/ટીમના નિર્ણયોમાં અહંકાર અને દબદબો, હંમેશાં સાચા હોવાની જિદ, પિતા કે સત્તા સાથે મનમુટાવ, બધું એકલા ઉપાડવાથી થાક." },
+      channel: { en: "Lead by lifting others — mentor one person weekly and give credit in public; offer water to the rising Sun; donate wheat or jaggery on a Sunday as a humility practice.", hi: "दूसरों को आगे बढ़ाकर नेतृत्व करें — हर हफ्ते किसी एक को मार्गदर्शन दें और सार्वजनिक रूप से श्रेय दें; उगते सूर्य को जल अर्पित करें; विनम्रता हेतु रविवार को गेहूं या गुड़ दान करें।", gu: "બીજાને આગળ લાવીને નેતૃત્વ કરો — દર અઠવાડિયે કોઈ એકને માર્ગદર્શન આપો અને જાહેરમાં શ્રેય આપો; ઊગતા સૂર્યને જળ અર્પણ કરો; નમ્રતા માટે રવિવારે ઘઉં કે ગોળ દાન કરો." }
+    },
+    2: {
+      overshoot: { en: "Overthinking, mood swings, emotional dependence, sleepless nights, indecision from feeling too much.", hi: "अत्यधिक सोचना, मन की लहरें, भावनात्मक निर्भरता, नींद न आना, बहुत ज़्यादा महसूस करने से असमंजस।", gu: "વધુ પડતું વિચારવું, મનની લહેરો, લાગણીશીલ નિર્ભરતા, ઊંઘ ન આવવી, વધુ પડતું અનુભવવાથી દ્વિધા." },
+      channel: { en: "Channel the sensitive mind into service — write or journal nightly, spend quiet time near water; fast on Monday or serve your mother to ground the Moon.", hi: "संवेदनशील मन को सेवा में लगाएं — रात को लिखें या डायरी रखें, जल के पास शांत समय बिताएं; सोमवार को उपवास रखें या मां की सेवा करें।", gu: "સંવેદનશીલ મનને સેવામાં લગાવો — રાત્રે લખો કે ડાયરી રાખો, પાણી પાસે શાંત સમય પસાર કરો; સોમવારે ઉપવાસ રાખો કે માતાની સેવા કરો." }
+    },
+    3: {
+      overshoot: { en: "Over-generosity, unsolicited advice, ego in teaching, spending on status, friction with children or mentors.", hi: "अति उदारता, अनचाही सलाह, सिखाने में अहंकार, प्रतिष्ठा पर खर्च, बच्चों/गुरुओं से उलझन।", gu: "અતિ ઉદારતા, અણધારી સલાહ, શીખવવામાં અહંકાર, પ્રતિષ્ઠા પર ખર્ચ, બાળકો/ગુરુ સાથે મતભેદ." },
+      channel: { en: "Turn wisdom into structured teaching or writing; give knowledge (books, mentoring), not money; donate books on Thursday and practise humility in counsel.", hi: "ज्ञान को व्यवस्थित शिक्षण या लेखन में बदलें; धन नहीं, ज्ञान (पुस्तकें/मार्गदर्शन) दें; गुरुवार को पुस्तकें दान करें और सलाह में नम्रता रखें।", gu: "જ્ઞાનને વ્યવસ્થિત શિક્ષણ કે લેખનમાં ફેરવો; ધન નહીં, જ્ઞાન (પુસ્તકો/માર્ગદર્શન) આપો; ગુરુવારે પુસ્તકો દાન કરો અને સલાહમાં નમ્રતા રાખો." }
+    },
+    4: {
+      overshoot: { en: "Restlessness, shortcuts and risky gambles, tech/gadget over-dependence, sudden volatility, distrust.", hi: "बेचैनी, शॉर्टकट और जोखिम भरे दांव, तकनीक/गैजेट पर अत्यधिक निर्भरता, अचानक उतार-चढ़ाव, अविश्वास।", gu: "બેચેની, શોર્ટકટ અને જોખમી શરત, ટેક/ગેજેટ પર અતિ નિર્ભરતા, અચાનક ઉતાર-ચઢાવ, અવિશ્વાસ." },
+      channel: { en: "Channel the hunger into innovation and technology careers; discipline screen time; donate blankets or sesame on Saturday; ground decisions in routine.", hi: "इस महत्वाकांक्षा को नवाचार और तकनीकी करियर में लगाएं; स्क्रीन समय नियंत्रित करें; शनिवार को कंबल/तिल दान करें; निर्णय दिनचर्या पर टिकाएं।", gu: "આ મહત્વાકાંક્ષાને નવીનતા અને ટેક કરિયરમાં લગાવો; સ્ક્રીન સમય મર્યાદિત રાખો; શનિવારે ધાબળા/તલ દાન કરો; નિર્ણયો દિનચર્યા પર ટેકવો." }
+    },
+    5: {
+      overshoot: { en: "Scattered focus, chatter and over-promising, nervous energy, too many deals, superficial connections.", hi: "बिखरा हुआ ध्यान, बहुत बोलना और वादों का बोझ, घबराहट भरी ऊर्जा, बहुत सारे सौदे, सतही रिश्ते।", gu: "છૂટાછવાયું ધ્યાન, વધુ બોલવું અને વચનોનો બોજ, ગભરાટ ભરી ઊર્જા, ઘણા સોદા, સપાટીપરી સંબંધો." },
+      channel: { en: "Channel the speed into writing, trading, data or marketing; speak less and listen more; journal daily; donate green moong or stationery on Wednesday.", hi: "गति को लेखन, व्यापार, डेटा या मार्केटिंग में लगाएं; कम बोलें, ज़्यादा सुनें; रोज डायरी लिखें; बुधवार को हरा मूंग/स्टेशनरी दान करें।", gu: "ઝડપને લેખન, વેપાર, ડેટા કે માર્કેટિંગમાં લગાવો; ઓછું બોલો, વધુ સાંભળો; રોજ ડાયરી લખો; બુધવારે લીલા મગ/સ્ટેશનરી દાન કરો." }
+    },
+    6: {
+      overshoot: { en: "Over-indulgence in luxury, spending, attraction or relationships, vanity, comfort-seeking.", hi: "विलासिता, खर्च, आकर्षण/रिश्तों में अति, दिखावा, आराम की तलाश की अधिकता।", gu: "વૈભવ, ખર્ચ, આકર્ષણ/સંબંધોમાં અતિ, દેખાડો, આરામની શોધ વધુ પડતી." },
+      channel: { en: "Channel charm into art, hospitality or relationship counselling; enjoy beauty without excess — give white sweets or curd on Friday; make Friday a shared day of enjoyment.", hi: "आकर्षण को कला, आतिथ्य या रिश्तों की सलाह में लगाएं; सौंदर्य का आनंद संयम से लें — शुक्रवार को सफेद मिठाई/दही दान करें; शुक्रवार को साझा आनंद का दिन बनाएं।", gu: "આકર્ષણને કલા, આતિથ્ય કે સંબંધ-સલાહમાં લગાવો; સૌંદર્યનો આનંદ મર્યાદાથી લો — શુક્રવારે સફેદ મીઠાઈ/દહીં દાન કરો; શુક્રવારને સાઝો આનંદનો દિવસ બનાવો." }
+    },
+    7: {
+      overshoot: { en: "Detachment and withdrawal, unexplained fears, isolation, sudden losses, escapism.", hi: "वैराग्य और एकांत, अज्ञात भय, अलगाव, अचानक हानि, पलायनवाद।", gu: "વૈરાગ્ય અને એકાંત, અજ્ઞાત ભય, અલગાવ, અચાનક હાનિ, પલાયનવાદ." },
+      channel: { en: "Channel intuition into research, spirituality or healing; meditate 10 minutes daily; donate silently (stray dogs, blankets); stay connected to people.", hi: "अंतर्ज्ञान को शोध, अध्यात्म या चिकित्सा में लगाएं; रोज 10 मिनट ध्यान करें; बिना घोषणा दान करें (आवारा कुत्ते/कंबल); लोगों से जुड़े रहें।", gu: "અંતર્જ્ઞાનને સંશોધન, અધ્યાત્મ કે ચિકિત્સામાં લગાવો; રોજ 10 મિનિટ ધ્યાન કરો; જાહેરાત વગર દાન કરો (રખડતા કૂતરા/ધાબળા); લોકો સાથે જોડાયેલા રહો." }
+    },
+    8: {
+      overshoot: { en: "Overwork and burnout, pessimism, delays and blame, controlling others, joint or bone strain.", hi: "अति परिश्रम और थकावट, निराशावाद, विलंब और दोषारोपण, दूसरों को नियंत्रित करना, जोड़ों/हड्डियों में खिंचाव।", gu: "વધુ પડતું કામ અને થાક, નિરાશાવાદ, વિલંબ અને દોષારોપણ, બીજાને નિયંત્રિત કરવું, સાંધા/હાડકાંની તાણ." },
+      channel: { en: "Delegate Saturn's workload; serve workers and elders; donate oil, iron or black sesame on Saturday; take one rest day and structure work in cycles.", hi: "शनि का बोझ बांटें — काम सौंपें; मजदूरों/बड़ों की सेवा करें; शनिवार को तेल, लोहा या काले तिल दान करें; एक विश्राम दिवस रखें और काम को चक्रों में बांटें।", gu: "શનિનો બોજો વહેંચો — કામ સોંપો; મજૂરો/વડીલોની સેવા કરો; શનિવારે તેલ, લોખંડ કે કાળા તલ દાન કરો; એક વિશ્રાંતિ દિવસ રાખો અને કામને ચક્રોમાં વહેંચો." }
+    },
+    9: {
+      overshoot: { en: "Anger, impulsive action, conflict, accidents, fiery arguments, a dominating force.", hi: "क्रोध, आवेशपूर्ण कार्य, संघर्ष, दुर्घटनाएं, तीखी बहस, दबदबे की शक्ति।", gu: "ક્રોધ, આવેશી કાર્ય, સંઘર્ષ, અકસ્માત, તીખી દલીલ, દબદબાની શક્તિ." },
+      channel: { en: "Channel Mars into sport, exercise, martial arts or seva; count to ten before speaking; donate red lentils or red cloth on Tuesday; lead by protecting, not fighting.", hi: "मंगल को खेल, व्यायाम, मार्शल आर्ट या सेवा में लगाएं; बोलने से पहले दस तक गिनें; मंगलवार को मसूर की दाल/लाल कपड़ा दान करें; रक्षक बनकर नेतृत्व करें, लड़ाकू नहीं।", gu: "મંગળને રમત, કસરત, માર્શલ આર્ટ કે સેવામાં લગાવો; બોલતાં પહેલાં દસ સુધી ગણો; મંગળવારે મસૂર/લાલ કાપડ દાન કરો; લડાકુ નહીં, રક્ષક બનીને નેતૃત્વ કરો." }
+    }
+  },
+
+  /* ---- Ayurvedic Dosha Layer (Jyotish–Ayurveda constitutional map) ----
+     Each Vedic number carries a classical planetary dosha signature.
+     In this app it is used only as traditional wellness guidance: a
+     constitution-level lifestyle scaffold that explains the "why" behind
+     the existing remedy kits. It is never a diagnosis or medical claim. */
+  dosha: {
+    1: {
+      dominant: "Pitta",
+      nature: { en: "Solar-fire constitution — naturally warm digestion, focused will, leadership and inner heat.", hi: "सूर्य-अग्नि प्रकृति — स्वाभाविक रूप से गर्म पाचन, केंद्रित इच्छाशक्ति, नेतृत्व और भीतर की ऊष्मा।", gu: "સૂર્ય-અગ્નિ પ્રકૃતિ — કુદરતી રીતે ગરમ પાચન, કેન્દ્રિત ઇચ્છાશક્તિ, નેતૃત્વ અને અંદરની ઊષ્મા." },
+      aggravation: { en: "Inflammation, acidity, irritability, ego-heat, midday heat exhaustion and skin sensitivity to sun.", hi: "जलन, एसिडिटी, चिड़चिड़ापन, अहं-ऊष्मा, दोपहर की गर्मी से थकावट और सूर्य से त्वचा की संवेदनशीलता।", gu: "બળતરા, એસિડિટી, ચિડિચિડાપણું, અહં-ઊષ્મા, બપોરની ગરમીથી થાક અને સૂર્યથી ત્વચાની સંવેદનશીલતા." },
+      balancingFoods: { en: "Cooling, sweet and bitter foods: cucumber, fennel, coriander, coconut water, melon and cooled grains.", hi: "ठंडे, मीठे और कड़वे आहार: खीरा, सौंफ, धनिया, नारियल पानी, खरबूजा और ठंडा अनाज।", gu: "ઠંડા, મીઠા અને કડવા આહાર: કાકડી, સુંફ, ધાણા, નારિયેળ પાણી, તરબૂચ અને ઠંડું અનાજ." },
+      routine: { en: "Start before sunrise with Surya arghya; avoid noon sun exertion; keep meals warm but not spicy; schedule a short cool-down rest after noon.", hi: "सूर्योदय से पहले सूर्य अर्घ्य दें; दोपहर की धूप में परिश्रम से बचें; भोजन गर्म पर अति-मसालेदार नहीं व तेल हल्का; दोपहर बाद थोड़ा ठंडा विश्राम रखें।", gu: "સૂર્યોદય પહેલાં સૂર્ય અર્ઘ્ય આપો; બપોરના તડકામાં પરિશ્રમ ટાળો; ભોજન ગરમ પણ વધુ મસાલેદાર નહીં; બપોર પછી થોડો ઠંડો વિશ્રામ લો." },
+      mantraLinkedNote: { en: "The Sunday / Surya fast and water-offering work best when paired with cooling foods and an early start — the ritual cools solar heat instead of adding dry intensity.", hi: "रविवार / सूर्य का व्रत और जल-अर्घ्य ठंडे आहार व सुबह की शुरुआत के साथ सर्वोत्तम लाभ देते हैं — यह उपाय सूर्य-ऊष्मा को ठंडा करता है, तीव्रता नहीं बढ़ाता।", gu: "રવિવાર / સૂર્યનો ઉપવાસ અને જળ-અર્ઘ્ય ઠંડા આહાર સાથે અને વહેલી શરૂઆત સાથે શ્રેષ્ઠ લાભ આપે છે — આ ઉપાય સૂર્ય-ઊષ્માને ઠંડી કરે છે, તીવ્રતા નહીં વધારે." }
+    },
+    2: {
+      dominant: "Kapha–Vata",
+      nature: { en: "Moon constitution — watery, rhythmic, caring, with a sensitive mind and a calm, fluid body memory.", hi: "चंद्र प्रकृति — जलमय, लयबद्ध, स्नेही, संवेदनशील मन और शांत, तरल शरीर-स्मृति।", gu: "ચંદ્ર પ્રકૃતિ — જલમય, લયબદ્ધ, સ્નેહી, સંવેદનશીલ મન અને શાંત, પ્રવાહી શરીર-સ્મૃતિ." },
+      aggravation: { en: "Fluid retention plus anxious overthinking, disturbed sleep, emotional dependence and cyclical heaviness.", hi: "जल-संचय के साथ चिंताग्रस्त अतिविचार, नींद न आना, भावनात्मक निर्भरता और चक्रीय भारीपन।", gu: "પ્રવાહીના જથ્થા સાથે ચિંતાપૂર્ણ અતિવિચાર, ઊંઘ ન આવવી, લાગણીશીલ નિર્ભરતા અને ચક્રીય ભારેપણું." },
+      balancingFoods: { en: "Warm, light, easily digestible foods: cooked vegetables, ginger, small lentil soup and star-anise tea; avoid excessive cold and heavy dairy.", hi: "गर्म, हल्के और सुपाच्य आहार: उबली सब्जियां, अदरक, हल्की दाल सूप व चक्रफूल चाय; अत्यधिक ठंडा और भारी डेयरी से बचें।", gu: "ગરમ, હળવા અને સુપાચ્ય આહાર: બાફેલી શાકભાજી, આદુ, હળવી દાળ સૂપ અને સુંગધ ચા; વધુ ઠંડું અને ભારે ડેરી ટાળો." },
+      routine: { en: "Anchor the Moon with a fixed sleep time, a silver-glass water habit, journaling before bed and light evening movement.", hi: "चंद्रमा को निर्धारित सोने के समय, चांदी के गिलास में पानी, रात में डायरी और हल्की शाम की यात्रा-गति से स्थिर करें।", gu: "ચંદ્રને નિશ્ચિત સૂવાના સમય, ચાંદીના ગ્લાસમાં પાણીની આદત, સાંજે ડાયરી અને હળવી સાંજની ગતિથી સ્થિર કરો." },
+      mantraLinkedNote: { en: "The Monday Moon fast and silver-water practice work best with a steady bedtime — the Moon calms through rhythm, not restriction.", hi: "सोमवार का चंद्र व्रत और चांदी का जल स्थिर सोने के समय के साथ सर्वोत्तम हैं — चंद्रमा नियम (लय) से शांत होता है, निषेध से नहीं।", gu: "સોમવારનો ચંદ્ર ઉપવાસ અને ચાંદીનું જળ સ્થિર સૂવાના સમય સાથે શ્રેષ્ઠ છે — ચંદ્ર લયથી શાંત થાય છે, નિષેધથી નહીં." }
+    },
+    3: {
+      dominant: "Kapha",
+      nature: { en: "Kapha constitution — steady, generous, wise, slow to change but deeply loyal and grounded.", hi: "कफ प्रकृति — स्थिर, उदार, बुद्धिमान, बदलने में धीमा पर गहरा स्नेही और आधारभूत।", gu: "કફ પ્રકૃતિ — સ્થિર, ઉદાર, બુદ્ધિશાળી, બદલવામાં ધીમી પણ ઊંડો સ્નેહી અને આધારભૂત." },
+      aggravation: { en: "Heaviness, congestion, lethargy, weight stagnation and a tendency to accumulate — in food, money or obligations.", hi: "भारीपन, जकड़न, आलस्य, वजन में रुकावट और संचय की प्रवृत्ति — भोजन, धन या जिम्मेदारियों में।", gu: "ભારેપણું, જકડાણ, આળસ, વજનમાં અટકાવ અને સંચયની વૃત્તિ — ભોજન, ધન કે જવાબદારીઓમાં." },
+      balancingFoods: { en: "Light, warm, pungent foods: ginger, turmeric, oats, millets and hot water through the day; less cold and heavy dairy.", hi: "हल्का, गर्म और तीखा आहार: अदरक, हल्दी, ओट्स, मोटे अनाज और दिनभर गर्म पानी; ठंडा व भारी डेयरी कम।", gu: "હળવો, ગરમ અને તીખો આહાર: આદુ, હળદર, ઓટ્સ, બાજરી અને દિવસભર ગરમ પાણી; ઠંડી અને ભારે ડેરી ઓછી." },
+      routine: { en: "Move daily — brisk walk, stair climbing or pranayama before breakfast; take the largest meal before sunset; keep Thursday learning active.", hi: "रोज चलें — नाश्ते से पहले तेज सैर, सीढ़ियां या प्राणायाम; सबसे बड़ा भोजन सूर्यास्त से पहले; गुरुवार का अध्ययन सक्रिय रखें।", gu: "રોજ ચાલો — નાસ્તા પહેલાં ઝડપી સૈર, સીડી કે પ્રાણાયામ; સૌથી મોટું ભોજન સૂર્યાસ્ત પહેલાં; ગુરુવારનો અભ્યાસ સક્રિય રાખો." },
+      mantraLinkedNote: { en: "The Thursday Jupiter routine acts as a mental heater — add real movement so wealth ideas do not settle into storage.", hi: "गुरुवार का जीवनशैली उपाय मानसिक ऊष्मक है — इसमें वास्तविक शारीरिक गति जोड़ें ताकि धन की सोच भंडार में न पड़ी रहे।", gu: "ગુરુવારનો જીવનશૈલી ઉપાય માનસિક ઊષ્મક છે — તેમાં વાસ્તવિક શારીરિક ગતિ ઉમેરો જેથી ધનના વિચાર સંગ્રહમાં ન પડી રહે." }
+    },
+    4: {
+      dominant: "Vata",
+      nature: { en: "Rahu constitution — quick, unconventional, technology-driven, with a restless mind and sudden bursts of change.", hi: "राहु प्रकृति — तेज़, अपारंपरिक, तकनीक-चालित, बेचैन मन और अचानक बदलाव की लहरें।", gu: "રાહુ પ્રકૃતિ — ઝડપી, અપરંપરાગત, ટેક-આધારિત, બેચેન મન અને અચાનક બદલાવની લહેરો." },
+      aggravation: { en: "Nervous restlessness, erratic routine, obsessive loops, phone or tech overuse and feeling scattered.", hi: "घबराहट भरी बेचैनी, अस्त-व्यस्त दिनचर्या, जुनूनी चक्र, फोन/तकनीक अति-प्रयोग और मन का बिखराव।", gu: "ગભરાટ ભરી બેચેની, અસ્તવ્યસ્ત દિનચર્યા, જુનૂની ચક્ર, ફોન/ટેક અતિ-ઉપયોગ અને મનનું છૂટાછવાયું થવું." },
+      balancingFoods: { en: "Warm, moist, grounding foods: cooked grains, sesame, ghee, soups and root vegetables; regular warm meals instead of snack-drifting.", hi: "गर्म, नम और स्थिर आहार: पका अनाज, तिल, घी, सूप व जड़ वाली सब्जियां; स्नैक-अनियमितता के बजाय नियमित गर्म भोजन।", gu: "ગરમ, ભેજવાળો અને સ્થિર આહાર: શેકેલું ધાન, તલ, ઘી, સૂપ અને મૂળ શાકભાજી; નાસ્તાના તણાવને બદલે નિયમિત ગરમ ભોજન." },
+      routine: { en: "Ground the routine: fixed meal and sleep times, screens off after sunset, one daily walk and a written plan each morning.", hi: "दिनचर्या स्थिर करें: भोजन और नींद का नियत समय, सूर्यास्त के बाद स्क्रीन बंद, रोज एक सैर और सुबह की लिखित योजना।", gu: "દિનચર્યા સ્થિર કરો: ભોજન અને ઊંઘનો નિયત સમય, સૂર્યાસ્ત પછી સ્ક્રીન બંધ, રોજ એક સૈર અને સવારની લેખિત યોજના." },
+      mantraLinkedNote: { en: "Rahu is disciplined by time — the Saturday sesame/blanket giving works when paired with screens off at night and one non-negotiable meal time.", hi: "राहु समय से अनुशासित होता है — शनिवार के तिल/कंबल दान का असर तब बनता है जब रात में स्क्रीन बंद और भोजन का एक अटल समय हो।", gu: "રાહુ સમયથી શિસ્તમાં રહે છે — શનિવારના તલ/ધાબળા દાનની અસર ત્યારે બનતી જ્યારે રાત્રે સ્ક્રીન બંધ અને ભોજનનો એક અટલ સમય હોય." }
+    },
+    5: {
+      dominant: "Tridoshic",
+      nature: { en: "Mercury constitution — the balancer of the three doshas: changeable, communicative, adaptable and able to correct over time.", hi: "बुध प्रकृति — तीनों दोषों का संतुलक: परिवर्तनशील, संवादात्मक, अनुकूलनशील और समय के साथ सुधारने वाला।", gu: "બુધ પ્રકૃતિ — ત્રણેય દોષનો સંતુલક: પરિવર્તનશીલ, સંવાદાત્મક, અનુકૂલનશીલ અને સમય સાથે સુધારતો." },
+      aggravation: { en: "Overthinking, irregular digestion, scattered nerves, excessive talking and inconsistent routine.", hi: "अतिविचार, अनियमित पाचन, बिखरी नसें, अति-बोलना और असंगत दिनचर्या।", gu: "અતિવિચાર, અનિયમિત પાચન, છૂટાછવાયા ચેતા-તંત્ર, વધુ બોલવું અને સંગત નહીં દિનચર્યા." },
+      balancingFoods: { en: "Simple, regular, easy-to-digest meals: light grains, cooked salad, herbs and a daily green-vegetable dish; avoid grazing and excess coffee.", hi: "साधारण, नियमित और सुपाच्य भोजन: हल्का अनाज, हरा सलाद, जड़ी-बूटियां व रोज की हरी सब्जी; बार-बार खाना और अधिक कॉफी से बचें।", gu: "સાદું, નિયમિત અને સુપાચ્ય ભોજન: હળવું અનાજ, કાચું સલાડ, જડીબુટ્ટી અને રોજની લીલી શાકભાજી; વારંવાર ખાવું અને વધુ કોફી ટાળો." },
+      routine: { en: "Use the Wednesday Mercury habit as a reset — speak less, journal more, keep fixed wake/sleep windows and regular meal times.", hi: "बुधवार की आदत को रीसेट बनाएं — कम बोलें, अधिक लिखें, सोने-जागने का नियत समय और भोजन के नियमित समय।", gu: "બુધવારની આદતને રીસેટ બનાવો — ઓછું બોલો, વધુ લખો, ઊંઘ-જાગવાનો નિયત સમય અને નિયમિત ભોજનના સમય." },
+      mantraLinkedNote: { en: "Mercury is the natural equaliser — its mantra and weekly green/stationery giving are especially useful when another dosha runs too high.", hi: "बुध स्वाभाविक संतुलक है — उसका मंत्र और साप्ताहिक हरा/स्टेशनरी दान विशेष रूप से तब काम आता है जब कोई दूसरा दोष बढ़ रहा हो।", gu: "બુધ સ્વાભાવિક સંતુલક છે — તેનો મંત્ર અને સાપ્તાહિક લીલું/સ્ટેશનરી દાન ખાસ ત્યારે કામ આવે છે જ્યારે કોઈ બીજો દોષ વધતો હોય." }
+    },
+    6: {
+      dominant: "Vata–Kapha",
+      nature: { en: "Venus constitution — relational, artistic, comfort-seeking, with both a refined sweet side and a lazy digestive side.", hi: "शुक्र प्रकृति — संबंध-प्रधान, कलात्मक, सुख-सुविधा चाहने वाली; एक ओर सुंदर मिठास, दूसरी ओर धीमा पाचन।", gu: "શુક્ર પ્રકૃતિ — સંબંધ-પ્રધાન, કલાત્મક, આરામ શોધનાર; એક બાજુ સુંદર મીઠાશ, બીજી બાજુ ધીમું પાચન." },
+      aggravation: { en: "Indulgence, cravings, reproductive or comfort excess, heavy rich foods and over-attachment to pleasure.", hi: "भोग-विलास, लालसा, प्रजनन/सुख-सुविधा की अति, भारी मिठास और सुखदायी खाने से अधिक जुड़ाव।", gu: "ભોગ-વિલાસ, લાલસા, પ્રજનન/આરામની અતિ, ભારે મીઠી વસ્તુઓ અને સુખદ ભોજન સાથે વધુ જોડાણ." },
+      balancingFoods: { en: "Light, aromatic, balanced food: fresh greens, lentils, rose water and fennel; avoid prolonged sugar, heavy cream and late-night sweets.", hi: "हल्का, सुगंधित और संतुलित भोजन: ताजे साग, दालें, गुलाब जल व सौंफ; लंबे समय तक चीनी, भारी क्रीम और रात की मिठाइयों से बचें।", gu: "હળવો, સુગંધિત અને સંતુલિત આહાર: તાજા લીલા શાક, દાળ, ગુલાબજળ અને સુંફ; લાંબા સમય સુધી ખાંડ, ભારે ક્રીમ અને રાત્રિની મીઠાઈ ટાળો." },
+      routine: { en: "Keep Friday a shared enjoyable day, but with a clear boundary — one treat, then movement, long walk or dance; keep relationships light, not clinging.", hi: "शुक्रवार को साझा आनंद का दिन रखें पर स्पष्ट सीमा — एक मिठाई, फिर गति, सैर या नृत्य; रिश्ते हल्के रखें, जकड़ें नहीं।", gu: "શુક્રવારને સાઝો આનંદનો દિવસ રાખો પણ સ્પષ્ટ મર્યાદા — એક મીઠાઈ, પછી ગતિ, ચાલ કે નૃત્ય; સંબંધ હળવા રાખો, જકડો નહીં." },
+      mantraLinkedNote: { en: "The Friday Venus cures work best with moderation — white sweets and comfort need a companion walk, or the treat becomes the aggravation.", hi: "शुक्रवार के शुक्र उपाय संयम के साथ सर्वोत्तम हैं — सफेद मिठाई और सुख-सुविधा के साथ सैर जरूरी है, अन्यथा भोग ही दोष बन जाता है।", gu: "શુક્રવારના શુક્ર ઉપાય સંયમ સાથે શ્રેષ્ઠ છે — સફેદ મીઠાઈ અને આરામની સાથે ચાલ જરૂરી છે, નહીંતર ભોગ જ દોષ બની જાય." }
+    },
+    7: {
+      dominant: "Pitta",
+      nature: { en: "Ketu constitution — piercing insight, research ability, spiritual heat, with a precise but often detached fire.", hi: "केतु प्रकृति — गहरी दृष्टि, शोध-क्षमता, आध्यात्मिक ऊष्मा; सूक्ष्म पर प्रायः विरक्त अग्नि।", gu: "કેતુ પ્રકૃતિ — ઊંડી દૃષ્ટિ, સંશોધન-ક્ષમતા, આધ્યાત્મિક ઊષ્મા; સૂક્ષ્મ પણ સામાન્યતઃ અલગ અગ્નિ." },
+      aggravation: { en: "Sudden heat spikes, skin sensitivity, ungrounded intensity and irritation from feeling invisible or disconnected.", hi: "अचानक ऊष्मा-लहरें, त्वचा की संवेदनशीलता, बेजड़ तीव्रता और अदृश्य/विच्छिन्न महसूस होने से चिड़चिड़ापन।", gu: "અચાનક ઊષ્મા-લહેરો, ત્વચાની સંવેદનશીલતા, બેજડ તીવ્રતા અને અદ્રશ્ય/વિચ્છિન્ન લાગવાથી ચિડિચિડાપણું." },
+      balancingFoods: { en: "Cooling, gentle, clean foods: coconut, coriander, bitter greens, rice and warm milk; avoid fermented, pungent and late-night hot food.", hi: "ठंडे, कोमल और साफ आहार: नारियल, धनिया, कड़वे साग, चावल और गर्म दूध; किण्वित, तीखा और रात को गर्म-भारी भोजन से बचें।", gu: "ઠંડા, નમ્ર અને શુદ્ધ આહાર: નારિયેળ, ધાણા, કડવા લીલા શાક, ચોખા અને ગરમ દૂધ; કિણ્વિત, તીખું અને રાત્રે ગરમ-ભારે ભોજન ટાળો." },
+      routine: { en: "Ground the inward fire: 10 minutes of meditation daily, silent charity, time outdoors in the morning and one quiet evening without screens.", hi: "आंतरिक अग्नि को स्थिर करें: रोज 10 मिनट ध्यान, मौन दान, सुबह खुले में समय और बिना स्क्रीन की शांत शाम।", gu: "આંતરિક અગ્નિને સ્થિર કરો: રોજ ૧૦ મિનિટ ધ્યાન, મૌન દાન, સવારે ખુલ્લામાં સમય અને સ્ક્રીન વગરની શાંત સાંજ." },
+      mantraLinkedNote: { en: "The Ketu mantra opens awareness — keep it paired with silent giving and early grounding so heat becomes direction, not a spike.", hi: "केतु मंत्र जागरूकता खोलता है — इसे मौन दान और सुबह की स्थिरता के साथ रखें ताकि ऊष्मा दिशा बने, न कि अचानक लहर।", gu: "કેતુ મંત્ર જાગૃતતા ખોલે છે — તેને મૌન દાન અને સવારની સ્થિરતા સાથે રાખો જેથી ઊષ્મા દિશા બને, નહીં કે અચાનક લહેર." }
+    },
+    8: {
+      dominant: "Vata",
+      nature: { en: "Saturn constitution — structured, enduring, detail-focused, with a dry, cold and hardworking physical tone.", hi: "शनि प्रकृति — संरचित, सहनशील, बारीकी-केंद्रित; शुष्क, ठंडा और परिश्रमी शारीरिक स्वर।", gu: "શનિ પ્રકૃતિ — માળખાગત, ટકાઉ, ઝીણવટ-કેન્દ્રિત; શુષ્ક, ઠંડો અને પરિશ્રમી શારીરિક સ્વર." },
+      aggravation: { en: "Dryness, joint stiffness, cold limbs, chronic worry, overwork and burnout from holding too much.", hi: "शुष्कता, जोड़ों की जकड़न, ठंडे अंग, चिर-चिंता, अति-परिश्रम और अधिक संभालने से थकावट।", gu: "શુષ્કતા, સાંધાની જકડાણ, ઠંડા અંગ, લાંબી ચિંતા, વધુ કામ અને બહુ સંભાળવાથી થાક." },
+      balancingFoods: { en: "Warm, oily, grounding foods: sesame, ghee, cooked rice, root vegetables and warm milk; avoid dry, raw, cold and instant snacking.", hi: "गर्म, स्निग्ध और स्थिर आहार: तिल, घी, पका चावल, जड़ वाली सब्जियां, गर्म दूध; सूखा, कच्चा, ठंडा और झटपट स्नैक से बचें।", gu: "ગરમ, તૈલી અને સ્થિર આહાર: તલ, ઘી, શેકેલું ચોખા, મૂળ શાકભાજી, ગરમ દૂધ; સૂકું, કાચું, ઠંડું અને ઝટપટ નાસ્તો ટાળો." },
+      routine: { en: "Regular meal times, warm oil massage (abhyanga) on Saturday or before bed, one rest day and short structured work cycles with breaks.", hi: "भोजन का नियत समय, शनिवार या सोने से पहले गर्म तेल मालिश (अभ्यंग), एक विश्राम दिवस और ब्रेक-सहित छोटे कार्य-चक्र।", gu: "ભોજનનો નિયત સમય, શનિવારે કે સૂતાં પહેલાં ગરમ તેલ માલિશ (અભ્યંગ), એક વિશ્રામ દિવસ અને વિરામ સાથે ટૂંકાં કામ-ચક્ર." },
+      mantraLinkedNote: { en: "The Saturday Saturn practice — oil, iron and black sesame giving — works because it adds warmth and rhythm to dry, over-worked Vata energy.", hi: "शनिवार का शनि उपाय — तेल, लोहा और काले तिल — शुष्क, अधिक-काम वाली वात ऊर्जा में गर्मी और लय जोड़ने के कारण कार्य करता है।", gu: "શનિવારનો શનિ ઉપાય — તેલ, લોખંડ અને કાળા તલ — શુષ્ક, વધુ કામવાળી વાત ઊર્જામાં ગરમી અને લય ઉમેરવાથી કામ કરે છે." }
+    },
+    9: {
+      dominant: "Pitta",
+      nature: { en: "Mars constitution — brave, driven, protective, with a hot, fiery metabolism and an instinct to act now.", hi: "मंगल प्रकृति — साहसी, प्रेरित, रक्षक; गर्म, ज्वलंत चयापचय और अभी-अभी करने की प्रवृत्ति।", gu: "મંગળ પ્રકૃતિ — હિંમતવાન, પ્રેરિત, રક્ષક; ગરમ, અગ્નિમય ચયાપચય અને તરત કરવાની વૃત્તિ." },
+      aggravation: { en: "Anger-flashes, blood-pressure heat, inflammation, impatience and burning out from too much intensity.", hi: "क्रोध की लहरें, रक्तचाप-ऊष्मा, जलन, अधीरता और अति-तीव्रता से जलना।", gu: "ક્રોધની લહેરો, બ્લડપ્રેશર-ઊષ્મા, બળતરા, અધીરાઈ અને અતિ-તીવ્રતાથી બળવું." },
+      balancingFoods: { en: "Cooling, sweet and hydrating foods: cucumber, coconut, mint, watermelon and barley water; avoid very spicy, fried and alcoholic heat.", hi: "ठंडे, मीठे और जलयुक्त आहार: खीरा, नारियल, पुदीना, तरबूज, जौ का पानी; अति-मसालेदार, तला और शराब से बचें।", gu: "ઠંડા, મીઠા અને જળયુક્ત આહાર: કાકડી, નારિયેળ, ફુદીના, તરબૂચ, જવનું પાણી; વધુ મસાલેદાર, તળેલું અને આલ્કોહોલ ટાળો." },
+      routine: { en: "Channel the fire: daily exercise or sport, count to ten before speaking, morning movement over evening intensity and a cool-down after conflict.", hi: "अग्नि को दिशा दें: रोज व्यायाम/खेल, बोलने से पहले दस तक गिनें, शाम की तीव्रता से बेहतर सुबह की गति, और विवाद के बाद ठंडा होना।", gu: "અગ્નિને દિશા આપો: રોજ કસરત/રમત, બોલતાં પહેલાં દસ સુધી ગણો, સાંજની તીવ્રતા કરતાં સવારની ગતિ, અને વિવાદ પછી ઠંડા થવું." },
+      mantraLinkedNote: { en: "The Tuesday Mars remedy works when paired with physical release — red lentils and red cloth are for protection; exercise is the pressure valve.", hi: "मंगलवार का मंगल उपाय शारीरिक निष्कासन के साथ काम करता है — लाल दाल और लाल कपड़ा रक्षा के लिए हैं; व्यायाम दबाव-नली है।", gu: "મંગળવારનો મંગળ ઉપાય શારીરિક નિકાલ સાથે કામ કરે છે — લાલ દાળ અને લાલ કાપડ રક્ષણ માટે છે; કસરત દબાણ-નળી છે." }
+    }
+  },
+
+  /* ---- Deity Protection Layer (classical number → ishta devta map) ----
+     Every birth number 1–9 carries a guardian deity (ishta devta) in the
+     Hindu tradition; knowing and keeping one's own ishta is itself a shield.
+     Each entry: archetypes / god (trilingual name), the classical mantra (Devanagari +
+     IAST), cadence & day, offerings (naivedya), everyday support materials,
+     presentation copy, and protection note. Framed strictly as traditional
+     spiritual guidance — the reader's own family tradition and guru's
+     instruction always take priority. */
+  deity: {
+      "1": {
+          "archetypes": {
+              "en": "Surya Narayana / Lord Rama",
+              "hi": "सूर्य नारायण / भगवान राम",
+              "gu": "સૂર્ય નારાયણ / ભગવાન રામ"
+          },
+          "god": {
+              "en": "Surya Narayana / Lord Rama",
+              "hi": "सूर्य नारायण / भगवान राम",
+              "gu": "સૂર્ય નારાયણ / ભગવાન રામ"
+          },
+          "mantra": "ॐ घृणिः सूर्याय नमः (Om Ghrinih Suryaya Namah)",
+          "cadence": {
+              "en": "11× at sunrise · 108× on Sundays",
+              "hi": "सूर्योदय पर 11× · रविवार को 108×",
+              "gu": "સૂર્યોદય સમયે 11× · રવિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× at sunrise",
+              "hi": "सूर्योदय पर 11×",
+              "gu": "સૂર્યોદય સમયે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Sundays",
+              "hi": "रविवार को 108×",
+              "gu": "રવિવારે 108×"
+          },
+          "offerings": {
+              "en": "Fresh water in a copper vessel (Arghya), red flowers, jaggery, or wheat",
+              "hi": "तांबे के पात्र में ताजा जल (अर्घ्य), लाल फूल, गुड़ या गेहूं",
+              "gu": "તાંબાના પાત્રમાં તાજું જળ (અર્ઘ્ય), લાલ ફૂલ, ગોળ કે ઘઉં"
+          },
+          "support": {
+              "en": "Fresh water in a copper vessel (Arghya), red flowers, jaggery, or wheat",
+              "hi": "तांबे के पात्र में ताजा जल (अर्घ्य), लाल फूल, गुड़ या गेहूं",
+              "gu": "તાંબાના પાત્રમાં તાજું જળ (અર્ઘ્ય), લાલ ફૂલ, ગોળ કે ઘઉં"
+          },
+          "presentationCopy": {
+              "en": "Surya Narayana (The cosmic source of vitality, executive vision, and soul illumination) or Lord Rama (The embodiment of uncompromising integrity and rightful authority; ideal for leadership clarity and father-figure harmony).",
+              "hi": "सूर्य नारायण (जीवन-ऊर्जा, कार्यकारी दृष्टि और आत्म-प्रकाश का स्रोत) या भगवान राम (अखंड सत्यनिष्ठा और न्यायसंगत अधिकार का प्रतीक; नेतृत्व स्पष्टता और पिता-तुल्य सामंजस्य के लिए उपयुक्त)।",
+              "gu": "સૂર્ય નારાયણ (જીવન-ઊર્જા, કારોબારી દ્રષ્ટિ અને આત્મ-પ્રકાશનો સ્ત્રોત) અથવા ભગવાન રામ (અખંડ સત્યનિષ્ઠા અને ન્યાયસંગત અધિકારનું પ્રતીક; નેતૃત્વ સ્પષ્ટતા અને પિતા-તુલ્ય સુમેળ માટે યોગ્ય)."
+          },
+          "protectionNote": {
+              "en": "Surya Narayana (The cosmic source of vitality, executive vision, and soul illumination) or Lord Rama (The embodiment of uncompromising integrity and rightful authority; ideal for leadership clarity and father-figure harmony).",
+              "hi": "सूर्य नारायण (जीवन-ऊर्जा, कार्यकारी दृष्टि और आत्म-प्रकाश का स्रोत) या भगवान राम (अखंड सत्यनिष्ठा और न्यायसंगत अधिकार का प्रतीक; नेतृत्व स्पष्टता और पिता-तुल्य सामंजस्य के लिए उपयुक्त)।",
+              "gu": "સૂર્ય નારાયણ (જીવન-ઊર્જા, કારોબારી દ્રષ્ટિ અને આત્મ-પ્રકાશનો સ્ત્રોત) અથવા ભગવાન રામ (અખંડ સત્યનિષ્ઠા અને ન્યાયસંગત અધિકારનું પ્રતીક; નેતૃત્વ સ્પષ્ટતા અને પિતા-તુલ્ય સુમેળ માટે યોગ્ય)."
+          }
+      },
+      "2": {
+          "archetypes": {
+              "en": "Lord Shiva (Chandrashekhara) / Goddess Gauri (Parvati)",
+              "hi": "भगवान शिव (चंद्रशेखर) / देवी गौरी (पार्वती)",
+              "gu": "ભગવાન શિવ (ચંદ્રશેખર) / દેવી ગૌરી (પાર્વતી)"
+          },
+          "god": {
+              "en": "Lord Shiva (Chandrashekhara) / Goddess Gauri (Parvati)",
+              "hi": "भगवान शिव (चंद्रशेखर) / देवी गौरी (पार्वती)",
+              "gu": "ભગવાન શિવ (ચંદ્રશેખર) / દેવી ગૌરી (પાર્વતી)"
+          },
+          "mantra": "ॐ नमः शिवाय (Om Namah Shivaya)",
+          "cadence": {
+              "en": "11× morning on an empty stomach · 108× on Mondays",
+              "hi": "सुबह खाली पेट 11× · सोमवार को 108×",
+              "gu": "સવારે ખાલી પેટે 11× · સોમવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× morning on an empty stomach",
+              "hi": "सुबह खाली पेट 11×",
+              "gu": "સવારે ખાલી પેટે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Mondays",
+              "hi": "सोमवार को 108×",
+              "gu": "સોમવારે 108×"
+          },
+          "offerings": {
+              "en": "Pure water, raw milk, white flowers, and bilva leaves",
+              "hi": "शुद्ध जल, कच्चा दूध, सफेद फूल और बिल्व पत्र",
+              "gu": "શુદ્ધ જળ, કાચું દૂધ, સફેદ ફૂલ અને બિલ્વ પત્ર"
+          },
+          "support": {
+              "en": "Pure water, raw milk, white flowers, and bilva leaves",
+              "hi": "शुद्ध जल, कच्चा दूध, सफेद फूल और बिल्व पत्र",
+              "gu": "શુદ્ધ જળ, કાચું દૂધ, સફેદ ફૂલ અને બિલ્વ પત્ર"
+          },
+          "presentationCopy": {
+              "en": "Lord Shiva (Wears the crescent moon; stabilizes fluctuating emotions, anxiety, and disturbed sleep) or Goddess Gauri (The nurturer of emotional maturity, intuitive calm, and maternal peace).",
+              "hi": "भगवान शिव (चंद्रमा को धारण करते हैं; उतार-चढ़ाव वाली भावनाओं, चिंता और अशांत नींद को स्थिर करते हैं) या देवी गौरी (भावनात्मक परिपक्वता, सहज शांति और मातृ शांति का पोषण करने वाली)।",
+              "gu": "ભગવાન શિવ (ચંદ્ર ધારણ કરે છે; ચંચળ લાગણીઓ, ચિંતા અને અશાંત ઊંઘને સ્થિર કરે છે) અથવા દેવી ગૌરી (ભાવનાત્મક પરિપક્વતા, સાહજિક શાંતિ અને માતૃ શાંતિનું પોષણ કરનાર)."
+          },
+          "protectionNote": {
+              "en": "Lord Shiva (Wears the crescent moon; stabilizes fluctuating emotions, anxiety, and disturbed sleep) or Goddess Gauri (The nurturer of emotional maturity, intuitive calm, and maternal peace).",
+              "hi": "भगवान शिव (चंद्रमा को धारण करते हैं; उतार-चढ़ाव वाली भावनाओं, चिंता और अशांत नींद को स्थिर करते हैं) या देवी गौरी (भावनात्मक परिपक्वता, सहज शांति और मातृ शांति का पोषण करने वाली)।",
+              "gu": "ભગવાન શિવ (ચંદ્ર ધારણ કરે છે; ચંચળ લાગણીઓ, ચિંતા અને અશાંત ઊંઘને સ્થિર કરે છે) અથવા દેવી ગૌરી (ભાવનાત્મક પરિપક્વતા, સાહજિક શાંતિ અને માતૃ શાંતિનું પોષણ કરનાર)."
+          }
+      },
+      "3": {
+          "archetypes": {
+              "en": "Lord Vishnu / Lord Dakshinamurthy",
+              "hi": "भगवान विष्णु / भगवान दक्षिणामूर्ति",
+              "gu": "ભગવાન વિષ્ણુ / ભગવાન દક્ષિણામૂર્તિ"
+          },
+          "god": {
+              "en": "Lord Vishnu / Lord Dakshinamurthy",
+              "hi": "भगवान विष्णु / भगवान दक्षिणामूर्ति",
+              "gu": "ભગવાન વિષ્ણુ / ભગવાન દક્ષિણામૂર્તિ"
+          },
+          "mantra": "ॐ नमो भगवते वासुदेवाय (Om Namo Bhagavate Vasudevaya)",
+          "cadence": {
+              "en": "11× before study, teaching, or major decisions · 108× on Thursdays",
+              "hi": "अध्ययन, शिक्षण या बड़े निर्णयों से पहले 11× · गुरुवार को 108×",
+              "gu": "અભ્યાસ, શિક્ષણ કે મોટા નિર્ણયો પહેલાં 11× · ગુરુવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× before study, teaching, or major decisions",
+              "hi": "अध्ययन, शिक्षण या बड़े निर्णयों से पहले 11×",
+              "gu": "અભ્યાસ, શિક્ષણ કે મોટા નિર્ણયો પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Thursdays",
+              "hi": "गुरुवार को 108×",
+              "gu": "ગુરુવારે 108×"
+          },
+          "offerings": {
+              "en": "Chana dal, yellow flowers, turmeric, tulsi leaves, and panak (honey water)",
+              "hi": "चना दाल, पीले फूल, हल्दी, तुलसी पत्र और पनाक (शहद-जल)",
+              "gu": "ચણા દાળ, પીળાં ફૂલ, હળદર, તુલસી પત્ર અને પનાક (મધ-જળ)"
+          },
+          "support": {
+              "en": "Chana dal, yellow flowers, turmeric, tulsi leaves, and panak (honey water)",
+              "hi": "चना दाल, पीले फूल, हल्दी, तुलसी पत्र और पनाक (शहद-जल)",
+              "gu": "ચણા દાળ, પીળાં ફૂલ, હળદર, તુલસી પત્ર અને પનાક (મધ-જળ)"
+          },
+          "presentationCopy": {
+              "en": "Lord Vishnu (Sustainer of dharma, ethical expansion, and long-term reputation) or Lord Dakshinamurthy (The supreme teacher; bestows advisory mastery, academic depth, and spiritual counsel).",
+              "hi": "भगवान विष्णु (धर्म, नैतिक विस्तार और दीर्घकालिक प्रतिष्ठा के पालक) या भगवान दक्षिणामूर्ति (परम गुरु; सलाहकार दक्षता, अकादमिक गहराई और आध्यात्मिक मार्गदर्शन प्रदान करते हैं)।",
+              "gu": "ભગવાન વિષ્ણુ (ધર્મ, નૈતિક વિસ્તાર અને લાંબા ગાળાની પ્રતિષ્ઠાના પાલક) અથવા ભગવાન દક્ષિણામૂર્તિ (પરમ ગુરુ; સલાહકાર ક્ષમતા, શૈક્ષણિક ઊંડાણ અને આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Lord Vishnu (Sustainer of dharma, ethical expansion, and long-term reputation) or Lord Dakshinamurthy (The supreme teacher; bestows advisory mastery, academic depth, and spiritual counsel).",
+              "hi": "भगवान विष्णु (धर्म, नैतिक विस्तार और दीर्घकालिक प्रतिष्ठा के पालक) या भगवान दक्षिणामूर्ति (परम गुरु; सलाहकार दक्षता, अकादमिक गहराई और आध्यात्मिक मार्गदर्शन प्रदान करते हैं)।",
+              "gu": "ભગવાન વિષ્ણુ (ધર્મ, નૈતિક વિસ્તાર અને લાંબા ગાળાની પ્રતિષ્ઠાના પાલક) અથવા ભગવાન દક્ષિણામૂર્તિ (પરમ ગુરુ; સલાહકાર ક્ષમતા, શૈક્ષણિક ઊંડાણ અને આધ્યાત્મિક માર્ગદર્શન પ્રદાન કરે છે)."
+          }
+      },
+      "4": {
+          "archetypes": {
+              "en": "Maa Durga / Lord Bhairava",
+              "hi": "माँ दुर्गा / भगवान भैरव",
+              "gu": "મા દુર્ગા / ભગવાન ભૈરવ"
+          },
+          "god": {
+              "en": "Maa Durga / Lord Bhairava",
+              "hi": "माँ दुर्गा / भगवान भैरव",
+              "gu": "મા દુર્ગા / ભગવાન ભૈરવ"
+          },
+          "mantra": "ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
+          "cadence": {
+              "en": "11× when plans feel erratic or overwhelming · 108× on Saturdays",
+              "hi": "जब योजनाएं अनियंत्रित या भारी लगें तब 11× · शनिवार को 108×",
+              "gu": "જ્યારે યોજનાઓ અનિયંત્રિત કે ભારે લાગે ત્યારે 11× · શનિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× when plans feel erratic or overwhelming",
+              "hi": "जब योजनाएं अनियंत्रित या भारी लगें तब 11×",
+              "gu": "જ્યારે યોજનાઓ અનિયંત્રિત કે ભારે લાગે ત્યારે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Saturdays",
+              "hi": "शनिवार को 108×",
+              "gu": "શનિવારે 108×"
+          },
+          "offerings": {
+              "en": "Kumkum, red flowers, sesame oil lamp, or feeding stray dogs",
+              "hi": "कुंकुम, लाल फूल, तिल के तेल का दीपक, या गली के कुत्तों को भोजन",
+              "gu": "કુંકમ, લાલ ફૂલ, તલના તેલનો દીવો, કે શેરીના શ્વાનોને ભોજન"
+          },
+          "support": {
+              "en": "Kumkum, red flowers, sesame oil lamp, or feeding stray dogs",
+              "hi": "कुंकुम, लाल फूल, तिल के तेल का दीपक, या गली के कुत्तों को भोजन",
+              "gu": "કુંકમ, લાલ ફૂલ, તલના તેલનો દીવો, કે શેરીના શ્વાનોને ભોજન"
+          },
+          "presentationCopy": {
+              "en": "Maa Durga (The supreme shield against illusions, sudden shocks, and mental obsessions) or Lord Bhairava (The master of time; dissolves chronic fear, overthinking, and erratic disruptive patterns).",
+              "hi": "माँ दुर्गा (भ्रम, अचानक आघात और मानसिक जुनून के खिलाफ सर्वोच्च ढाल) या भगवान भैरव (काल के स्वामी; पुराने भय, अधिक सोचने और अनियमित विघटनकारी पैटर्न को समाप्त करते हैं)।",
+              "gu": "મા દુર્ગા (ભ્રમ, અચાનક આંચકા અને માનસિક વળગણ સામે સર્વોચ્ચ ઢાલ) અથવા ભગવાન ભૈરવ (કાળના સ્વામી; જૂના ભય, વધુ પડતા વિચાર અને અનિયમિત વિક્ષેપકારક પેટર્નને ઓગાળી દે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Durga (The supreme shield against illusions, sudden shocks, and mental obsessions) or Lord Bhairava (The master of time; dissolves chronic fear, overthinking, and erratic disruptive patterns).",
+              "hi": "माँ दुर्गा (भ्रम, अचानक आघात और मानसिक जुनून के खिलाफ सर्वोच्च ढाल) या भगवान भैरव (काल के स्वामी; पुराने भय, अधिक सोचने और अनियमित विघटनकारी पैटर्न को समाप्त करते हैं)।",
+              "gu": "મા દુર્ગા (ભ્રમ, અચાનક આંચકા અને માનસિક વળગણ સામે સર્વોચ્ચ ઢાલ) અથવા ભગવાન ભૈરવ (કાળના સ્વામી; જૂના ભય, વધુ પડતા વિચાર અને અનિયમિત વિક્ષેપકારક પેટર્નને ઓગાળી દે છે)."
+          }
+      },
+      "5": {
+          "archetypes": {
+              "en": "Lord Ganesha / Lord Vishnu",
+              "hi": "भगवान गणेश / भगवान विष्णु",
+              "gu": "ભગવાન ગણેશ / ભગવાન વિષ્ણુ"
+          },
+          "god": {
+              "en": "Lord Ganesha / Lord Vishnu",
+              "hi": "भगवान गणेश / भगवान विष्णु",
+              "gu": "ભગવાન ગણેશ / ભગવાન વિષ્ણુ"
+          },
+          "mantra": "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)",
+          "cadence": {
+              "en": "11× before commercial negotiations, writing, or calculations · 108× on Wednesdays",
+              "hi": "व्यापारिक बातचीत, लेखन या गणना से पहले 11× · बुधवार को 108×",
+              "gu": "વેપારી વાતચીત, લેખન કે ગણતરી પહેલાં 11× · બુધવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× before commercial negotiations, writing, or calculations",
+              "hi": "व्यापारिक बातचीत, लेखन या गणना से पहले 11×",
+              "gu": "વેપારી વાતચીત, લેખન કે ગણતરી પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Wednesdays",
+              "hi": "बुधवार को 108×",
+              "gu": "બુધવારે 108×"
+          },
+          "offerings": {
+              "en": "Fresh green Durva grass, modak, green moong, or stationery donation",
+              "hi": "ताजी हरी दुर्वा घास, मोदक, हरा मूंग, या स्टेशनरी दान",
+              "gu": "તાજી લીલી દૂર્વા, મોદક, લીલા મગ, કે સ્ટેશનરી દાન"
+          },
+          "support": {
+              "en": "Fresh green Durva grass, modak, green moong, or stationery donation",
+              "hi": "ताजी हरी दुर्वा घास, मोदक, हरा मूंग, या स्टेशनरी दान",
+              "gu": "તાજી લીલી દૂર્વા, મોદક, લીલા મગ, કે સ્ટેશનરી દાન"
+          },
+          "presentationCopy": {
+              "en": "Lord Ganesha (The master of Buddhi and intellect; removes commercial bottlenecks and sharpens communication through Wednesday Durva offerings) or Lord Vishnu (Sustainer of clear analytical intellect and fair business enterprise).",
+              "hi": "भगवान गणेश (बुद्धि और विवेक के स्वामी; बुधवार को दुर्वा अर्पण से व्यावसायिक बाधाओं को दूर करते हैं और संचार को तेज करते हैं) या भगवान विष्णु (स्पष्ट विश्लेषणात्मक बुद्धि और निष्पक्ष व्यापार उद्यम के पालक)।",
+              "gu": "ભગવાન ગણેશ (બુદ્ધિ અને વિવેકના સ્વામી; બુધવારે દૂર્વા અર્પણથી વ્યાપારી અવરોધો દૂર કરે છે અને સંવાદ તેજ કરે છે) અથવા ભગવાન વિષ્ણુ (સ્પષ્ટ વિશ્લેષણાત્મક બુદ્ધિ અને નિષ્પક્ષ વેપારના પાલક)."
+          },
+          "protectionNote": {
+              "en": "Lord Ganesha (The master of Buddhi and intellect; removes commercial bottlenecks and sharpens communication through Wednesday Durva offerings) or Lord Vishnu (Sustainer of clear analytical intellect and fair business enterprise).",
+              "hi": "भगवान गणेश (बुद्धि और विवेक के स्वामी; बुधवार को दुर्वा अर्पण से व्यावसायिक बाधाओं को दूर करते हैं और संचार को तेज करते हैं) या भगवान विष्णु (स्पष्ट विश्लेषणात्मक बुद्धि और निष्पक्ष व्यापार उद्यम के पालक)।",
+              "gu": "ભગવાન ગણેશ (બુદ્ધિ અને વિવેકના સ્વામી; બુધવારે દૂર્વા અર્પણથી વ્યાપારી અવરોધો દૂર કરે છે અને સંવાદ તેજ કરે છે) અથવા ભગવાન વિષ્ણુ (સ્પષ્ટ વિશ્લેષણાત્મક બુદ્ધિ અને નિષ્પક્ષ વેપારના પાલક)."
+          }
+      },
+      "6": {
+          "archetypes": {
+              "en": "Maa Lakshmi / Goddess Katyayani",
+              "hi": "माँ लक्ष्मी / देवी कात्यायनी",
+              "gu": "મા લક્ષ્મી / દેવી કાત્યાયની"
+          },
+          "god": {
+              "en": "Maa Lakshmi / Goddess Katyayani",
+              "hi": "माँ लक्ष्मी / देवी कात्यायनी",
+              "gu": "મા લક્ષ્મી / દેવી કાત્યાયની"
+          },
+          "mantra": "ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)",
+          "cadence": {
+              "en": "11× morning before work · 108× on Fridays",
+              "hi": "सुबह काम से पहले 11× · शुक्रवार को 108×",
+              "gu": "સવારે કામ પહેલાં 11× · શુક્રવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× morning before work",
+              "hi": "सुबह काम से पहले 11×",
+              "gu": "સવારે કામ પહેલાં 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Fridays",
+              "hi": "शुक्रवार को 108×",
+              "gu": "શુક્રવારે 108×"
+          },
+          "offerings": {
+              "en": "White or pink flowers (rose/lotus), kheer, white sweets, and fine natural scents",
+              "hi": "सफेद या गुलाबी फूल (गुलाब/कमल), खीर, सफेद मिठाई और प्राकृतिक सुगंध",
+              "gu": "સફેદ કે ગુલાબી ફૂલ (ગુલાબ/કમળ), ખીર, સફેદ મીઠાઈ અને કુદરતી સુગંધ"
+          },
+          "support": {
+              "en": "White or pink flowers (rose/lotus), kheer, white sweets, and fine natural scents",
+              "hi": "सफेद या गुलाबी फूल (गुलाब/कमल), खीर, सफेद मिठाई और प्राकृतिक सुगंध",
+              "gu": "સફેદ કે ગુલાબી ફૂલ (ગુલાબ/કમળ), ખીર, સફેદ મીઠાઈ અને કુદરતી સુગંધ"
+          },
+          "presentationCopy": {
+              "en": "Maa Lakshmi (The bestower of refined prosperity, artistic excellence, and material comfort) or Goddess Katyayani (The Shakti archetype that harmonizes marriage, balances desire, and nurtures self-worth).",
+              "hi": "माँ लक्ष्मी (परिष्कृत समृद्धि, कलात्मक उत्कृष्टता और भौतिक सुख की प्रदाता) या देवी कात्यायनी (शक्ति स्वरूप जो विवाह में सामंजस्य लाती हैं, इच्छाओं को संतुलित करती हैं और आत्म-सम्मान को पोषित करती हैं)।",
+              "gu": "મા લક્ષ્મી (શુદ્ધ સમૃદ્ધિ, કલાત્મક ઉત્કૃષ્ટતા અને ભૌતિક સુખ પ્રદાતા) અથવા દેવી કાત્યાયની (શક્તિ સ્વરૂપ જે લગ્નમાં સુમેળ લાવે છે, ઇચ્છાઓને સંતુલિત કરે છે અને આત્મ-સન્માનનું પોષણ કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Lakshmi (The bestower of refined prosperity, artistic excellence, and material comfort) or Goddess Katyayani (The Shakti archetype that harmonizes marriage, balances desire, and nurtures self-worth).",
+              "hi": "माँ लक्ष्मी (परिष्कृत समृद्धि, कलात्मक उत्कृष्टता और भौतिक सुख की प्रदाता) या देवी कात्यायनी (शक्ति स्वरूप जो विवाह में सामंजस्य लाती हैं, इच्छाओं को संतुलित करती हैं और आत्म-सम्मान को पोषित करती हैं)।",
+              "gu": "મા લક્ષ્મી (શુદ્ધ સમૃદ્ધિ, કલાત્મક ઉત્કૃષ્ટતા અને ભૌતિક સુખ પ્રદાતા) અથવા દેવી કાત્યાયની (શક્તિ સ્વરૂપ જે લગ્નમાં સુમેળ લાવે છે, ઇચ્છાઓને સંતુલિત કરે છે અને આત્મ-સન્માનનું પોષણ કરે છે)."
+          }
+      },
+      "7": {
+          "archetypes": {
+              "en": "Lord Ganesha / Shri Hanuman",
+              "hi": "भगवान गणेश / श्री हनुमान",
+              "gu": "ભગવાન ગણેશ / શ્રી હનુમાન"
+          },
+          "god": {
+              "en": "Lord Ganesha / Shri Hanuman",
+              "hi": "भगवान गणेश / श्री हनुमान",
+              "gu": "ભગવાન ગણેશ / શ્રી હનુમાન"
+          },
+          "mantra": "ॐ गं गणपतये नमः (Om Gam Ganapataye Namah)",
+          "cadence": {
+              "en": "11× when facing isolation or mental confusion · 108× on Tuesdays or Saturdays",
+              "hi": "अकेलेपन या मानसिक भ्रम के समय 11× · मंगलवार या शनिवार को 108×",
+              "gu": "એકલતા કે માનસિક મૂંઝવણ વખતે 11× · મંગળવારે કે શનિવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× when facing isolation or mental confusion",
+              "hi": "अकेलेपन या मानसिक भ्रम के समय 11×",
+              "gu": "એકલતા કે માનસિક મૂંઝવણ વખતે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Tuesdays or Saturdays",
+              "hi": "मंगलवार या शनिवार को 108×",
+              "gu": "મંગળવારે કે શનિવારે 108×"
+          },
+          "offerings": {
+              "en": "21 Durva blades, red tilak, modak, or sesame oil lamp",
+              "hi": "21 दुर्वा दल, लाल तिलक, मोदक, या तिल के तेल का दीपक",
+              "gu": "21 દૂર્વા દળ, લાલ તિલક, મોદક, કે તલના તેલનો દીવો"
+          },
+          "support": {
+              "en": "21 Durva blades, red tilak, modak, or sesame oil lamp",
+              "hi": "21 दुर्वा दल, लाल तिलक, मोदक, या तिल के तेल का दीपक",
+              "gu": "21 દૂર્વા દળ, લાલ તિલક, મોદક, કે તલના તેલનો દીવો"
+          },
+          "presentationCopy": {
+              "en": "Lord Ganesha (Classical Ketu Adhidevata; balances headless detachment with profound discernment and spiritual breakthrough) or Shri Hanuman (The protector against hidden fears, ungrounded drifts, and sudden uncertainty).",
+              "hi": "भगवान गणेश (शास्त्रीय केतु अधिदेवता; विरक्ति को गहन विवेक और आध्यात्मिक अंतर्दृष्टि से संतुलित करते हैं) या श्री हनुमान (छिपे हुए भय, दिशाहीन भटकाव और अचानक अनिश्चितता से रक्षा करने वाले)।",
+              "gu": "ભગવાન ગણેશ (શાસ્ત્રીય કેતુ અધિદેવતા; અલિપ્તતાને ઊંડા વિવેક અને આધ્યાત્મિક સફળતા સાથે સંતુલિત કરે છે) અથવા શ્રી હનુમાન (છૂપા ભય, આધારહીન ભટકાવ અને અચાનક અનિશ્ચિતતા સામે રક્ષક)."
+          },
+          "protectionNote": {
+              "en": "Lord Ganesha (Classical Ketu Adhidevata; balances headless detachment with profound discernment and spiritual breakthrough) or Shri Hanuman (The protector against hidden fears, ungrounded drifts, and sudden uncertainty).",
+              "hi": "भगवान गणेश (शास्त्रीय केतु अधिदेवता; विरक्ति को गहन विवेक और आध्यात्मिक अंतर्दृष्टि से संतुलित करते हैं) या श्री हनुमान (छिपे हुए भय, दिशाहीन भटकाव और अचानक अनिश्चितता से रक्षा करने वाले)।",
+              "gu": "ભગવાન ગણેશ (શાસ્ત્રીય કેતુ અધિદેવતા; અલિપ્તતાને ઊંડા વિવેક અને આધ્યાત્મિક સફળતા સાથે સંતુલિત કરે છે) અથવા શ્રી હનુમાન (છૂપા ભય, આધારહીન ભટકાવ અને અચાનક અનિશ્ચિતતા સામે રક્ષક)."
+          }
+      },
+      "8": {
+          "archetypes": {
+              "en": "Shri Hanuman / Lord Shiva (Mahakaal)",
+              "hi": "श्री हनुमान / भगवान शिव (महाकाल)",
+              "gu": "શ્રી હનુમાન / ભગવાન શિવ (મહાકાલ)"
+          },
+          "god": {
+              "en": "Shri Hanuman / Lord Shiva (Mahakaal)",
+              "hi": "श्री हनुमान / भगवान शिव (महाकाल)",
+              "gu": "શ્રી હનુમાન / भगवान शिव (महाकाल)"
+          },
+          "mantra": "ॐ शं शनैश्चराय नमः (Om Sham Shanaischaraya Namah) or Hanuman Chalisa",
+          "cadence": {
+              "en": "11× morning · 108× (or 1 Chalisa recital) on Saturdays",
+              "hi": "सुबह 11× · शनिवार को 108× (या 1 चालीसा पाठ)",
+              "gu": "સવારે 11× · શનિવારે 108× (કે 1 ચાલીસા પાઠ)"
+          },
+          "primaryChant": {
+              "en": "11× morning",
+              "hi": "सुबह 11×",
+              "gu": "સવારે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× (or 1 Chalisa recital) on Saturdays",
+              "hi": "शनिवार को 108× (या 1 चालीसा पाठ)",
+              "gu": "શનિવારે 108× (કે 1 ચાલીસા પાઠ)"
+          },
+          "offerings": {
+              "en": "Mustard oil lamp, black sesame seeds, and blue/dark flowers",
+              "hi": "सरसों के तेल का दीपक, काले तिल और नीले/गहरे रंग के फूल",
+              "gu": "સરસવના તેલનો દીવો, કાળા તલ અને વાદળી/ઘેરા રંગના ફૂલ"
+          },
+          "support": {
+              "en": "Mustard oil lamp, black sesame seeds, and blue/dark flowers",
+              "hi": "सरसों के तेल का दीपक, काले तिल और नीले/गहरे रंग के फूल",
+              "gu": "સરસવના તેલનો દીવો, કાળા તલ અને વાદળી/ઘેરા રંગના ફૂલ"
+          },
+          "presentationCopy": {
+              "en": "Shri Hanuman (The traditional protective shield against Saturnine strain, debt-loops, and delays) or Lord Shiva (The supreme lord of karma; anchors unyielding perseverance, justice, and structural stability).",
+              "hi": "श्री हनुमान (शनि जनित तनाव, कर्ज के चक्र और देरी के खिलाफ पारंपरिक रक्षा कवच) या भगवान शिव (कर्म के सर्वोच्च स्वामी; अडिग दृढ़ता, न्याय और संरचनात्मक स्थिरता को स्थापित करते हैं)।",
+              "gu": "શ્રી હનુમાન (શનિના તણાવ, દેવાના ચક્ર અને વિલંબ સામે પરંપરાગત રક્ષણાત્મક ઢાલ) અથવા ભગવાન શિવ (કર્મનું સર્વોચ્ચ સ્વામી; અડગ દ્રઢતા, ન્યાય અને માળખાકીય સ્થિરતા સ્થાપિત કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Shri Hanuman (The traditional protective shield against Saturnine strain, debt-loops, and delays) or Lord Shiva (The supreme lord of karma; anchors unyielding perseverance, justice, and structural stability).",
+              "hi": "श्री हनुमान (शनि जनित तनाव, कर्ज के चक्र और देरी के खिलाफ पारंपरिक रक्षा कवच) या भगवान शिव (कर्म के सर्वोच्च स्वामी; अडिग दृढ़ता, न्याय और संरचनात्मक स्थिरता को स्थापित करते हैं)।",
+              "gu": "શ્રી હનુમાન (શનિના તણાવ, દેવાના ચક્ર અને વિલંબ સામે પરંપરાગત રક્ષણાત્મક ઢાલ) અથવા ભગવાન શિવ (કર્મનું સર્વોચ્ચ સ્વામી; અડગ દ્રઢતા, ન્યાય અને માળખાકીય સ્થિરતા સ્થાપિત કરે છે)."
+          }
+      },
+      "9": {
+          "archetypes": {
+              "en": "Maa Durga / Shri Hanuman (Lord Kartikeya)",
+              "hi": "माँ दुर्गा / श्री हनुमान (भगवान कार्तिकेय)",
+              "gu": "મા દુર્ગા / શ્રી હનુમાન (ભગવાન કાર્તિકેય)"
+          },
+          "god": {
+              "en": "Maa Durga / Shri Hanuman (Lord Kartikeya)",
+              "hi": "माँ दुर्गा / श्री हनुमान (भगवान कार्तिकेय)",
+              "gu": "મા દુર્ગા / શ્રી હનુમાન (ભગવાન કાર્તિકેય)"
+          },
+          "mantra": "ॐ हं हनुमते नमः (Om Hum Hanumate Namah) or ॐ दुं दुर्गायै नमः (Om Dum Durgaye Namah)",
+          "cadence": {
+              "en": "11× for courage before physical effort or confrontation · 108× on Tuesdays",
+              "hi": "शारीरिक परिश्रम या मुकाबले से पहले साहस के लिए 11× · मंगलवार को 108×",
+              "gu": "શારીરિક શ્રમ કે મુકાબલા પહેલાં હિંમત માટે 11× · મંગળવારે 108×"
+          },
+          "primaryChant": {
+              "en": "11× for courage before physical effort or confrontation",
+              "hi": "शारीरिक परिश्रम या मुकाबले से पहले साहस के लिए 11×",
+              "gu": "શારીરિક શ્રમ કે મુકાબલા પહેલાં હિંમત માટે 11×"
+          },
+          "weeklyChant": {
+              "en": "108× on Tuesdays",
+              "hi": "मंगलवार को 108×",
+              "gu": "મંગળવારે 108×"
+          },
+          "offerings": {
+              "en": "Red sindoor, jasmine oil lamp, jaggery with roasted gram, and red hibiscus",
+              "hi": "लाल सिंदूर, चमेली के तेल का दीपक, गुड़ के साथ भुना चना और लाल गुड़हल फूल",
+              "gu": "લાલ સિંદૂર, ચમેલીના તેલનો દીવો, ગોળ સાથે શેકેલા ચણા અને લાલ જાસૂદનું ફૂલ"
+          },
+          "support": {
+              "en": "Red sindoor, jasmine oil lamp, jaggery with roasted gram, and red hibiscus",
+              "hi": "लाल सिंदूर, चमेली के तेल का दीपक, गुड़ के साथ भुना चना और लाल गुड़हल फूल",
+              "gu": "લાલ સિંદૂર, ચમેલીના તેલનો દીવો, ગોળ સાથે શેકેલા ચણા અને લાલ જાસૂદનું ફૂલ"
+          },
+          "presentationCopy": {
+              "en": "Maa Durga (The Navadurga archetype governing Martian fire, victorious combat, and protective armor) or Shri Hanuman / Lord Kartikeya (Channels aggressive, restless energy into disciplined physical courage, competitive triumph, and property protection).",
+              "hi": "माँ दुर्गा (नवदुर्गा स्वरूप जो मंगल की अग्नि, विजयी संघर्ष और सुरक्षा कवच का संचालन करती हैं) या श्री हनुमान / भगवान कार्तिकेय (आक्रामक, अशांत ऊर्जा को अनुशासित शारीरिक साहस, प्रतिस्पर्धी विजय और संपत्ति संरक्षण में बदलते हैं)।",
+              "gu": "મા દુર્ગા (નવદુર્ગા સ્વરૂપ જે મંગળની અગ્નિ, વિજયી સંઘર્ષ અને રક્ષણાત્મક કવચનું નિયંત્રણ કરે છે) અથવા શ્રી હનુમાન / ભગવાન કાર્તિકેય (આક્રમક, અશાંત ઊર્જાને શિસ્તબદ્ધ શારીરિક હિંમત, સ્પર્ધાત્મક વિજય અને મિલકત સંરક્ષણમાં રૂપાંતરિત કરે છે)."
+          },
+          "protectionNote": {
+              "en": "Maa Durga (The Navadurga archetype governing Martian fire, victorious combat, and protective armor) or Shri Hanuman / Lord Kartikeya (Channels aggressive, restless energy into disciplined physical courage, competitive triumph, and property protection).",
+              "hi": "माँ दुर्गा (नवदुर्गा स्वरूप जो मंगल की अग्नि, विजयी संघर्ष और सुरक्षा कवच का संचालन करती हैं) या श्री हनुमान / भगवान कार्तिकेय (आक्रामक, अशांत ऊर्जा को अनुशासित शारीरिक साहस, प्रतिस्पर्धी विजय और संपत्ति संरक्षण में बदलते हैं)।",
+              "gu": "મા દુર્ગા (નવદુર્ગા સ્વરૂપ જે મંગળની અગ્નિ, વિજયી સંઘર્ષ અને રક્ષણાત્મક કવચનું નિયંત્રણ કરે છે) અથવા શ્રી હનુમાન / ભગવાન કાર્તિકેય (આક્રમક, અશાંત ઊર્જાને શિસ્તબદ્ધ શારીરિક હિંમત, સ્પર્ધાત્મક વિજય અને મિલકત સંરક્ષણમાં રૂપાંતરિત કરે છે)."
+          }
+      }
+  },
+
+  /* ---- Karmic Debt numbers (13 / 14 / 16 / 19) ----
+     Classical rule: when the UNREDUCED birth day, the full birth-date total
+     or the Chaldean name total lands on one of these four numbers, the
+     reduced Driver/Conductor/Name number carries a specific karmic lesson.
+     Each entry: title, the lesson life keeps repeating, and the settling
+     remedy — routed through the planet remedy kit of the reduced root. */
+  karmicDebt: {
+    13: {
+      root: 4,
+      title: { en: "Debt of Effort (13 → 4)", hi: "परिश्रम का कर्मऋण (13 → 4)", gu: "પરિશ્રમનું કર્મઋણ (13 → 4)" },
+      lesson: { en: "Life keeps removing shortcuts until work is finished fully and honestly. Half-done efforts, corner-cutting, procrastination and shifting blame return as repeated obstacles — steady, organised effort is the only way through.",
+                hi: "जीवन तब तक शॉर्टकट बंद करता रहता है जब तक काम पूरी निष्ठा से पूरा न हो। आधे-अधूरे प्रयास, कोना काटना, टालमटोल और दोष दूसरों पर डालना बार-बार बाधा बनकर लौटते हैं — व्यवस्थित और निरंतर परिश्रम ही एकमात्र मार्ग है।",
+                gu: "જીવન ત્યાં સુધી શોર્ટકટ બંધ કરતું રહે છે જ્યાં સુધી કામ પૂરી નિષ્ઠાથી પૂરું ન થાય. અધૂરા પ્રયાસ, છેડા કાપવા, ટાળવણું અને દોષ બીજા પર નાખવો વારંવાર અવરોધ બનીને પાછા આવે છે — વ્યવસ્થિત અને સતત પરિશ્રમ જ એકમાત્ર માર્ગ છે." },
+      remedy: { en: "On Saturdays serve or feed daily-wage workers; keep one fixed daily work-slot that nothing can break; finish one pending task fully before starting anything new (Rahu–4 discipline).",
+                hi: "शनिवार को दिहाड़ी मजदूरों की सेवा करें या उन्हें भोजन दें; रोज का एक निश्चित काम-समय रखें जिसे कुछ भी न तोड़ सके; नया काम शुरू करने से पहले एक अटका हुआ काम पूरा करें (राहु–४ का अनुशासन)।",
+                gu: "શનિવારે મજૂરોની સેવા કરો કે ભોજન આપો; રોજનો એક નિશ્ચિત કામનો સમય રાખો જેને કંઈ પણ તોડી ન શકે; નવું કામ શરૂ કરતાં પહેલાં એક અટકેલું કામ પૂરું કરો (રાહુ–૪ ની શિસ્ત)." }
+    },
+    14: {
+      root: 5,
+      title: { en: "Debt of Moderation (14 → 5)", hi: "संयम का कर्मऋण (14 → 5)", gu: "સંયમનું કર્મઋણ (14 → 5)" },
+      lesson: { en: "The senses keep pulling toward excess — food, drink, comfort, thrill-seeking or promises made lightly and broken easily. The lesson is moderation: freedom survives only inside commitment.",
+                hi: "इंद्रियां बार-बार अति की ओर खींचती हैं — भोजन, आराम, उत्साह के पीछे भागना या हल्के में दिए और आसानी से टूटते वादे। सीख है संयम — स्वतंत्रता केवल प्रतिबद्धता के भीतर ही टिकती है।",
+                gu: "ઇન્દ્રિયો વારંવાર અતિ તરફ ખેંચે છે — ભોજન, આરામ, ઉત્તેજનાની લય, કે હળવાશથી આપીને સહેલાશથી તૂટી જતાં વચનો. સીખ છે સંયમ — સ્વાતંત્ર્ય ફક્ત પ્રતિબદ્ધતામાં જ ટકે છે." },
+      remedy: { en: "Keep five small, unbreakable promises instead of one big one; avoid speculation and impulse spending; donate green moong or books/stationery on Wednesday; one evening a week, keep the senses light.",
+                hi: "एक बड़े वादे की जगह पाँच छोटे, अटूट वादे रखें; सट्टे और आवेगी खर्च से बचें; बुधवार को हरा मूंग या पुस्तकें/स्टेशनरी दान करें; सप्ताह में एक शाम इंद्रियों को हल्की रखें।",
+                gu: "એક મોટા વચનને બદલે પાંચ નાના, અકાપત વચનો રાખો; સટ્ટા અને આવેગી ખર્ચથી બચો; બુધવારે લીલા મગ કે પુસ્તકો/સ્ટેશનરી દાન કરો; અઠવાડિયામાં એક સાંજ ઇન્દ્રિયો માટે હળવી રાખો." }
+    },
+    16: {
+      root: 7,
+      title: { en: "Debt of Humility (16 → 7)", hi: "विनम्रता का कर्मऋण (16 → 7)", gu: "વિનમ્રતાનું કર્મઋણ (16 → 7)" },
+      lesson: { en: "Sudden falls arrive where pride or secrecy built the tower — often around love, trust or status. What collapses was standing on ego; what is rebuilt on humility and truth stays standing.",
+                hi: "जहां मीनार अहंकार या गोपनीयता पर खड़ी होती है, वहां अचानक पतन आता है — प्रायः प्रेम, विश्वास या प्रतिष्ठा के क्षेत्र में। जो गिरता है वो अहं पर टिका था; जो विनम्रता और सत्य पर फिर बनता है, वही टिकता है।",
+                gu: "જ્યાં મિનારો અહંકાર કે ગોપનીયતા પર ઊભો હોય ત્યાં અચાનક પતન આવે છે — સામાન્ય રીતે પ્રેમ, વિશ્વાસ કે પ્રતિષ્ઠામાં. જે પડે છે તે અહં પર ટકેલું હતું; જે વિનમ્રતા અને સત્ય પર ફરી બને છે તે જ ટકે છે." },
+      remedy: { en: "Practise silent charity — feed stray dogs or donate blankets without telling anyone; meditate 10 minutes daily (Ketu–7); be the first to apologise in your closest relationship; never attack anyone's dignity publicly.",
+                hi: "मौन दान का अभ्यास करें — आवारा कुत्तों को खिलाएं या कंबल बिना किसी को बताए दान करें; रोज १० मिनट ध्यान करें (केतु–७); सबसे निकट के रिश्ते में क्षमा मांगने की पहल करें; किसी की प्रतिष्ठा सार्वजनिक रूप से कभी न ठेस पहुंचाएं।",
+                gu: "મૌન દાનનો અભ્યાસ કરો — રખડતા કૂતરાઓને ખવડાવો કે કોઈને ન કહેતા ધાબળા દાન કરો; રોજ ૧૦ મિનિટ ધ્યાન કરો (કેતુ–૭); સૌથી નજીકના સંબંધમાં ક્ષમા માંગવાની પહેલ કરો; કોઈની પ્રતિષ્ઠાને જાહેરમાં ક્યારેય ઠેસ ન પહોંચાડો." }
+    },
+    19: {
+      root: 1,
+      title: { en: "Debt of Power (19 → 1)", hi: "सत्ता का कर्मऋण (19 → 1)", gu: "સત્તાનું કર્મઋણ (19 → 1)" },
+      lesson: { en: "Independence was once misused — either leaning on no one and refusing help, or making others carry too much. Life re-teaches fair self-reliance: stand alone when needed, accept help with grace, and use strength for others.",
+                hi: "स्वतंत्रता का दुरुपयोग हुआ — या तो किसी पर भरोसा न करना और सहायता ठुकराना, या दूसरों पर अति बोझ डालना। जीवन निष्पक्ष आत्मनिर्भरता फिर सिखाता है — ज़रूरत हो तो अकेले खड़े रहें, सहायता शालीनता से स्वीकारें, बल दूसरों के लिए लगाएं।",
+                gu: "સ્વતંત્રતાનો દુરુપયોગ થયો — કાં તો કોઈ પર આધાર ન લેવો અને મદદ અસ્વીકારવી, કે બીજા પર અતિશય બોજ નાખવો. જીવન ન્યાયસંગત આત્મનિર્ભરતા ફરી શીખવે છે — જરૂર હોય તો એકલા ઊભા રહો, મદદ સૌજન્યથી સ્વીકારો, શક્તિ બીજા માટે વાપરો." },
+      remedy: { en: "Offer water to the rising Sun daily (Surya arghya); serve your father or a mentor; once a week do one task for someone without being asked; donate wheat, jaggery or copper on Sunday.",
+                hi: "रोज उगते सूर्य को जल अर्पित करें (सूर्य अर्घ्य); पिता या गुरु की सेवा करें; हर हफ्ते किसी के लिए बिना कहे एक काम करें; रविवार को गेहूं, गुड़ या तांबा दान करें।",
+                gu: "રોજ ઊગતા સૂર્યને જળ અર્પણ કરો (સૂર્ય અર્ઘ્ય); પિતા કે ગુરુની સેવા કરો; દર અઠવાડિયે કોઈ માટે વગર કહ્યે એક કામ કરો; રવિવારે ઘઉં, ગોળ કે તાંબું દાન કરો." }
+    }
+  },
+
+  /* ---- Pinnacles & Challenges (four life phases) ----
+     Classical life-phase system derived from the birth date:
+       P1 = day+month, P2 = day+year, P3 = P1+P2, P4 = month+year (reduced 1–9)
+       C1 = |day−month|, C2 = |day−year|, C3 = |C1−C2|, C4 = |month−year| (0–8, never reduced)
+     Phase boundaries: first pinnacle ends at 36 − Conductor, each next
+     spans 9 years, the fourth runs to the end of life.
+     pinnacle[n] = the peak energy available in that phase;
+     challengeLesson[c] = the recurring lesson to master alongside it. */
+  pinnacle: {
+    1: { theme: { en: "Independence and self-starting — a phase to lead, launch and build identity.", hi: "स्वतंत्रता और आत्म-शुरुआत — नेतृत्व, शुभारंभ और पहचान बनाने का चरण।", gu: "સ્વતંત્રતા અને સ્વ-શરૂઆત — નેતૃત્વ, શરૂઆત અને ઓળખ ઘડવાનો તબક્કો." } },
+    2: { theme: { en: "Partnership and patience — alliances, diplomacy and quiet consolidation.", hi: "साझेदारी और धैर्य — गठबंधन, कूटनीति और शांत सुधृढ़ीकरण।", gu: "ભાગીદારી અને ધીરજ — જોડાણ, કૂટનીતિ અને શાંત મજબૂતાઈ." } },
+    3: { theme: { en: "Expression and expansion — visibility, creativity, teaching and growth.", hi: "अभिव्यक्ति और विस्तार — प्रमुखता, रचनात्मकता, शिक्षण और वृद्धि।", gu: "અભિવ્યક્તિ અને વિસ્તાર — દેખાવ, સર્જનાત્મકતા, શિક્ષણ અને વૃદ્ધિ." } },
+    4: { theme: { en: "Foundation and system — hard structuring; slow but permanent gains.", hi: "नींव और व्यवस्था — कठोर संरचना; धीमे पर स्थायी लाभ।", gu: "પાયો અને વ્યવસ્થા — મક્કમ બાંધકામ; ધીમો પરંતુ કાયમી લાભ." } },
+    5: { theme: { en: "Change and commerce — travel, deals, reinvention; doors move fast.", hi: "परिवर्तन और व्यापार — यात्रा, सौदे, नवीनीकरण; दरवाज़े तेज़ी से खुलते हैं।", gu: "ફેરફાર અને વેપાર — મુસાફરી, સોદા, નવીનીકરણ; દરવાજા ઝડપથી ખુલે છે." } },
+    6: { theme: { en: "Home, harmony and service — family duty, comfort and trusted counsel.", hi: "घर, सामंजस्य और सेवा — पारिवारिक दायित्व, सुख-सुविधा और विश्वसनीय सलाह।", gu: "ઘર, સુમેળ અને સેવા — પારિવારિક ફરજ, આરામ અને વિશ્વસનીય સલાહ." } },
+    7: { theme: { en: "Depth and mastery — study, specialisation, spiritual insight; inward strength.", hi: "गहराई और प्रवीणता — अध्ययन, विशेषज्ञता, आध्यात्मिक अंतर्दृष्टि; आंतरिक बल।", gu: "ઊંડાણ અને નિપુણતા — અભ્યાસ, વિશિષ્ટતા, આધ્યાત્મિક સૂઝ; આંતરિક બળ." } },
+    8: { theme: { en: "Authority and harvest — karma pays; command, management, material results.", hi: "अधिकार और फसल — कर्म फल देता है; कमान, प्रबंधन, भौतिक परिणाम।", gu: "સત્તા અને કાપણી — કર્મ ફળ આપે છે; કમાન, સંચાલન, ભૌતિક પરિણામ." } },
+    9: { theme: { en: "Action and completion — bold closures, courage and large-scale service.", hi: "कर्म और पूर्णता — साहसिक समापन, धैर्य और बड़े पैमाने की सेवा।", gu: "ક્રિયા અને સંપૂર્ણતા — હિંમતભર્યું સમાપન, સાહસ અને મોટા પાયે સેવા." } }
+  },
+
+  challengeLesson: {
+    0: { en: "The challenge of choice — no single fault is assigned; any number's weakness can surface. Discipline across the board is the answer.",
+         hi: "चुनाव की चुनौती — कोई एक दोष निर्धारित नहीं; किसी भी अंक की कमजोरी उभर सकती है। सभी क्षेत्रों में अनुशासन ही उत्तर है।",
+         gu: "પસંદગીનો પડકાર — કોઈ એક ખામી નિયત નથી; કોઈ પણ અંકની નબળાઈ ઊભરી શકે છે. સર્વક્ષેત્ર શિસ્ત જ ઉત્તર છે." },
+    1: { en: "Stand up for yourself — overcome the urge to yield to others' will.",
+         hi: "अपने लिए खड़े होना सीखें — दूसरों की इच्छा के आगे झुकने की प्रवृत्ति पर काबू पाएं।",
+         gu: "પોતાના માટે ઊભા રહેતા શીખો — બીજાની ઇચ્છા આગળ નમવાની વૃત્તિ પર કાબૂ મેળવો." },
+    2: { en: "Over-sensitivity and self-doubt — build inner security without comparing yourself to others.",
+         hi: "अति-संवेदनशीलता और आत्म-संदेह — बिना तुलना के आंतरिक सुरक्षा बनाएं।",
+         gu: "અતિ-સંવેદનશીલતા અને આત્મ-શંકા — સરખામણી વગર આંતરિક સુરક્ષા ઘડો." },
+    3: { en: "Scattered self-expression — focus your words; finish what you start saying and doing.",
+         hi: "बिखरी अभिव्यक्ति — अपने शब्दों पर केंद्रित रहें; जो कहना-करना शुरू करें, उसे पूरा करें।",
+         gu: "છૂટાછવાયેલી અભિવ્યક્તિ — તમારા શબ્દો પર કેન્દ્રિત રહો; શરૂ કરેલું કહેવું-કરવું પૂરું કરો." },
+    4: { en: "Rigidity or disorder — build routines and honour them without becoming inflexible.",
+         hi: "कठोरता या अस्तव्यस्तता — दिनचर्या बनाएं और ढीले हुए बिना उसका पालन करें।",
+         gu: "કઠોરતા કે ગડબડ — દિનચર્યા બનાવો અને અનમ્ય ન બનતા તેનું પાલન કરો." },
+    5: { en: "Restlessness — channel freedom constructively; don't run from responsibility.",
+         hi: "बेचैनी — स्वतंत्रता को रचनात्मक दिशा दें; जिम्मेदारी से न भागें।",
+         gu: "અસ્થિરતા — સ્વાતંત્ર્યને રચનાત્મક દિશા આપો; જવાબદારીથી ભાગશો નહીં." },
+    6: { en: "Perfectionism in relationships — accept loved ones as they are; duty without resentment.",
+         hi: "रिश्तों में परफेक्शनवाद — अपनों को जैसे हैं स्वीकारें; कर्तव्य, बिना शिकायत।",
+         gu: "સંબંધોમાં સંપૂર્ણતાવાદ — પ્રિયજનોને જેમ છે તેમ સ્વીકારો; ફરજ, ફરિયાદ વગર." },
+    7: { en: "Trust and faith — fear of betrayal closes you off; develop discernment without suspicion.",
+         hi: "विश्वास और आस्था — धोखे के डर से बंद न हों; संदेह के बिना विवेक विकसित करें।",
+         gu: "વિશ્વાસ અને શ્રદ્ધા — છેતરાવાના ડરથી બંધાશો નહીં; શંકા વગર વિવેક વિકસાવો." },
+    8: { en: "Money and power lessons — balance material drive with ethics; neither chase it nor scorn it.",
+         hi: "धन और सत्ता की सीख — भौतिक महत्वाकांक्षा को नैतिकता से संतुलित करें; न पीछा करें, न तिरस्कार।",
+         gu: "ધન અને સત્તાની સીખ — ભૌતિક મહત્વાકાંક્ષાને નૈતિકતા સાથે સંતુલિત કરો; ન પાછળ ભાગો, ન તિરસ્કાર કરો." }
+  },
+
+  /* ---- Numerology Dasha system (Ank Jyotish) ----
+     Classical proportional 45-year cycle (1+2+…+9 = 45). The first Mahadasha
+     starts at birth with the Moolank and lasts that many years; the sequence
+     then advances 1→9 cyclically. Antardasha = MD × AD ÷ 45 (sequence starts
+     from the MD lord); Pratyantar = AD × PD ÷ 45 (sequence starts from the
+     AD lord). Each number's entry: the period theme, the classical events it
+     activates, its caution, and the Vastu zone to service while its
+     sub-period runs (planet → direction mapping). */
+  dasha: {
+    relationshipPolicy: {
+      // Additive pack policy only. Classical Grahan and hostile Sambhandha
+      // pairs remain enforced in app.js and cannot be removed by a pack.
+      additionalHostilePairs: [],
+      grahanPairs: []
+    },
+    1: {
+      theme: { en: "Authority and visibility — a period to lead, build your name and earn recognition from seniors and the state.",
+               hi: "अधिकार और पहचान — नेतृत्व करने, नाम बनाने और वरिष्ठों व शासन से मान्यता पाने का काल।",
+               gu: "સત્તા અને ઓળખ — નેતૃત્વ કરવાનો, નામ બનાવવાનો અને વરિષ્ઠો તથા શાસન પાસેથી માન્યતા મેળવવાનો સમય." },
+      events: { en: "Career rise, promotion, government matters, father-related events, new public identity",
+                hi: "करियर में उन्नति, पदोन्नति, सरकारी कार्य, पिता से जुड़ी घटनाएं, नई सार्वजनिक पहचान",
+                gu: "કારકિર્દીમાં પ્રગતિ, બઢતી, સરકારી કાર્યો, પિતા સંબંધિત ઘટનાઓ, નવી જાહેર ઓળખ" },
+      caution: { en: "Ego clashes with authority; protect heart, eyes and vitality.",
+                 hi: "अहंकार से वरिष्ठों से टकराव; हृदय, नेत्र और ऊर्जा का ध्यान रखें।",
+                 gu: "અહંકારથી ઉપરી સાથે ટકરાવ; હૃદય, આંખો અને શક્તિનું ધ્યાન રાખો." },
+      zone: { en: "East", hi: "पूर्व", gu: "પૂર્વ" }, zoneElement: "Fire/Air",
+      zoneRemedy: { en: "Clear obstructions in the East; let sunrise light enter daily.",
+                    hi: "पूर्व दिशा की रुकावटें हटाएं; रोज सुबह की धूप अंदर आने दें।",
+                    gu: "પૂર્વ દિશાની અડચણો દૂર કરો; રોજ સવારનો તડકો અંદર આવવા દો." }
+    },
+    2: {
+      theme: { en: "Emotions, bonding and public connection — hearts open; home and mother matters come forward.",
+               hi: "भावनाएं, जुड़ाव और जन-संपर्क — मन खुलता है; घर और माता से जुड़े विषय आगे आते हैं।",
+               gu: "લાગણીઓ, જોડાણ અને જન-સંપર્ક — મન ખુલે છે; ઘર અને માતા સંબંધિત બાબતો આગળ આવે છે." },
+      events: { en: "Marriage & emotional bonding, motherhood, home peace, public-facing roles, travel across water",
+                hi: "विवाह व भावनात्मक जुड़ाव, मातृत्व, गृह-शांति, जन-संपर्क की भूमिकाएं, जल-यात्रा",
+                gu: "લગ્ન અને ભાવનાત્મક જોડાણ, માતૃત્વ, ઘરની શાંતિ, જન-સંપર્કની ભૂમિકાઓ, જળ-મુસાફરી" },
+      caution: { en: "Mood swings, overthinking and disturbed sleep; keep a steady routine.",
+                 hi: "मूड बदलना, अधिक सोचना और नींद में बाधा; दिनचर्या नियमित रखें।",
+                 gu: "મૂડ બદલાવ, વધુ વિચાર અને ઊંઘમાં ખલેલ; દિનચર્યા નિયમિત રાખો." },
+      zone: { en: "North-West", hi: "उत्तर-पश्चिम (वायव्य)", gu: "વાયવ્ય (ઉત્તર-પશ્ચિમ)" }, zoneElement: "Air",
+      zoneRemedy: { en: "Keep the North-West clutter-free; add brass decor and check stored water.",
+                    hi: "उत्तर-पश्चिम को साफ-सुथरा रखें; पीतल की सजावट रखें और रखे पानी की जांच करें।",
+                    gu: "વાયવ્યને સ્વચ્છ રાખો; પિત્તળની સજાવટ રાખો અને સંગ્રહેલા પાણીની તપાસ કરો." }
+    },
+    3: {
+      theme: { en: "Expansion and grace — wisdom, wealth, teachers and children bless this period.",
+               hi: "विस्तार और कृपा — ज्ञान, धन, गुरु और संतान इस काल को शुभ बनाते हैं।",
+               gu: "વિસ્તાર અને કૃપા — જ્ઞાન, ધન, ગુરુ અને સંતાન આ સમયગાળાને શુભ બનાવે છે." },
+      events: { en: "Marriage blessings, childbirth, higher education, wealth growth, guru's guidance, respect",
+                hi: "विवाह-योग, संतान-प्राप्ति, उच्च शिक्षा, धन-वृद्धि, गुरु-मार्गदर्शन, सम्मान",
+                gu: "લગ્ન-યોગ, સંતાન-પ્રાપ્તિ, ઉચ્ચ શિક્ષણ, ધન-વૃદ્ધિ, ગુરુ-માર્ગદર્શન, સન્માન" },
+      caution: { en: "Over-optimism and over-commitment; keep discipline in diet and promises.",
+                 hi: "अति-आशावाद और अधिक वादे; खान-पान और वचनों में अनुशासन रखें।",
+                 gu: "અતિ-આશાવાદ અને વધુ પડતાં વચનો; ખોરાક અને વચનોમાં શિસ્ત રાખો." },
+      zone: { en: "North-East", hi: "ईशान (उत्तर-पूर्व)", gu: "ઈશાન (ઉત્તર-પૂર્વ)" }, zoneElement: "Water",
+      zoneRemedy: { en: "Keep the Ishanya (NE) pure — study table, meditation and light yellow accents suit it.",
+                    hi: "ईशान कोण पवित्र रखें — अध्ययन मेज, ध्यान और हल्के पीले रंग यहां शुभ हैं।",
+                    gu: "ઈશાન ખૂણો પવિત્ર રાખો — અભ્યાસ ટેબલ, ધ્યાન અને આછો પીળો રંગ અહીં શુભ છે." }
+    },
+    4: {
+      theme: { en: "Sudden turns and unconventional growth — foreign elements, technology and bold ambition dominate.",
+               hi: "अचानक मोड़ और अपरंपरागत उन्नति — विदेशी तत्व, तकनीक और साहसी महत्वाकांक्षा प्रबल रहती है।",
+               gu: "અચાનક વળાંક અને બિનપરંપરાગત પ્રગતિ — વિદેશી તત્વો, ટેક્નોલોજી અને સાહસી મહત્વાકાંક્ષા પ્રબળ રહે છે." },
+      events: { en: "Going abroad, relocation, sudden gains or changes, technology ventures, out-of-the-box breaks",
+                hi: "विदेश गमन, स्थानांतरण, अचानक लाभ या बदलाव, तकनीकी उद्यम, अप्रत्याशित अवसर",
+                gu: "વિદેશગમન, સ્થળાંતર, અચાનક લાભ કે ફેરફાર, ટેક્નોલોજી સાહસો, અણધારી તકો" },
+      caution: { en: "Illusion, shortcuts and addictions; verify documents and avoid grey-area deals.",
+                 hi: "भ्रम, शॉर्टकट और व्यसन; दस्तावेज जांचें और संदिग्ध सौदों से बचें।",
+                 gu: "ભ્રમ, શોર્ટકટ અને વ્યસનો; દસ્તાવેજો ચકાસો અને શંકાસ્પદ સોદાથી બચો." },
+      zone: { en: "South-West", hi: "दक्षिण-पश्चिम (नैऋत्य)", gu: "નૈઋત્ય (દક્ષિણ-પશ્ચિમ)" }, zoneElement: "Earth",
+      zoneRemedy: { en: "Avoid mirrors or water in the SW; add grounding weight — heavy furniture or stone.",
+                    hi: "दक्षिण-पश्चिम में दर्पण या पानी न रखें; भारी फर्नीचर या पत्थर से स्थिरता लाएं।",
+                    gu: "નૈઋત્યમાં અરીસો કે પાણી ન રાખો; ભારે ફર્નિચર કે પથ્થરથી સ્થિરતા લાવો." }
+    },
+    5: {
+      theme: { en: "Commerce, communication and movement — deals, learning and networks multiply.",
+               hi: "व्यापार, संवाद और गतिशीलता — सौदे, सीखना और नेटवर्क बढ़ते हैं।",
+               gu: "વેપાર, સંવાદ અને ગતિશીલતા — સોદા, શીખવું અને નેટવર્ક વધે છે." },
+      events: { en: "Business growth, contracts, short travels, new skills, partnerships in trade",
+                hi: "व्यापार-वृद्धि, अनुबंध, छोटी यात्राएं, नए कौशल, व्यापारिक साझेदारियां",
+                gu: "વેપાર-વૃદ્ધિ, કરાર, ટૂંકી મુસાફરીઓ, નવાં કૌશલ્યો, વેપારી ભાગીદારીઓ" },
+      caution: { en: "Scattered focus and over-trading; finish what you start.",
+                 hi: "बिखरा ध्यान और अति-व्यापार; शुरू किया काम पूरा करें।",
+                 gu: "વિખરાયેલું ધ્યાન અને અતિ-વેપાર; શરૂ કરેલું કામ પૂરું કરો." },
+      zone: { en: "Center (Brahmasthan)", hi: "केंद्र (ब्रह्मस्थान)", gu: "કેન્દ્ર (બ્રહ્મસ્થાન)" }, zoneElement: "Space",
+      zoneRemedy: { en: "Keep the centre open — free of pillars, heavy items and clutter.",
+                    hi: "ब्रह्मस्थान (केंद्र) खुला रखें — खंभे, भारी सामान और अव्यवस्था से मुक्त।",
+                    gu: "બ્રહ્મસ્થાન (કેન્દ્ર) ખુલ્લું રાખો — થાંભલા, ભારે સામાન અને અવ્યવસ્થાથી મુક્ત." }
+    },
+    6: {
+      theme: { en: "Love, comfort and refinement — relationships, luxury and creative success flower.",
+               hi: "प्रेम, सुख और सौंदर्य — रिश्ते, वैभव और रचनात्मक सफलता खिलती है।",
+               gu: "પ્રેમ, સુખ અને સૌંદર્ય — સંબંધો, વૈભવ અને સર્જનાત્મક સફળતા ખીલે છે." },
+      events: { en: "Marriage & romance, vehicles and home comforts, luxury purchases, arts and media success",
+                hi: "विवाह व प्रेम, वाहन और गृह-सुख, वैभव की खरीद, कला व मीडिया में सफलता",
+                gu: "લગ્ન અને પ્રેમ, વાહનો અને ઘરનું સુખ, વૈભવી ખરીદી, કલા અને મીડિયામાં સફળતા" },
+      caution: { en: "Overindulgence and relationship drift; keep loyalty and budgets firm.",
+                 hi: "अति-भोग और रिश्तों में ढिलाई; निष्ठा और बजट दृढ़ रखें।",
+                 gu: "અતિ-ભોગ અને સંબંધોમાં શિથિલતા; નિષ્ઠા અને બજેટ મક્કમ રાખો." },
+      zone: { en: "South-East", hi: "आग्नेय (दक्षिण-पूर्व)", gu: "અગ્નિ (દક્ષિણ-પૂર્વ)" }, zoneElement: "Fire",
+      zoneRemedy: { en: "Service the SE kitchen; balance red/pastel tones and avoid blue or black here.",
+                    hi: "आग्नेय रसोई ठीक रखें; लाल/हल्के रंग संतुलित करें, यहां नीला-काला न रखें।",
+                    gu: "અગ્નિ ખૂણાનું રસોડું બરાબર રાખો; લાલ/આછા રંગ સંતુલિત કરો, અહીં વાદળી-કાળો ન રાખો." }
+    },
+    7: {
+      theme: { en: "Detachment and depth — research, spirituality and distant or foreign stays call.",
+               hi: "वैराग्य और गहराई — शोध, अध्यात्म और दूर या विदेश प्रवास बुलाते हैं।",
+               gu: "વૈરાગ્ય અને ઊંડાણ — સંશોધન, અધ્યાત્મ અને દૂર કે વિદેશ વસવાટ બોલાવે છે." },
+      events: { en: "Foreign or remote stays, spiritual growth, research and healing arts, deep study",
+                hi: "विदेश या दूरस्थ प्रवास, आध्यात्मिक उन्नति, शोध व चिकित्सा-कला, गहन अध्ययन",
+                gu: "વિદેશ કે દૂરસ્થ વસવાટ, આધ્યાત્મિક પ્રગતિ, સંશોધન અને હીલિંગ કળા, ઊંડો અભ્યાસ" },
+      caution: { en: "Isolation, sudden detachments and confusion in direction; stay anchored to practice.",
+                 hi: "एकाकीपन, अचानक विरक्ति और दिशा-भ्रम; साधना से जुड़े रहें।",
+                 gu: "એકલતા, અચાનક વિરક્તિ અને દિશા-ભ્રમ; સાધનાથી જોડાયેલા રહો." },
+      zone: { en: "North-East / Center Axis", hi: "ईशान / ब्रह्मस्थान अक्ष", gu: "ઈશાન / બ્રહ્મસ્થાન અક્ષ" }, zoneElement: "Water/Space",
+      zoneRemedy: { en: "Keep the Ishanya (NE) and Brahmasthan axis clear, quiet and suitable for prayer, meditation or study.",
+                    hi: "ईशान और ब्रह्मस्थान अक्ष को साफ, शांत और प्रार्थना, ध्यान या अध्ययन के योग्य रखें।",
+                    gu: "ઈશાન અને બ્રહ્મસ્થાન અક્ષને સ્વચ્છ, શાંત અને પ્રાર્થના, ધ્યાન કે અભ્યાસ માટે યોગ્ય રાખો." }
+    },
+    8: {
+      theme: { en: "Karma's ledger — slow, structural and just; discipline converts effort into durable status.",
+               hi: "कर्म का हिसाब — धीमा, संरचित और न्यायपूर्ण; अनुशासन परिश्रम को स्थायी प्रतिष्ठा में बदलता है।",
+               gu: "કર્મનો હિસાબ — ધીમો, માળખાગત અને ન્યાયી; શિસ્ત મહેનતને કાયમી પ્રતિષ્ઠામાં ફેરવે છે." },
+      events: { en: "Property and land, long-term career consolidation, legal/justice matters, mass-scale work",
+                hi: "संपत्ति व भूमि, दीर्घकालिक करियर-सुदृढ़ीकरण, कानूनी/न्याय के विषय, बड़े पैमाने का कार्य",
+                gu: "મિલકત અને જમીન, દીર્ઘકાલીન કારકિર્દી મજબૂતી, કાનૂની/ન્યાયના વિષયો, મોટા પાયે કાર્ય" },
+      caution: { en: "Delays, joint/bone strain and pessimism; never take shortcuts in this period.",
+                 hi: "विलंब, जोड़ों-हड्डियों पर दबाव और निराशा; इस काल में शॉर्टकट कभी न लें।",
+                 gu: "વિલંબ, સાંધા-હાડકાં પર તાણ અને નિરાશા; આ સમયગાળામાં ક્યારેય શોર્ટકટ ન લો." },
+      zone: { en: "West", hi: "पश्चिम", gu: "પશ્ચિમ" }, zoneElement: "Space/Air",
+      zoneRemedy: { en: "Strengthen the West structurally; balance dark metals and iron decor.",
+                    hi: "पश्चिम दिशा को संरचनात्मक रूप से मजबूत रखें; गहरे धातु व लोहे की सजावट संतुलित करें।",
+                    gu: "પશ્ચિમ દિશાને માળખાગત રીતે મજબૂત રાખો; ઘેરી ધાતુ અને લોખંડની સજાવટ સંતુલિત કરો." }
+    },
+    9: {
+      theme: { en: "Courage and completion — energy peaks; land, competition and bold closures are favoured.",
+               hi: "साहस और पूर्णता — ऊर्जा चरम पर; भूमि, प्रतिस्पर्धा और साहसिक समापन शुभ।",
+               gu: "સાહસ અને સંપૂર્ણતા — ઊર્જા ચરમ પર; જમીન, સ્પર્ધા અને હિંમતભર્યા સમાપન શુભ." },
+      events: { en: "Property purchase or construction, competitive wins, surgeries handled well, brother-related events",
+                hi: "संपत्ति खरीद या निर्माण, प्रतियोगिता में विजय, शल्य-चिकित्सा में सफलता, भाई से जुड़ी घटनाएं",
+                gu: "મિલકત ખરીદી કે બાંધકામ, સ્પર્ધામાં વિજય, સર્જરીમાં સફળતા, ભાઈ સંબંધિત ઘટનાઓ" },
+      caution: { en: "Anger, accidents and disputes; drive carefully and cool the temper.",
+                 hi: "क्रोध, दुर्घटना और विवाद; वाहन सावधानी से चलाएं और क्रोध शांत रखें।",
+                 gu: "ક્રોધ, અકસ્માત અને વિવાદ; વાહન સાવધાનીથી ચલાવો અને ગુસ્સો શાંત રાખો." },
+      zone: { en: "South", hi: "दक्षिण", gu: "દક્ષિણ" }, zoneElement: "Fire",
+      zoneRemedy: { en: "Energise the South with warm lighting; avoid deep blues and large water bodies there.",
+                    hi: "दक्षिण को गर्म रोशनी से ऊर्जित करें; वहां गहरा नीला रंग और बड़े जल-स्रोत न रखें।",
+                    gu: "દક્ષિણને હૂંફાળી રોશનીથી ઊર્જિત કરો; ત્યાં ઘેરો વાદળી રંગ અને મોટા જળ-સ્ત્રોત ન રાખો." }
+    },
+    /* Life-event window definitions: primary lords trigger the event, support
+       lords strengthen it; band = the classical age range scanned. */
+    lifeEvents: {
+      marriage: { icon: "💍", primary: [6, 2], support: [3], band: [18, 42],
+                  label: { en: "Marriage & committed partnership", hi: "विवाह व स्थायी साथ", gu: "લગ્ન અને સ્થાયી સાથ" } },
+      abroad:   { icon: "✈️", primary: [4, 7], support: [5], band: [16, 55],
+                  label: { en: "Going abroad — travel or settlement", hi: "विदेश गमन — यात्रा या बसना", gu: "વિદેશગમન — મુસાફરી કે વસવાટ" } },
+      career:   { icon: "📈", primary: [1, 8], support: [3], band: [21, 65],
+                  label: { en: "Career peak & recognition", hi: "करियर शिखर व मान्यता", gu: "કારકિર્દી શિખર અને માન્યતા" } },
+      property: { icon: "🏠", primary: [8, 9], support: [4], band: [24, 65],
+                  label: { en: "Property, home & land", hi: "संपत्ति, घर व भूमि", gu: "મિલકત, ઘર અને જમીન" } },
+      wealth:   { icon: "💰", primary: [3, 6], support: [5], band: [21, 70],
+                  label: { en: "Wealth expansion & business growth", hi: "धन-विस्तार व व्यापार-वृद्धि", gu: "ધન-વિસ્તાર અને વેપાર-વૃદ્ધિ" } }
+    }
   }
 };
 
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
-  schemaVersion: 1,
-  packVersion: "2.1.0",
-  generatedAt: "2026-08-20T00:00:00Z",
+  schemaVersion: 2,
+  packVersion: "2.8.0",
+  generatedAt: "2026-09-05T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",
