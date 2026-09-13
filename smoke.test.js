@@ -1023,6 +1023,129 @@ check("the static build copies the manifest, worker and icons into dist/", (() =
   return /'sw\.js'/.test(buildSrc) && /'manifest\.webmanifest'/.test(buildSrc) && /'icons'/.test(buildSrc) && /CACHE_VERSION/.test(buildSrc);
 })());
 
+/* ---- Scaled Sadhana depth (practice bandwidth) ---------------------------
+   The consultee chooses a practice depth; the scale sizes the daily practice
+   and NOTHING else. These assertions pin the three doses (11x Minimalist /
+   27x Practitioner / 108x Classical), prove that the Lo Shu target and the
+   triage tier are identical at every depth, that a held japa stays held, and
+   that the Section 4A Tattva scope — which is forbidden to carry mala,
+   mineral or Lo Shu mandala content — is untouched by the new copy. */
+const sadhanaLevels = ["beginner", "intermediate", "classical"];
+const sadhanaProfiles = {};
+sadhanaLevels.forEach((level) => { sadhanaProfiles[level] = profile({ dob: "1986-06-30", sadhana: level }); });
+const sadhanaPlans = {};
+sadhanaLevels.forEach((level) => { sadhanaPlans[level] = window.__NV.activationPlan(sadhanaProfiles[level]); });
+
+check("intake offers exactly the three Scaled Sadhana depths", (() => {
+  const options = $$("#sadhanaOptions .sadhana-option");
+  return options.length === 3
+    && options.map((b) => b.dataset.sadhana).join(",") === "beginner,intermediate,classical"
+    && options.every((b) => b.type === "button" && /sadhana(Block|Title)/.test(b.closest("#sadhanaBlock") ? "sadhanaBlock" : "sadhanaTitle"));
+})());
+check("the Practitioner / Sadhak 27x dose is the default so no existing prescription changes silently", (() => {
+  const options = $$("#sadhanaOptions .sadhana-option");
+  const selected = options.filter((b) => b.classList.contains("selected"));
+  return selected.length === 1 && selected[0].dataset.sadhana === "intermediate" && selected[0].getAttribute("aria-pressed") === "true"
+    && window.__NV.normalizeSadhana(undefined) === "intermediate" && window.__NV.normalizeSadhana("guru") === "intermediate"
+    && window.__NV.normalizeSadhana("CLASSICAL") === "classical" && profile({ dob: "1986-06-30" }).sadhana === "intermediate";
+})());
+check("each depth renders its own japa dose (11x / 27x / 108x) in the plan and the triage card", (() => {
+  const expected = { beginner: "11", intermediate: "27", classical: "108" };
+  return sadhanaLevels.every((level) => {
+    const count = expected[level];
+    const planText = sadhanaPlans[level].daily[0].value;
+    const triage = window.__NV.remedyTriage(sadhanaProfiles[level]);
+    return new RegExp(`— ${count} times`).test(planText) && new RegExp(`${count}× daily`).test(triage.tier1.japa);
+  });
+})());
+check("practice depth never re-sources the Lo Shu remedy target or the triage tier", (() => {
+  const targets = sadhanaLevels.map((level) => window.__NV.activationPlan(sadhanaProfiles[level]).targetN);
+  const tiers = sadhanaLevels.map((level) => window.__NV.remedyTriage(sadhanaProfiles[level]).tier1.n);
+  const tiersMode = sadhanaLevels.map((level) => window.__NV.remedyTriage(sadhanaProfiles[level]).tier1.mode);
+  return new Set(targets).size === 1 && new Set(tiers).size === 1 && new Set(tiersMode).size === 1
+    && targets[0] === window.__NV.loShuPracticeTargets(sadhanaProfiles.classical).primary;
+})());
+check("the plan card declares the chosen depth and sizes mala, snan and charity with it", (() => {
+  const beginner = mount(window.__NV.sadhanaPlanBlock(sadhanaProfiles.beginner, sadhanaPlans.beginner));
+  const classical = mount(window.__NV.sadhanaPlanBlock(sadhanaProfiles.classical, sadhanaPlans.classical));
+  const rowText = (node, key) => $(`[data-sadhana-row="${key}"]`, node).textContent;
+  return $(".sadhana-card", beginner).dataset.sadhanaScale === "beginner"
+    && $(".sadhana-card", classical).dataset.sadhanaScale === "classical"
+    && $(".sadhana-card", classical).getAttribute("data-remedy-authority") === "lo-shu"
+    && /No mala required/.test(rowText(beginner, "mala")) && /dedicated mala/.test(rowText(classical, "mala"))
+    && /Monthly/.test(rowText(beginner, "charity")) && /Weekly/.test(rowText(classical, "charity"))
+    && /quick shower/.test(rowText(beginner, "snan")) && /every practice day/.test(rowText(classical, "snan"))
+    && /5 minutes/.test(rowText(beginner, "breath")) && /20 minutes/.test(rowText(classical, "breath"));
+})());
+check("the Classical depth points back at the health notice instead of silently adding intensity", (() => {
+  const classical = mount(window.__NV.sadhanaPlanBlock(sadhanaProfiles.classical, sadhanaPlans.classical));
+  const beginner = mount(window.__NV.sadhanaPlanBlock(sadhanaProfiles.beginner, sadhanaPlans.beginner));
+  return /licensed healthcare professional/.test(classical.textContent) && /Ethical & Health Notice/.test(classical.textContent)
+    && !/licensed healthcare professional/.test(beginner.textContent);
+})());
+check("a clinical guardrail still caps the dose: held japa stays held at every depth", (() => {
+  return sadhanaLevels.every((level) => {
+    const held = window.__NV.activationPlan(sadhanaProfiles[level], { tier1: { mode: "environmental", n: 2, planet: "Moon (Chandra)", reasons: ["No missing number is live in the current stack"], japa: "Hold japa — no beej mantra is clinically indicated this period", zone: "North-West", zoneRemedy: "Keep the North-West clutter-free." }, tier2: [] });
+    const card = mount(window.__NV.sadhanaPlanBlock(sadhanaProfiles[level], held));
+    return held.holdJapa === true && held.sadhana === level && /japa on hold/.test(held.daily[0].label) && /held this cycle by the Remedy Triage/.test(card.textContent);
+  });
+})());
+const moonClassical = profile({ name: "Randeep Walia", dob: "1976-08-05", goals: ["Health", "Career"], gender: "male", birthTime: "20:15", birthPlace: "Faridabad, Haryana, India", sadhana: "classical" });
+check("clinical guardrails are never scaled away by the Classical depth", (() => {
+  const domMoon = mount(window.__NV.renderReport(moonClassical));
+  const card = $(".sadhana-card", domMoon);
+  /* Even at 108x the Moon-cold guardrail renders, and a held japa stays held:
+     the scale reports the dose it will resume instead of chanting past it. */
+  return window.__NV.moonColdSensitivity(moonClassical)
+    && !!$('[data-clinical-guardrail="moon-cold"]', domMoon)
+    && !!card && card.dataset.sadhanaScale === "classical" && /held this cycle by the Remedy Triage/.test(card.textContent);
+})());
+check("the scale copy never leaks into the Section 4A Tattva scope", (() => {
+  const text = mount(window.__NV.renderVedicTattvaSection(waliaProfile)).textContent;
+  return !/Scaled Sadhana|practice depth|dedicated mala|Japa \/ affirmation dose/i.test(text) && !/mala/i.test(text);
+})());
+check("the scaled dose localises into Devanagari and Gujarati numerals", window.__NV.localNumber(108, "hi") === "१०८" && window.__NV.localNumber(108, "gu") === "૧૦૮" && window.__NV.localNumber(27, "en") === "27"
+  && (() => { window.__NV.setLanguage("hi"); const hiPlan = window.__NV.activationPlan(sadhanaProfiles.classical); const ok = /१०८ बार/.test(hiPlan.daily[0].value); window.__NV.setLanguage("gu"); const guPlan = window.__NV.activationPlan(sadhanaProfiles.classical); const okGu = /૧૦૮ વખત/.test(guPlan.daily[0].value); window.__NV.setLanguage("en"); return ok && okGu; })());
+check("every Scaled Sadhana key is translated in all three languages", (() => {
+  const keys = Object.keys(window.I18N.en.ui).filter((k) => /^sadhana/.test(k));
+  return keys.length >= 40 && ["en", "hi", "gu"].every((lang) => keys.every((k) => typeof window.I18N[lang].ui[k] === "string" && window.I18N[lang].ui[k].trim().length > 0));
+})());
+
+/* ---- Upfront Ethical & Health Notice (Northstar Summary) ------------------
+   The notice must open the Northstar Summary (the report's page-2 summary
+   card), must state the exact framing the practitioner approved, and must
+   carry no remedy authority: it is a framework note, not a prescription. */
+const NOTICE_BODY = "Numerology, Vedic Dasha timelines, and elemental tattva suggestions are traditional interpretive frameworks for personal reflection and lifestyle harmonization. They do not constitute medical, psychological, legal, or financial diagnoses. Always consult a licensed healthcare professional before initiating new dietary fasts, herbal routines, or intense breathwork regimens.";
+check("the upfront notice sits directly inside the Northstar Summary, before the story", (() => {
+  const section = $("#summary-section", mount(window.__NV.renderReport(authorityProfile)));
+  const notice = $("[data-clinical-notice='upfront']", section);
+  const children = Array.from($(".summary-shell", section).children).map((el) => el.className);
+  return !!notice && notice.tagName === "ASIDE" && notice.getAttribute("role") === "note"
+    && notice.getAttribute("data-authority") === "framework-note"
+    && children.indexOf("summary-notice") > children.indexOf("summary-title") && children.indexOf("summary-notice") < children.indexOf("summary-story");
+})());
+check("the notice carries the exact approved clinical & metaphysical wording", (() => {
+  const notice = $("[data-clinical-notice='upfront']", mount(window.__NV.renderReport(authorityProfile)));
+  return notice.textContent.includes("Ethical & Health Notice") && notice.textContent.includes(NOTICE_BODY);
+})());
+check("the notice is a framework note with no remedy or solar-moderation obligation", (() => {
+  const notice = $("[data-clinical-notice='upfront']", mount(window.__NV.renderReport(authorityProfile)));
+  return !notice.querySelector("[data-remedy-authority]") && !notice.querySelector("[data-solar-moderation]") && !notice.querySelector("[data-clinical-guardrail]");
+})());
+check("the notice localises in all three languages", ["en", "hi", "gu"].every((lang) => {
+  const ui = window.I18N[lang].ui;
+  return typeof ui.clinicalNoticeTitle === "string" && ui.clinicalNoticeTitle.trim().length > 0
+    && typeof ui.clinicalNoticeBody === "string" && ui.clinicalNoticeBody.trim().length > 120;
+}) && window.I18N.en.ui.clinicalNoticeBody === NOTICE_BODY);
+check("print keeps the notice whole and bordered on white paper", /\.summary-notice \{ break-inside: avoid-page; page-break-inside: avoid; background: #fff; border: 1px solid #999;/.test(styles) && /\.summary-notice-body \{ color: #333; \}/.test(styles));
+check("the summary reports the chosen practice depth beside the remedies", (() => {
+  const domSummary = mount(window.__NV.renderReport(sadhanaProfiles.classical));
+  const cards = $$(".summary-card", domSummary).map((c) => c.textContent);
+  const beginnerCards = $$(".summary-card", mount(window.__NV.renderReport(sadhanaProfiles.beginner))).map((c) => c.textContent);
+  return cards.some((t) => /Practice depth/.test(t) && /108/.test(t) && /Classical/.test(t))
+    && beginnerCards.some((t) => /Practice depth/.test(t) && /11/.test(t) && /Minimalist/.test(t));
+})());
+
 /* ---- Community / packaging gate -----------------------------------------
    The audit's open packaging items: a licence, a content-review process and
    CI on every PR. Pinned so they cannot silently disappear. */

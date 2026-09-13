@@ -39,6 +39,28 @@ Hard rules the smoke suite enforces:
 If your change makes one of those true, the tests will fail — that is the
 point. Fix the change, not the test.
 
+## Scaled Sadhana — the scale sizes the practice, nothing else
+
+The intake captures the consultee's practice bandwidth as `profile.sadhana`
+(`beginner` = Minimalist / Corporate 11×, `intermediate` = Practitioner /
+Sadhak 27× — the default, `classical` = 108×). Treat it as a *dose dial*, never
+as an input to any engine:
+
+- it may change the japa count, the dedicated-mala requirement, the breathwork
+  minutes, the aushadhi snan form, the charity cadence and the decluttering
+  cadence — and nothing else;
+- it may **never** choose or re-source a Lo Shu remedy target, re-order the
+  Remedy Triage tiers, change Dasha/Vastu timing, or relax a clinical
+  guardrail. A held japa stays held, and the Moon-cold warm form, dosha ×
+  planet mild form, solar-load moderation and under-18 gem deferral all still
+  cap the dose at 108×;
+- new depth copy needs all three languages, and the Classical depth must keep
+  pointing at the upfront **Ethical & Health Notice** before any intense
+  breathwork or herbal routine.
+
+`smoke.test.js` pins the three doses, the identical target and tier at every
+depth, the held-japa case, and the guardrails surviving the strongest setting.
+
 ## Content review gate (required for remedy, dosha and deity changes)
 
 Any pull request that touches a **remedy**, **dosha**, **deity**, **mantra**,
