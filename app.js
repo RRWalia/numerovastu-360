@@ -1619,8 +1619,11 @@
     try { window.localStorage.setItem(PHOTON_CACHE_KEY, JSON.stringify(next)); } catch (e) {}
   }
 
-  function fillBirthPlaceList(query) {
-    const list = $("#birthPlaceList");
+  /* Shared atlas autocomplete. The partner birthplace field is wired to the
+     very same searchPlaces() index as the primary birthplace field, so the two
+     intakes cannot drift into different place vocabularies. */
+  function fillPlaceList(listId, query) {
+    const list = $("#" + listId);
     if (!list || !window.NVAstro || typeof window.NVAstro.searchPlaces !== "function") return;
     const q = String(query || "").trim();
     list.innerHTML = "";
@@ -1632,6 +1635,9 @@
     });
   }
 
+  function fillBirthPlaceList(query) { fillPlaceList("birthPlaceList", query); }
+  function fillPartnerBirthPlaceList(query) { fillPlaceList("partnerBirthPlaceList", query); }
+
   function bindBirthPlaceUi() {
     const input = $("#birthPlace");
     const list = $("#birthPlaceList");
@@ -1640,6 +1646,14 @@
       input.addEventListener("focus", () => fillBirthPlaceList(input.value));
     }
     if (list) list.innerHTML = "";
+
+    const partnerInput = $("#partnerBirthPlace");
+    const partnerList = $("#partnerBirthPlaceList");
+    if (partnerInput) {
+      partnerInput.addEventListener("input", () => fillPartnerBirthPlaceList(partnerInput.value));
+      partnerInput.addEventListener("focus", () => fillPartnerBirthPlaceList(partnerInput.value));
+    }
+    if (partnerList) partnerList.innerHTML = "";
 
     const photonBtn = $("#photonLookupBtn");
     const results = $("#birthPlacePhotonResults");
@@ -1738,6 +1752,7 @@
         ATLAS_CHUNKS_LOADED[id] = true;
         if (typeof showToast === "function") showToast(t("atlasLoaded", "Offline atlas loaded."), "good");
         if (input) fillBirthPlaceList(input.value);
+        if (partnerInput) fillPartnerBirthPlaceList(partnerInput.value);
         return;
       }
       if (btn) btn.disabled = true;
@@ -1748,6 +1763,7 @@
         if (btn) btn.disabled = false;
         if (typeof showToast === "function") showToast(t("atlasLoaded", "Offline atlas loaded."), "good");
         if (input) fillBirthPlaceList(input.value);
+        if (partnerInput) fillPartnerBirthPlaceList(partnerInput.value);
       };
       s.onerror = () => {
         if (btn) btn.disabled = false;
@@ -1853,6 +1869,8 @@
     if ($("#brand")) $("#brand").value = snapshot.input.brand || "";
     if ($("#partnerName")) $("#partnerName").value = snapshot.input.partnerName || "";
     if ($("#partnerDob")) $("#partnerDob").value = formatDobForDisplay(snapshot.input.partnerDob || "");
+    if ($("#partnerBirthTime")) $("#partnerBirthTime").value = snapshot.input.partnerBirthTime || "";
+    if ($("#partnerBirthPlace")) $("#partnerBirthPlace").value = snapshot.input.partnerBirthPlace || "";
     syncGoalChips(snapshot.input.goals || []);
     syncSadhanaChips(snapshot.input.sadhana);
     syncHealthTagChips(snapshot.input.healthTags || []);
@@ -2074,6 +2092,12 @@
       brand: input.brand || "",
       partnerName: input.partnerName || "",
       partnerDob: input.partnerDob || "",
+      /* Partner Tier 2 inputs. Optional by design and never defaulted: an
+         absent time or place keeps the Moon layer uncomputed rather than
+         assuming a noon birth or a stand-in city. */
+      partnerBirthTime: String(input.partnerBirthTime || "").trim(),
+      partnerBirthTimeDisplay: formatBirthTime(String(input.partnerBirthTime || "").trim()),
+      partnerBirthPlace: String(input.partnerBirthPlace || "").trim(),
       zodiac: zodiacSignSidereal(d, m),
       zodiacTropical: zodiacSign(d, m),
       /* Client-selected practice depth (Section 22 / intake). It sizes the
@@ -2321,6 +2345,195 @@
     const enemy = pairs.filter((p) => p.r === "enemy").length;
     const verdict = score >= 7 ? "Strong" : score >= 5 ? "Good" : score >= 3 ? "Workable" : "Challenging";
     return { pairs, score, max: 8, verdict, friendly, neutral, enemy };
+  }
+
+  /* ---- Chandra-bala: the mutual natal Moon relationship -------------------
+     Progressive precision, applied to the partner exactly as it is applied to
+     the primary chart.
+
+     The Moon covers roughly 13°20′ of the zodiac a day — one whole Nakshatra —
+     so a Moon Rashi, a Nakshatra or a pada simply cannot be derived from a date
+     of birth. Any engine that "fills in" a noon birth or a default city is
+     guessing, and a birth near a rashi or nakshatra boundary will be silently
+     wrong. This module therefore computes nothing until BOTH charts carry an
+     exact birth time and a birthplace the offline atlas can resolve; until then
+     it returns tier 1 with `chandraBalaComputed: false` and names exactly which
+     side is missing.
+
+     Scope: this is the Rashi (Bhakoot / Chandra) axis between the two natal
+     Moons. It is deliberately NOT a 36-point Ashtakoota score — Gana, Nadi,
+     Yoni, Graha Maitri and the rest are not computed here and are not implied.
+     It carries no remedy, no timing and no Vastu instruction. */
+  const CHANDRA_AXIS = {
+    "1/1": {
+      key: "1/1", sanskrit: "Ekarashi",
+      quality: "supportive",
+      label: { en: "Same Moon sign (Ekarashi)", hi: "एक ही चंद्र राशि (एकराशि)", gu: "એક જ ચંદ્ર રાશિ (એકરાશિ)" },
+      note: {
+        en: "Both Moons occupy the same rashi, so the emotional idiom is shared — you read each other's moods quickly and recover from upsets in the same rhythm. The classical caution is sameness rather than friction: blind spots are shared too, so neither partner naturally supplies the missing perspective.",
+        hi: "दोनों चंद्र एक ही राशि में हैं, इसलिए भावनात्मक भाषा साझा है — आप एक-दूसरे का मन जल्दी पढ़ लेते हैं और एक ही लय में सँभल जाते हैं। शास्त्रीय सावधानी घर्षण की नहीं, समानता की है: कमियाँ भी साझा होती हैं, इसलिए छूटा हुआ दृष्टिकोण कोई स्वाभाविक रूप से नहीं देता।",
+        gu: "બંને ચંદ્ર એક જ રાશિમાં છે, તેથી ભાવનાત્મક ભાષા સહિયારી છે — તમે એકબીજાનું મન ઝડપથી વાંચો છો અને એક જ લયમાં સંભળાઈ જાઓ છો. શાસ્ત્રીય સાવચેતી ઘર્ષણની નહીં, સમાનતાની છે: ખામીઓ પણ સહિયારી હોય છે, તેથી ખૂટતો દૃષ્ટિકોણ કોઈ સ્વાભાવિક રીતે પૂરો પાડતું નથી."
+      }
+    },
+    "2/12": {
+      key: "2/12", sanskrit: "Dwidwadasha",
+      quality: "challenging",
+      label: { en: "Dwidwadasha axis (2/12)", hi: "द्विर्द्वादश अक्ष (2/12)", gu: "દ્વિર્દ્વાદશ અક્ષ (2/12)" },
+      note: {
+        en: "One Moon sits in the 2nd from the other and the second in the 12th — the classical give-and-spend axis. Tradition reads it as a persistent imbalance in resources, energy and attention: one partner tends to accumulate while the other tends to release. It describes an asymmetry to be managed explicitly, not a verdict on the relationship.",
+        hi: "एक चंद्र दूसरे से द्वितीय में और दूसरा द्वादश में है — शास्त्रीय व्यय-संचय अक्ष। परंपरा इसे संसाधन, ऊर्जा और ध्यान के स्थायी असंतुलन के रूप में पढ़ती है: एक पक्ष संचय करता है, दूसरा व्यय। यह संबंध पर निर्णय नहीं, स्पष्ट रूप से सँभालने योग्य असमानता का संकेत है।",
+        gu: "એક ચંદ્ર બીજાથી બીજા સ્થાનમાં અને બીજો બારમા સ્થાનમાં છે — શાસ્ત્રીય વ્યય-સંચય અક્ષ. પરંપરા તેને સંસાધન, ઊર્જા અને ધ્યાનના કાયમી અસંતુલન તરીકે વાંચે છે: એક પક્ષ સંચય કરે, બીજો ખર્ચે. આ સંબંધ પરનો ચુકાદો નથી, સ્પષ્ટપણે સંભાળવા જેવી અસમાનતા છે."
+      }
+    },
+    "3/11": {
+      key: "3/11", sanskrit: "Trikona-Labha",
+      quality: "workable",
+      label: { en: "3/11 axis — effort and gain", hi: "3/11 अक्ष — प्रयास और लाभ", gu: "3/11 અક્ષ — પ્રયાસ અને લાભ" },
+      note: {
+        en: "A one-directional flow: the partner whose Moon is 11th from the other receives gain and encouragement, while the partner in the 3rd position supplies the initiative and effort. Workable and often productive, provided the effort is acknowledged rather than assumed.",
+        hi: "यह एकतरफा प्रवाह है: जिसका चंद्र दूसरे से एकादश है उसे लाभ और उत्साह मिलता है, जबकि तृतीय स्थान वाला पहल और परिश्रम देता है। यह साध्य और प्रायः फलदायी है, बशर्ते परिश्रम को स्वीकारा जाए, माना न जाए।",
+        gu: "આ એકતરફી પ્રવાહ છે: જેનો ચંદ્ર બીજાથી અગિયારમો છે તેને લાભ અને ઉત્સાહ મળે છે, જ્યારે ત્રીજા સ્થાનવાળો પહેલ અને પરિશ્રમ આપે છે. તે સાધ્ય અને ઘણી વાર ફળદાયી છે, જો પરિશ્રમ સ્વીકારાય, ગૃહીત ન લેવાય."
+      }
+    },
+    "4/10": {
+      key: "4/10", sanskrit: "Kendra (Sukha-Karma)",
+      quality: "workable",
+      label: { en: "4/10 Kendra axis — home and duty", hi: "4/10 केंद्र अक्ष — गृह और कर्म", gu: "4/10 કેન્દ્ર અક્ષ — ગૃહ અને કર્મ" },
+      note: {
+        en: "The home-and-work angle. One Moon holds the domestic, emotional base (4th) while the other carries the outward, public and career-facing role (10th). Classically stable and complementary; the standing risk is that the partnership becomes a working arrangement, with duty crowding out affection.",
+        hi: "गृह-कर्म कोण। एक चंद्र घरेलू, भावनात्मक आधार (चतुर्थ) सँभालता है और दूसरा बाहरी, सार्वजनिक व कर्मक्षेत्र की भूमिका (दशम)। शास्त्रीय रूप से स्थिर और पूरक; जोखिम यह कि संबंध कार्य-व्यवस्था बन जाए और कर्तव्य स्नेह को दबा दे।",
+        gu: "ગૃહ-કર્મ કોણ. એક ચંદ્ર ઘરેલું, ભાવનાત્મક પાયો (ચતુર્થ) સંભાળે અને બીજો બાહ્ય, જાહેર અને કારકિર્દીની ભૂમિકા (દશમ). શાસ્ત્રીય રીતે સ્થિર અને પૂરક; જોખમ એ કે સંબંધ કાર્ય-વ્યવસ્થા બની જાય અને ફરજ સ્નેહને દબાવે."
+      }
+    },
+    "5/9": {
+      key: "5/9", sanskrit: "Navapanchama",
+      quality: "supportive",
+      label: { en: "Navapanchama axis (5/9)", hi: "नवपंचम अक्ष (5/9)", gu: "નવપંચમ અક્ષ (5/9)" },
+      note: {
+        en: "The trine most classical texts rate highest for marriage. One Moon falls in the 5th (affection, children, creativity) from the other and the other in the 9th (fortune, faith, mutual regard). Affection tends to be given rather than negotiated, and disagreements rarely turn cold.",
+        hi: "विवाह के लिए अधिकांश शास्त्र इसी त्रिकोण को सर्वोत्तम मानते हैं। एक चंद्र दूसरे से पंचम (स्नेह, संतान, सृजन) में और दूसरा नवम (भाग्य, श्रद्धा, परस्पर आदर) में। स्नेह माँगना नहीं पड़ता, और मतभेद प्रायः ठंडे नहीं पड़ते।",
+        gu: "લગ્ન માટે મોટા ભાગના શાસ્ત્રો આ ત્રિકોણને શ્રેષ્ઠ ગણે છે. એક ચંદ્ર બીજાથી પંચમ (સ્નેહ, સંતાન, સર્જન) માં અને બીજો નવમ (ભાગ્ય, શ્રદ્ધા, પરસ્પર આદર) માં. સ્નેહ માંગવો પડતો નથી, અને મતભેદ ભાગ્યે જ ઠંડા પડે છે."
+      }
+    },
+    "6/8": {
+      key: "6/8", sanskrit: "Shadashtaka",
+      quality: "challenging",
+      label: { en: "Shadashtaka axis (6/8)", hi: "षडाष्टक अक्ष (6/8)", gu: "ષડાષ્ટક અક્ષ (6/8)" },
+      note: {
+        en: "The most-cited caution in Moon-sign matching: one Moon stands 6th from the other and that one 8th in return. Classically associated with health strain, recurring friction and sudden reversals in the shared routine. It is a caution to be worked with consciously — many long marriages carry it — not a prohibition, and this app issues no remedy for it.",
+        hi: "चंद्र-राशि मिलान की सर्वाधिक उद्धृत सावधानी: एक चंद्र दूसरे से षष्ठ और दूसरा अष्टम में। शास्त्रीय रूप से यह स्वास्थ्य-भार, बार-बार के घर्षण और साझा दिनचर्या में अचानक उलटफेर से जोड़ा जाता है। यह सजगता से सँभालने योग्य चेतावनी है — अनेक दीर्घ विवाह इसे धारण करते हैं — निषेध नहीं, और यह ऐप इसका कोई उपाय नहीं देता।",
+        gu: "ચંદ્ર-રાશિ મિલનની સૌથી વધુ ટાંકાતી સાવચેતી: એક ચંદ્ર બીજાથી છઠ્ઠો અને બીજો આઠમો. શાસ્ત્રીય રીતે તે આરોગ્ય-ભાર, વારંવારના ઘર્ષણ અને સહિયારી દિનચર્યામાં અચાનક ઉથલપાથલ સાથે જોડાય છે. તે સજાગતાથી સંભાળવા જેવી ચેતવણી છે — ઘણાં લાંબાં લગ્ન તે ધરાવે છે — પ્રતિબંધ નહીં, અને આ ઍપ તેનો કોઈ ઉપાય આપતી નથી."
+      }
+    },
+    "7/7": {
+      key: "7/7", sanskrit: "Samasaptaka",
+      quality: "supportive",
+      label: { en: "Samasaptaka axis (7/7)", hi: "समसप्तक अक्ष (7/7)", gu: "સમસપ્તક અક્ષ (7/7)" },
+      note: {
+        en: "Mutual opposition: each Moon is exactly 7th from the other, the classical marriage axis. Attraction is strong and the two temperaments are complementary opposites, which is also the friction — the same polarity that draws you together produces the standoffs.",
+        hi: "परस्पर सप्तम: प्रत्येक चंद्र दूसरे से ठीक सातवें में — शास्त्रीय विवाह-अक्ष। आकर्षण प्रबल है और दोनों स्वभाव पूरक विपरीत हैं, यही घर्षण भी है — जो ध्रुवता जोड़ती है वही गतिरोध बनाती है।",
+        gu: "પરસ્પર સપ્તમ: દરેક ચંદ્ર બીજાથી બરાબર સાતમા સ્થાને — શાસ્ત્રીય લગ્ન-અક્ષ. આકર્ષણ પ્રબળ છે અને બંને સ્વભાવ પૂરક વિરોધી છે, એ જ ઘર્ષણ પણ છે — જે ધ્રુવતા જોડે છે તે જ અટકાવ સર્જે છે."
+      }
+    }
+  };
+
+  /* House-position ordinals. English needs 1st/2nd/3rd/4th; Hindi and Gujarati
+     read naturally with a plain numeral plus their own positional word, which
+     the caller supplies. */
+  function houseOrdinal(n, lang) {
+    if (lang === "hi" || lang === "gu") return String(n);
+    const rem100 = n % 100;
+    if (rem100 >= 11 && rem100 <= 13) return n + "th";
+    return n + ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] || "th");
+  }
+
+  function chandraAxisFor(selfIdx, partnerIdx) {
+    const fwd = ((partnerIdx - selfIdx + 12) % 12) + 1;   // partner's Moon counted from yours
+    const rev = ((selfIdx - partnerIdx + 12) % 12) + 1;   // yours counted from the partner's
+    const key = Math.min(fwd, rev) + "/" + Math.max(fwd, rev);
+    return { fwd, rev, key, entry: CHANDRA_AXIS[key] || null };
+  }
+
+  /* Missing-data contract for the partner Moon layer. Returns the degraded
+     shape whenever either natal Moon is uncomputable, and never substitutes a
+     default time, a default city or a noon chart. */
+  function chandraBala(self, partner) {
+    const selfAstro = self && self.astro;
+    const partnerAstro = partner && partner.astro;
+    const selfFull = !!(selfAstro && selfAstro.ok && selfAstro.tier === "full" && selfAstro.moon);
+    const partnerFull = !!(partnerAstro && partnerAstro.ok && partnerAstro.tier === "full" && partnerAstro.moon);
+
+    /* A computed profile carries day/month/year rather than a `dob` string, so
+       validity is tested on what the profile actually exposes. */
+    const partnerHasDob = !!(partner && (partner.dob || (partner.day && partner.month && partner.year)));
+    if (!selfFull || !partnerFull) {
+      const missing = [];
+      if (!partnerHasDob) missing.push("partner-dob");
+      else {
+        if (!partner.birthTime) missing.push("partner-birth-time");
+        if (!partner.birthPlace) missing.push("partner-birth-place");
+        else if (!partnerFull && partnerAstro && partnerAstro.placeUnmatched) missing.push("partner-birth-place-unmatched");
+      }
+      if (!self || !self.birthTime) missing.push("self-birth-time");
+      if (self && !self.birthPlace) missing.push("self-birth-place");
+      else if (self && !selfFull && selfAstro && selfAstro.placeUnmatched) missing.push("self-birth-place-unmatched");
+      const partnerSide = missing.some((m) => m.indexOf("partner") === 0);
+      const selfSide = missing.some((m) => m.indexOf("self") === 0);
+      const who = partnerSide && selfSide
+        ? "add both charts' birth time and location"
+        : partnerSide
+          ? "add partner birth time and location"
+          : "add your birth time and location";
+      return {
+        tier: 1,
+        chandraBalaComputed: false,
+        missing,
+        partnerSide,
+        selfSide,
+        message: "Chandra-bala not computed — " + who
+      };
+    }
+
+    const selfMoon = selfAstro.moon;
+    const partnerMoon = partnerAstro.moon;
+    const selfSign = window.NVAstro.signOf(selfMoon.lonSidereal);
+    const partnerSign = window.NVAstro.signOf(partnerMoon.lonSidereal);
+    const axis = chandraAxisFor(selfSign.index, partnerSign.index);
+    /* Widely-cited classical relaxation of the Shadashtaka / Dwidwadasha
+       caution: when both Moons share the same rashi lord the dosha is held to
+       be cancelled. We report the objective fact (same lord or not) and leave
+       the wider cancellation debate to the practitioner rather than inventing
+       a score. */
+    const sameLord = selfSign.lord === partnerSign.lord;
+    const quality = (axis.entry && axis.entry.quality) || "workable";
+    return {
+      tier: 2,
+      chandraBalaComputed: true,
+      missing: [],
+      axis: {
+        key: axis.key,
+        forward: axis.fwd,
+        reverse: axis.rev,
+        sanskrit: axis.entry ? axis.entry.sanskrit : "",
+        label: axis.entry ? axis.entry.label : null,
+        note: axis.entry ? axis.entry.note : null,
+        quality
+      },
+      sameRashiLord: sameLord,
+      doshaRelaxedBySharedLord: sameLord && quality === "challenging",
+      self: {
+        sign: selfSign.name, glyph: selfSign.glyph, lord: selfSign.lord, degStr: selfSign.degStr,
+        lonSidereal: selfMoon.lonSidereal,
+        nakshatra: selfMoon.nakshatra ? { name: selfMoon.nakshatra.name, pada: selfMoon.nakshatra.pada, lord: selfMoon.nakshatra.lord, glyph: selfMoon.nakshatra.glyph } : null
+      },
+      partner: {
+        sign: partnerSign.name, glyph: partnerSign.glyph, lord: partnerSign.lord, degStr: partnerSign.degStr,
+        lonSidereal: partnerMoon.lonSidereal,
+        nakshatra: partnerMoon.nakshatra ? { name: partnerMoon.nakshatra.name, pada: partnerMoon.nakshatra.pada, lord: partnerMoon.nakshatra.lord, glyph: partnerMoon.nakshatra.glyph } : null
+      },
+      engine: partnerAstro.engine || (selfAstro && selfAstro.engine) || "",
+      message: ""
+    };
   }
 
   /* ---- compatibility reflection helpers -------------------------------
@@ -5765,11 +5978,21 @@
 
     const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
     const partnerFirst = (p.partnerName || "").trim().split(/\s+/)[0] || (lang === "hi" ? "पार्टनर" : lang === "gu" ? "પાર્ટનર" : "partner");
+    /* The partner chart runs through the same computeProfile() as the primary
+       chart, including the optional Vedic precision inputs. When the partner's
+       time/place are blank they stay blank all the way down: computeProfile
+       yields a Tier 1 partner whose astro.tier is "sun", and the Moon layer
+       below degrades instead of guessing. */
     const partnerProfile = partnerValid
-      ? computeProfile({ name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" })
+      ? computeProfile({
+          name: p.partnerName, dob: p.partnerDob, mobile: "", goals: [], vehicle: "", watchType: "none",
+          entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "",
+          birthTime: p.partnerBirthTime || "", birthPlace: p.partnerBirthPlace || ""
+        })
       : null;
     const compat = partnerValid ? compatibility(p, partnerProfile) : null;
     const cRem = compat ? compatRemedies(p, partnerProfile, compat) : null;
+    const moonPairing = partnerValid ? chandraBala(p, partnerProfile) : null;
     const LT = (en, hi, gu) => (lang === "hi" ? hi : lang === "gu" ? gu : en);
 
     /* Compatibility remains a relationship-reflection feature. It intentionally
@@ -5829,10 +6052,82 @@
       return rows.join("");
     })();
 
+    /* ---- Section 18 Moon layer -------------------------------------------
+       Two states, no third. Either both natal Moons are computable and the
+       classical Chandra-bala axis is shown with its working, or the module
+       says in plain words that it was not computed and what is missing. There
+       is no "approximate", no assumed noon and no default city. */
+    const moonLayerHtml = !moonPairing ? "" : (function () {
+      if (!moonPairing.chandraBalaComputed) {
+        const needPartnerTime = moonPairing.missing.indexOf("partner-birth-time") !== -1;
+        const needPartnerPlace = moonPairing.missing.indexOf("partner-birth-place") !== -1;
+        const partnerPlaceUnmatched = moonPairing.missing.indexOf("partner-birth-place-unmatched") !== -1;
+        const needSelfTime = moonPairing.missing.indexOf("self-birth-time") !== -1;
+        const needSelfPlace = moonPairing.missing.indexOf("self-birth-place") !== -1;
+        const selfPlaceUnmatched = moonPairing.missing.indexOf("self-birth-place-unmatched") !== -1;
+        const askList = [];
+        if (needPartnerTime || needPartnerPlace) {
+          const bits = [];
+          if (needPartnerTime) bits.push(LT("exact birth time", "सटीक जन्म समय", "ચોક્કસ જન્મ સમય"));
+          if (needPartnerPlace) bits.push(LT("birth city / place", "जन्म शहर / स्थान", "જન્મ શહેર / સ્થળ"));
+          askList.push(LT("your partner's ", "साथी का ", "સાથીદારનો ") + bits.join(LT(" and ", " और ", " અને ")));
+        }
+        if (partnerPlaceUnmatched) askList.push(LT("a partner birthplace the offline atlas recognises — “City, State” or coordinates like “28.41, 77.32”", "ऑफ़लाइन एटलस द्वारा पहचाना जाने वाला साथी का जन्मस्थान — “शहर, राज्य” या “28.41, 77.32” जैसे निर्देशांक", "ઑફલાઇન ઍટલસ ઓળખે તેવું સાથીદારનું જન્મસ્થળ — “શહેર, રાજ્ય” અથવા “28.41, 77.32” જેવા અક્ષાંશ/રેખાંશ"));
+        if (needSelfTime || needSelfPlace) {
+          const bits = [];
+          if (needSelfTime) bits.push(LT("exact birth time", "सटीक जन्म समय", "ચોક્કસ જન્મ સમય"));
+          if (needSelfPlace) bits.push(LT("birth city / place", "जन्म शहर / स्थान", "જન્મ શહેર / સ્થળ"));
+          askList.push(LT("your own ", "आपका अपना ", "તમારો પોતાનો ") + bits.join(LT(" and ", " और ", " અને ")));
+        }
+        if (selfPlaceUnmatched) askList.push(LT("a birthplace of yours the offline atlas recognises", "आपका ऐसा जन्मस्थान जिसे ऑफ़लाइन एटलस पहचानता हो", "તમારું એવું જન્મસ્થળ જે ઑફલાઇન ઍટલસ ઓળખે"));
+        const ask = askList.join(LT(", plus ", ", साथ ही ", ", સાથે જ "));
+        return `<div class="card chandra-bala-card" id="chandra-bala" data-authority="chandra-bala" data-chandra-bala="not-computed" data-chandra-tier="1">
+          <div class="goal-head">
+            <div class="card-title">🌙 ${LT("Chandra-bala &amp; Vedic Moon pairing", "चंद्र-बल एवं वैदिक चंद्र मिलान", "ચંદ્ર-બલ અને વૈદિક ચંદ્ર મિલન")}</div>
+            <span class="badge info">${LT("Tier 1 only", "केवल लेवल १", "ફક્ત લેવલ ૧")}</span>
+          </div>
+          <div class="kit-value"><strong>${LT("Chandra-bala not computed", "चंद्र-बल की गणना नहीं हुई", "ચંદ્ર-બલ ગણાયું નથી")}</strong> — ${LT("add " + ask + " (Edit Details → Compatibility) to unlock it.", ask + " जोड़ें (विवरण बदलें → संगतता) तब यह खुलेगा।", ask + " ઉમેરો (વિગત બદલો → સુસંગતતા) ત્યારે તે ખૂલશે.")}</div>
+          <div class="card-sub">${LT("What you are reading below is the Driver / Conductor numerological comparison only. The Moon travels about 13°20′ a day — a full Nakshatra — so a Moon Rashi, a Nakshatra pada or a Chandra-bala verdict cannot be derived from a date of birth. Rather than assume a noon birth or a stand-in city, this layer stays uncomputed until the data exists.",
+            "नीचे जो है वह केवल मूलांक / भाग्यांक अंकशास्त्रीय तुलना है। चंद्रमा प्रतिदिन लगभग १३°२०′ — पूरा एक नक्षत्र — चलता है, इसलिए चंद्र राशि, नक्षत्र पद या चंद्र-बल केवल जन्मतिथि से नहीं निकाले जा सकते। दोपहर का जन्म या कोई स्थान मान लेने के बजाय यह परत आँकड़े आने तक अगणित रहती है।",
+            "નીચે જે છે તે માત્ર મૂળાંક / ભાગ્યાંક અંકશાસ્ત્રીય સરખામણી છે. ચંદ્ર રોજ આશરે ૧૩°૨૦′ — આખું એક નક્ષત્ર — ચાલે છે, તેથી ચંદ્ર રાશિ, નક્ષત્ર પાદ કે ચંદ્ર-બલ ફક્ત જન્મ તારીખથી કાઢી શકાતાં નથી. બપોરનો જન્મ કે કોઈ સ્થળ માની લેવાને બદલે આ સ્તર માહિતી આવે ત્યાં સુધી અગણિત રહે છે.")}</div>
+        </div>`;
+      }
+
+      const cb = moonPairing;
+      const qualityBadge = cb.axis.quality === "supportive" ? "good" : cb.axis.quality === "challenging" ? "bad" : "warn";
+      const qualityWord = cb.axis.quality === "supportive"
+        ? LT("Supportive", "सहायक", "સહાયક")
+        : cb.axis.quality === "challenging"
+          ? LT("Classical caution", "शास्त्रीय सावधानी", "શાસ્ત્રીય સાવચેતી")
+          : LT("Workable", "साध्य", "સાધ્ય");
+      const axisLabel = cb.axis.label ? (cb.axis.label[lang] || cb.axis.label.en) : cb.axis.key;
+      const axisNote = cb.axis.note ? (cb.axis.note[lang] || cb.axis.note.en) : "";
+      const moonLine = (side, first) => `<strong>${esc(first)}</strong> — ${esc(side.glyph)} ${esc(side.sign)} ${esc(side.degStr)} (${LT("lord", "स्वामी", "સ્વામી")} ${esc(side.lord)})${side.nakshatra ? ` · ${esc(side.nakshatra.glyph)} ${esc(side.nakshatra.name)} ${LT("pada", "पद", "પાદ")} ${side.nakshatra.pada}` : ""}`;
+      return `<div class="card chandra-bala-card" id="chandra-bala" data-authority="chandra-bala" data-chandra-bala="computed" data-chandra-tier="2" data-chandra-axis="${esc(cb.axis.key)}">
+        <div class="goal-head">
+          <div class="card-title">🌙 ${LT("Chandra-bala verdict", "चंद्र-बल निर्णय", "ચંદ્ર-બલ નિર્ણય")} — ${esc(axisLabel)}</div>
+          <span class="badge ${qualityBadge}">${esc(qualityWord)} · ${esc(cb.axis.key)}</span>
+        </div>
+        <div class="kit-value">${moonLine(cb.self, p.name.split(/\s+/)[0])}</div>
+        <div class="kit-value">${moonLine(cb.partner, partnerFirst)}</div>
+        <div class="kit-value">${LT(`Counted from your Moon, the partner's Moon stands in the <strong>${houseOrdinal(cb.axis.forward, lang)}</strong>; counted back, yours stands in the <strong>${houseOrdinal(cb.axis.reverse, lang)}</strong> — the <strong>${esc(cb.axis.sanskrit)}</strong> relationship.`,
+          `आपके चंद्र से गिनने पर साथी का चंद्र <strong>${cb.axis.forward}</strong>वें भाव में है; उल्टा गिनने पर आपका <strong>${cb.axis.reverse}</strong>वें भाव में — यह <strong>${esc(cb.axis.sanskrit)}</strong> संबंध है।`,
+          `તમારા ચંદ્રથી ગણતાં સાથીદારનો ચંદ્ર <strong>${cb.axis.forward}</strong>મા ભાવમાં છે; ઊલટું ગણતાં તમારો <strong>${cb.axis.reverse}</strong>મા ભાવમાં — આ <strong>${esc(cb.axis.sanskrit)}</strong> સંબંધ છે.`)}</div>
+        <div class="kit-value">${esc(axisNote)}</div>
+        ${cb.doshaRelaxedBySharedLord ? `<div class="chandra-bala-relax">${LT("Both Moon signs share the same rashi lord (" + esc(cb.self.lord) + "), which a widely-followed classical rule treats as cancelling this dosha. Schools differ on the scope of that cancellation, so it is reported as a fact of the chart, not applied as a score.",
+          "दोनों चंद्र राशियों का स्वामी एक ही है (" + esc(cb.self.lord) + "), जिसे एक व्यापक रूप से मान्य शास्त्रीय नियम इस दोष का निवारण मानता है। इस निवारण की सीमा पर मत भिन्न हैं, इसलिए इसे कुंडली का तथ्य बताया गया है, अंक के रूप में लागू नहीं किया गया।",
+          "બંને ચંદ્ર રાશિઓનો સ્વામી એક જ છે (" + esc(cb.self.lord) + "), જેને વ્યાપકપણે માન્ય શાસ્ત્રીય નિયમ આ દોષનું નિવારણ ગણે છે. તે નિવારણની મર્યાદા વિશે મતભેદ છે, તેથી તેને કુંડળીની હકીકત તરીકે જણાવ્યું છે, ગુણ તરીકે લાગુ કર્યું નથી.")}</div>` : ""}
+        <div class="judge-note"><strong>${LT("Scope:", "सीमा:", "મર્યાદા:")}</strong> ${LT("This is the Rashi (Bhakoot) axis between the two natal Moons, computed on this device from both birth times and places. It is not a 36-point Ashtakoota score — Gana, Nadi, Yoni and Graha Maitri are not computed — and it prescribes nothing: no remedy, no muhurtha, no Vastu zone.",
+          "यह दोनों जन्म-चंद्रों के बीच का राशि (भकूट) अक्ष है, जो दोनों के जन्म समय व स्थान से इसी डिवाइस पर गणित है। यह ३६ गुण अष्टकूट मिलान नहीं है — गण, नाड़ी, योनि और ग्रह मैत्री की गणना नहीं हुई — और यह कुछ भी निर्धारित नहीं करता: न उपाय, न मुहूर्त, न वास्तु क्षेत्र।",
+          "આ બંને જન્મ-ચંદ્રો વચ્ચેનો રાશિ (ભકૂટ) અક્ષ છે, જે બંનેના જન્મ સમય અને સ્થળથી આ જ ડિવાઇસ પર ગણાયો છે. તે ૩૬ ગુણ અષ્ટકૂટ મિલન નથી — ગણ, નાડી, યોનિ અને ગ્રહ મૈત્રી ગણાયાં નથી — અને તે કશું નિર્ધારિત કરતું નથી: ન ઉપાય, ન મુહૂર્ત, ન વાસ્તુ ક્ષેત્ર.")}</div>
+      </div>`;
+    })();
+
     const compatSection = `<section class="rsection" id="compatibility-section">
       <div class="compatibility-overview">
         <h2 class="rsection-title"><span class="idx">${SECTION.compatibility}</span>${t("secCompat", "Compatibility & Matchmaking")}</h2>
         ${compat ? `<p class="rsection-desc">Pairwise Driver / Conductor match between <strong>${esc(p.name)}</strong> and <strong>${esc(p.partnerName)}</strong> (marriage or business partnership).</p>
+          ${moonPairing && !moonPairing.chandraBalaComputed ? moonLayerHtml : ""}
           <div class="card compatibility-overview-card">
             <div class="goal-head">
               <div class="card-title">Overall verdict: ${compat.verdict}</div>
@@ -5843,7 +6138,8 @@
               ${compat.pairs.map((pr) => `<tr><td>${esc(pr.a)} × ${esc(pr.b)}</td><td>${relBadge(pr.r)}</td></tr>`).join("")}
             </table></div>
             <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को समझने के लिए साफ संवाद और व्यवहारिक समझौते जरूरी हैं।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને સમજવા માટે સ્પષ્ટ સંવાદ અને વ્યવહારુ સમજોતાં જરૂરી છે." : "Challenging pairing — the conflicting numbers need clear communication and practical agreements to bridge.")}</div>
-          </div>`
+          </div>
+          ${moonPairing && moonPairing.chandraBalaComputed ? moonLayerHtml : ""}`
         : `<div class="card compatibility-overview-card">
             <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
             <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
@@ -6479,7 +6775,10 @@
       birthTz: ($("#birthTz") && $("#birthTz").value.trim()) || "",
       brand: $("#brand").value.trim(),
       partnerName: $("#partnerName").value.trim(),
-      partnerDob: normalizeDobInput($("#partnerDob").value)
+      partnerDob: normalizeDobInput($("#partnerDob").value),
+      // Optional Tier 2 partner inputs — absent values stay absent.
+      partnerBirthTime: ($("#partnerBirthTime") && $("#partnerBirthTime").value) || "",
+      partnerBirthPlace: ($("#partnerBirthPlace") && $("#partnerBirthPlace").value.trim()) || ""
     };
     // Keep the visible fields tidy as day-month-year (canonical ISO is stored).
     if ($("#dob")) $("#dob").value = formatDobForDisplay(input.dob);
@@ -6532,7 +6831,7 @@
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
     formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
-    zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, compoundMeaning,
+    zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, chandraBala, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,

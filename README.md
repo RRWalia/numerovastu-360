@@ -229,6 +229,7 @@ The report intentionally shows the source of each kind of guidance.
 | Missing/repeated remedies, crystals, Rudraksha, affirmations, habits and 40-day practice | Lo Shu Birth Grid | Vedic comparison, zodiac and Dasha |
 | Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
 | Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
+| Chandra-bala (Moon pairing) | Both natal sidereal Moons, computed from birth time + place on each side | Driver/Conductor numbers, Lo Shu remedies, Dasha timing — and it prescribes nothing in return |
 | Practice depth (Scaled Sadhana) | Client intake choice | The Lo Shu remedy target, the triage tiers, Dasha/Vastu timing, and every clinical guardrail — a scale sizes the practice, it never selects or re-sources a remedy |
 | Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
 
@@ -236,6 +237,35 @@ Compatibility uses the four Driver/Conductor pairings to make mutual strengths,
 watch points, potential blind spots and communication cues explicit. It is a
 relationship reflection only: it never adds crystals, Rudraksha, affirmations,
 lifestyle obligations, partner-side remedy kits or a second 40-day plan.
+
+### Chandra-bala — progressive precision on the partner intake
+
+Section 18 carries a Moon layer with exactly two states, chosen by what the
+intake actually holds. The same Tier 1 / Tier 2 idiom that governs your own
+chart governs the partner's.
+
+- **Tier 1 (partner date of birth only).** The report shows the Driver /
+  Conductor comparison and prints, in plain words, *“Chandra-bala not computed —
+  add partner birth time and location”*, naming which side is missing. The Moon
+  moves roughly 13°20′ a day — one whole Nakshatra — so a Moon Rashi, a
+  Nakshatra pada or a Chandra-bala verdict is **not derivable from a date**. A
+  birth near a rashi or nakshatra boundary would be silently wrong.
+- **Tier 2 (partner birth time + birthplace).** The partner's sidereal Moon is
+  computed by the same on-device Meeus engine, against the same offline atlas,
+  and the mutual Rashi axis is reported: 1/1 *Ekarashi*, 2/12 *Dwidwadasha*,
+  3/11, 4/10, 5/9 *Navapanchama*, 6/8 *Shadashtaka* or 7/7 *Samasaptaka*.
+
+No intermediate state exists. The engine never substitutes a noon birth, a
+default city or an "approximate" Moon — `chandraBala()` returns
+`{ tier: 1, chandraBalaComputed: false, message }` instead, and `smoke.test.js`
+fails if a default is ever introduced.
+
+The layer is deliberately **not** a 36-point Ashtakoota score: Gana, Nadi, Yoni
+and Graha Maitri are not computed and are not implied. Where both Moon signs
+share a rashi lord — the classical cancellation of Shadashtaka / Dwidwadasha —
+the app reports that as a fact of the chart rather than applying it as a score,
+because schools differ on its scope. Chandra-bala prescribes nothing: no remedy,
+no muhurtha, no Vastu zone.
 
 The Driver/Conductor power-day card is a scheduling reference. It does not pick
 or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng

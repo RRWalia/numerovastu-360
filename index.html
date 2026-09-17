@@ -411,6 +411,25 @@
             <input class="input" id="partnerDob" name="partnerDob" type="text" inputmode="numeric" autocomplete="bday" maxlength="10" placeholder="dd-mm-yyyy e.g. 05-08-1976" data-i18n-ph="dobPlaceholder" />
           </div>
         </div>
+
+        <!-- Partner Vedic precision: same progressive-precision idiom as your own
+             chart. Date of birth alone gives Tier 1 (Driver / Conductor only);
+             birth time + birthplace unlock the partner's natal Moon, which is the
+             only way Chandra-bala can be computed instead of guessed. -->
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="partnerBirthTime"><span data-i18n="partnerBirthTime">Partner's Exact Birth Time (optional — unlocks Moon &amp; Chandra-bala)</span></label>
+            <input class="input" id="partnerBirthTime" name="partnerBirthTime" type="time" autocomplete="off" />
+            <p class="field-hint" data-i18n="partnerBirthTimeHint">Tier 2 — the Moon moves about 13°20′ a day, so without an exact time the partner's Moon Rashi and Nakshatra cannot be pinned. Left blank, the report says so instead of assuming a noon birth.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="partnerBirthPlace"><span data-i18n="partnerBirthPlace">Partner's Birth City / Place (optional — unlocks Moon &amp; Chandra-bala)</span></label>
+            <input class="input" id="partnerBirthPlace" name="partnerBirthPlace" type="text" placeholder="e.g. New Delhi, India" data-i18n-ph="partnerBirthPlacePlaceholder" autocomplete="off" list="partnerBirthPlaceList" />
+            <datalist id="partnerBirthPlaceList"></datalist>
+            <p class="field-hint" data-i18n="partnerBirthPlaceHint">Tier 2 — uses the same offline atlas as your own birthplace (7,000+ Indian towns plus the curated world list). Type a prefix for suggestions or paste coordinates like “28.41, 77.32”. Nothing is sent anywhere.</p>
+          </div>
+        </div>
+        <p class="field-hint" data-i18n="partnerTierNote">Without the partner's time and place the report still gives the full Driver / Conductor comparison (Tier 1) and states plainly that Chandra-bala was not computed — it never guesses a Moon.</p>
       </div>
 
       <div class="form-footer">
