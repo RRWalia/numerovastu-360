@@ -2532,6 +2532,85 @@
         nakshatra: partnerMoon.nakshatra ? { name: partnerMoon.nakshatra.name, pada: partnerMoon.nakshatra.pada, lord: partnerMoon.nakshatra.lord, glyph: partnerMoon.nakshatra.glyph } : null
       },
       engine: partnerAstro.engine || (selfAstro && selfAstro.engine) || "",
+      /* The Nakshatra-level layer under the Rashi axis: both natal Moons are
+         known here, so both nakshatras are, and Tara can be counted. */
+      tara: taraBala(self, partner),
+      message: ""
+    };
+  }
+
+  /* ---- Tara Bala: the Nakshatra-level Moon-pairing layer ------------------
+     One level below the Rashi (Bhakoot) axis above: Tara is counted in
+     NAKSHATRAS, so it needs both natal Moons (Tier 2 on each side). The
+     working, as given in the standard Ashtakoota references:
+
+       · count the nakshatras from the partner's Moon nakshatra to yours,
+         INCLUSIVE of both ends — and the same count in the other direction;
+       · divide each count by 9; remainders 3, 5 and 7 are traditionally
+         inauspicious, every other remainder (1, 2, 4, 6, 8, 9 — with 0 read
+         as 9) traditionally auspicious;
+       · both directions auspicious = the favourable reading, one each way =
+         mixed, both inauspicious = the caution reading.
+
+     Source-verified example (the Anuradha / Rohini worked example in the
+     references): Rohini → Anuradha counts 14 → remainder 5 → inauspicious;
+     Anuradha → Rohini counts 15 → remainder 6 → auspicious.
+
+     Moons that share one nakshatra give the count 1 in both directions
+     (Janma Tara); schools differ on how they read that case, so it is flagged
+     as a fact of the chart. This module reports the working and the
+     traditional classification only: it folds nothing into any 36-point
+     Ashtakoota score and prescribes nothing — no remedy, no muhurtha, no
+     Vastu zone. */
+  const TARA_INAUSPICIOUS_REMAINDERS = [3, 5, 7];
+
+  function taraCount(fromIdx, toIdx) {
+    /* Inclusive count from nakshatra fromIdx to nakshatra toIdx around the
+       27-nakshatra circle (same nakshatra → 1, opposite extreme → 27). */
+    return ((toIdx - fromIdx + 27) % 27) + 1;
+  }
+
+  function taraDirection(fromNak, toNak) {
+    const count = taraCount(fromNak.index, toNak.index);
+    const remainder = count % 9 === 0 ? 9 : count % 9;
+    return {
+      count,
+      remainder,
+      auspicious: TARA_INAUSPICIOUS_REMAINDERS.indexOf(remainder) === -1
+    };
+  }
+
+  function taraBala(self, partner) {
+    const selfAstro = self && self.astro;
+    const partnerAstro = partner && partner.astro;
+    const selfNak = selfAstro && selfAstro.ok && selfAstro.tier === "full" && selfAstro.moon && selfAstro.moon.nakshatra
+      ? selfAstro.moon.nakshatra : null;
+    const partnerNak = partnerAstro && partnerAstro.ok && partnerAstro.tier === "full" && partnerAstro.moon && partnerAstro.moon.nakshatra
+      ? partnerAstro.moon.nakshatra : null;
+    if (!selfNak || !partnerNak) {
+      const missing = [];
+      if (!selfNak) missing.push("self-nakshatra");
+      if (!partnerNak) missing.push("partner-nakshatra");
+      return {
+        computed: false,
+        missing,
+        message: "Tara Bala not computed — " + missing.map((m) => m === "self-nakshatra" ? "your nakshatra (add your birth time and place)" : "the partner's nakshatra (add partner birth time and place)").join(", ")
+      };
+    }
+    /* forward = counted from the partner's nakshatra to yours;
+       reverse = counted from yours to the partner's. */
+    const forward = taraDirection(partnerNak, selfNak);
+    const reverse = taraDirection(selfNak, partnerNak);
+    return {
+      computed: true,
+      missing: [],
+      selfNak: { name: selfNak.name, index: selfNak.index, pada: selfNak.pada },
+      partnerNak: { name: partnerNak.name, index: partnerNak.index, pada: partnerNak.pada },
+      forward,
+      reverse,
+      sameNakshatra: selfNak.index === partnerNak.index,
+      bothAuspicious: forward.auspicious && reverse.auspicious,
+      bothInauspicious: !forward.auspicious && !reverse.auspicious,
       message: ""
     };
   }
@@ -6275,9 +6354,38 @@
         ${cb.doshaRelaxedBySharedLord ? `<div class="chandra-bala-relax">${LT("Both Moon signs share the same rashi lord (" + esc(cb.self.lord) + "), which a widely-followed classical rule treats as cancelling this dosha. Schools differ on the scope of that cancellation, so it is reported as a fact of the chart, not applied as a score.",
           "दोनों चंद्र राशियों का स्वामी एक ही है (" + esc(cb.self.lord) + "), जिसे एक व्यापक रूप से मान्य शास्त्रीय नियम इस दोष का निवारण मानता है। इस निवारण की सीमा पर मत भिन्न हैं, इसलिए इसे कुंडली का तथ्य बताया गया है, अंक के रूप में लागू नहीं किया गया।",
           "બંને ચંદ્ર રાશિઓનો સ્વામી એક જ છે (" + esc(cb.self.lord) + "), જેને વ્યાપકપણે માન્ય શાસ્ત્રીય નિયમ આ દોષનું નિવારણ ગણે છે. તે નિવારણની મર્યાદા વિશે મતભેદ છે, તેથી તેને કુંડળીની હકીકત તરીકે જણાવ્યું છે, ગુણ તરીકે લાગુ કર્યું નથી.")}</div>` : ""}
-        <div class="judge-note"><strong>${LT("Scope:", "सीमा:", "મર્યાદા:")}</strong> ${LT("This is the Rashi (Bhakoot) axis between the two natal Moons, computed on this device from both birth times and places. It is not a 36-point Ashtakoota score — Gana, Nadi, Yoni and Graha Maitri are not computed — and it prescribes nothing: no remedy, no muhurtha, no Vastu zone.",
-          "यह दोनों जन्म-चंद्रों के बीच का राशि (भकूट) अक्ष है, जो दोनों के जन्म समय व स्थान से इसी डिवाइस पर गणित है। यह ३६ गुण अष्टकूट मिलान नहीं है — गण, नाड़ी, योनि और ग्रह मैत्री की गणना नहीं हुई — और यह कुछ भी निर्धारित नहीं करता: न उपाय, न मुहूर्त, न वास्तु क्षेत्र।",
-          "આ બંને જન્મ-ચંદ્રો વચ્ચેનો રાશિ (ભકૂટ) અક્ષ છે, જે બંનેના જન્મ સમય અને સ્થળથી આ જ ડિવાઇસ પર ગણાયો છે. તે ૩૬ ગુણ અષ્ટકૂટ મિલન નથી — ગણ, નાડી, યોનિ અને ગ્રહ મૈત્રી ગણાયાં નથી — અને તે કશું નિર્ધારિત કરતું નથી: ન ઉપાય, ન મુહૂર્ત, ન વાસ્તુ ક્ષેત્ર.")}</div>
+        ${cb.tara && cb.tara.computed ? (() => {
+          const tb = cb.tara;
+          const word = (d) => d.auspicious
+            ? LT("traditionally auspicious", "पारम्परिक रूप से शुभ", "પારંપરાગત રીતે શુભ")
+            : LT("traditionally inauspicious", "पारम्परिक रूप से अशुभ", "પારંપરાગત રીતે અશુભ");
+          const overall = tb.bothAuspicious
+            ? LT("Both directions are traditionally auspicious.",
+               "दोनों दिशाएं पारम्परिक रूप से शुभ हैं।",
+               "બંને દિશા પારંપરાગત રીતે શુભ છે.")
+            : tb.bothInauspicious
+              ? LT("Both directions are traditionally inauspicious.",
+                 "दोनों दिशाएं पारम्परिक रूप से अशुभ हैं।",
+                 "બંને દિશા પારંપરાગત રીતે અશુભ છે.")
+              : LT("One direction is traditionally auspicious and the other traditionally inauspicious — the traditional reading is mixed, reported here as the fact of the two charts rather than averaged away.",
+                 "एक दिशा पारम्परिक रूप से शुभ है और दूसरी पारम्परिक रूप से अशुभ — पारम्परिक पठन मिश्र है, इसे यहाँ दोनों कुंडलियों का तथ्य बताया गया है, औसत में घोलकर नहीं।",
+                 "એક દિશા પારંપરાગત રીતે શુભ છે અને બીજી પારંપરાગત રીતે અશુભ — પારંપરાગત વાંચન મિશ્ર છે, તે અહીં બંને કુંડળીઓનું તથ્ય તરીકે જણાવવામાં આવ્યું છે, સરેરાશમાં ભળાડ્યા વગર.");
+          return `<div id="tara-bala" data-tara="computed" data-tara-fwd="${tb.forward.count}" data-tara-rev="${tb.reverse.count}" data-tara-fwd-rem="${tb.forward.remainder}" data-tara-rev-rem="${tb.reverse.remainder}" data-tara-verdict="${tb.bothAuspicious ? "auspicious" : tb.bothInauspicious ? "inauspicious" : "mixed"}">
+            <div class="card-title chandra-bala-subhead">🌟 ${LT("Tara Bala — Nakshatra-level layer", "तारा बल — नक्षत्र-स्तर की परत", "તારા બલ — નક્ષત્ર-સ્તરની સ્તર")}</div>
+            <div class="kit-value">${LT(`Counted from ${esc(partnerFirst)}'s Moon Nakshatra (${esc(tb.partnerNak.name)}) to yours (${esc(tb.selfNak.name)}), the span is <strong>${tb.forward.count} Nakshatras</strong> — remainder <strong>${tb.forward.remainder}</strong> on division by 9, ${word(tb.forward)}. Counted the other way, the span is <strong>${tb.reverse.count}</strong> — remainder <strong>${tb.reverse.remainder}</strong>, ${word(tb.reverse)}. ${overall}`,
+              `${esc(partnerFirst)} के चंद्र नक्षत्र (${esc(tb.partnerNak.name)}) से आपके चंद्र नक्षत्र (${esc(tb.selfNak.name)}) तक गिनती <strong>${tb.forward.count} नक्षत्र</strong> है — ९ से भाग देने पर शेष <strong>${tb.forward.remainder}</strong>, ${word(tb.forward)}। उल्टी गिनती में दूरी <strong>${tb.reverse.count}</strong> — शेष <strong>${tb.reverse.remainder}</strong>, ${word(tb.reverse)}। ${overall}`,
+              `${esc(partnerFirst)}ના ચંદ્ર નક્ષત્ર (${esc(tb.partnerNak.name)})થી તમારા ચંદ્ર નક્ષત્ર (${esc(tb.selfNak.name)}) સુધી ગણતરી <strong>${tb.forward.count} નક્ષત્ર</strong> છે — ૯ વડે ભાગતાં શેષ <strong>${tb.forward.remainder}</strong>, ${word(tb.forward)}। ઊલટી ગણતરીમાં અંતર <strong>${tb.reverse.count}</strong> — શેષ <strong>${tb.reverse.remainder}</strong>, ${word(tb.reverse)}। ${overall}`)}</div>
+            ${tb.sameNakshatra ? `<div class="chandra-bala-relax">${LT("Both Moons share one Nakshatra — Janma Tara, the count is 1 in both directions. Schools differ on how they read this case, so it is reported as a fact of the charts rather than a fixed verdict.",
+              "दोनों चंद्र एक ही नक्षत्र में हैं — जन्म तारा, दोनों दिशाओं में गिनती १ है। इस स्थिति को पढ़ने पर शास्त्रों में मतभेद है, इसलिए इसे कुंडलियों का तथ्य बताया गया है, स्थिर निर्णय की तरह नहीं।",
+              "બંને ચંદ્ર એક જ નક્ષત્રમાં છે — જન્મ તારા, બંને દિશાઓમાં ગણતરી ૧ છે. આ સ્થિતિને વાંચવામાં શાસ્ત્રોનો મતભેદ છે, તેથી તેને કુંડળીઓનું તથ્ય જણાવવામાં આવ્યું છે, સ્થિર નિર્ણય તરીકે નહીં.")}</div>` : ""}
+            <div class="card-sub">${LT("Tara is one of the eight classical Ashtakoota factors. It is reported here with its own working — not folded into any 36-point score — and it prescribes nothing: no remedy, no muhurtha, no Vastu zone.",
+              "तारा आठ शास्त्रीय अष्टकूट घटकों में से एक है। यह यहाँ अपनी गिनती के साथ बताया गया है — कोई ३६-गुण अंक इसमें नहीं जाता — और यह कुछ भी निर्धारित नहीं करता: न उपाय, न मुहूर्त, न वास्तु क्षेत्र।",
+              "તારા આઠ શાસ્ત્રીય અષ્ટકૂટ ઘટકોમાંથી એક છે. તે અહીં પોતાની ગણતરી સાથે જણાવવામાં આવી છે — કોઈ ૩૬-ગુણ અંક તેમાં જોડતો નથી — અને તે કશું નિર્ધારિત કરતું નથી: ન ઉપાય, ન મુહૂર્ત, ન વાસ્તુ પ્રદેશ.")}</div>
+          </div>`;
+        })() : ""}
+        <div class="judge-note"><strong>${LT("Scope:", "सीमा:", "મર્યાદા:")}</strong> ${LT("This card carries two classical Moon-pairing read-outs, computed on this device from both birth times and places: the Rashi (Bhakoot) axis between the two natal Moons, and the Nakshatra-level Tara count beneath it. It is not a 36-point Ashtakoota score — Gana, Nadi, Yoni and Graha Maitri are not computed — and it prescribes nothing: no remedy, no muhurtha, no Vastu zone.",
+          "यह कार्ड दो शास्त्रीय चंद्र-मिलान पठन रखता है, जो दोनों के जन्म समय व स्थान से इसी डिवाइस पर गणित हैं: दोनों जन्म-चंद्रों के बीच का राशि (भकूट) अक्ष, और उसके नीचे नक्षत्र-स्तर की तारा गिनती। यह ३६ गुण अष्टकूट मिलान नहीं है — गण, नाड़ी, योनि और ग्रह मैत्री की गणना नहीं हुई — और यह कुछ भी निर्धारित नहीं करता: न उपाय, न मुहूर्त, न वास्तु क्षेत्र।",
+          "આ કાર્ડ બે શાસ્ત્રીય ચંદ્ર-મિલાન વાંચન ધરાવે છે, જે બંનેના જન્મ સમય અને સ્થળથી આ જ ડિવાઇસ પર ગણાય છે: બંને જન્મ-ચંદ્રો વચ્ચેનો રાશિ (ભકૂટ) અક્ષ, અને તેની નીચે નક્ષત્ર-સ્તરની તારા ગણતરી. તે ૩૬ ગુણ અષ્ટકૂટ મિલન નથી — ગણ, નાડી, યોનિ અને ગ્રહ મૈત્રી ગણાયાં નથી — અને તે કશું નિર્ધારિત કરતું નથી: ન ઉપાય, ન મુહૂર્ત, ન વાસ્તુ પ્રદેશ.")}</div>
       </div>`;
     })();
 
@@ -6991,7 +7099,7 @@
     loShuPracticeTargets, activationPlan, priorityPlan, crystalGuide, vastuReport,
     formatConductorBreakdown, getDashaRelationship, qualifyEventWindow, remedyTriage, nextActivation,
     practitionerCockpit, renderPractitionerCockpit, printPractitionerCockpit, renderTriageCard,
-    zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, chandraBala, compoundMeaning,
+    zodiacSignSidereal, kuaNumber, compatibility, compatRemedies, chandraBala, taraBala, taraCount, compoundMeaning,
     masterNumber, reduce, reductionChain, relation, chaldeanValue, validatePack, natalConversion, vedicPlaneReadings, vedicTattvaAnchors, renderVedicTattvaSection,
     currentAgeYears, isMinorProfile, solarLoadOf, solarOverload, solarModerationNote,
     healthTagsOf, hasRespiratoryTag, vataInBaseline, mercuryVataNumber, hasHealthFocus,
