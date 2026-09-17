@@ -260,6 +260,43 @@ check("coordinate-entered partner places do not print their coordinates twice", 
 
 check("the Moon layer is absent entirely when no partner is supplied", !$("#chandra-bala", authorityReportDom) && !$("#chandra-bala", mount(window.__NV.renderReport(profile({ partnerName: "", partnerDob: "" })))));
 
+/* ---- Partner Vimshottari anchor (Section 18 companion) --------------------
+   The partner's own classical stack reuses the primary engine unchanged.
+   Hand check for the fixture (2000-04-04, 09:30, Ahmedabad): the sidereal
+   Moon sits in Uttara Bhadrapada p3 (lord Saturn) at 74.6% of the 13°20′
+   span, so the Saturn balance is (1 − 0.746) × 19 = 4.822y; the Mercury MD
+   (17y, 2005-01-29 → 2022-01-29) is followed by Ketu (7y), making Ketu the
+   running Mahadasha through 2029-01-29. */
+const partnerVimProfile = window.__NV.computeProfile({ name: "Arjun Patel", dob: "2000-04-04", mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "", birthTime: "09:30", birthPlace: "Ahmedabad, India" });
+const partnerVim = window.__NV.vimshottariTimeline(partnerVimProfile);
+check("partner Vimshottari anchors on the partner's natal Moon via the same engine", !!partnerVim && partnerVim.anchor.nakshatra === "Uttara Bhadrapada" && partnerVim.anchor.pada === 3 && partnerVim.anchor.lord === "Saturn" && partnerVim.anchor.moonSign === "Pisces" && partnerVim.anchor.elapsedPct === 74.6 && Math.abs(partnerVim.balanceYears - 4.822) < 0.002 && partnerVim.current.md.lord === "Ketu" && partnerVim.mahadashas[1].lord === "Mercury");
+const moonTier2VimDom = mount(window.__NV.renderReport(moonTier2Profile));
+const moonTier2VimCard = $("#partner-vimshottari", moonTier2VimDom);
+check("partner birth time and place unlock the partner's own Vimshottari card", !!moonTier2VimCard && moonTier2VimCard.getAttribute("data-partner-vimshottari") === "available" && moonTier2VimCard.getAttribute("data-authority") === "vimshottari" && moonTier2VimCard.getAttribute("data-partner-vimshottari-md") === "Ketu" && /Uttara Bhadrapada/.test(moonTier2VimCard.textContent) && /74\.6/.test(moonTier2VimCard.textContent) && /4\.822/.test(moonTier2VimCard.textContent) && !/undefined|NaN/.test(moonTier2VimCard.innerHTML));
+check("the partner card compares the two active Mahadasha lords as a plain fact", moonTier2VimCard.getAttribute("data-partner-vimshottari-agrees") === "no" && !!moonTier2VimCard.querySelector('[data-partner-vim-compare="differ"]') && /Jupiter/.test(moonTier2VimCard.textContent) && /Ketu/.test(moonTier2VimCard.textContent));
+check("the partner Vimshottari card has no Tier 1 variant — it appears only once the partner chart reaches Tier 2", (() => {
+  const tier1 = $("#partner-vimshottari", mount(window.__NV.renderReport(moonTier1Profile)));
+  const badPlace = $("#partner-vimshottari", mount(window.__NV.renderReport(moonBadPlaceProfile)));
+  const noPartner = $("#partner-vimshottari", mount(window.__NV.renderReport(profile({ partnerName: "", partnerDob: "" }))));
+  return !tier1 && !badPlace && !noPartner;
+})());
+check("a Tier 1 primary chart still shows the partner stack, with the comparison withheld", (() => {
+  const c = $("#partner-vimshottari", mount(window.__NV.renderReport(moonSelfGapProfile)));
+  return !!c && c.getAttribute("data-partner-vimshottari") === "available" && c.getAttribute("data-partner-vimshottari-agrees") === "n/a" && !!c.querySelector('[data-partner-vim-compare="not-comparable"]') && /not compared/.test(c.textContent);
+})());
+check("the partner Vimshottari card is a timing read-out only — no remedy, muhurtha or score", moonTier2VimCard.getAttribute("data-authority") === "vimshottari" && !moonTier2VimCard.querySelector("[data-remedy-authority]") && !moonTier2VimCard.querySelector(".kit-card") && /no remedy, no muhurtha/.test(moonTier2VimCard.textContent) && !/wear |mantra|crystal|Rudraksha|fast on/i.test(moonTier2VimCard.textContent));
+check("the partner Vimshottari card keeps the primary card's pixel locator single", (() => {
+  const html = window.__NV.renderReport(moonTier2Profile);
+  return (html.match(/class="card vimshottari-card"/g) || []).length === 1 && !/class="card vimshottari-card partner-vimshottari-card"/.test(html);
+})());
+window.__NV.setLanguage("hi");
+const hiMoonTier2VimCard = $("#partner-vimshottari", mount(window.__NV.renderReport(moonTier2Profile)));
+check("the partner Vimshottari card localises to Hindi", !!hiMoonTier2VimCard && /शास्त्रीय विम्शोत्तरी दशा/.test(hiMoonTier2VimCard.textContent) && !/Partner's Classical Vimshottari Dasha/.test(hiMoonTier2VimCard.textContent));
+window.__NV.setLanguage("gu");
+const guMoonTier2VimCard = $("#partner-vimshottari", mount(window.__NV.renderReport(moonTier2Profile)));
+check("the partner Vimshottari card localises to Gujarati", !!guMoonTier2VimCard && /શાસ્ત્રીય વિમ્શોત્તરી દશા/.test(guMoonTier2VimCard.textContent));
+window.__NV.setLanguage("en");
+
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
 check("40-day practice excludes static Vastu, dosha and deity prescriptions", !$("#plan-section", authorityReportDom).textContent.includes("Vastu correction") && !$("#plan-section", authorityReportDom).textContent.includes("Dosha-aware rhythm") && !$("#plan-section", authorityReportDom).textContent.includes("Ishta Devta chant"));
 
