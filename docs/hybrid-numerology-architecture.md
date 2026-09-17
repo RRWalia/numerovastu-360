@@ -72,6 +72,9 @@ boundary.
 | Dasha dates and event windows | Dasha engine | Both grids |
 | Dynamic Active Vastu Zone | Active Dasha lords + Vedic compass mapping | Both grids, static room scan, Kua |
 | Compatibility reflection | Four pairwise Driver/Conductor relations | Lo Shu remedy output, Dasha timing, Vastu activation |
+| Chandra-bala (Moon pairing) | Both natal sidereal Moons, computed from birth time + place on each side (`chandraBala()`) | Driver/Conductor numbers, Lo Shu remedies, Dasha timing — and it prescribes nothing in return |
+| Tara Bala (Nakshatra-level Moon pairing) | Both natal Moon nakshatras (Tier 2 both sides) — inclusive count both ways, remainder mod 9 (`taraBala()`) | Any 36-point Ashtakoota score, remedies, muhurthas — reported with its own working only |
+| Partner Vimshottari (partner's own Dasha) | Partner's natal sidereal Moon, via same `vimshottariTimeline()` engine | Chandra-bala verdict, Driver/Conductor comparison, Lo Shu remedies, Vastu zones, Ank Jyotish roadmap — timing read-out only |
 | Kua directions | Feng Shui | Classical Vastu / Dasha |
 
 Compatibility is intentionally relational rather than prescriptive: it makes
@@ -79,6 +82,22 @@ mutual strengths, workable watch points, potential blind spots and communication
 cues visible across the four Driver/Conductor pairings. It cannot generate
 partner-side remedy kits, crystals, Rudraksha, affirmations, lifestyle
 obligations or a second 40-day plan.
+
+The partner-Moon stack (Chandra-bala Rashi axis, Astro-Identity positions,
+partner Vimshottari, Tara Bala) follows the same progressive-precision idiom
+as the primary chart: **Tier 1** (date only) shows Driver/Conductor comparison
+and states plainly that Chandra-bala was not computed; **Tier 2** (birth time +
+birthplace resolvable in the offline atlas on each side) computes the sidereal
+Moons via the on-device Meeus engine, the mutual Rashi axis (1/1 to 7/7), the
+shared-rashi-lord fact, the four-row Sun/Moon/Nakshatra/Lagna positions, the
+partner's own Vimshottari anchor/balance/active MD/AD/PD with factual same-lord
+comparison, and the Nakshatra-level Tara counts both ways modulo 9 (3/5/7
+inauspicious). There is deliberately no Tier 1 variant of the position or
+Vimshottari cards — a Sun-only partner column would invite exactly the eyeball
+Moon comparison that a date alone cannot support. All three partner cards
+declare `data-authority=\"chandra-bala\"` or `data-authority=\"vimshottari\"`
+and prescribe nothing; they never feed Lo Shu remedies, Vastu zones or the
+Ank Jyotish roadmap, and they are never folded into a 36-point Ashtakoota score.
 
 The UI carries these boundaries with `data-authority` or
 `data-remedy-authority` markers where appropriate. Textual guardrails are also
