@@ -297,6 +297,47 @@ const guMoonTier2VimCard = $("#partner-vimshottari", mount(window.__NV.renderRep
 check("the partner Vimshottari card localises to Gujarati", !!guMoonTier2VimCard && /શાસ્ત્રીય વિમ્શોત્તરી દશા/.test(guMoonTier2VimCard.textContent));
 window.__NV.setLanguage("en");
 
+/* ---- Tara Bala: the Nakshatra-level Moon-pairing layer --------------------
+   Hand check for the fixtures: the self Moon (2005-08-20 14:05 New Delhi) is
+   in Shatabhisha (24th nakshatra) and the partner Moon (2000-04-04 09:30
+   Ahmedabad) in Uttara Bhadrapada (26th). Inclusive partner→self count
+   26 → 26 mod 9 = 8 → auspicious; self→partner count 3 → 3 → inauspicious:
+   a mixed reading. Source-verified worked examples: Rohini(4th) → Anuradha
+   (17th) = 14 → remainder 5 → inauspicious, the other way = 15 → 6 →
+   auspicious; Jyeshtha(18th) / Purva Phalguni(11th) = 8 → 8 auspicious and
+   21 → 3 inauspicious. */
+check("Tara Bala reproduces the classical worked examples from the references", window.__NV.taraCount(3, 16) === 14 && window.__NV.taraCount(16, 3) === 15 && window.__NV.taraCount(10, 17) === 8 && window.__NV.taraCount(17, 10) === 21);
+const taraEngine = window.__NV.taraBala(moonTier2Profile, partnerVimProfile);
+check("Tara Bala counts inclusive nakshatra spans in both directions", !!taraEngine && taraEngine.computed === true && taraEngine.forward.count === 26 && taraEngine.forward.remainder === 8 && taraEngine.forward.auspicious === true && taraEngine.reverse.count === 3 && taraEngine.reverse.remainder === 3 && taraEngine.reverse.auspicious === false && taraEngine.sameNakshatra === false && taraEngine.bothAuspicious === false && taraEngine.bothInauspicious === false);
+check("Tara Bala degrades honestly when either natal Moon is missing", (() => {
+  const selfShort = window.__NV.taraBala(moonSelfGapProfile, partnerVimProfile);
+  const partnerShort = window.__NV.taraBala(moonTier2Profile, window.__NV.computeProfile({ name: "Arjun Patel", dob: "2000-04-04", mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }));
+  return selfShort.computed === false && selfShort.missing.indexOf("self-nakshatra") !== -1 && selfShort.missing.indexOf("partner-nakshatra") === -1 && /add your birth time and place/.test(selfShort.message)
+    && partnerShort.computed === false && partnerShort.missing.indexOf("partner-nakshatra") !== -1 && /partner birth time and place/.test(partnerShort.message);
+})());
+check("a partner whose Moon shares the self nakshatra gives Janma Tara (count 1 both ways)", (() => {
+  const janmaPartner = window.__NV.computeProfile({ name: "Meera Shah", dob: "1990-08-08", mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "", birthTime: "12:00", birthPlace: "Ahmedabad, India" });
+  const r = window.__NV.taraBala(moonTier2Profile, janmaPartner);
+  return !!r && r.computed === true && r.sameNakshatra === true && r.forward.count === 1 && r.reverse.count === 1 && r.forward.remainder === 1 && r.bothAuspicious === true;
+})());
+const taraBlock = $("#tara-bala", moonTier2Card);
+check("the computed Chandra-bala card carries the Nakshatra-level Tara layer", !!taraBlock && taraBlock.getAttribute("data-tara") === "computed" && taraBlock.getAttribute("data-tara-fwd") === "26" && taraBlock.getAttribute("data-tara-rev") === "3" && taraBlock.getAttribute("data-tara-fwd-rem") === "8" && taraBlock.getAttribute("data-tara-rev-rem") === "3" && taraBlock.getAttribute("data-tara-verdict") === "mixed" && /Uttara Bhadrapada/.test(taraBlock.textContent) && /Shatabhisha/.test(taraBlock.textContent) && /26 Nakshatras/.test(taraBlock.textContent) && /remainder 8/.test(taraBlock.textContent) && /traditionally inauspicious/.test(taraBlock.textContent) && /mixed/.test(taraBlock.textContent) && !/undefined|NaN/.test(taraBlock.innerHTML));
+check("the Janma Tara note renders only when both Moons share a nakshatra", (() => {
+  const janmaPartnerProfile = profile({ partnerName: "Meera Shah", partnerDob: "1990-08-08", partnerBirthTime: "12:00", partnerBirthPlace: "Ahmedabad, India" });
+  const janmaCard = $("#tara-bala", mount(window.__NV.renderReport(janmaPartnerProfile)));
+  const mixedCard = $("#tara-bala", mount(window.__NV.renderReport(moonTier2Profile)));
+  return !!janmaCard && janmaCard.getAttribute("data-tara-fwd") === "1" && /Janma Tara/.test(janmaCard.textContent) && !!mixedCard && !/Janma Tara/.test(mixedCard.textContent);
+})());
+check("Tara Bala is a reported working, never a score, remedy or muhurtha", !!taraBlock && !taraBlock.querySelector("[data-remedy-authority]") && /not folded into any 36-point score/.test(taraBlock.textContent) && /no remedy, no muhurtha, no Vastu zone/.test(taraBlock.textContent) && !/wear |mantra|crystal|Rudraksha|fast on/i.test(taraBlock.textContent));
+check("the Tier 1 Moon banner carries no Tara layer", !$("#tara-bala", moonTier1Card) && !$("#tara-bala", mount(window.__NV.renderReport(moonBadPlaceProfile))));
+window.__NV.setLanguage("hi");
+const hiTaraBlock = $("#tara-bala", mount(window.__NV.renderReport(moonTier2Profile)));
+check("the Tara layer localises to Hindi", !!hiTaraBlock && /तारा बल/.test(hiTaraBlock.textContent) && /नक्षत्र-स्तर/.test(hiTaraBlock.textContent) && !/Nakshatra-level layer/.test(hiTaraBlock.textContent));
+window.__NV.setLanguage("gu");
+const guTaraBlock = $("#tara-bala", mount(window.__NV.renderReport(moonTier2Profile)));
+check("the Tara layer localises to Gujarati", !!guTaraBlock && /તારા બલ/.test(guTaraBlock.textContent));
+window.__NV.setLanguage("en");
+
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
 check("40-day practice excludes static Vastu, dosha and deity prescriptions", !$("#plan-section", authorityReportDom).textContent.includes("Vastu correction") && !$("#plan-section", authorityReportDom).textContent.includes("Dosha-aware rhythm") && !$("#plan-section", authorityReportDom).textContent.includes("Ishta Devta chant"));
 

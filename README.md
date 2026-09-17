@@ -230,6 +230,7 @@ The report intentionally shows the source of each kind of guidance.
 | Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
 | Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
 | Chandra-bala (Moon pairing) | Both natal sidereal Moons, computed from birth time + place on each side | Driver/Conductor numbers, Lo Shu remedies, Dasha timing — and it prescribes nothing in return |
+| Tara Bala (Nakshatra-level Moon pairing) | Both natal Moon **nakshatras** (Tier 2 on each side) — inclusive count both ways, remainder on division by 9 | Any 36-point Ashtakoota score, remedies, muhurthas — reported with its own working and traditional classification only |
 | Partner Vimshottari (partner's own Dasha) | The partner's natal sidereal Moon, via the same `vimshottariTimeline()` engine and fixed 120-year lord durations | The Chandra-bala verdict, Driver/Conductor comparison, Lo Shu remedies, Vastu zones and the Ank Jyotish roadmap — a timing read-out of the partner's chart only |
 | Practice depth (Scaled Sadhana) | Client intake choice | The Lo Shu remedy target, the triage tiers, Dasha/Vastu timing, and every clinical guardrail — a scale sizes the practice, it never selects or re-sources a remedy |
 | Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
@@ -267,6 +268,29 @@ share a rashi lord — the classical cancellation of Shadashtaka / Dwidwadasha �
 the app reports that as a fact of the chart rather than applying it as a score,
 because schools differ on its scope. Chandra-bala prescribes nothing: no remedy,
 no muhurtha, no Vastu zone.
+
+#### Tara Bala — the Nakshatra-level layer
+
+Once both natal Moons are computable, the Chandra-bala card carries a deeper,
+**Nakshatra-level** read-out beneath the Rashi axis: the classical Tara count.
+It is counted in nakshatras (so it needs Tier 2 on *both* sides, not just the
+partner), inclusive of both ends, in both directions, and each count is divided
+by 9 — remainders **3, 5 and 7** are traditionally inauspicious, every other
+remainder (1, 2, 4, 6, 8, 9 — with 0 read as 9) traditionally auspicious. Both
+directions auspicious is the favourable reading, one each way is mixed, both
+inauspicious is the caution reading. The card prints the actual working — both
+counts, both remainders, and the traditional classification of each — rather
+than a bare label.
+
+Moons that share one nakshatra give the count 1 in both directions (Janma
+Tara); because schools differ on how they read that case, the card flags it as
+a fact of the charts rather than a fixed verdict. Like the Rashi axis above it,
+Tara Bala is reported with its working, **never folded into a 36-point score**,
+and prescribes nothing. `taraBala()` returns
+`{ computed: false, missing, message }` when either nakshatra is absent, and
+`smoke.test.js` pins the inclusive counting, the 3/5/7 rule, the Janma case,
+the two worked examples from the references (14→5 inauspicious / 15→6
+auspicious) and the degradation contract.
 
 #### Partner Astro-Identity Snapshot
 

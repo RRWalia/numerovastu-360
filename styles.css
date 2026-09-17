@@ -792,6 +792,14 @@ body {
   background: var(--light-yellow-bg); border-left: 3px solid var(--amber);
   border-radius: var(--r-sm); font-size: 13px; line-height: 21px; color: var(--label-secondary);
 }
+/* The Nakshatra-level Tara layer, nested under the computed Chandra-bala
+   verdict. A sub-layer of the same card, so it inherits the card's spacing
+   (`.chandra-bala-card > * + *`) and only needs its own heading rhythm and
+   the ink-on-pink tint that marks it as the deeper, nakshatra-level read. */
+#tara-bala .chandra-bala-subhead { margin-bottom: 2px; }
+#tara-bala .kit-value { font-variant-numeric: tabular-nums; }
+#tara-bala[data-tara-verdict="mixed"] .chandra-bala-subhead { color: var(--amber, #b45309); }
+#tara-bala[data-tara-verdict="inauspicious"] .chandra-bala-subhead { color: var(--bad, #b91c1c); }
 
 /* Partner Astro-Identity Snapshot — a compact two-column positional read so
    the Chandra-bala verdict can be checked against the actual longitudes. */
