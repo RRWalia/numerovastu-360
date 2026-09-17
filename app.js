@@ -2875,6 +2875,82 @@
     };
   }
 
+  /* ---- Real sunrise calculator (Meeus Ch.16 foundation) ----------------
+     Replaces the hardcoded 6:30-8:30 window. Uses NVAstro.sunriseSunset
+     (Meeus hour-angle) with DST and polar-day handling. Falls back to
+     the old text only when no geo is available. */
+  function getRealSunriseForProfile(p, Y, M, D) {
+    try {
+      if (!p) return null;
+      var astro = (typeof window !== "undefined" && window.NVAstro) ? window.NVAstro : null;
+      if (!astro || typeof astro.sunriseSunset !== "function") return null;
+      var place = null;
+      if (p.astro && p.astro.place) place = p.astro.place;
+      if (!place || !isFinite(place.lat) || !isFinite(place.lon)) return null;
+      var now = new Date();
+      var y = Y || now.getFullYear();
+      var m = M || (now.getMonth() + 1);
+      var d = D || now.getDate();
+      var tzEff = place.tz;
+      if (typeof astro.effectiveTz === "function") {
+        try { tzEff = astro.effectiveTz(place, y, m, d); } catch (e) { tzEff = place.tz; }
+      } else if (place.dst) {
+        try {
+          if (typeof astro.isDSTActive === "function" && astro.isDSTActive(y, m, d, place.lat, place.lon)) tzEff = place.tz + 1;
+        } catch (e) {}
+      }
+      if (!isFinite(tzEff)) tzEff = place.tz;
+      var ss = astro.sunriseSunset(y, m, d, place.lat, place.lon, tzEff);
+      if (!ss || !ss.ok) return null;
+      return { place: place, tzEff: tzEff, ss: ss, y: y, m: m, d: d };
+    } catch (e) { return null; }
+  }
+
+  function formatSunriseWindow(p, langOverride) {
+    var lang = langOverride || getLang();
+    var fallback = lang === "hi" ? "सुबह ६:३० से ८:३० के बीच (सूर्योदय काल)" : lang === "gu" ? "સવારે ૬:૩૦ થી ૮:૩૦ વચ્ચે (સૂર્યોદય સમય)" : "between 6:30 AM and 8:30 AM (sunrise hours)";
+    var real = getRealSunriseForProfile(p);
+    if (!real || !real.ss) return fallback;
+    var ss = real.ss;
+    var astro = window.NVAstro;
+    var fmt = function(dec) {
+      try {
+        if (astro && typeof astro.formatSunTime === "function") return astro.formatSunTime(dec, lang);
+      } catch (e) {}
+      // fallback simple
+      if (!isFinite(dec)) return "";
+      var h = ((dec % 24) + 24) % 24;
+      var hour24 = Math.floor(h);
+      var minute = Math.floor((h - hour24) * 60 + 0.5);
+      var hr = hour24, min = minute;
+      if (min >= 60) { min -= 60; hr = (hr + 1) % 24; }
+      var ampm = hr >= 12 ? "PM" : "AM";
+      var h12 = hr % 12; if (h12 === 0) h12 = 12;
+      var base = h12 + ":" + String(min).padStart(2, "0") + " " + ampm;
+      return base;
+    };
+    if (ss.alwaysDay) {
+      return lang === "hi" ? "सुबह सूर्योदय के आसपास (आपके स्थान पर ध्रुवीय दिन — सूर्य पूरे दिन ऊपर है, सुबह जल्दी पहनें)" : lang === "gu" ? "સવારે સૂર્યોદયની આસપાસ (તમારા સ્થાને ધ્રુવીય દિવસ — સૂર્ય આખો દિવસ ઉપર છે, વહેલી સવારે પહેરો)" : "around sunrise — polar day at your location (sun up all day, use early morning)";
+    }
+    if (ss.alwaysNight) {
+      return lang === "hi" ? "सुबह ६ बजे के आसपास प्रतीकात्मक सूर्योदय (आपके स्थान पर ध्रुवीय रात)" : lang === "gu" ? "સવારે ૬ વાગ્યાની આસપાસ પ્રતીકાત્મક સૂર્યોદય (તમારા સ્થાને ધ્રુવીય રાત)" : "around symbolic sunrise 6:00 AM (polar night at your location)";
+    }
+    if (ss.sunrise == null || ss.sunset == null) return fallback;
+    var sr = ss.sunrise;
+    var srEnd = sr + 2;
+    if (srEnd > ss.sunset) srEnd = ss.sunset;
+    if (srEnd >= 24) srEnd -= 24;
+    var srText = fmt(sr);
+    var srEndText = fmt(srEnd);
+    if (lang === "hi") {
+      return "सुबह " + srText + " से " + srEndText + " के बीच (सूर्योदय " + srText + " पर, वास्तविक गणना)";
+    } else if (lang === "gu") {
+      return "સવારે " + srText + " થી " + srEndText + " વચ્ચે (સૂર્યોદય " + srText + " પર, વાસ્તવિક ગણતરી)";
+    } else {
+      return "between " + srText + " and " + srEndText + " (sunrise at " + srText + ", actual calculation for your location)";
+    }
+  }
+
   function watchSpec(p) {
     const d = p.driver, c = p.conductor;
     const db = getActiveDB();
@@ -2888,7 +2964,7 @@
     ];
     const avoids = [db.watch.avoid[d], db.watch.avoid[c]].filter(Boolean);
     const days = [...new Set([dayOf(d), dayOf(c)])];
-    const timeText = lang === "hi" ? "सुबह ६:३० से ८:३० के बीच (सूर्योदय काल)" : lang === "gu" ? "સવારે ૬:૩૦ થી ૮:૩૦ વચ્ચે (સૂર્યોદય સમય)" : "between 6:30 AM and 8:30 AM (sunrise hours)";
+    const timeText = formatSunriseWindow(p, lang);
     return {
       rows, avoids, days,
       time: timeText,
@@ -3724,32 +3800,62 @@
         ? (lang === "hi" ? `नीचे का Remedy Triage से समन्वित: इस चक्र जप होल्ड पर है — अभ्यास गैर-मंत्र संकेतों (रंग, आदत, संकल्प पत्र) पर चले और सक्रिय क्षेत्र साधें।` : lang === "gu" ? `નીચેના Remedy Triage સાથે સુસંગત: આ ચક્રે જાપ હોલ્ડ પર છે — અભ્યાસ બિન-મંત્ર સંકેતો (રંગ, ટેવ, સંકલ્પ પત્ર) પર ચાલે અને સક્રિય ક્ષેત્ર સાધો.` : `Synced with the Remedy Triage below: japa is held this cycle — the practice runs on non-mantra cues (colour, habit, wish paper) while you work the active sector.`)
         : (lang === "hi" ? "संतुलित grid — केवल रखरखाव अभ्यास।" : lang === "gu" ? "સંતુલિત grid — ફક્ત જાળવણી અભ્યાસ." : "Balanced grid — maintenance practice only.");
 
+    /* ---- Real sunrise window for daily mantra (fixes hardcoded 8 AM) ---- */
+    let _sunriseInfo = null;
+    try { _sunriseInfo = getRealSunriseForProfile(p); } catch (e) { _sunriseInfo = null; }
+    let _srText = "", _srEndText = "", _srLabel = "";
+    if (_sunriseInfo && _sunriseInfo.ss && _sunriseInfo.ss.sunrise != null) {
+      try {
+        const astro = (typeof window !== "undefined" && window.NVAstro) ? window.NVAstro : null;
+        const fmt = (dec) => {
+          if (astro && typeof astro.formatSunTime === "function") return astro.formatSunTime(dec, lang);
+          if (!isFinite(dec)) return "";
+          let h = ((dec % 24) + 24) % 24;
+          let hour24 = Math.floor(h);
+          let minute = Math.floor((h - hour24) * 60 + 0.5);
+          let hr = hour24, min = minute;
+          if (min >= 60) { min -= 60; hr = (hr + 1) % 24; }
+          let ampm = hr >= 12 ? "PM" : "AM";
+          let h12 = hr % 12; if (h12 === 0) h12 = 12;
+          return h12 + ":" + String(min).padStart(2, "0") + " " + ampm;
+        };
+        _srText = fmt(_sunriseInfo.ss.sunrise);
+        let end = _sunriseInfo.ss.sunrise + 2;
+        if (end > _sunriseInfo.ss.sunset) end = _sunriseInfo.ss.sunset;
+        _srEndText = fmt(end);
+        _srLabel = _sunriseInfo.ss.alwaysDay ? "polar-day" : _sunriseInfo.ss.alwaysNight ? "polar-night" : "ok";
+      } catch (e) { _srText = ""; }
+    }
+
     let daily;
     if (lang === "hi") {
+      const timeHintHi = _srText ? `सूर्योदय ${_srText} पर — ${_srText} से ${_srEndText} आदर्श (वास्तविक गणना, ${esc(_sunriseInfo.place.name || _sunriseInfo.place.lat.toFixed(2)+","+_sunriseInfo.place.lon.toFixed(2))})` : "सूर्योदय के आसपास — सुबह ८ बजे से पहले (स्थान उपलब्ध होने पर वास्तविक सूर्योदय से गणना)";
       daily = [
         holdJapa
           ? { ico: "⏸", label: "सूर्योदय अभ्यास — जप होल्ड पर", value: esc(tier1.japa || "इस चक्र जप रोकें"), sub: `इसके बजाय सक्रिय ${esc(tier1.planet)} क्षेत्र साधें: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "सूर्योदय मंत्र जाप", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "hi")} बार, सुबह ८ बजे से पहले`, sub: `${esc(targetShort.meaning)} यह आपके ${esc(targetDescriptor)} के ${esc(target.planet)} संकेत को अभ्यास में लाता है।` },
+          : { ico: "🌅", label: "सूर्योदय मंत्र जाप", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "hi")} बार, ${timeHintHi}`, sub: `${esc(targetShort.meaning)} यह आपके ${esc(targetDescriptor)} के ${esc(target.planet)} संकेत को अभ्यास में लाता है।` },
         { ico: "📝", label: "संकल्प पत्र", value: `लिखें: “${esc(targetShort.affirmation)}” ११ बार`, sub: "कागज को पर्स या तकिए के नीचे रखें — लिखित संकल्प निरंतरता को सहारा देता है।" },
         { ico: "🎨", label: "लो शू रंग संकेत", value: `${esc(target.color.split(",")[0])} रंग को अपने दैनिक अभ्यास में शामिल करें।`, sub: `यह रंग केवल लो शू के अंक ${targetN} के अभ्यास के लिए चुना गया है।` },
         { ico: "🌬", label: t("sadhanaRowBreath", "श्वास अभ्यास"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "अगर सांस रोकनी पड़े या चक्कर आए तो तुरंत रोक दें और सामान्य श्वास पर लौटें।") },
         { ico: "🌿", label: "जीवनशैली संकेत", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} की ऊर्जा को संतुलित दिशा देने वाली छोटी, रोज़ की आदत।` }
       ];
     } else if (lang === "gu") {
+      const timeHintGu = _srText ? `સૂર્યોદય ${_srText} પર — ${_srText} થી ${_srEndText} આદર્શ (વાસ્તવિક ગણતરી, ${esc(_sunriseInfo.place.name || _sunriseInfo.place.lat.toFixed(2)+","+_sunriseInfo.place.lon.toFixed(2))})` : "સૂર્યોદયની આસપાસ — સવારે ૮ વાગ્યા પહેલાં (સ્થાન મળે ત્યારે વાસ્તવિક સૂર્યોદયથી ગણતરી)";
       daily = [
         holdJapa
           ? { ico: "⏸", label: "સૂર્યોદય અભ્યાસ — જાપ હોલ્ડ પર", value: esc(tier1.japa || "આ ચક્રે જાપ રોકો"), sub: `તેના બદલે સક્રિય ${esc(tier1.planet)} ક્ષેત્ર સાધો: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "સૂર્યોદય મંત્ર જાપ", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "gu")} વખત, સવારે ૮ વાગ્યા પહેલાં`, sub: `${esc(targetShort.meaning)} આ તમારા ${esc(targetDescriptor)} ના ${esc(target.planet)} સંકેતને અભ્યાસમાં લાવે છે.` },
+          : { ico: "🌅", label: "સૂર્યોદય મંત્ર જાપ", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "gu")} વખત, ${timeHintGu}`, sub: `${esc(targetShort.meaning)} આ તમારા ${esc(targetDescriptor)} ના ${esc(target.planet)} સંકેતને અભ્યાસમાં લાવે છે.` },
         { ico: "📝", label: "સંકલ્પ પત્ર", value: `લખો: “${esc(targetShort.affirmation)}” ૧૧ વખત`, sub: "કાગળને પર્સમાં કે ઓશીકા નીચે રાખો — લખેલો સંકલ્પ સાતત્યને ટેકો આપે છે." },
         { ico: "🎨", label: "લો શુ રંગ સંકેત", value: `${esc(target.color.split(",")[0])} રંગને દૈનિક અભ્યાસમાં સામેલ કરો.`, sub: `આ રંગ માત્ર લો શુના અંક ${targetN} ના અભ્યાસ માટે પસંદ કરાયો છે.` },
         { ico: "🌬", label: t("sadhanaRowBreath", "શ્વાસ અભ્યાસ"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "શ્વાસ રોકવો પડે કે ચક્કર આવે તો તરત અટકો અને સામાન્ય શ્વાસ પર પાછા ફરો.") },
         { ico: "🌿", label: "જીવનશૈલી સંકેત", value: esc(target.lifestyle.split(";")[0]), sub: `${esc(target.planet)} ની ઊર્જાને સંતુલિત દિશા આપતી નાની, રોજની ટેવ.` }
       ];
     } else {
+      const timeHintEn = _srText ? `around sunrise at ${_srText} — ideal ${_srText} to ${_srEndText} (actual calculation for ${esc(_sunriseInfo.place.name || _sunriseInfo.place.lat.toFixed(2)+","+_sunriseInfo.place.lon.toFixed(2))})` : "around sunrise — ideally within 2 hours of sunrise (actual sunrise varies by location, e.g. 6:04 Trivandrum vs 6:47 Srinagar, 08:05 Birmingham GMT)";
       daily = [
         holdJapa
           ? { ico: "⏸", label: "Sunrise practice — japa on hold", value: esc(tier1.japa || "Hold japa this cycle"), sub: `Work the active ${esc(tier1.planet)} sector instead: ${esc(tier1.zone)} — ${esc(tier1.zoneRemedy)}` }
-          : { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "en")} times, ideally before 8 AM`, sub: `${esc(targetShort.meaning)} This practises the ${esc(target.planet)} signal in your ${esc(targetDescriptor)}.` },
+          : { ico: "🌅", label: "Sunrise mantra", value: `<span class="mantra">${esc(targetShort.dev)}</span> <em>(${esc(targetShort.pron)})</em> — ${localNumber(sadhana.japa, "en")} times, ${timeHintEn}`, sub: `${esc(targetShort.meaning)} This practises the ${esc(target.planet)} signal in your ${esc(targetDescriptor)}.` },
         { ico: "📝", label: "Wish paper", value: `Write “${esc(targetShort.affirmation)}” 11 times`, sub: "Keep the paper in your wallet or under your pillow — a written intention supports consistency." },
         { ico: "🎨", label: "Lo Shu colour cue", value: `Bring ${esc(target.color.split(",")[0].toLowerCase())} into your daily practice.`, sub: `This colour is selected only for the Lo Shu number ${targetN} practice.` },
         { ico: "🌬", label: t("sadhanaRowBreath", "Breathwork"), value: t(sadhanaCopy.breath, ""), sub: t("sadhanaBreathSub", "If a hold feels forced, or you feel dizzy, stop and return to normal breathing.") },
@@ -3763,12 +3869,18 @@
     const appendPowerDay = (n, role) => {
       const info = db.numbers[n];
       if (!info) return;
+      let sunriseSuffix = "";
+      if (_srText) {
+        if (lang === "hi") sunriseSuffix = ` — सूर्योदय ${_srText} पर, ${_srText} से ${_srEndText} शुभ`;
+        else if (lang === "gu") sunriseSuffix = ` — સૂર્યોદય ${_srText} પર, ${_srText} થી ${_srEndText} શુભ`;
+        else sunriseSuffix = ` — sunrise ${_srText}, ideal ${_srText} to ${_srEndText}`;
+      }
       if (lang === "hi") {
-        powerDays.push({ day: dayOf(n), planet: `${n} — ${esc(info.planet)}`, note: `${role} का power day — केवल check-in या शुरुआत चुनने का संदर्भ; यह लो शू अभ्यास-लक्ष्य नहीं बदलता।`, charity: info.charity, fast: info.fast });
+        powerDays.push({ day: dayOf(n), planet: `${n} — ${esc(info.planet)}`, note: `${role} का power day — केवल check-in या शुरुआत चुनने का संदर्भ; यह लो शू अभ्यास-लक्ष्य नहीं बदलता।${sunriseSuffix}`, charity: info.charity, fast: info.fast });
       } else if (lang === "gu") {
-        powerDays.push({ day: dayOf(n), planet: `${n} — ${esc(info.planet)}`, note: `${role} નો power day — ફક્ત check-in કે શરૂઆત પસંદ કરવાનો સંદર્ભ; આ લો શુ અભ્યાસ-લક્ષ્ય બદલતો નથી.`, charity: info.charity, fast: info.fast });
+        powerDays.push({ day: dayOf(n), planet: `${n} — ${esc(info.planet)}`, note: `${role} નો power day — ફક્ત check-in કે શરૂઆત પસંદ કરવાનો સંદર્ભ; આ લો શુ અભ્યાસ-લક્ષ્ય બદલતો નથી.${sunriseSuffix}`, charity: info.charity, fast: info.fast });
       } else {
-        powerDays.push({ day: DAY_OF[n], planet: `${n} — ${esc(info.planet)}`, note: `Your ${role} power day — a check-in or start-day reference only; it never changes the Lo Shu practice target.`, charity: info.charity, fast: info.fast });
+        powerDays.push({ day: DAY_OF[n], planet: `${n} — ${esc(info.planet)}`, note: `Your ${role} power day — a check-in or start-day reference only; it never changes the Lo Shu practice target.${sunriseSuffix}`, charity: info.charity, fast: info.fast });
       }
     };
     appendPowerDay(p.driver, lang === "hi" ? "मूलांक" : lang === "gu" ? "મૂલાંક" : "Driver");
@@ -5145,6 +5257,89 @@
     </section>`;
 
     /* ---- Section: Numerology Dasha timeline + life-event windows ---- */
+    
+    /* ---- Muhurtha / Rahu Kaal foundation (Meeus Ch.16) -----------------
+       Same engine that fixed the hardcoded 6:30-8:30 window now powers
+       Rahu Kaal, sunrise/sunset, day-length. DST and polar-day handled.
+       This is the foundation for the future Muhurtha module. */
+    const muhurthaSection = (function () {
+      try {
+        const astro = (typeof window !== "undefined" && window.NVAstro) ? window.NVAstro : null;
+        if (!astro || typeof astro.sunriseSunset !== "function") return "";
+        const place = p.astro && p.astro.place ? p.astro.place : null;
+        if (!place || !isFinite(place.lat) || !isFinite(place.lon)) {
+          return `<section class="rsection" id="muhurtha-section" data-muhurtha="no-place">
+      <h2 class="rsection-title"><span class="idx">${SECTION.timing}b</span>${lang === "hi" ? "आज का मुहूर्त — सूर्योदय / राहु काल" : lang === "gu" ? "આજનું મુહૂર્ત — સૂર્યોદય / રાહુ કાળ" : "Today's Muhurtha — Sunrise & Rahu Kaal"}</h2>
+      <p class="rsection-desc">${lang === "hi" ? "जन्म स्थान उपलब्ध होने पर यहाँ वास्तविक सूर्योदय, सूर्यास्त और राहु काल की गणना दिखाई देगी (Meeus Ch.16, DST और ध्रुवीय दिन/रात सहित)।" : lang === "gu" ? "જન્મ સ્થાન ઉપલબ્ધ હોય ત્યારે અહીં વાસ્તવિક સૂર્યોદય, સૂર્યાસ્ત અને રાહુ કાળની ગણતરી બતાવવામાં આવશે (Meeus Ch.16, DST અને ધ્રુવીય દિવસ/રાત સહિત)." : "Add your birth place to see actual sunrise, sunset and Rahu Kaal for today at your location (Meeus Ch.16 engine, DST and polar-day aware)."}</p>
+      <div class="card"><div class="card-sub">${lang === "hi" ? "उदाहरण: त्रिवेंद्रम में सूर्योदय ६:०४ और श्रीनगर में ६:४७ एक ही दिन — बर्मिंघम GMT में ०८:०५ — इसलिए ६:३०-८:३० का हार्डकोड गलत था। अब वास्तविक गणना से समय निकलता है।" : lang === "gu" ? "ઉદાહરણ: ત્રિવેન્દ્રમમાં સૂર્યોદય ૬:૦૪ અને શ્રીનગરમાં ૬:૪૭ એક જ દિવસે — બર્મિંગહામ GMT માં ૦૮:૦૫ — તેથી ૬:૩૦-૮:૩૦ નો હાર્ડકોડ ખોટો હતો. હવે વાસ્તવિક ગણતરીથી સમય નીકળે છે." : "Example: 6:04 Trivandrum vs 6:47 Srinagar same day, 08:05 Birmingham GMT — so the hardcoded 6:30-8:30 window was inaccurate. Now computed from your actual location."}</div></div>
+    </section>`;
+        }
+        const now = new Date();
+        const Y = now.getFullYear(), M = now.getMonth()+1, D = now.getDate();
+        let tzEff = place.tz;
+        try { if (typeof astro.effectiveTz === "function") tzEff = astro.effectiveTz(place, Y, M, D); } catch(e){}
+        const ss = astro.sunriseSunset(Y, M, D, place.lat, place.lon, tzEff);
+        const rk = (typeof astro.getRahuKaal === "function") ? astro.getRahuKaal(Y, M, D, place.lat, place.lon, tzEff) : null;
+        const fmt = (dec) => {
+          try { if (typeof astro.formatSunTime === "function") return astro.formatSunTime(dec, lang); } catch(e){}
+          if (!isFinite(dec)) return "—";
+          let h = ((dec % 24)+24)%24;
+          let hr = Math.floor(h), mn = Math.floor((h-hr)*60+0.5);
+          if (mn>=60){ mn-=60; hr=(hr+1)%24; }
+          let ampm = hr>=12?"PM":"AM"; let h12=hr%12; if(h12===0)h12=12;
+          return h12+":"+String(mn).padStart(2,"0")+" "+ampm;
+        };
+        const fmt24 = (dec) => {
+          try { if (typeof astro.formatSunTime24 === "function") return astro.formatSunTime24(dec); } catch(e){}
+          if (!isFinite(dec)) return "—";
+          let h = ((dec % 24)+24)%24;
+          let hr = Math.floor(h), mn = Math.floor((h-hr)*60+0.5);
+          if (mn>=60){ mn-=60; hr=(hr+1)%24; }
+          return String(hr).padStart(2,"0")+":"+String(mn).padStart(2,"0");
+        };
+        let sunriseStr = ss && ss.ok && ss.sunrise!=null ? fmt(ss.sunrise) : (ss && ss.alwaysDay ? (lang==="hi"?"ध्रुवीय दिन — सूर्य अस्त नहीं होता":lang==="gu"?"ધ્રુવીય દિવસ — સૂર્ય આથમતો નથી":"Polar day — sun up all day") : (ss && ss.alwaysNight ? (lang==="hi"?"ध्रुवीय रात — सूर्य उदय नहीं होता":lang==="gu"?"ધ્રુવીય રાત — સૂર્ય ઊગતો નથી":"Polar night — no sunrise") : "—"));
+        let sunsetStr = ss && ss.ok && ss.sunset!=null ? fmt(ss.sunset) : (ss && ss.alwaysDay ? (lang==="hi"?"ध्रुवीय दिन":lang==="gu"?"ધ્રુવીય દિવસ":"Polar day") : (ss && ss.alwaysNight ? (lang==="hi"?"ध्रुवीय रात":lang==="gu"?"ધ્રુવીય રાત":"Polar night") : "—"));
+        let transitStr = ss && ss.ok && ss.transit!=null ? fmt(ss.transit) : "—";
+        let dayLenStr = ss && ss.ok ? (ss.dayLength>=24 ? "24h" : ss.dayLength.toFixed(2)+"h") : "—";
+        let rahuStr = "", rahuNote = "";
+        if (rk && rk.ok) {
+          rahuStr = fmt(rk.rahuStart) + " – " + fmt(rk.rahuEnd);
+          const wdNames = lang==="hi" ? ["रवि","सोम","मंगल","बुध","गुरु","शुक्र","शनि"] : lang==="gu" ? ["રવિ","સોમ","મંગળ","બુધ","ગુરુ","શુક્ર","શનિ"] : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+          const wd = wdNames[rk.weekday] || "";
+          rahuNote = (lang==="hi" ? `आज ${wd}वार — राहु काल दिन का ${rk.rahuIndex+1}वाँ भाग (८ में से), ${rk.partDuration.toFixed(2)} घंटे प्रति भाग। सूर्योदय ${fmt(rk.sunrise)} से सूर्यास्त ${fmt(rk.sunset)} तक दिन-मान ${rk.dayLength.toFixed(2)}h।` : lang==="gu" ? `આજે ${wd}વાર — રાહુ કાળ દિવસનો ${rk.rahuIndex+1}મો ભાગ (૮ માંથી), ${rk.partDuration.toFixed(2)} કલાક પ્રતિ ભાગ. સૂર્યોદય ${fmt(rk.sunrise)} થી સૂર્યાસ્ત ${fmt(rk.sunset)} સુધી દિવસ-માન ${rk.dayLength.toFixed(2)}h.` : `Today ${wd} — Rahu Kaal is part ${rk.rahuIndex+1} of 8 (${rk.partDuration.toFixed(2)}h per part). Day-length ${rk.dayLength.toFixed(2)}h from sunrise ${fmt(rk.sunrise)} to sunset ${fmt(rk.sunset)}.`);
+        } else {
+          rahuStr = lang==="hi" ? "गणना उपलब्ध नहीं" : lang==="gu" ? "ગણતરી ઉપલબ્ધ નથી" : "Not available for polar day/night";
+          rahuNote = lang==="hi" ? "ध्रुवीय दिन/रात पर राहु काल पारंपरिक ६-१८ के मानक दिन से लिया जाता है।" : lang==="gu" ? "ધ્રુવીય દિવસ/રાત પર રાહુ કાળ પરંપરાગત ૬-૧૮ ના પ્રમાણભૂત દિવસ પરથી લેવાય છે." : "For polar day/night, Rahu Kaal falls back to a standard 6-18 day.";
+        }
+        const placeLabel = esc(place.name || (place.lat.toFixed(4)+", "+place.lon.toFixed(4))) + " (UTC"+(tzEff>=0?"+":"")+tzEff+")";
+        return `<section class="rsection" id="muhurtha-section" data-muhurtha="ok" data-lat="${place.lat}" data-lon="${place.lon}" data-tz="${tzEff}">
+      <h2 class="rsection-title"><span class="idx">${SECTION.timing}b</span>${lang === "hi" ? "आज का मुहूर्त — सूर्योदय / राहु काल (वास्तविक गणना)" : lang === "gu" ? "આજનું મુહૂર્ત — સૂર્યોદય / રાહુ કાળ (વાસ્તવિક ગણતરી)" : "Today's Muhurtha — Sunrise & Rahu Kaal (actual calculation)"}</h2>
+      <p class="rsection-desc">${lang === "hi" ? `स्थान ${placeLabel} पर आज ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} की Meeus Ch.16 गणना — DST और ध्रुवीय दिन/रात सहित। यही इंजन घड़ी पहनने के समय और power-day शुभ समय को भी ठीक करता है।` : lang === "gu" ? `સ્થાન ${placeLabel} પર આજે ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} ની Meeus Ch.16 ગણતરી — DST અને ધ્રુવીય દિવસ/રાત સહિત. આ જ એન્જિન ઘડિયાળ પહેરવાના સમય અને power-day શુભ સમયને પણ ઠીક કરે છે.` : `Meeus Ch.16 calculation for ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} at ${placeLabel} — DST and polar-day aware. Same engine now fixes watch wearing time and power-day windows.`}</p>
+      <div class="card-grid two">
+        <div class="card">
+          <div class="card-title">${lang === "hi" ? "सूर्योदय / सूर्यास्त" : lang === "gu" ? "સૂર્યોદય / સૂર્યાસ્ત" : "Sunrise / Sunset"}</div>
+          <div class="kit">
+            <div class="kit-row"><div class="kit-ico">🌅</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "सूर्योदय" : lang === "gu" ? "સૂર્યોદય" : "Sunrise"}</div><div class="kit-value">${sunriseStr} <span class="card-sub">${ss && ss.sunrise!=null ? fmt24(ss.sunrise) : ""} local</span></div></div></div>
+            <div class="kit-row"><div class="kit-ico">🌇</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "सूर्यास्त" : lang === "gu" ? "સૂર્યાસ્ત" : "Sunset"}</div><div class="kit-value">${sunsetStr} <span class="card-sub">${ss && ss.sunset!=null ? fmt24(ss.sunset) : ""} local</span></div></div></div>
+            <div class="kit-row"><div class="kit-ico">☀️</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "मध्याह्न / दिन-मान" : lang === "gu" ? "મધ્યાહ્ન / દિવસ-માન" : "Transit / Day-length"}</div><div class="kit-value">${transitStr} / ${dayLenStr}</div></div></div>
+          </div>
+          <div class="card-sub">${lang === "hi" ? "मानक अपवर्तन + सौर त्रिज्या h0=-0.8333° के साथ hour-angle विधि। ध्रुवीय क्षेत्रों में sunrise/sunset null और alwaysDay/alwaysNight flag सेट होता है।" : lang === "gu" ? "પ્રમાણભૂત રીફ્રેક્શન + સૌર ત્રિજ્યા h0=-0.8333° સાથે hour-angle પદ્ધતિ. ધ્રુવીય ક્ષેત્રોમાં sunrise/sunset null અને alwaysDay/alwaysNight flag સેટ થાય છે." : "Hour-angle method with standard refraction + solar radius h0=-0.8333°. Polar regions return null sunrise/sunset with alwaysDay/alwaysNight flags."}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">${lang === "hi" ? "राहु काल (आज)" : lang === "gu" ? "રાહુ કાળ (આજે)" : "Rahu Kaal (today)"}</div>
+          <div class="kit">
+            <div class="kit-row"><div class="kit-ico">⏳</div><div class="kit-body"><div class="kit-label">Rahu Kaal</div><div class="kit-value">${rahuStr}</div></div></div>
+            <div class="kit-row"><div class="kit-ico">📅</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "विवरण" : lang === "gu" ? "વિગત" : "Detail"}</div><div class="kit-value">${rahuNote}</div></div></div>
+          </div>
+          <div class="card-sub">${lang === "hi" ? "सोम=१, शनि=२, शुक्र=३, बुध=४, गुरु=५, मंगल=६, रवि=७ — दिन को ८ बराबर भागों में बाँटकर। यही मुहूर्त मॉड्यूल की नींव है।" : lang === "gu" ? "સોમ=૧, શનિ=૨, શુક્ર=૩, બુધ=૪, ગુરુ=૫, મંગળ=૬, રવિ=૭ — દિવસને ૮ સરખા ભાગમાં વહેંચીને. આ જ મુહૂર્ત મોડ્યુલનો પાયો છે." : "Mon=1, Sat=2, Fri=3, Wed=4, Thu=5, Tue=6, Sun=7 — day divided into 8 equal parts. Foundation for the Muhurtha module."}</div>
+        </div>
+      </div>
+    </section>`;
+      } catch (e) {
+        return "";
+      }
+    })();
+
     const dashaSection = (function () {
       const dl = dashaTimeline(p);
       const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
@@ -5877,8 +6072,9 @@
         ${prioritySection}
       </section>
       <section class="report-module-panel timeline-panel" id="timeline-panel" role="tabpanel" aria-labelledby="timeline-tab"${timelineHidden}>
-        <div class="module-panel-heading timeline-panel-heading" id="timeline-top"><p class="summary-kicker">${t("tabTimeline", "Timeline · Ank Jyotish Dasha")}</p><h2>${t("timelinePanelTitle", "Your Dasha roadmap")}</h2><p>${t("timelinePanelDesc", "Read the current Ank Jyotish Dasha stack, active Vastu zone and life-event windows as a time-based roadmap. This proportional numerology clock is not classical Vimshottari and never uses either grid to alter timing.")}</p><nav class="timeline-anchor-nav" aria-label="${t("timelineNavigation", "Timeline navigation")}"><a href="#timing-section">${t("navTiming", "Timing")}</a><a href="#dasha-section">${t("navDasha", "Dasha roadmap")}</a><a href="#vastu-section">${t("navVastu", "Home Vastu")}</a><a href="#timeline-top">${t("backToTimeline", "Timeline top")}</a></nav></div>
+        <div class="module-panel-heading timeline-panel-heading" id="timeline-top"><p class="summary-kicker">${t("tabTimeline", "Timeline · Ank Jyotish Dasha")}</p><h2>${t("timelinePanelTitle", "Your Dasha roadmap")}</h2><p>${t("timelinePanelDesc", "Read the current Ank Jyotish Dasha stack, active Vastu zone and life-event windows as a time-based roadmap. This proportional numerology clock is not classical Vimshottari and never uses either grid to alter timing.")}</p><nav class="timeline-anchor-nav" aria-label="${t("timelineNavigation", "Timeline navigation")}"><a href="#timing-section">${t("navTiming", "Timing")}</a><a href="#muhurtha-section">${t("navMuhurtha", "Muhurtha")}</a><a href="#dasha-section">${t("navDasha", "Dasha roadmap")}</a><a href="#vastu-section">${t("navVastu", "Home Vastu")}</a><a href="#timeline-top">${t("backToTimeline", "Timeline top")}</a></nav></div>
         ${timingSection}
+        ${muhurthaSection}
         ${dashaSection}
         ${vastuSection}
       </section>
