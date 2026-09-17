@@ -184,6 +184,49 @@ policy.additionalHostilePairs = [];
 check("classical hostile Sambandha remains enforced when pack policy is empty", window.__NV.getDashaRelationship(4, 2, 1).relation === "enemy" && window.__NV.getDashaRelationship(4, 2, 1).grahan);
 check("compatibility reflection is relational rather than a second remedy plan", !!compatibilityAuthoritySection && !!$(".compatibility-overview", compatibilityAuthoritySection) && !!$("#compatibility-reflection", compatibilityAuthoritySection) && !!$(".compatibility-strengths", compatibilityAuthoritySection) && $$(".compatibility-blind-spot", compatibilityAuthoritySection).length > 0 && $$(".compatibility-cue", compatibilityAuthoritySection).length > 0 && $$(".kit-row", compatibilityAuthoritySection).every((row) => row.textContent.trim().length > 0) && $$(".kit-card", compatibilityAuthoritySection).length === 0 && !$("#compat-remedies", compatibilityAuthoritySection) && !compatibilityAuthoritySection.textContent.includes("Couple remedy") && !compatibilityAuthoritySection.textContent.includes("run both partners' kits") && compatibilityAuthoritySection.textContent.includes("does not add crystals, Rudraksha, affirmations, lifestyle obligations or a second 40-day plan"));
 check("aligned pairs still receive strengths, watchfulness and a communication cue", !!alignedCompatibilitySection && alignedCompatibilitySection.textContent.includes("Mutual strengths") && alignedCompatibilitySection.textContent.includes("Potential blind spots") && alignedCompatibilitySection.textContent.includes("Communication cue:") && $$(".compatibility-cue", alignedCompatibilitySection).length === 1 && $$(".kit-card", alignedCompatibilitySection).length === 0 && $$(".kit-row", alignedCompatibilitySection).every((row) => row.textContent.trim().length > 0));
+/* ---- Chandra-bala: progressive precision applied to the partner ----------
+   The Moon moves ~13°20' a day, so a Moon Rashi / Nakshatra / Chandra-bala
+   verdict is not derivable from a date of birth. The contract under test is
+   binary: either both natal Moons are computable and the classical Rashi axis
+   is shown, or the module says it was not computed. There is no third state,
+   and no defaulted noon birth or stand-in city anywhere in between. */
+const moonTier1Profile = profile({ partnerName: "Arjun Patel", partnerDob: "2000-04-04" });
+const moonTier2Profile = profile({ partnerName: "Arjun Patel", partnerDob: "2000-04-04", partnerBirthTime: "09:30", partnerBirthPlace: "Ahmedabad, India" });
+const moonSelfGapProfile = profile({ birthTime: "", birthPlace: "", partnerName: "Arjun Patel", partnerDob: "2000-04-04", partnerBirthTime: "09:30", partnerBirthPlace: "Ahmedabad, India" });
+const moonBadPlaceProfile = profile({ partnerName: "Arjun Patel", partnerDob: "2000-04-04", partnerBirthTime: "09:30", partnerBirthPlace: "Zzzz Nowhere" });
+const moonTier1Card = $("#chandra-bala", mount(window.__NV.renderReport(moonTier1Profile)));
+const moonTier2Card = $("#chandra-bala", mount(window.__NV.renderReport(moonTier2Profile)));
+const moonSelfGapCard = $("#chandra-bala", mount(window.__NV.renderReport(moonSelfGapProfile)));
+const moonBadPlaceCard = $("#chandra-bala", mount(window.__NV.renderReport(moonBadPlaceProfile)));
+
+check("partner birth time and place survive the intake into the profile", moonTier2Profile.partnerBirthTime === "09:30" && moonTier2Profile.partnerBirthPlace === "Ahmedabad, India" && moonTier1Profile.partnerBirthTime === "" && moonTier1Profile.partnerBirthPlace === "" && !!$("#partnerBirthTime") && !!$("#partnerBirthPlace") && $("#partnerBirthPlace").getAttribute("list") === "partnerBirthPlaceList" && !!$("#partnerBirthPlaceList"));
+check("a partner with only a date of birth never yields a guessed Moon", (() => {
+  const r = window.__NV.chandraBala(moonTier1Profile, window.__NV.computeProfile({ name: "Arjun Patel", dob: "2000-04-04", mobile: "", goals: [], vehicle: "", watchType: "none", entrance: "unsure", kitchen: "unsure", bedroom: "unsure", toilet: "unsure", gender: "" }));
+  return r.tier === 1 && r.chandraBalaComputed === false && !r.axis && !r.partner && r.partnerSide === true && r.selfSide === false
+    && same(r.missing, ["partner-birth-time", "partner-birth-place"])
+    && r.message === "Chandra-bala not computed — add partner birth time and location";
+})());
+check("the Tier 1 Moon banner states plainly that Chandra-bala was not computed", !!moonTier1Card && moonTier1Card.getAttribute("data-chandra-bala") === "not-computed" && moonTier1Card.getAttribute("data-chandra-tier") === "1" && moonTier1Card.textContent.includes("Chandra-bala not computed") && /partner's exact birth time/.test(moonTier1Card.textContent) && /13\u00b020\u2032 a day/.test(moonTier1Card.textContent) && !/Shadashtaka|Navapanchama|Dwidwadasha/.test(moonTier1Card.textContent));
+check("the degraded banner names the missing side, not just 'some data'", !!moonSelfGapCard && moonSelfGapCard.getAttribute("data-chandra-bala") === "not-computed" && /your own exact birth time/.test(moonSelfGapCard.textContent) && !/your partner's exact birth time/.test(moonSelfGapCard.textContent) && !!moonBadPlaceCard && moonBadPlaceCard.getAttribute("data-chandra-bala") === "not-computed" && /atlas recognises/.test(moonBadPlaceCard.textContent));
+check("partner birth time and place unlock a computed Chandra-bala verdict", !!moonTier2Card && moonTier2Card.getAttribute("data-chandra-bala") === "computed" && moonTier2Card.getAttribute("data-chandra-tier") === "2" && moonTier2Card.getAttribute("data-chandra-axis") === "2/12" && /Dwidwadasha/.test(moonTier2Card.textContent) && /Aquarius/.test(moonTier2Card.textContent) && /Pisces/.test(moonTier2Card.textContent) && !moonTier2Card.textContent.includes("Chandra-bala not computed") && !/undefined|NaN/.test(moonTier2Card.innerHTML));
+check("all twelve relative Moon positions resolve to the seven classical axes", (() => {
+  const chart = (deg) => ({ dob: "2000-01-01", day: 1, month: 1, year: 2000, birthTime: "10:00", birthPlace: "New Delhi, India", astro: { ok: true, tier: "full", engine: "test", moon: { lonSidereal: deg, nakshatra: { name: "N", pada: 1, lord: "L", glyph: "x" } } } });
+  const expected = ["1/1", "2/12", "3/11", "4/10", "5/9", "6/8", "7/7", "6/8", "5/9", "4/10", "3/11", "2/12"];
+  const got = Array.from({ length: 12 }, (_, i) => window.__NV.chandraBala(chart(5), chart(5 + i * 30)).axis.key);
+  const sanskrit = window.__NV.chandraBala(chart(5), chart(155)).axis;
+  return same(got, expected) && sanskrit.sanskrit === "Shadashtaka" && sanskrit.quality === "challenging" && sanskrit.forward === 6 && sanskrit.reverse === 8;
+})());
+check("the shared-rashi-lord relaxation is reported as a fact, never as a score", (() => {
+  const chart = (deg) => ({ dob: "2000-01-01", day: 1, month: 1, year: 2000, birthTime: "10:00", birthPlace: "New Delhi, India", astro: { ok: true, tier: "full", engine: "test", moon: { lonSidereal: deg, nakshatra: { name: "N", pada: 1, lord: "L", glyph: "x" } } } });
+  const marsPair = window.__NV.chandraBala(chart(5), chart(215));   // Aries / Scorpio, both Mars
+  const plain = window.__NV.chandraBala(chart(5), chart(155));      // Aries / Virgo, 6/8, different lords
+  return marsPair.axis.key === "6/8" && marsPair.sameRashiLord === true && marsPair.doshaRelaxedBySharedLord === true
+    && plain.sameRashiLord === false && plain.doshaRelaxedBySharedLord === false
+    && !("score" in marsPair) && !("points" in marsPair) && !("gunas" in marsPair);
+})());
+check("the Moon layer never becomes a remedy, a muhurtha or an Ashtakoota score", !!moonTier2Card && moonTier2Card.getAttribute("data-authority") === "chandra-bala" && !moonTier2Card.querySelector("[data-remedy-authority]") && !moonTier2Card.querySelector(".kit-card") && /not a 36-point Ashtakoota score/.test(moonTier2Card.textContent) && /no remedy, no muhurtha, no Vastu zone/.test(moonTier2Card.textContent) && !/wear |mantra|crystal|Rudraksha|fast on/i.test(moonTier2Card.textContent));
+check("the Moon layer is absent entirely when no partner is supplied", !$("#chandra-bala", authorityReportDom) && !$("#chandra-bala", mount(window.__NV.renderReport(profile({ partnerName: "", partnerDob: "" })))));
+
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
 check("40-day practice excludes static Vastu, dosha and deity prescriptions", !$("#plan-section", authorityReportDom).textContent.includes("Vastu correction") && !$("#plan-section", authorityReportDom).textContent.includes("Dosha-aware rhythm") && !$("#plan-section", authorityReportDom).textContent.includes("Ishta Devta chant"));
 
@@ -1005,7 +1048,7 @@ check("every localised Vimshottari key is translated in all three languages", ((
    Regression guard: as content grows, a remedy-bearing block must never be
    re-sourced by another module. Every authority tag must come from the known
    vocabulary, and no non-Lo-Shu scope may contain a remedy obligation. */
-const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "clinical-cockpit", "framework-note"]);
+const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note"]);
 const authorityNodes = $$("[data-authority]", authorityReportDom);
 check("every data-authority tag comes from the declared vocabulary", authorityNodes.length > 0 && authorityNodes.every((node) => AUTHORITY_VOCAB.has(node.getAttribute("data-authority"))));
 check("every remedy-bearing block nests inside Lo Shu authority", remedyBlocks.every((node) => !!node.closest('[data-authority="lo-shu-overlay"], [data-authority="clinical-cockpit"]') || !node.closest("[data-authority]")) && authorityNodes.filter((node) => node.getAttribute("data-authority") !== "lo-shu-overlay" && node.getAttribute("data-authority") !== "clinical-cockpit").every((node) => !node.querySelector("[data-remedy-authority]")));
