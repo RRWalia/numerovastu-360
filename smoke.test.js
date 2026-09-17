@@ -225,6 +225,39 @@ check("the shared-rashi-lord relaxation is reported as a fact, never as a score"
     && !("score" in marsPair) && !("points" in marsPair) && !("gunas" in marsPair);
 })());
 check("the Moon layer never becomes a remedy, a muhurtha or an Ashtakoota score", !!moonTier2Card && moonTier2Card.getAttribute("data-authority") === "chandra-bala" && !moonTier2Card.querySelector("[data-remedy-authority]") && !moonTier2Card.querySelector(".kit-card") && /not a 36-point Ashtakoota score/.test(moonTier2Card.textContent) && /no remedy, no muhurtha, no Vastu zone/.test(moonTier2Card.textContent) && !/wear |mantra|crystal|Rudraksha|fast on/i.test(moonTier2Card.textContent));
+/* ---- Partner Astro-Identity Snapshot (Section 18 companion) --------------
+   A positional side-by-side so the Chandra-bala verdict can be verified
+   against the actual longitudes. It appears only when the partner chart is
+   Tier 2, and it must never grow a second verdict or a remedy. */
+const moonPairCard = $("#partner-astro-snapshot", mount(window.__NV.renderReport(moonTier2Profile)));
+const moonPairSelfGapCard = $("#partner-astro-snapshot", mount(window.__NV.renderReport(moonSelfGapProfile)));
+check("the partner snapshot renders both charts' Sun, Moon, Nakshatra pada and Lagna", (() => {
+  if (!moonPairCard) return false;
+  const rows = $$("tr", moonPairCard);
+  const head = $$("th", rows[0]).map((th) => th.textContent.trim());
+  const labels = rows.slice(1).map((r) => $$("td", r)[0].textContent.trim());
+  const partnerCells = rows.slice(1).map((r) => $$("td", r)[2].textContent.trim());
+  return rows.length === 5
+    && same(head, ["Factor", "Priya", "Arjun"])
+    && same(labels, ["Sun · Surya Rashi", "Moon · Chandra Rashi", "Nakshatra · Pada", "Lagna (Ascendant)"])
+    && /Pisces/.test(partnerCells[0]) && /Pisces 13°16′/.test(partnerCells[1])
+    && /Uttara Bhadrapada · Pada 3/.test(partnerCells[2]) && /Taurus/.test(partnerCells[3])
+    && $$(".astro-pair-key", moonPairCard).length === 2
+    && !/undefined|NaN/.test(moonPairCard.innerHTML);
+})());
+check("the partner snapshot appears only once the partner chart reaches Tier 2", !moonPairCard.textContent.includes("not computed") && !$("#partner-astro-snapshot", mount(window.__NV.renderReport(moonTier1Profile))) && !$("#partner-astro-snapshot", mount(window.__NV.renderReport(moonBadPlaceProfile))) && !$("#partner-astro-snapshot", mount(window.__NV.renderReport(profile({ partnerName: "", partnerDob: "" })))));
+check("a Tier 1 primary chart degrades its own column instead of blanking it", !!moonPairSelfGapCard && $$(".astro-pending", moonPairSelfGapCard).length === 3 && /not computed — add your birth time/.test(moonPairSelfGapCard.textContent) && /Pisces 13°16′/.test(moonPairSelfGapCard.textContent) && !/undefined|NaN/.test(moonPairSelfGapCard.innerHTML));
+check("the partner snapshot states its own birth moment, place and ayanamsa", !!$(".astro-foot", moonPairCard) && /2000-04-04T09:30/.test(moonPairCard.textContent) && /Ahmedabad, Gujarat, India/.test(moonPairCard.textContent) && /Lahiri \(Chitrapaksha\) ayanamsa/.test(moonPairCard.textContent) && /never leave this device/.test(moonPairCard.textContent));
+check("the partner snapshot is positions only — no second verdict and no remedy", moonPairCard.getAttribute("data-authority") === "chandra-bala" && !moonPairCard.querySelector("[data-remedy-authority]") && !moonPairCard.querySelector(".kit-card") && /no second verdict, no Ashtakoota points and no remedy/.test(moonPairCard.textContent) && !/Shadashtaka|Navapanchama|Dwidwadasha|verdict —/.test(moonPairCard.textContent));
+check("the Chandra-bala verdict is printed before the snapshot that evidences it", (() => {
+  const html = window.__NV.renderReport(moonTier2Profile);
+  return html.indexOf('id="chandra-bala"') > -1 && html.indexOf('id="chandra-bala"') < html.indexOf('id="partner-astro-snapshot"');
+})());
+check("coordinate-entered partner places do not print their coordinates twice", (() => {
+  const c = $("#partner-astro-snapshot", mount(window.__NV.renderReport(profile({ partnerName: "Arjun Patel", partnerDob: "2000-04-04", partnerBirthTime: "09:30", partnerBirthPlace: "28.41, 77.32" }))));
+  return !!c && (c.textContent.match(/28\.41°/g) || []).length === 1;
+})());
+
 check("the Moon layer is absent entirely when no partner is supplied", !$("#chandra-bala", authorityReportDom) && !$("#chandra-bala", mount(window.__NV.renderReport(profile({ partnerName: "", partnerDob: "" })))));
 
 check("Vedic comparison never produces a competing remedy checklist",  (authorityReport.match(/Missing Numbers — Lo Shu Remedies/g) || []).length === 1 && !authorityReport.includes("Vedic Name Grid") && !authorityReport.includes("Combined Vedic Grid") && !authorityReport.includes("Vedic remedy"));
