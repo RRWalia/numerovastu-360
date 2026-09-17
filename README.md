@@ -267,6 +267,23 @@ the app reports that as a fact of the chart rather than applying it as a score,
 because schools differ on its scope. Chandra-bala prescribes nothing: no remedy,
 no muhurtha, no Vastu zone.
 
+#### Partner Astro-Identity Snapshot
+
+When the partner chart reaches Tier 2, Section 18 adds a compact companion card
+directly beneath the verdict: a four-row side-by-side of **Sun (Surya Rashi)**,
+**Moon (Chandra Rashi)**, **Nakshatra with pada** and **Lagna** for both people,
+with the two Moon rows tinted because they are what the axis is derived from.
+Its purpose is verification — a practitioner can check the Chandra-bala verdict
+against the actual longitudes instead of trusting it.
+
+It is **positions only**: no second verdict, no Ashtakoota points, no remedy,
+asserted by test. The card is also where the two charts can degrade
+independently — if the *primary* chart is Tier 1, its Moon, Nakshatra and Lagna
+cells read *“not computed — add your birth time & place”* rather than rendering
+blank, which would misread as "no planet there". There is no Tier 1 variant of
+the card itself: a Sun-only partner column would invite exactly the eyeball
+comparison of Moon positions that a date alone cannot support.
+
 The Driver/Conductor power-day card is a scheduling reference. It does not pick
 or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng
 Shui (Chinese)** and remains separate from the Ank Jyotish Dasha/Vastu direction map.

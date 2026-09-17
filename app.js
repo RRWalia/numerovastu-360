@@ -4355,6 +4355,68 @@
     </div>`;
   }
 
+  /* ---- Partner Astro-Identity Snapshot (Section 18 companion) -------------
+     A side-by-side positional read of both charts, so a practitioner can
+     verify the Chandra-bala verdict above against the actual Moon longitudes
+     rather than trusting it. Rendered only when the partner's chart is Tier 2
+     (birth time + atlas-resolvable place); there is no Tier 1 variant, because
+     a Sun-only partner column would invite exactly the eyeball comparison of
+     Moon positions that cannot be made from a date.
+
+     The primary column degrades independently: if your own chart is Tier 1,
+     your Moon/Nakshatra/Lagna cells say so instead of showing blanks, which
+     would read as "no planet there" rather than "not computed".
+
+     Positions only. The verdict lives in the Chandra-bala card; this card adds
+     no second interpretation, no Ashtakoota points and no remedy. */
+  function partnerAstroSnapshotCard(p, partnerProfile, partnerFirst, lang) {
+    const pa = partnerProfile && partnerProfile.astro;
+    if (!pa || !pa.ok || pa.tier !== "full") return "";
+    const sa = p.astro;
+    const selfFull = !!(sa && sa.ok && sa.tier === "full");
+    const LT = (en, hi, gu) => (lang === "hi" ? hi : lang === "gu" ? gu : en);
+    const selfFirst = String(p.name || "").trim().split(/\s+/)[0] || LT("You", "आप", "તમે");
+
+    const pending = `<span class="astro-pending">${LT("not computed — add your birth time &amp; place", "अगणित — अपना जन्म समय व स्थान जोड़ें", "અગણિત — તમારો જન્મ સમય અને સ્થળ ઉમેરો")}</span>`;
+    const pos = (body) => `${esc(body.glyph)} ${esc(body.sign)} <strong>${esc(body.degStr)}</strong>`;
+    const nak = (moon) => moon.nakshatra
+      ? `<span class="astro-nak-badge">${esc(moon.nakshatra.glyph)} ${esc(moon.nakshatra.name)} · ${LT("Pada", "पद", "પાદ")} ${moon.nakshatra.pada}</span> <span class="astro-pair-lord">${LT("lord", "स्वामी", "સ્વામી")} ${esc(moon.nakshatra.lord)}</span>`
+      : pending;
+
+    const rows = [
+      { label: LT("Sun · Surya Rashi", "सूर्य · सूर्य राशि", "સૂર્ય · સૂર્ય રાશિ"), self: pos(sa.sun), partner: pos(pa.sun) },
+      { label: LT("Moon · Chandra Rashi", "चंद्र · चंद्र राशि", "ચંદ્ર · ચંદ્ર રાશિ"), self: selfFull ? pos(sa.moon) : pending, partner: pos(pa.moon), key: true },
+      { label: LT("Nakshatra · Pada", "नक्षत्र · पद", "નક્ષત્ર · પાદ"), self: selfFull ? nak(sa.moon) : pending, partner: nak(pa.moon), key: true },
+      { label: LT("Lagna (Ascendant)", "लग्न", "લગ્ન"), self: selfFull ? pos(sa.lagna) : pending, partner: pos(pa.lagna) }
+    ];
+
+    const pl = pa.place;
+    /* A coordinate-entered place already carries its lat/lon (and any assumed
+       offset) inside displayName, so the explicit pair is appended only for
+       atlas matches — otherwise the same numbers print twice. */
+    const placeLine = pl.fromCoords
+      ? esc(pl.displayName)
+      : `${esc(pl.name)}${pl.state ? ", " + esc(pl.state) : ""}, ${esc(pl.country)} (${esc(pl.lat.toFixed(2))}°, ${esc(Math.abs(pl.lon).toFixed(2))}°${pl.lon >= 0 ? "E" : "W"})`;
+    const dstCaveat = pl.dst
+      ? ` · ${LT("standard-time offset", "मानक समय", "પ્રમાણભૂત સમય")} (${fmtTz(pl.tz)}) — ${LT("if daylight saving applied on that date, shift the time accordingly", "यदि उस तिथि पर डेलाइट सेविंग लागू थी तो समय तदनुसार बदलें", "જો તે તારીખે ડેલાઇટ સેવિંગ લાગુ હતું તો સમય તે મુજબ બદલો")}`
+      : ` · ${fmtTz(pl.tz)}`;
+
+    return `<div class="card astro-pair-card" id="partner-astro-snapshot" data-authority="chandra-bala" data-partner-astro="full">
+      <div class="goal-head">
+        <div class="card-title">🪐 ${LT("Astro-Identity Snapshot", "ज्योतिष-पहचान झलक", "જ્યોતિષ-ઓળખ ઝલક")} — ${esc(selfFirst)} &amp; ${esc(partnerFirst)}</div>
+        <span class="badge info">${LT("Computed on this device", "इसी डिवाइस पर गणित", "આ જ ડિવાઇસ પર ગણિત")} · ${esc(pa.engine)}</span>
+      </div>
+      <div class="table-scroll"><table class="rtable astro-pair-table">
+        <tr><th>${LT("Factor", "घटक", "ઘટક")}</th><th>${esc(selfFirst)}</th><th>${esc(partnerFirst)}</th></tr>
+        ${rows.map((r) => `<tr${r.key ? ' class="astro-pair-key"' : ""}><td>${esc(r.label)}</td><td>${r.self}</td><td>${r.partner}</td></tr>`).join("")}
+      </table></div>
+      <div class="astro-foot">
+        ${LT("Partner's birth moment", "साथी का जन्म क्षण", "સાથીદારનો જન્મ ક્ષણ")} <strong>${esc(pa.moment.localIso)}</strong> ${LT("local", "स्थानीय", "સ્થાનિક")}, ${placeLine}${dstCaveat} · ${LT("Lahiri (Chitrapaksha) ayanamsa", "लाहिड़ी (चित्रपक्ष) अयनांश", "લાહિડી (ચિત્રપક્ષ) અયનાંશ")} <strong>${fmtAy(pa.ayanamsa)}</strong> · ${LT("Sidereal (Nirayana). Both charts are computed in your browser and never leave this device.", "निरयण (सायन नहीं)। दोनों कुंडलियाँ आपके ब्राउज़र में गणित होती हैं और यह डिवाइस कभी नहीं छोड़तीं।", "નિરયણ (સાયન નહીં). બંને કુંડળીઓ તમારા બ્રાઉઝરમાં ગણાય છે અને આ ડિવાઇસ ક્યારેય છોડતી નથી.")}
+      </div>
+      <div class="judge-note"><strong>${LT("Scope:", "सीमा:", "મર્યાદા:")}</strong> ${LT("Positions only, shown so the Chandra-bala verdict above can be checked against the actual longitudes. This card adds no second verdict, no Ashtakoota points and no remedy.", "केवल स्थितियाँ, ताकि ऊपर के चंद्र-बल निर्णय को वास्तविक अंशों से जाँचा जा सके। यह कार्ड कोई दूसरा निर्णय, अष्टकूट गुण या उपाय नहीं जोड़ता।", "ફક્ત સ્થિતિઓ, જેથી ઉપરના ચંદ્ર-બલ નિર્ણયને વાસ્તવિક અંશો સામે ચકાસી શકાય. આ કાર્ડ કોઈ બીજો નિર્ણય, અષ્ટકૂટ ગુણ કે ઉપાય ઉમેરતું નથી.")}</div>
+    </div>`;
+  }
+
   function vedicTierDisclosure(p) {
     let stateLine, badge;
     if (p.vedicTier === 2) {
@@ -5994,6 +6056,9 @@
     const cRem = compat ? compatRemedies(p, partnerProfile, compat) : null;
     const moonPairing = partnerValid ? chandraBala(p, partnerProfile) : null;
     const LT = (en, hi, gu) => (lang === "hi" ? hi : lang === "gu" ? gu : en);
+    /* Companion positional card. Returns "" unless the partner chart reached
+       Tier 2, so the Tier 1 path is untouched. */
+    const partnerAstroCardHtml = partnerValid ? partnerAstroSnapshotCard(p, partnerProfile, partnerFirst, lang) : "";
 
     /* Compatibility remains a relationship-reflection feature. It intentionally
        does not mint a second crystal/Rudraksha checklist or a competing
@@ -6139,7 +6204,8 @@
             </table></div>
             <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को समझने के लिए साफ संवाद और व्यवहारिक समझौते जरूरी हैं।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને સમજવા માટે સ્પષ્ટ સંવાદ અને વ્યવહારુ સમજોતાં જરૂરી છે." : "Challenging pairing — the conflicting numbers need clear communication and practical agreements to bridge.")}</div>
           </div>
-          ${moonPairing && moonPairing.chandraBalaComputed ? moonLayerHtml : ""}`
+          ${moonPairing && moonPairing.chandraBalaComputed ? moonLayerHtml : ""}
+          ${partnerAstroCardHtml}`
         : `<div class="card compatibility-overview-card">
             <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
             <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>
