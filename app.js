@@ -4417,6 +4417,94 @@
     </div>`;
   }
 
+  /* ---- Partner Vimshottari anchor (Section 18 companion) ------------------
+     The partner's OWN classical Vimshottari stack, computed from the partner's
+     natal Moon by the same engine and with the same fixed 120-year lord
+     durations as the primary chart's card. The partner profile is a full
+     computeProfile() result (day/month/year, birthTime, astro), so
+     vimshottariTimeline() applies to it unchanged — no second engine, no
+     rescaled lords.
+
+     Rendered only when the partner chart reached Tier 2: there is no Tier 1
+     variant, because without a natal Moon there is no anchor, no balance and
+     no stack to show — and the Chandra-bala Tier 1 banner above already asks
+     for exactly that data. The primary chart degrades independently: if YOUR
+     chart is Tier 1 the card still shows the partner's stack (it is a fact of
+     the partner's chart), only the comparison line is withheld rather than
+     half-computed.
+
+     A timing read-out of the partner's chart only: it never feeds the
+     Chandra-bala verdict, Lo Shu remedies, Vastu zones or the Ank Jyotish
+     roadmap, and it prescribes nothing. */
+  function partnerVimshottariCard(p, partnerProfile, partnerFirst, lang) {
+    const pa = partnerProfile && partnerProfile.astro;
+    if (!pa || !pa.ok || pa.tier !== "full") return "";
+    const pv = vimshottariTimeline(partnerProfile);
+    if (!pv) return "";
+    const LT = (en, hi, gu) => (lang === "hi" ? hi : lang === "gu" ? gu : en);
+    const fmtD = (ms) => new Date(ms).toLocaleDateString(lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    const vmd = pv.current.md, vad = pv.current.ad, vpd = pv.current.pd;
+    const stackRow = (label, seg) => `<tr>
+      <td><strong>${label}</strong></td>
+      <td>${esc(seg.lord)} <span class="card-sub">(${seg.n})</span></td>
+      <td>${fmtD(seg.startMs)} → ${fmtD(seg.endMs)}</td>
+      <td>${LT("Ages", "आयु", "ઉંમર")} ${seg.fromAge}–${seg.toAge}</td>
+    </tr>`;
+    /* Factual comparison with the primary chart's active stack — the same
+       "report the fact, do not score it" idiom as the shared-rashi-lord line
+       in the Chandra-bala card. Withheld (not half-computed) when the primary
+       chart is Tier 1 and its own stack does not exist. */
+    const sv = vimshottariTimeline(p);
+    let compareHtml;
+    if (sv) {
+      const sameMd = sv.current.md.lord === vmd.lord;
+      compareHtml = `<div class="kit-value partner-vim-compare" data-partner-vim-compare="${sameMd ? "same" : "differ"}">
+        <strong>${LT("How the two active stacks line up:", "दोनों सक्रिय स्टैक कैसे मेल खाते हैं:", "બંને સક્રિય સ્ટેક કેવી રીતે બંધબેસે છે:")}</strong> ${LT("you", "आप", "તમે")} ${esc(sv.current.md.lord)} ${LT("Mahadasha /", "महादशा /", "મહાદશા /")} ${esc(sv.current.ad.lord)} · ${esc(partnerFirst)} ${esc(vmd.lord)} ${LT("Mahadasha /", "महादशा /", "મહાદશા /")} ${esc(vad.lord)}.
+        ${sameMd
+          ? LT(`Both charts are currently under ${vmd.lord} Mahadasha — a coincidence of these particular anchors, not a rule; each stack is anchored on its own natal Moon nakshatra and the two remain independent.`,
+               `दोनों कुंडलियाँ अभी ${vmd.lord} महादशा में हैं — यह इन खास आधारों का संयोग है, नियम नहीं; प्रत्येक स्टैक अपनी जन्म-चंद्र नक्षत्र पर आधारित है और दोनों स्वतंत्र रहते हैं।`,
+               `બંને કુંડળી હજુ ${vmd.lord} મહાદશામાં છે — આ આ ખાસ ધરાઓનો સંયોગ છે, નિયમ નહીં; દરેક સ્ટેક પોતાના જન્મ-ચંદ્ર નક્ષત્ર પર આધારિત છે અને બંને સ્વતંત્ર રહે છે.`)
+          : LT(`The two charts are in different Mahadashas right now — that is expected, not an error: each stack is anchored on its own natal Moon nakshatra and the two are independent read-outs.`,
+               `दोनों कुंडलियाँ अभी अलग-अलग महादशा में हैं — यह अपेक्षित है, त्रुटि नहीं: प्रत्येक स्टैक अपनी जन्म-चंद्र नक्षत्र पर आधारित है और दोनों स्वतंत्र पठन हैं।`,
+               `બંને કુંડળી હજુ અલગ-અલગ મહાદશામાં છે — આ અપેક્ષિત છે, ભૂલ નહીં: દરેક સ્ટેક પોતાના જન્મ-ચંદ્ર નક્ષત્ર પર આધારિત છે અને બંને સ્વતંત્ર વાંચન છે.`)}
+      </div>`;
+    } else {
+      compareHtml = `<div class="kit-value partner-vim-compare" data-partner-vim-compare="not-comparable">${LT("Your own classical stack is not computed (add your birth time and place in Edit Details), so the two charts are not compared here — only the partner's stack is shown.",
+        "आपकी अपनी शास्त्रीय दशा गणित नहीं हुई है (विवरण बदलें में अपना जन्म समय व स्थान जोड़ें), इसलिए यहाँ दोनों कुंडलियों की तुलना नहीं की गई है — केवल साथी की दशा दिखाई गई है।",
+        "તમારી પોતાની શાસ્ત્રીય દશા ગણાઈ નથી (વિગત બદલોમાં તમારો જન્મ સમય અને સ્થળ ઉમેરો), તેથી અહીં બંને કુંડળીઓની સરખામણી નથી કરવામાં આવી — ફક્ત સાથીદારની દશા બતાવવામાં આવી છે.")}</div>`;
+    }
+    return `<div class="card partner-vimshottari-card" id="partner-vimshottari" data-authority="vimshottari" data-partner-vimshottari="available" data-partner-vimshottari-md="${esc(vmd.lord)}" data-partner-vimshottari-ad="${esc(vad.lord)}" data-partner-vimshottari-agrees="${sv ? (sv.current.md.lord === vmd.lord ? "yes" : "no") : "n/a"}">
+      <div class="goal-head">
+        <div class="card-title">🕰 ${LT("Partner's Classical Vimshottari Dasha", "साथी की शास्त्रीय विम्शोत्तरी दशा", "સાથીદારની શાસ્ત્રીય વિમ્શોત્તરી દશા")} — ${esc(partnerFirst)}</div>
+        <span class="badge info">${LT("Vedic · nakshatra-anchored · fixed 120-year cycle", "वैदिक · नक्षत्र-आधारित · निश्चित १२०-वर्षीय चक्र", "વૈદિક · નક્ષત્ર-આધારિત · નિશ્ચિત ૧૨૦-વર્ષીય ચક્ર")}</span>
+      </div>
+      <div class="kit-value">${LT("This is the partner's own classical Vimshottari stack: it is anchored on their birth Moon's nakshatra with the same fixed lord durations as your card (Ketu 7, Venus 20, Sun 6, Moon 10, Mars 7, Rahu 18, Jupiter 16, Saturn 19, Mercury 17 years) and is computed from their birth time and place — never from the date of birth alone. It is a read-out of their chart; it changes nothing in your report.",
+        "यह साथी की अपनी शास्त्रीय विम्शोत्तरी दशा है: यह उनके जन्म-चंद्र की नक्षत्र पर आधारित है, आपके कार्ड जैसी निश्चित स्वामी-अवधियों के साथ (केतु ७, शुक्र २०, सूर्य ६, चंद्र १०, मंगल ७, राहु १८, बृहस्पति १६, शनि १९, बुध १७ वर्ष) और उनके जन्म समय व स्थान से गणित होती है — केवल जन्मतिथि से नहीं। यह उनकी कुंडली का पठन है; यह आपके रिपोर्ट में कुछ भी नहीं बदलती।",
+        "આ સાથીદારની પોતાની શાસ્ત્રીય વિમ્શોત્તરી દશા છે: તે તેમના જન્મ-ચંદ્રના નક્ષત્ર પર આધારિત છે, તમારા કાર્ડ જેવી નિશ્ચિત સ્વામી-અવધિઓ સાથે (કેતુ ૭, શુક્ર ૨૦, સૂર્ય ૬, ચંદ્ર ૧૦, મંગલ ૭, રાહુ ૧૮, બ્રહ્મગુ ૧૬, શનિ ૧૯, બુધ ૧૭ વર્ષ) અને તેમના જન્મ સમય અને સ્થળથી ગણાય છે — ફક્ત જન્મ તારીખથી નહીં. તે તેમની કુંડળીનું વાંચન છે; તે તમારા રિપોર્ટમાં કંઈ પણ બદલતું નથી.")}</div>
+      <div class="kit-value partner-vim-anchor">
+        <strong>${LT("Anchor", "आधार", "ધરા")}:</strong> ${esc(pv.anchor.nakshatra)} · ${LT("pada", "पद", "પાદ")} ${pv.anchor.pada} · ${esc(pv.anchor.lord)} ·
+        ${esc(pv.anchor.moonSign)} ${esc(pv.anchor.moonDeg)} (${esc(pv.anchor.span)}) · ${pv.anchor.elapsedPct}% ${LT("elapsed", "गुज़रा", "ગત")}
+      </div>
+      <div class="kit-value">
+        <strong>${LT("Balance of the birth lord at birth", "जन्म-समय पर जन्म-स्वामी का शेष", "જન્મ સમયે જન્મ-સ્વામીનું શેષ")}:</strong> ${pv.balanceYears} ${LT("years", "वर्ष", "વર્ષ")} ${esc(pv.anchor.lord)}
+        <div class="card-sub">${LT("Each nakshatra spans 13°20′. They were born part-way through it, so the unspent fraction is deducted from the starting lord's period and the remaining years carry over.",
+          "प्रत्येक नक्षत्र १३°२०′ फैला है। वे उसके बीच में जन्मे, इसलिए बचा हुआ अंश प्रारंभिक स्वामी की अवधि से घटाया जाता है और शेष वर्ष आगे बहाल होते हैं।",
+          "દરેક નક્ષત્ર ૧૩°૨૦′ વિસ્તરે છે. તેઓ તેની મધ્યમાં જન્મેલા છે, તેથી બાકીનો ભાગ પ્રારંભિક સ્વામીની અવધિમાંથી બાદ કરાય છે અને બાકીના વર્ષ આગળ વહાય છે.")}</div>
+      </div>
+      <div class="card-title partner-vim-subhead">${LT("Active Vimshottari stack", "सक्रिय विम्शोत्तरी स्टैक", "સક્રિય વિમ્શોત્તરી સ્ટેક")}</div>
+      <div class="table-scroll"><table class="rtable">
+        <tr><th>${LT("Level", "स्तर", "સ્તર")}</th><th>${LT("Lord", "ग्रह", "ગ્રહ")}</th><th>${LT("Period", "अवधि", "અવધિ")}</th><th>${LT("Ages", "आयु", "ઉંમર")}</th></tr>
+        ${stackRow(LT("Mahadasha", "महादशा", "મહાદશા"), vmd)}
+        ${stackRow(LT("Antardasha", "अंतर्दशा", "અંતર્દશા"), vad)}
+        ${stackRow(LT("Pratyantar", "प्रत्यांतर", "પ્રત્યાંતર"), vpd)}
+      </table></div>
+      ${compareHtml}
+      <div class="judge-note"><strong>${LT("Scope:", "सीमा:", "મર્યાદા:")}</strong> ${LT("This is the partner's own classical read-out, computed on this device from their birth time and place. It is a timing read-out only: it never feeds the Chandra-bala verdict, Lo Shu remedies, Vastu zones or the Ank Jyotish event windows, and it prescribes nothing — no remedy, no muhurtha, no timing for events.",
+        "यह साथी की अपनी शास्त्रीय पठन है, जो उनके जन्म समय व स्थान से इसी डिवाइस पर गणित होती है। यह केवल समय-पठन है: यह चंद्र-बल निर्णय, लो शू उपाय, वास्तु क्षेत्र या अंकज्योतिष event windows में कभी जाती नहीं, और यह कुछ भी निर्धारित नहीं करती — न उपाय, न मुहूर्त, न किसी घटना का समय।",
+        "આ સાથીદારની પોતાની શાસ્ત્રીય વાંચન છે, જે તેમના જન્મ સમય અને સ્થળથી આ જ ડિવાઇસ પર ગણાય છે. તે ફક્ત સમય-વાંચન છે: તે ચંદ્ર-બલ નિર્ણય, લો શુ ઉપાય, વાસ્તુ પ્રદેશ કે અંકજ્યોતિષ event windows માં ક્યારેય જતી નથી, અને તે કશું પણ નિર્ધારિત કરતી નથી — ન ઉપાય, ન મુહૂર્ત, ન કોઈ ઘટનાનો સમય.")}</div>
+    </div>`;
+  }
+
   function vedicTierDisclosure(p) {
     let stateLine, badge;
     if (p.vedicTier === 2) {
@@ -6059,6 +6147,11 @@
     /* Companion positional card. Returns "" unless the partner chart reached
        Tier 2, so the Tier 1 path is untouched. */
     const partnerAstroCardHtml = partnerValid ? partnerAstroSnapshotCard(p, partnerProfile, partnerFirst, lang) : "";
+    /* Companion timing card: the partner's own classical Vimshottari stack.
+       "" unless the partner chart reached Tier 2 — there is no Tier 1
+       variant, and the Chandra-bala banner already asks for the missing
+       partner data. */
+    const partnerVimCardHtml = partnerValid ? partnerVimshottariCard(p, partnerProfile, partnerFirst, lang) : "";
 
     /* Compatibility remains a relationship-reflection feature. It intentionally
        does not mint a second crystal/Rudraksha checklist or a competing
@@ -6205,7 +6298,8 @@
             <div class="kit-value">${compat.verdict === "Strong" ? (lang === "hi" ? "स्वाभाविक रूप से सहयोगी और शुभ मिलान — आपके अंक एक दूसरे को शक्ति देते हैं।" : lang === "gu" ? "કુદરતી રીતે સહયોગી અને શુભ મિલાન — તમારા અંકો એકબીજાને બળ આપે છે." : "A naturally cooperative pairing — your numbers reinforce each other.") : compat.verdict === "Good" ? (lang === "hi" ? "सकारात्मक और अनुकूल मिलान — कुछ सामान्य कड़ियों के साथ यह संबंध सुखद रहेगा।" : lang === "gu" ? "હકારાત્મક અને અનુકૂળ મિલાન — કેટલીક સામાન્ય કડીઓ સાથે આ સંબંધ સુખદ રહેશે." : "A supportive pairing with a couple of neutral links — manageable and mostly aligned.") : compat.verdict === "Workable" ? (lang === "hi" ? "साध्य मिलान, किंतु थोड़ा प्रयास आवश्यक है — प्रतिकूल कड़ियों पर समझदारी जरूरी है।" : lang === "gu" ? "સાધ્ય મિલાન, પણ થોડો પ્રયાસ જરૂરી છે — પ્રતિકૂળ કડીઓ પર સમજણ જરૂરી છે." : "Workable, but needs conscious effort — the conflicting links are the areas to manage.") : (lang === "hi" ? "चुनौतीपूर्ण मिलान — विरोधी अंकों के प्रभाव को समझने के लिए साफ संवाद और व्यवहारिक समझौते जरूरी हैं।" : lang === "gu" ? "પડકારરૂપ મિલાન — વિરોધી અંકોના પ્રભાવને સમજવા માટે સ્પષ્ટ સંવાદ અને વ્યવહારુ સમજોતાં જરૂરી છે." : "Challenging pairing — the conflicting numbers need clear communication and practical agreements to bridge.")}</div>
           </div>
           ${moonPairing && moonPairing.chandraBalaComputed ? moonLayerHtml : ""}
-          ${partnerAstroCardHtml}`
+          ${partnerAstroCardHtml}
+          ${partnerVimCardHtml}`
         : `<div class="card compatibility-overview-card">
             <div class="card-title">${lang === "hi" ? "आपके लिए कौन से अंक अनुकूल हैं?" : lang === "gu" ? "તમારા માટે કયા અંકો અનુકૂળ છે?" : "Who are you compatible with?"}</div>
             <div class="kit-value">${lang === "hi" ? "पूर्ण मिलान के लिए पार्टनर का नाम और जन्मतिथि जोड़ें। इस बीच, यहां देखें कि आपके अंक अन्य मूलांकों से कैसे मेल खाते हैं:" : lang === "gu" ? "સંપૂર્ણ મિલાન માટે પાર્ટનરનું નામ અને જન્મ તારીખ ઉમેરો. દરમિયાન, અહીં જુઓ કે તમારા અંકો અન્ય મૂળાંકો સાથે કેવી રીતે મેળ ખાય છે:" : "Add a <strong>partner's name and date of birth</strong> (Edit Details → Compatibility) for a full two-person Driver / Conductor match. Meanwhile, here is how your numbers relate to every other Driver:"}</div>

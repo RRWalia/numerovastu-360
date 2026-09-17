@@ -1346,6 +1346,22 @@ body {
 .vimshottari-card[data-vimshottari-agrees="no"] .badge.info { background: #fef3c7; color: #92400e; }
 .vimshottari-card .card-sub { color: var(--label-secondary, #555); }
 
+/* Partner companion card (Section 18): the partner's OWN classical stack.
+   Its class is deliberately distinct from .vimshottari-card — the
+   pixel-regression locator for the primary card must keep matching exactly
+   one node, and the two cards live in different sections. */
+.partner-vimshottari-card {
+  border-left: 3px solid var(--accent, #6366f1);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.06), rgba(99, 102, 241, 0.01));
+}
+.partner-vimshottari-card .partner-vim-subhead { margin-top: 14px; }
+.partner-vimshottari-card .partner-vim-anchor { font-variant-numeric: tabular-nums; }
+.partner-vimshottari-card .card-sub { color: var(--label-secondary, #555); }
+.partner-vimshottari-card .partner-vim-compare {
+  border-top: 1px dashed rgba(99, 102, 241, 0.35);
+  padding-top: 10px;
+}
+
 /* ---- Field read mode (phone consultations) --------------------------
    Presentation-only: bigger type, single column, less chrome. The whole
    block is wrapped in @media screen so it CANNOT leak into print — the A4
@@ -1429,7 +1445,8 @@ body {
      rather than splitting a Moon position away from its verdict. The paired
      snapshot is a 4-row table and stays whole for the same reason. */
   #compatibility-section #chandra-bala,
-  #compatibility-section #partner-astro-snapshot { break-inside: avoid-page; page-break-inside: avoid; }
+  #compatibility-section #partner-astro-snapshot,
+  #compatibility-section #partner-vimshottari { break-inside: avoid-page; page-break-inside: avoid; }
   #compatibility-section .table-scroll { overflow: visible; }
   /* The Northstar Summary is taller than the space left on page 1 (below the
      header) but shorter than a full page. The blanket avoid-page rule above

@@ -230,6 +230,7 @@ The report intentionally shows the source of each kind of guidance.
 | Current Dasha, dates, event windows and Active Vastu Zone | Dasha engine | Either grid |
 | Compatibility reflection | Pairwise Driver + Conductor relations | Lo Shu remedies, Dasha timing and Vastu activation |
 | Chandra-bala (Moon pairing) | Both natal sidereal Moons, computed from birth time + place on each side | Driver/Conductor numbers, Lo Shu remedies, Dasha timing — and it prescribes nothing in return |
+| Partner Vimshottari (partner's own Dasha) | The partner's natal sidereal Moon, via the same `vimshottariTimeline()` engine and fixed 120-year lord durations | The Chandra-bala verdict, Driver/Conductor comparison, Lo Shu remedies, Vastu zones and the Ank Jyotish roadmap — a timing read-out of the partner's chart only |
 | Practice depth (Scaled Sadhana) | Client intake choice | The Lo Shu remedy target, the triage tiers, Dasha/Vastu timing, and every clinical guardrail — a scale sizes the practice, it never selects or re-sources a remedy |
 | Kua directions | Feng Shui | Classical Vastu / Dasha guidance |
 
@@ -283,6 +284,31 @@ cells read *“not computed — add your birth time & place”* rather than rend
 blank, which would misread as "no planet there". There is no Tier 1 variant of
 the card itself: a Sun-only partner column would invite exactly the eyeball
 comparison of Moon positions that a date alone cannot support.
+
+#### Partner Vimshottari anchor
+
+When the partner chart reaches Tier 2, Section 18 adds a second companion card
+beneath the snapshot: the partner's **own** classical Vimshottari stack. It is
+the same `vimshottariTimeline()` engine as the primary chart's card — anchored
+on the partner's natal Moon nakshatra, the fixed 120-year lord durations, and a
+balance deducted for the traversed nakshatra fraction — with no second engine
+and no rescaled lords, so the two read-outs can never silently diverge in
+method.
+
+It shows the partner's **anchor** (nakshatra, pada, lord, Moon sign/degree,
+span, % elapsed), the **balance of the birth lord at birth**, and the
+**active Mahadasha / Antardasha / Pratyantar** with dates and ages. A final
+line lines the two active stacks up as a *fact* — same Mahadasha lord, or
+different — mirroring the shared-rashi-lord idiom: the comparison is reported,
+never scored. If the *primary* chart is Tier 1 the card still shows the
+partner's stack (a fact of the partner's chart) but withholds the comparison
+rather than half-computing it.
+
+It is a **timing read-out of the partner's chart only**: it never feeds the
+Chandra-bala verdict, Lo Shu remedies, Vastu zones or the Ank Jyotish event
+windows, and it prescribes nothing. It carries `data-authority="vimshottari"`
+so the authority lint covers it, and `smoke.test.js` pins the anchor, the
+balance arithmetic and the degradation contract.
 
 The Driver/Conductor power-day card is a scheduling reference. It does not pick
 or replace a Lo Shu remedy target. The Kua card is visibly labelled **Feng
