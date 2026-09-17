@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.11.0 — Dasha coverage to 75/80: Lo Shu Foundation + Ank Jyotish Dasha + Classical Vimshottari**
+**Release 2.12.0 — Partner Moon completeness: Chandra-bala Rashi axis, Astro-Identity positions, partner Vimshottari, Nakshatra-level Tara Bala**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,23 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.12.0
+
+The partner intake previously captured only a name and a date, so the partner's
+natal Moon — the anchor of Chandra-bala, Tara Bala and Vimshottari — was not
+computable at all. The Moon moves ~13°20′ a day (one whole Nakshatra), so a
+Rashi, Nakshatra pada or Chandra-bala verdict is **not derivable from a date**;
+any chart near a boundary would be silently wrong. Four PRs close that gap
+without ever guessing a Moon.
+
+| Area | 2.12.0 behaviour |
+| --- | --- |
+| **Chandra-bala Rashi axis (new in #46)** | Partner intake now captures optional **partnerBirthTime** and **partnerBirthPlace**, wired to the same offline atlas autocomplete as the primary birthplace so the two intakes cannot drift vocabularies. Both values round-trip through snapshot and form. Engine `chandraBala()` computes the partner's sidereal Moon via the on-device Meeus engine and reports the mutual axis: **1/1 Ekarashi, 2/12 Dwidwadasha, 3/11, 4/10, 5/9 Navapanchama, 6/8 Shadashtaka, 7/7 Samasaptaka**. Where both Moons share a rashi lord — classical cancellation of Shadashtaka / Dwidwadasha — that is reported as a fact, not applied as a score, because schools differ. **Two states only:** Tier 1 (date only) shows Driver/Conductor comparison and a banner *“Chandra-bala not computed — add partner birth time and location”* naming which side is missing; Tier 2 (time + place on both sides) shows the computed verdict. No noon default, no stand-in city, no approximate Moon — `chandraBala()` returns `{ tier: 1, chandraBalaComputed: false, missing, message }` instead. The layer is deliberately **not** a 36-point Ashtakoota score (Gana/Nadi/Yoni/Graha Maitri not computed or implied) and prescribes nothing — no remedy, no muhurtha, no Vastu zone. `data-authority=\"chandra-bala\"`. Localised EN/HI/GU. |
+| **Astro-Identity Snapshot (new in #47)** | When partner Tier 2 is reached, Section 18 renders a compact companion card beneath the verdict: **Sun (Surya Rashi), Moon (Chandra Rashi), Nakshatra with pada and Lagna** for both people side-by-side, with the two Moon rows tinted because they are what the axis derives from. Purpose is verification — practitioner can check the verdict against actual longitudes. **Positions only:** no second verdict, no Ashtakoota points, no remedy. There is deliberately **no Tier 1 variant** — a Sun-only column would invite exactly the eyeball Moon comparison that a date alone cannot support. The two charts degrade independently: if primary is Tier 1 its Moon/Nakshatra/Lagna cells read *“not computed — add your birth time & place”* rather than blank. The card repeats birth moment, resolved place, DST caveat and ayanamsa so inputs are auditable; coordinate-entered places print lat/lon once. `data-authority=\"chandra-bala\"`. |
+| **Partner Vimshottari anchor (new in #48)** | Once the partner's natal Moon is computable, the partner's own classical Vimshottari stack is computable too — same engine, same method. Section 18 adds a second companion card beneath the snapshot, rendered only when partner reaches Tier 2 (no Tier 1 variant). It shows **anchor** (nakshatra, pada, lord, Moon sign/degree, span, % elapsed), **balance of the birth lord at birth**, and **active Mahadasha / Antardasha / Pratyantar** with dates and ages. A final line reports the two active stacks as a *fact* — same Mahadasha lord or different — mirroring the shared-rashi-lord idiom: reported, never scored. If primary is Tier 1 the card still shows partner's stack (fact of partner's chart) but withholds the comparison rather than half-computing. **Timing read-out only:** never feeds Chandra-bala verdict, Lo Shu remedies, Vastu zones or Ank Jyotish roadmap, prescribes nothing. `data-authority=\"vimshottari\"` (already in vocab) and its own CSS class so the primary card's pixel-regression locator stays single. Localised EN/HI/GU. Hand-verified: 2000-04-04 09:30 Ahmedabad Uttara Bhadrapada p3 / Saturn 74.6% elapsed → 4.822y balance → Ketu MD through 2029-01-29. |
+| **Tara Bala Nakshatra layer (new in #49)** | The Chandra-bala card computed the Rashi (Bhakoot) axis; classical matching also reads a **Nakshatra-level** factor — Tara — and both natal nakshatras have been computable since #46/#47. Engine `taraBala()` counts nakshatras **inclusively** from partner's Moon nakshatra to self's and vice versa, takes each count **modulo 9 (0 read as 9)** and applies traditional classification — remainders **3, 5 and 7 inauspicious**, every other remainder (1,2,4,6,8,9) auspicious. Both directions auspicious = favourable, one each way = mixed, both inauspicious = caution. **Janma Tara** (same nakshatra) gives count 1 both ways; schools differ, so card flags it as fact rather than fixed verdict. Card is a labelled sub-block under the computed Chandra-bala verdict (Tier 1 banner untouched — no nakshatras, no Tara), printing **both counts, both remainders and the traditional word for each direction**, overall reading, Janma note where applicable, and a scope line stating Tara is one of eight Ashtakoota factors reported with its own working — **not folded into any 36-point score**, prescribing nothing. Pinned worked examples: Rohini/Anuradha → 14→5 inauspicious / 15→6 auspicious; Jyeshtha/Purva Phalguni → 8 auspicious / 21→3 inauspicious. `taraBala()` returns `{ computed: false, missing, message }` naming which side is short. Localised EN/HI/GU. |
+| **Pack / app version** | Knowledge data unchanged, so `latestVersion` stays **2.9.0** and `packUrl` stays `knowledge-pack/packs/2.9.0.json`; `appVersion` bumps to **2.12.0**. `APP_VERSION`, `index.html` meta, `sw.js` cache, `i18n` status pills and `package.json` all move to 2.12.0. Source archive refreshed. |
 
 ## What changed in 2.11.0
 
@@ -461,9 +478,10 @@ The public knowledge pack is separate from personal data:
 3. A pack is validated before it is cached or used.
 4. An older/single-grid pack is rejected rather than mixed into the hybrid UI.
 
-Release 2.11.0 ships `knowledge-pack/packs/2.9.0.json`, generated from the
-bundled pack. The schema requires canonical `loShuGrid` and `vedicGrid`
-configuration as well as the Dasha/Vastu mappings.
+Release 2.12.0 ships `knowledge-pack/packs/2.9.0.json`, generated from the
+bundled pack (pack data unchanged since 2.9.0 — app logic only in 2.10.0–2.12.0).
+The schema requires canonical `loShuGrid` and `vedicGrid` configuration as well
+as the Dasha/Vastu mappings.
 
 ## Tech stack and project layout
 
