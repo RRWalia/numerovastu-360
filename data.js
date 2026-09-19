@@ -35,6 +35,10 @@ var DB = {
       governs: ["Career", "Health", "Business"],
       weakSigns: "Low confidence, trouble with authority/father, weak recognition, low vitality, eye or heart strain",
       day: "Sunday", color: "Gold, Orange, Saffron", metal: "Gold / Copper",
+      /* Full dressing guidance for the Sunday row of the 7-Day Micro-Routine
+         (2026-09 print polish): the Wear slot prints this line verbatim so
+         the client gets complete guidance instead of the bare first colour. */
+      wearGuidance: "Gold, saffron, or warm yellow",
       crystal: "Ruby or Red Aventurine (substitute: Red Jasper)",
       rudraksha: "1 Mukhi Rudraksha",
       mantra: "Om Hram Hreem Hroum Sah Suryaya Namah",

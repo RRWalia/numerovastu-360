@@ -894,7 +894,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.14.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.14.1";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-19";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -4864,7 +4864,15 @@
       const day = dayOf(n);
       if (dayRows.some((r) => r.when === day)) return;
       const muted = solarHot && n === 1;
-      const colour = tidyText(String(info.color || "").split(",")[0]);
+      /* A number may carry a complete dressing line (wearGuidance) instead of
+         being reduced to the first token of its colour list. Sunday was the
+         reported gap — "Wear: Gold" — while Friday read as full guidance;
+         Sun now prints "Wear: Gold, saffron, or warm yellow" on the same
+         labelled slot. Numbers without the field keep the old first-colour
+         extraction byte-for-byte. */
+      const colour = info.wearGuidance
+        ? tidyText(String(info.wearGuidance))
+        : tidyText(String(info.color || "").split(",")[0]);
       const lifestyle = tidyText(String(info.lifestyle || "").split(";")[0]);
       /* "Wear green on Wednesdays" beside the colour slot "Green" repeats
          itself, so a wear clause that opens with the colour word is dropped. */
@@ -5721,8 +5729,8 @@
         const legalSafe = strategy.key === "middle-initial" || strategy.key === "authentic-middle-initial";
         return `<tr data-spelling-strategy="${esc(strategy.key)}" data-window="${esc(win.key)}" data-change="${esc(v.change || "")}"${v.authentic ? ' data-authentic-initial="true"' : ""}>
           <td><strong>${esc(v.text)}</strong></td>
-          <td><span class="badge ${legalSafe ? "good" : "info"}" data-strategy="${esc(strategy.key)}">${esc(strategy.label)}</span>${showStrategyHint ? `<div class="card-sub" data-strategy-hint="${esc(strategy.key)}">${esc(strategy.hint)}</div>` : ""}</td>
-          <td><span class="badge ${win.key === "public" ? "info" : "warn"}" data-window-badge="${esc(win.key)}">${esc(win.label)}</span>${showWindowHint ? `<div class="card-sub" data-window-hint="${esc(win.key)}">${esc(win.hint)}</div>` : ""}</td>
+          <td><div class="spelling-cell-title"><span class="badge ${legalSafe ? "good" : "info"}" data-strategy="${esc(strategy.key)}">${esc(strategy.label)}</span></div>${showStrategyHint ? `<div class="card-sub" data-strategy-hint="${esc(strategy.key)}">${esc(strategy.hint)}</div>` : ""}</td>
+          <td><div class="spelling-cell-title"><span class="badge ${win.key === "public" ? "info" : "warn"}" data-window-badge="${esc(win.key)}">${esc(win.label)}</span></div>${showWindowHint ? `<div class="card-sub" data-window-hint="${esc(win.key)}">${esc(win.hint)}</div>` : ""}</td>
           <td><strong>${v.compound}</strong> <span class="card-sub" data-new-number="${v.reduced}">(${v.reduced})</span></td>
           <td data-practicality="${v.practicality.score}"><span class="practicality-stars" aria-hidden="true">${stars(v.practicality.score)}</span> ${esc(v.practicality.label)}${v.practicality.notes.length ? `<div class="card-sub">${v.practicality.notes.map(esc).join(" · ")}</div>` : ""}</td>
           <td>${esc(v.why)}</td>

@@ -1615,6 +1615,64 @@ check("client text hygiene repairs dangling hyphens, spaced punctuation and the 
     && !/clutterfree/i.test(clientText)
     && !/[A-Za-z]-[;,.]/.test(clientText);
 })());
+/* 2.14.1 print-dossier polish (client QA, pages 20–21 / 41 / 2). The garbled
+   "Window 1 - Everyday / Buyhliess cards" and "jointbone /strain" extractions
+   were never bad data — they were a wrapped badge label painting its second
+   line over the description below it, because .badge carried a FIXED
+   height: 22px as an inline-flex box inside narrow table cells. The suite now
+   pins all three layers of the fix: the growing badge box, the explicit cell
+   leading, the block-wrapper cell structure, and the Sunday wear line. */
+check("badge pills grow around wrapped labels instead of clipping at a fixed 22px", (() => {
+  const badgeRule = (styles.match(/\.badge \{[^}]*\}/) || [""])[0];
+  return /min-height: 22px/.test(badgeRule)
+    && !/(^|[^-])height:\s*22px/.test(badgeRule);
+})());
+check("spelling and micro-forecast table cells print on defined 1.35 leading, top-aligned", (() => {
+  return /\.spelling-table td, \.micro-forecast-table td \{ line-height: 1\.35; vertical-align: top; \}/.test(styles)
+    && /\.spelling-table \.spelling-cell-title \{ display: flex; \}/.test(styles);
+})());
+check("spelling-table Strategy and Applies-to titles are their own block wrappers, not loose inline text", (() => {
+  const table = $(".spelling-table", amarDom);
+  if (!table) return false;
+  const titles = $$("[data-strategy]", table).concat($$("[data-window-badge]", table));
+  const hints = $$("[data-window-hint]", table).concat($$("[data-strategy-hint]", table));
+  return titles.length >= 4
+    && titles.every((n) => n.parentElement
+      && n.parentElement.tagName === "DIV"
+      && n.parentElement.classList.contains("spelling-cell-title")
+      && n.parentElement.parentElement.tagName === "TD")
+    && hints.length >= 2
+    && hints.every((h) => h.tagName === "DIV" && h.classList.contains("card-sub")
+      && h.parentElement.tagName === "TD"
+      && !!h.previousElementSibling && h.previousElementSibling.classList.contains("spelling-cell-title"));
+})());
+check("the Saturn 90-day caution carries the clean joint/bone compound and renders it intact", (() => {
+  const caution = ((window.DB.dasha || {})[8] || {}).caution || {};
+  const en = String(caution.en || "");
+  const clientText = amarReport.replace(/<[^>]+>/g, " ");
+  return /Delays, joint\/bone strain and pessimism/.test(en)
+    && !/jointbone|bone \/ strain| \/. /.test(en)
+    && !/jointbone/i.test(clientText);
+})());
+check("micro-forecast MD · AD math sits on its own block line under the sub-lord name", (() => {
+  const card = $(".dasha-micro-forecast", amarDom);
+  if (!card) return false;
+  const math = $$("td .card-sub", card).filter((n) => /^MD \d+ · AD \d+$/.test(n.textContent.trim()));
+  return math.length >= 1
+    && math.every((n) => n.parentElement.tagName === "TD"
+      && !!n.parentElement.querySelector("strong"));
+})());
+check("the Sunday row prints complete dressing guidance, matching the Friday slot", (() => {
+  const card = $("[data-micro-routine]", amarDom);
+  if (!card) return false;
+  const sunday = $$("tr", card).find((tr) => /Surya/.test(tr.textContent));
+  if (!sunday) return false;
+  const text = sunday.textContent.replace(/\s+/g, " ");
+  const wear = $$("[data-action-kind='wear'] li, li[data-action-kind='wear']", sunday)[0];
+  return /Wear: Gold, saffron, or warm yellow/.test(text)
+    && !/^Wear: Gold(?!, saffron)/.test((wear || sunday).textContent.replace(/\s+/g, " ").trim())
+    && !/Wear: Wear/i.test(text);
+})());
 check("the Tattva Agni plane mutes Surya Bhedana and Solar Activation under solar overload", (() => {
   const tattva = mount(window.__NV.renderVedicTattvaSection(amarProfile));
   const muted = $$('[data-conflict-muted="solar-overload"]', tattva);
