@@ -707,15 +707,17 @@ body {
    block below it stacks instead of colliding. */
 .badge {
   display: inline-flex; align-items: center; gap: 4px;
-  min-height: 22px; padding: 2px 8px;
+  min-height: 22px; padding: 1px 7px;
   font-size: 12px; font-weight: 500; line-height: 18px;
   border-radius: var(--r-xxs);
   background: var(--fill-f2); color: var(--label-secondary);
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
-.badge.good { background: var(--light-green-bg); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
-.badge.warn { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
-.badge.bad  { background: var(--light-red-bg); color: #a81e2a; border: 1px solid rgba(255, 77, 77, 0.22); }
-.badge.info { background: var(--kimi-blue-10); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
+.badge.good { background: var(--light-green-bg); color: #0a5a28; border-color: rgba(22, 196, 86, 0.24); }
+.badge.warn { background: var(--light-orange-bg); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
+.badge.bad  { background: var(--light-red-bg); color: #a81e2a; border-color: rgba(255, 77, 77, 0.22); }
+.badge.info { background: var(--kimi-blue-10); color: #0d4ea6; border-color: rgba(23, 131, 255, 0.22); }
 
 /* Advanced Vedic Ank Kundali birth comparison */
 .vedic-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
@@ -920,9 +922,10 @@ body {
 .card.clinical-guardrail-banner { padding: 14px 16px; }
 .clinical-guardrail-banner .kit-label { color: var(--label-primary); font-weight: 700; }
 .priority-guardrail {
-  display: inline-block; margin-top: 4px; padding: 2px 8px;
+  display: inline-block; margin-top: 4px; padding: 1px 7px;
   font-size: 12px; line-height: 18px; font-weight: 600;
   background: var(--light-orange-bg); color: #7a4500; border-radius: var(--r-full); border: 1px solid rgba(255, 149, 0, 0.24);
+  box-sizing: border-box;
 }
 .tattva-card .solar-moderation { margin-top: 2px; padding-left: 12px; }
 .student-stack-note {
@@ -943,12 +946,14 @@ body {
 .tier-upcoming { border-style: dashed; background: var(--bg-primary); }
 .tier-badge {
   flex: none; display: inline-flex; align-items: center;
-  min-height: 22px; padding: 2px 8px; border-radius: var(--r-full);
+  min-height: 22px; padding: 1px 7px; border-radius: var(--r-full);
   font-size: 11px; font-weight: 600; line-height: 18px; letter-spacing: 0.03em;
   white-space: nowrap;
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
-.tier-badge-ready { background: rgba(22, 196, 86, 0.16); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
-.tier-badge-upcoming { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
+.tier-badge-ready { background: rgba(22, 196, 86, 0.16); color: #0a5a28; border-color: rgba(22, 196, 86, 0.24); }
+.tier-badge-upcoming { background: var(--light-orange-bg); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
 .tier-body { min-width: 0; }
 .tier-body strong { color: var(--label-primary); }
 
@@ -1011,13 +1016,15 @@ body {
 .priority-text { min-width: 140px; flex: 1; overflow-wrap: anywhere; }
 .cadence {
   flex: none; margin-top: 1px;
-  padding: 3px 9px; border-radius: var(--r-full);
+  padding: 2px 8px; border-radius: var(--r-full);
   font-size: 11px; font-weight: 800; letter-spacing: 0.04em; line-height: 16px;
   text-transform: uppercase; white-space: nowrap;
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
-.cadence-daily { background: rgba(23, 131, 255, 0.16); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
-.cadence-weekly { background: rgba(152, 95, 251, 0.16); color: #5a2abf; border: 1px solid rgba(152, 95, 251, 0.22); }
-.cadence-once { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
+.cadence-daily { background: rgba(23, 131, 255, 0.16); color: #0d4ea6; border-color: rgba(23, 131, 255, 0.22); }
+.cadence-weekly { background: rgba(152, 95, 251, 0.16); color: #5a2abf; border-color: rgba(152, 95, 251, 0.22); }
+.cadence-once { background: var(--light-orange-bg); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
 
 /* 40-Day Activation Plan */
 .plan-subhead {
@@ -1251,9 +1258,9 @@ body {
 /* ---------- Sambhandha badge semantics ----------
    badge-conflict must never render green, whatever palette class it is
    paired with; badge-friendly / badge-neutral simply document intent. */
-.badge.badge-conflict { background: var(--light-red-bg); color: #a81e2a; border: 1px solid rgba(255, 77, 77, 0.22); }
-.badge.badge-friendly { background: var(--light-green-bg); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
-.badge.badge-neutral { background: var(--kimi-blue-10); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
+.badge.badge-conflict { background: var(--light-red-bg); color: #a81e2a; border-color: rgba(255, 77, 77, 0.22); }
+.badge.badge-friendly { background: var(--light-green-bg); color: #0a5a28; border-color: rgba(22, 196, 86, 0.24); }
+.badge.badge-neutral { background: var(--kimi-blue-10); color: #0d4ea6; border-color: rgba(23, 131, 255, 0.22); }
 .stack-badge-guidance { color: var(--label-tertiary); }
 .root-formula-plain {
   margin-top: 4px;
@@ -1318,15 +1325,17 @@ body {
 }
 .cockpit-tag {
   display: inline-block;
-  padding: 1px 6px;
+  padding: 0 5px;
   margin-right: 6px;
   border-radius: var(--r-xs);
   background: var(--fill-f1);
   font-size: 11px;
   font-weight: 600;
   color: var(--label-secondary);
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
-.cockpit-tag.warn { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
+.cockpit-tag.warn { background: var(--light-orange-bg); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
 .cockpit-dev { color: var(--label-secondary); }
 .cockpit-hold { color: #7a4500; font-weight: 600; }
 .cockpit-unlock { color: var(--label-tertiary); }
@@ -1704,9 +1713,10 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 .conflict-muted-note {
   display: inline-block; font-size: 11px; line-height: 16px; font-weight: 600;
   color: #7a4500; background: color-mix(in srgb, #8a5a00 14%, transparent);
-  border-radius: var(--r-full, 999px); padding: 1px 8px; margin-left: 6px;
+  border-radius: var(--r-full, 999px); padding: 0 7px; margin-left: 6px;
   text-decoration: none;
   border: 1px solid rgba(138, 90, 0, 0.18);
+  box-sizing: border-box;
 }
 
 /* Grid-tagging disclosure note under life-event windows */
@@ -1743,5 +1753,17 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 
   .report-cockpit {
     display: block;
+  }
+}
+
+/* ---------- Visual regression fix: badge borders reserve space via
+   transparent border (padding reduced) so height stays 22px. In print the
+   cockpit sheet uses flat ink — border:0 restores baseline height. */
+@media print {
+  .cockpit-sheet .badge,
+  .cockpit-sheet .cockpit-tag,
+  .cockpit-sheet .tier-badge,
+  .cockpit-sheet .cadence {
+    border: 0 !important;
   }
 }
