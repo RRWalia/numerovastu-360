@@ -1654,8 +1654,9 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 .micro-action-label { font-weight: 600; color: var(--label-secondary); }
 .micro-forecast-list { margin-top: 2px; gap: 2px; }
 .micro-forecast-list > li { font-size: 13px; line-height: 18px; }
-/* Hyphenated compounds must never be split by the browser's hyphenation and
-   then extracted as "clutterfree-;" from a wrapped PDF line. */
+/* Hyphenated compounds must never be split by the browser's own hyphenation,
+   which strands a hyphen mid-line in print and lets a PDF text extraction
+   show the compound with the hyphen on the wrong side of the punctuation. */
 .micro-routine-table td, .micro-forecast-table td, .spelling-table td { hyphens: none; -webkit-hyphens: none; }
 /* A solar-muted row keeps its guardrail notice but is tinted, not struck
    through: the row still prints the one practice that survives the guardrail. */
