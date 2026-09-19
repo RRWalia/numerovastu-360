@@ -1714,3 +1714,34 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 
 /* Ashta Dikpalaka classical direction card */
 .ashta-dikpalaka-card table td:first-child { white-space: nowrap; }
+
+/* ---------- Print pagination: cockpit must be block-level with explicit breaks ----------
+   Page breaks are unreliable on flex/grid children, so the cockpit root is forced to
+   block and starts on a fresh page. Each clinical card is kept atomic. */
+@media print {
+  .cockpit,
+  .report-cockpit,
+  #practitioner-cockpit,
+  .cockpit-section {
+    display: block;
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .cockpit .card,
+  .cockpit .clinical-card,
+  .report-cockpit .card,
+  .report-cockpit .clinical-card,
+  #practitioner-cockpit .card,
+  .cockpit-section .card,
+  .report-cockpit > *,
+  .cockpit > * {
+    display: block;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-cockpit {
+    display: block;
+  }
+}
