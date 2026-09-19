@@ -181,6 +181,12 @@ test.describe('hybrid report browser regression', () => {
 
   test('Practitioner Cockpit is a single printable consultation page', async ({ page }) => {
     await generateCompleteReport(page);
+    // The cockpit sheet is a practitioner artefact: since the 2026-09 audit
+    // the default report mode is Client (cockpit hidden in print), so the
+    // one-page cockpit contract is asserted in Practitioner mode where the
+    // full compendium is guaranteed to print.
+    await page.locator('[data-report-mode-btn="practitioner"]').click();
+    await expect(page.locator('body')).toHaveClass(/report-mode-practitioner/);
 
     await page.locator('#cockpit-tab').click();
     await expect(page).toHaveURL(/#cockpit$/);
@@ -258,6 +264,9 @@ test.describe('hybrid report browser regression', () => {
 
   test('print/PDF exposes both modules and the normally collapsed comparison', async ({ page }) => {
     await generateCompleteReport(page);
+    // Practitioner mode is the full compendium: every module, including the
+    // cockpit and the normally-collapsed Vedic comparison, must reach the PDF.
+    await page.locator('[data-report-mode-btn="practitioner"]').click();
     await page.emulateMedia({ media: 'print' });
 
     const printState = await page.evaluate(() => {
@@ -277,6 +286,44 @@ test.describe('hybrid report browser regression', () => {
     expect(printState.timeline).not.toBe('none');
     expect(printState.cockpit).not.toBe('none');
     expect(printState.detailBody).not.toBe('none');
+  });
+
+  test('Client mode prints a dossier: cockpit and cross-reference appendices stay out of the PDF', async ({ page }) => {
+    await generateCompleteReport(page);
+    // Client is the default mode since the 2026-09 audit; assert it directly
+    // rather than relying on the default so a flipped default fails loudly.
+    await page.locator('[data-report-mode-btn="client"]').click();
+    await expect(page.locator('body')).toHaveClass(/report-mode-client/);
+    await page.emulateMedia({ media: 'print' });
+
+    const clientPrint = await page.evaluate(() => {
+      const foundation = document.querySelector('#foundation-panel');
+      const timeline = document.querySelector('#timeline-panel');
+      const cockpit = document.querySelector('#cockpit-panel');
+      const crossref = document.querySelector('.dasha-crossref');
+      return {
+        foundation: getComputedStyle(foundation).display,
+        timeline: getComputedStyle(timeline).display,
+        cockpit: cockpit && getComputedStyle(cockpit).display,
+        crossref: crossref && getComputedStyle(crossref).display,
+      };
+    });
+    // The dossier keeps the client-facing modules…
+    expect(clientPrint.foundation).not.toBe('none');
+    expect(clientPrint.timeline).not.toBe('none');
+    // …and keeps the clinical cockpit and the dual-dasha appendix out of it.
+    expect(clientPrint.cockpit).toBe('none');
+    expect(clientPrint.crossref).toBe('none');
+
+    // The explicit cockpit print job is still honoured even in Client mode:
+    // it is a deliberate one-page practitioner action, not the report PDF.
+    const cockpitJob = await page.evaluate(() => {
+      document.body.classList.add('print-cockpit');
+      const display = getComputedStyle(document.querySelector('#cockpit-panel')).display;
+      document.body.classList.remove('print-cockpit');
+      return display;
+    });
+    expect(cockpitJob).not.toBe('none');
   });
 });
 
@@ -307,6 +354,12 @@ test.describe('pixel regression', () => {
 
   test('Dasha timeline classical Vimshottari card holds its layout', async ({ page }) => {
     await generateCompleteReport(page);
+    // Since the 2026-09 audit Ank Jyotish is the default primary engine and
+    // the classical card is cordoned inside a collapsed cross-reference. Make
+    // Vimshottari primary so the card renders in its standalone form — the
+    // exact markup the baseline pins.
+    await page.locator('.report-controls [data-dasha-engine-select]').selectOption('vimshottari');
+    await expect(page.locator('#dasha-section')).toHaveAttribute('data-primary-dasha-engine', 'vimshottari');
     await page.evaluate(() => { window.location.hash = '#dasha-section'; });
     const card = page.locator('.vimshottari-card');
     await expect(card).toBeVisible();
@@ -315,6 +368,10 @@ test.describe('pixel regression', () => {
 
   test('Practitioner Cockpit prints as a single A4 sheet', async ({ page }) => {
     await generateCompleteReport(page);
+    // The cockpit sheet belongs to the Practitioner compendium: in the default
+    // Client mode the cockpit is withheld from the report PDF, so the A4-sheet
+    // pixel contract is pinned in Practitioner mode.
+    await page.locator('[data-report-mode-btn="practitioner"]').click();
     await page.locator('#cockpit-tab').click();
     // Print media is where the one-page contract lives: the screen layout is
     // deliberately looser than the sheet.

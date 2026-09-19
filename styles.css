@@ -1588,8 +1588,10 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
   body.report-mode-client .practitioner-only,
   body.report-mode-client [data-technical],
   body.report-mode-client .dasha-crossref { display: none !important; }
-  /* Client dossiers never print the practitioner cockpit tab content. */
-  body.report-mode-client #cockpit-panel { display: none !important; }
+  /* Client dossiers never print the practitioner cockpit tab content —
+     except when the user explicitly prints the cockpit sheet itself
+     (body.print-cockpit): that dedicated one-page job is always honoured. */
+  body.report-mode-client:not(.print-cockpit) #cockpit-panel { display: none !important; }
   /* The Practitioner compendium force-expands every collapsed cross-reference
      and optional module so the full 45+ page record reaches the PDF. */
   body.report-mode-practitioner .dasha-crossref:not([open]) > .dasha-crossref-body,
