@@ -42,6 +42,20 @@ statutory record.
 | **Report & cockpit** | A **Two Windows of Name Correction** card states where each window lives, using the client's own strings, plus a **Patronymic analysis** list naming each family token, its Chaldean value and the verdict of the authentic-initial test. The practitioner cockpit prints the statutory total beside the everyday one (`Legal: 80 → 8`). |
 | **Pack / app version** | Knowledge data unchanged (`latestVersion` stays **2.9.0**); `appVersion` moves to **2.14.0** in `knowledge-pack/latest.json`, and `APP_VERSION`, the `index.html` meta, `sw.js` cache, the i18n status pills, the build label and `package.json`/`package-lock.json` follow. Source archive regenerated from HEAD. |
 
+## What changed in 2.14.1
+
+A printed-dossier QA pass (reference chart: **Amar Sambhvani /
+Amarkumar Kishorbhai Sambhvani, 24 Jan 1983 — Money / Business / Career**)
+reported three client-facing layout defects on pages 20–21, 41 and 2. No
+engine result changed; all three changed what the client reads.
+
+| Area | 2.14.1 behaviour |
+| --- | --- |
+| **Badge print-collision in Section 6 (pages 20–21)** | The garbled `Window 1 - Everyday / Buyhliess cards` and `Formal / Passpment` readings were a *layout* collision, not corrupted text: `.badge` carried a fixed `height: 22px`, so a wrapped window/strategy label in the narrow **Applies to** column overflowed its own box and its second line printed on top of the description beneath it. Badge boxes now grow with their content (`min-height: 22px`), `.spelling-table td` runs on defined `line-height: 1.35; vertical-align: top`, and every Strategy / Applies-to cell wraps its badge title in a dedicated `div.spelling-cell-title` block so title and hint are two stacked boxes rather than loose inline text followed by a div. |
+| **Micro-Forecast overflow in Section 14 (page 41)** | The `Delays, jointbone /strain` artefact and the arrow bleeding into `MD 5 · AD 9` were the same collision inside the 90-day Pratyantar table — the `Friction with AD` / `New AD n · Planet` badges share the sub-lord line box with the math note. The `data.js` caution string was verified already canonical (“Delays, joint/bone strain and pessimism; never take shortcuts in this period.” — pinned by a new smoke check); the fix is layout: `.micro-forecast-table td` gets the same `1.35 / top` leading, badges grow instead of overprinting, and the `MD n · AD n` line keeps its own block under the sub-lord name. |
+| **Sunday dressing guidance (page 2)** | The 7-Day Micro-Routine Sunday row read `Wear: Gold` — the Wear slot previously took only the first token of the colour list, while Friday printed complete guidance. `numbers[1]` now ships a dedicated `wearGuidance` line — **“Wear: Gold, saffron, or warm yellow”** (localised in the HI/GU packs as well) — preferred by the slot for any number that defines it; every other weekday keeps the first-colour extraction byte-for-byte. |
+| **Pack / app version** | Knowledge data unchanged (`latestVersion` stays **2.9.0**); the bundled `DB` gained only the `numbers[1].wearGuidance` line, and `knowledge-pack/packs/2.9.0.json` was re-derived from it (byte-identical derivation, packVersion untouched). `appVersion` moves to **2.14.1** in `knowledge-pack/latest.json`, and `APP_VERSION`, the `index.html` meta, `sw.js` cache, the i18n status pills and `package.json`/`package-lock.json` follow. Source archive regenerated from HEAD. |
+
 ## What changed in 2.13.1
 
 A review of the printed consultation dossier (reference chart: **Amar

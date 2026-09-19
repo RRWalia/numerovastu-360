@@ -697,9 +697,17 @@ body {
 .num-traits { font-size: 12px; line-height: 18px; color: var(--label-secondary); }
 
 /* Badges */
+/* 2.14.1 print-collision fix: the box used to be a FIXED height: 22px. In a
+   narrow table cell a long label ("Window 1 — Everyday / Public", "Friction
+   with AD", "New AD 9 · Saturn") wraps inside the badge, and the overflow of
+   a 2–3-line label was painted on top of the description block underneath —
+   the "Buyhliess" / "Passpment" glyph interleaving seen on dossier pages
+   20–21 and 41. min-height keeps the 22px pill for single-line badges
+   (18px line + 4px padding) while a wrapped badge grows its box, so every
+   block below it stacks instead of colliding. */
 .badge {
   display: inline-flex; align-items: center; gap: 4px;
-  height: 22px; padding: 2px 8px;
+  min-height: 22px; padding: 2px 8px;
   font-size: 12px; font-weight: 500; line-height: 18px;
   border-radius: var(--r-xxs);
   background: var(--fill-f2); color: var(--label-secondary);
@@ -1662,6 +1670,18 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
    through: the row still prints the one practice that survives the guardrail. */
 .micro-routine-table tr.solar-guardrail-row { background: color-mix(in srgb, #8a5a00 6%, transparent); }
 .micro-routine-table tr.solar-guardrail-row td:first-child { box-shadow: inset 3px 0 0 #b7791f; }
+/* 2.14.1 print-collision fix (dossier pages 20–21 and 41): the Section 6
+   Name Tuning table and the 90-Day Pratyantar Micro-Forecast mix badge pills,
+   formula text ("MD 5 · AD 9", "Now → 5 Oct 2026") and stacked card-sub notes
+   in narrow columns. Those cells now run on a defined 1.35 leading and stay
+   top-aligned, so a wrapped badge line and the line under it can never share
+   the same strip of paper when the PDF engine re-wraps them. The spelling
+   cell title is its own block wrapper (see spellingTableHtml) so the Window
+   title and its description are two boxes, not loose inline text followed by
+   a div. */
+.spelling-table td, .micro-forecast-table td { line-height: 1.35; vertical-align: top; }
+.spelling-table .spelling-cell-title { display: flex; }
+.micro-forecast-table .badge { vertical-align: middle; }
 .spelling-table .badge { margin-bottom: 2px; }
 .spelling-table td[data-practicality] .practicality-stars { letter-spacing: 0.5px; }
 /* Dual name layer: the patronymic analysis reads as a short list of family
