@@ -7,16 +7,16 @@
    ============================================================ */
 
 :root {
-  /* color.tokens (light) */
+  /* color.tokens (light) — contrast improved for WCAG AA (2026-09) */
   --label-primary: rgba(0, 0, 0, 0.9);
-  --label-secondary: rgba(0, 0, 0, 0.64);
-  --label-tertiary: rgba(0, 0, 0, 0.55);
-  --label-quaternary: rgba(0, 0, 0, 0.3);
+  --label-secondary: rgba(0, 0, 0, 0.72);
+  --label-tertiary: rgba(0, 0, 0, 0.64);
+  --label-quaternary: rgba(0, 0, 0, 0.38);
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
   --bg-ground: #f9fbfc;
   --fill-f1: rgba(0, 0, 0, 0.03);
-  --fill-f2: rgba(0, 0, 0, 0.05);
+  --fill-f2: rgba(0, 0, 0, 0.06);
   --fill-f3: rgba(0, 0, 0, 0.15);
   --separator: rgba(0, 0, 0, 0.13);
   --danger: #ff3849;
@@ -24,11 +24,11 @@
   --kimi-blue: #1783ff;
   --amber: #ff9500;
   --purple: #985ffb;
-  --light-green-bg: rgba(22, 196, 86, 0.1);
-  --light-red-bg: rgba(255, 77, 77, 0.1);
-  --light-orange-bg: rgba(255, 149, 0, 0.1);
+  --light-green-bg: rgba(22, 196, 86, 0.16);
+  --light-red-bg: rgba(255, 77, 77, 0.14);
+  --light-orange-bg: rgba(255, 149, 0, 0.16);
   --light-yellow-bg: rgba(255, 200, 0, 0.2);
-  --kimi-blue-10: rgba(23, 131, 255, 0.1);
+  --kimi-blue-10: rgba(23, 131, 255, 0.14);
 
   /* radius tokens */
   --r-xxs: 4px; --r-sm: 8px; --r-md: 10px; --r-lg: 12px; --r-xl: 16px; --r-full: 100px;
@@ -215,12 +215,12 @@ body {
   font-size: 12px; font-weight: 600; line-height: 18px;
   border: 1px solid transparent;
 }
-.status-private { background: rgba(22, 196, 86, 0.12); color: #0b7c39; border-color: rgba(22, 196, 86, 0.18); }
-.status-knowledge { background: rgba(23, 131, 255, 0.1); color: #0f63c9; border-color: rgba(23, 131, 255, 0.16); }
-.status-app { background: rgba(255, 149, 0, 0.12); color: #a05c00; border-color: rgba(255, 149, 0, 0.2); }
-.status-build { background: rgba(0, 0, 0, 0.05); color: var(--label-secondary); border-color: rgba(0, 0, 0, 0.1); }
-.status-memory { background: rgba(152, 95, 251, 0.12); color: #6d28d9; border-color: rgba(152, 95, 251, 0.18); }
-.status-vedic { background: rgba(255, 149, 0, 0.12); color: #a05c00; border-color: rgba(255, 149, 0, 0.2); }
+.status-private { background: rgba(22, 196, 86, 0.16); color: #0a5a28; border-color: rgba(22, 196, 86, 0.24); }
+.status-knowledge { background: rgba(23, 131, 255, 0.14); color: #0d4ea6; border-color: rgba(23, 131, 255, 0.22); }
+.status-app { background: rgba(255, 149, 0, 0.16); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
+.status-build { background: rgba(0, 0, 0, 0.06); color: var(--label-secondary); border-color: rgba(0, 0, 0, 0.12); }
+.status-memory { background: rgba(152, 95, 251, 0.16); color: #5a2abf; border-color: rgba(152, 95, 251, 0.24); }
+.status-vedic { background: rgba(255, 149, 0, 0.16); color: #7a4500; border-color: rgba(255, 149, 0, 0.24); }
 
 .status-surface {
   background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.92));
@@ -565,7 +565,7 @@ body {
   font-size: 12px; line-height: 16px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
 }
-.summary-notice-body { margin: 0; color: rgba(255, 255, 255, 0.86); font-size: 13px; line-height: 20px; }
+.summary-notice-body { margin: 0; color: rgba(255, 255, 255, 0.92); font-size: 13px; line-height: 20px; }
 .summary-kicker {
   margin-bottom: 6px;
   color: #ffd782;
@@ -584,7 +584,7 @@ body {
 .summary-story {
   max-width: 780px;
   margin-top: 10px;
-  color: rgba(255,255,255,0.88);
+  color: rgba(255,255,255,0.94);
   font-size: 16px;
   line-height: 27px;
 }
@@ -595,14 +595,14 @@ body {
   margin-top: 18px;
 }
 .summary-card {
-  border: 1px solid rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.20);
   border-radius: var(--r-lg);
   padding: 14px;
-  background: rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.12);
   backdrop-filter: blur(10px);
 }
 .summary-label {
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.80);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -610,7 +610,7 @@ body {
   text-transform: uppercase;
 }
 .summary-value { margin-top: 4px; font-size: 16px; font-weight: 700; line-height: 23px; }
-.summary-card p { margin-top: 6px; color: rgba(255,255,255,0.76); font-size: 13px; line-height: 20px; }
+.summary-card p { margin-top: 6px; color: rgba(255,255,255,0.90); font-size: 13px; line-height: 20px; }
 .summary-next {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
@@ -624,7 +624,7 @@ body {
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 10px;
   align-items: start;
-  color: rgba(255,255,255,0.88);
+  color: rgba(255,255,255,0.94);
   font-size: 14px;
   line-height: 22px;
 }
@@ -642,16 +642,16 @@ body {
 .summary-way-forward {
   border-radius: var(--r-lg);
   padding: 14px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.20);
 }
-.summary-way-forward p { color: rgba(255,255,255,0.84); font-size: 14px; line-height: 22px; }
+.summary-way-forward p { color: rgba(255,255,255,0.92); font-size: 14px; line-height: 22px; }
 .summary-way-forward p + p { margin-top: 10px; }
 .summary-shell strong, .summary-actions strong { color: #fff; }
 .summary-actions .mantra { color: #ffe9b0; }
 .summary-move { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .summary-move-title { display: block; color: #fff; font-weight: 700; font-size: 14px; line-height: 21px; }
-.summary-move-detail { display: block; color: rgba(255,255,255,0.72); font-size: 13px; line-height: 20px; }
+.summary-move-detail { display: block; color: rgba(255,255,255,0.84); font-size: 13px; line-height: 20px; }
 .summary-cta {
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 16px; padding: 10px 16px;
@@ -712,10 +712,10 @@ body {
   border-radius: var(--r-xxs);
   background: var(--fill-f2); color: var(--label-secondary);
 }
-.badge.good { background: var(--light-green-bg); color: #0d8a3e; }
-.badge.warn { background: var(--light-orange-bg); color: #a05c00; }
-.badge.bad  { background: var(--light-red-bg); color: #c92a36; }
-.badge.info { background: var(--kimi-blue-10); color: #0f63c9; }
+.badge.good { background: var(--light-green-bg); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
+.badge.warn { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
+.badge.bad  { background: var(--light-red-bg); color: #a81e2a; border: 1px solid rgba(255, 77, 77, 0.22); }
+.badge.info { background: var(--kimi-blue-10); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
 
 /* Advanced Vedic Ank Kundali birth comparison */
 .vedic-grid-wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
@@ -821,7 +821,7 @@ body {
 .astro-pair-key > td { background: rgba(152, 95, 251, 0.07); }
 .astro-pair-key > td:first-child { color: var(--label-primary); font-weight: 600; }
 .astro-pair-lord { color: var(--label-tertiary); font-size: 12px; white-space: nowrap; }
-.astro-pending { color: #a05c00; font-size: 12px; line-height: 18px; }
+.astro-pending { color: #7a4500; font-size: 12px; line-height: 18px; font-weight: 600; }
 
 .mantra { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--fill-f1); padding: 2px 6px; border-radius: var(--r-xxs); }
 
@@ -922,7 +922,7 @@ body {
 .priority-guardrail {
   display: inline-block; margin-top: 4px; padding: 2px 8px;
   font-size: 12px; line-height: 18px; font-weight: 600;
-  background: var(--light-orange-bg); color: #a05c00; border-radius: var(--r-full);
+  background: var(--light-orange-bg); color: #7a4500; border-radius: var(--r-full); border: 1px solid rgba(255, 149, 0, 0.24);
 }
 .tattva-card .solar-moderation { margin-top: 2px; padding-left: 12px; }
 .student-stack-note {
@@ -947,8 +947,8 @@ body {
   font-size: 11px; font-weight: 600; line-height: 18px; letter-spacing: 0.03em;
   white-space: nowrap;
 }
-.tier-badge-ready { background: rgba(22, 196, 86, 0.16); color: #0b7c39; }
-.tier-badge-upcoming { background: var(--light-orange-bg); color: #a05c00; }
+.tier-badge-ready { background: rgba(22, 196, 86, 0.16); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
+.tier-badge-upcoming { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
 .tier-body { min-width: 0; }
 .tier-body strong { color: var(--label-primary); }
 
@@ -1015,9 +1015,9 @@ body {
   font-size: 11px; font-weight: 800; letter-spacing: 0.04em; line-height: 16px;
   text-transform: uppercase; white-space: nowrap;
 }
-.cadence-daily { background: var(--kimi-blue-10); color: var(--kimi-blue); }
-.cadence-weekly { background: rgba(152, 95, 251, 0.12); color: var(--purple); }
-.cadence-once { background: var(--light-orange-bg); color: #a05c00; }
+.cadence-daily { background: rgba(23, 131, 255, 0.16); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
+.cadence-weekly { background: rgba(152, 95, 251, 0.16); color: #5a2abf; border: 1px solid rgba(152, 95, 251, 0.22); }
+.cadence-once { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
 
 /* 40-Day Activation Plan */
 .plan-subhead {
@@ -1086,7 +1086,7 @@ body {
   background: var(--positive); border-color: var(--positive);
   color: #fff; font-weight: 800;
 }
-.tracker-cell.next { border-color: var(--amber); color: #a05c00; box-shadow: 0 0 0 2px var(--light-yellow-bg); }
+.tracker-cell.next { border-color: var(--amber); color: #7a4500; box-shadow: 0 0 0 2px var(--light-yellow-bg); font-weight: 700; }
 .tracker-foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   margin-top: 12px;
@@ -1198,12 +1198,12 @@ body {
 .astro-ref { font-size: 12px; color: var(--label-tertiary); margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--separator); }
 .astro-nak-badge {
   display: inline-block;
-  background: rgba(152, 95, 251, 0.12);
-  color: #6d33d9;
-  border: 1px solid rgba(152, 95, 251, 0.3);
+  background: rgba(152, 95, 251, 0.16);
+  color: #5a2abf;
+  border: 1px solid rgba(152, 95, 251, 0.32);
   border-radius: var(--r-full);
   padding: 2px 8px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .astro-nak-strip {
   border: 1px solid rgba(152, 95, 251, 0.3);
@@ -1237,7 +1237,7 @@ body {
 .astro-unlock-title { font-size: 14px; font-weight: 600; color: var(--label-primary); }
 .astro-unlock p { font-size: 13px; color: var(--label-secondary); line-height: 19px; }
 .astro-note { font-size: 12px; color: var(--label-tertiary); margin-top: 6px; }
-.astro-boundary { color: #a05c00; }
+.astro-boundary { color: #7a4500; font-weight: 600; }
 .astro-foot {
   margin-top: 12px;
   padding-top: 10px;
@@ -1251,9 +1251,9 @@ body {
 /* ---------- Sambhandha badge semantics ----------
    badge-conflict must never render green, whatever palette class it is
    paired with; badge-friendly / badge-neutral simply document intent. */
-.badge.badge-conflict { background: var(--light-red-bg); color: #c92a36; }
-.badge.badge-friendly { background: var(--light-green-bg); color: #0d8a3e; }
-.badge.badge-neutral { background: var(--kimi-blue-10); color: #0f63c9; }
+.badge.badge-conflict { background: var(--light-red-bg); color: #a81e2a; border: 1px solid rgba(255, 77, 77, 0.22); }
+.badge.badge-friendly { background: var(--light-green-bg); color: #0a5a28; border: 1px solid rgba(22, 196, 86, 0.24); }
+.badge.badge-neutral { background: var(--kimi-blue-10); color: #0d4ea6; border: 1px solid rgba(23, 131, 255, 0.22); }
 .stack-badge-guidance { color: var(--label-tertiary); }
 .root-formula-plain {
   margin-top: 4px;
@@ -1326,9 +1326,9 @@ body {
   font-weight: 600;
   color: var(--label-secondary);
 }
-.cockpit-tag.warn { background: var(--light-orange-bg); color: #a05c00; }
+.cockpit-tag.warn { background: var(--light-orange-bg); color: #7a4500; border: 1px solid rgba(255, 149, 0, 0.24); }
 .cockpit-dev { color: var(--label-secondary); }
-.cockpit-hold { color: #a05c00; }
+.cockpit-hold { color: #7a4500; font-weight: 600; }
 .cockpit-unlock { color: var(--label-tertiary); }
 .cockpit-why { margin-top: 6px; font-size: 11px; line-height: 16px; color: var(--label-tertiary); }
 .cockpit-mini { font-size: 11px; line-height: 15px; color: var(--label-tertiary); }
@@ -1668,7 +1668,7 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 .micro-routine-table td, .micro-forecast-table td, .spelling-table td { hyphens: none; -webkit-hyphens: none; }
 /* A solar-muted row keeps its guardrail notice but is tinted, not struck
    through: the row still prints the one practice that survives the guardrail. */
-.micro-routine-table tr.solar-guardrail-row { background: color-mix(in srgb, #8a5a00 6%, transparent); }
+.micro-routine-table tr.solar-guardrail-row { background: color-mix(in srgb, #8a5a00 10%, transparent); }
 .micro-routine-table tr.solar-guardrail-row td:first-child { box-shadow: inset 3px 0 0 #b7791f; }
 /* 2.14.1 print-collision fix (dossier pages 20–21 and 41): the Section 6
    Name Tuning table and the 90-Day Pratyantar Micro-Forecast mix badge pills,
@@ -1700,12 +1700,13 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 /* Automated conflict resolution — visually mute a recommendation that a live
    clinical guardrail contradicts (e.g. an Agni/solar tip beside a solar-load
    warning) instead of printing the two side by side. */
-.conflict-muted { opacity: 0.55; text-decoration: line-through; text-decoration-thickness: 1px; }
+.conflict-muted { opacity: 0.68; text-decoration: line-through; text-decoration-thickness: 1px; }
 .conflict-muted-note {
   display: inline-block; font-size: 11px; line-height: 16px; font-weight: 600;
-  color: #8a5a00; background: color-mix(in srgb, #8a5a00 12%, transparent);
+  color: #7a4500; background: color-mix(in srgb, #8a5a00 14%, transparent);
   border-radius: var(--r-full, 999px); padding: 1px 8px; margin-left: 6px;
   text-decoration: none;
+  border: 1px solid rgba(138, 90, 0, 0.18);
 }
 
 /* Grid-tagging disclosure note under life-event windows */
