@@ -1,7 +1,7 @@
 {
   "name": "numerovastu-360",
   "private": true,
-  "version": "2.12.0",
+  "version": "2.13.0",
   "description": "Hybrid Lo Shu Foundation & Ank Jyotish Dasha timeline — private numerology and Vastu guidance",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

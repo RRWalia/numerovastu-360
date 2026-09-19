@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.12.0 — Partner Moon completeness: Chandra-bala Rashi axis, Astro-Identity positions, partner Vimshottari, Nakshatra-level Tara Bala**
+**Release 2.13.0 — Architecture & UX audit: strict grid tagging, Kua segregation, primary Dasha engine, progressive disclosure, Client/Practitioner bundling, layman action framework**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,28 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.13.0
+
+This release implements a full architectural and UX audit (reference chart:
+**Amar Sambhvani, 24 Jan 1983, 12:10 AM, Ahmedabad — Money / Business /
+Career**). It fixes three methodological contradictions, restructures the
+report around progressive disclosure, and adds a layman action framework and
+Client/Practitioner bundling. Every pillar is pinned by a smoke assertion built
+on the reference chart.
+
+| Area | 2.13.0 behaviour |
+| --- | --- |
+| **Grid-authority tagging (#1a)** | Every Dasha event window is structurally tagged with the grid it evaluates: `natalConversion()` returns `grid: "vedic"`, window rows carry `data-natal-grid="vedic"`, and the grade names the **Vedic Ank Kundali grid (3–1–9 / 6–7–5 / 2–8–4)** verbatim. A significator present in one grid but not the other is surfaced via a `divergence` disclosure. A Lo Shu-only presence can no longer read as a "Vedic birth grid" presence. |
+| **Kua segregation (#1b)** | The Kua number is cordoned into an optional `data-module="feng-shui-optional"` module (`data-authority="feng-shui"`, collapsed by default) and removed from the classical 16-zone Vastu flow. The Vastu section now stands on the **Ashta Dikpalaka** eight direction-rulers (`data-authority="vedic-direction-rulers"`) matched to the birth chart. |
+| **Primary Dasha engine (#1c)** | **Ank Jyotish is the primary engine by default** and switchable. The secondary (Vimshottari) is hidden behind a collapsed **"Advanced Astrological Cross-Reference"** appendix for practitioners, and a banner names both current lords so Mercury (Ank) vs Jupiter (Vimshottari) reads as two deliberate clocks, not an error. |
+| **Goal aggregation (#2)** | Goals sharing a remedy signature merge into one **Combined Strategic Focus** section (Money, Business & Career → Mercury 5), each remedy kit rendered once — no more copy-paste redundancy. |
+| **Leak sanitisation (#2)** | The raw JSON contribution payload, Meeus engine strings and the `h0=-0.8333°` ephemeris constant are gated behind `.practitioner-only` / `[data-technical]` and suppressed for clients on screen **and** in print. |
+| **Layman action framework (#3)** | Layer-1 summary gains a **7-Day Micro-Routine** table (Time/Day \| Planetary Anchor \| Action Item) and explicit **DO vs DO-NOT** contrast cards. |
+| **Client/Practitioner bundling (#4a)** | A Client/Practitioner mode toggle hides the cockpit, cross-reference appendices and Kua module in client mode (body-class gating that survives print) and force-expands them in practitioner mode. |
+| **Name practicality (#4b)** | `namePracticality()` adds a 1–5 **Pronunciation & practicality** rating; `initialCandidates()` generates middle-initial options so the engine is no longer limited to trailing doubles. Internal cluster doubles (e.g. "Sambhhvani") rate low. |
+| **Conflict muting (#4c)** | Under solar overload (high-Pitta + 3× Sun) conflicting Sun-activation tips are visually muted (`data-conflict-muted="solar-overload"`) so they never print live beside a solar-load warning. The clinical scaffolding itself is preserved. |
+| **Pack / app version** | Knowledge data unchanged, so `latestVersion` stays **2.9.0** and `packUrl` stays `knowledge-pack/packs/2.9.0.json`; `appVersion` bumps to **2.13.0**. `APP_VERSION`, `index.html` meta, `sw.js` cache, `i18n` status pills and `package.json` all move to 2.13.0. The status badge now reads "On-device engine" (the "Meeus engine" name is reserved for the practitioner view). Source archive refreshed. |
 
 ## What changed in 2.12.0
 
@@ -478,8 +500,8 @@ The public knowledge pack is separate from personal data:
 3. A pack is validated before it is cached or used.
 4. An older/single-grid pack is rejected rather than mixed into the hybrid UI.
 
-Release 2.12.0 ships `knowledge-pack/packs/2.9.0.json`, generated from the
-bundled pack (pack data unchanged since 2.9.0 — app logic only in 2.10.0–2.12.0).
+Release 2.13.0 ships `knowledge-pack/packs/2.9.0.json`, generated from the
+bundled pack (pack data unchanged since 2.9.0 — app logic only in 2.10.0–2.13.0).
 The schema requires canonical `loShuGrid` and `vedicGrid` configuration as well
 as the Dasha/Vastu mappings.
 

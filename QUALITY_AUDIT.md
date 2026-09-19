@@ -1,6 +1,6 @@
 # NumeroVastu 360 Quality Audit
 
-Last reviewed: 2026-09-17 — Release 2.12.0 Partner Moon completeness batch (#46–#49)
+Last reviewed: 2026-09-19 — Release 2.13.0 Architecture & UX audit implementation (grid tagging, Kua segregation, dual-Dasha primary engine, progressive disclosure, Client/Practitioner bundling, layman action framework)
 
 ## Current status
 
@@ -33,6 +33,16 @@ Last reviewed: 2026-09-17 — Release 2.12.0 Partner Moon completeness batch (#4
 | Partner Astro-Identity Snapshot | Added (2.12.0) #47 | When partner Tier 2 is reached, Section 18 renders a compact companion card beneath the verdict: **Sun (Surya Rashi), Moon (Chandra Rashi), Nakshatra with pada and Lagna** for both people side-by-side, Moon rows tinted. Purpose is verification — practitioner checks verdict against longitudes. Positions only: no second verdict, no Ashtakoota points, no remedy. Deliberately **no Tier 1 variant** — a Sun-only column would invite the eyeball Moon comparison that a date alone cannot support. Two charts degrade independently: primary Tier 1 reads “not computed — add your birth time & place” rather than blank. Repeats birth moment, resolved place, DST caveat and ayanamsa so inputs are auditable; coordinate-entered places print lat/lon once. `data-authority=\"chandra-bala\"`. Seven checks pin row set, Tier-2-only appearance, degraded primary column, verdict-before-evidence ordering and no-duplicate-coords case; mutation: dropping Tier 2 guard throws instead of half-rendering. |
 | Partner Vimshottari anchor | Added (2.12.0) #48 | Once partner's natal Moon is computable, partner's own classical Vimshottari stack is computable too — same `vimshottariTimeline()` engine (same nakshatra anchor, same fixed 120-year lord durations, same balance arithmetic). No second engine, no rescaled lords. Section 18 adds a second companion card beneath the snapshot, rendered only when partner reaches Tier 2 (no Tier 1 variant). Shows **anchor** (nakshatra, pada, lord, Moon sign/degree, span, % elapsed), **balance of the birth lord at birth**, and **active MD/AD/PD** with dates and ages. Final line reports the two active stacks as a fact — same MD lord or different — mirroring shared-rashi-lord idiom: reported, never scored. Primary Tier 1 still shows partner's stack (fact of partner's chart) but withholds comparison. Timing read-out only: never feeds Chandra-bala verdict, Lo Shu remedies, Vastu zones or Ank Jyotish roadmap, prescribes nothing. `data-authority=\"vimshottari\"` and own CSS class so primary card's pixel-regression locator stays single. Smoke pins anchor against hand-worked chart (2000-04-04 09:30 Ahmedabad: Uttara Bhadrapada p3 / Saturn 74.6% elapsed → 4.822y balance → Ketu MD through 2029-01-29), factual comparison, Tier 1 absence, self-Tier-1 degradation, authority boundary and EN/HI/GU. |
 | Tara Bala Nakshatra layer | Added (2.12.0) #49 | Chandra-bala card computed Rashi (Bhakoot) axis; classical matching also reads Nakshatra-level Tara, and both natal nakshatras have been computable since #46/#47. Engine `taraBala()` counts nakshatras inclusively from partner's Moon nakshatra to self's and vice versa, takes each count modulo 9 (0 read as 9) and applies traditional classification — remainders **3,5,7 inauspicious**, every other remainder auspicious. Both auspicious = favourable, one each way = mixed, both inauspicious = caution. **Janma Tara** (same nakshatra) gives count 1 both ways; schools differ, so flagged as fact rather than fixed verdict. Card is a labelled sub-block under the computed Chandra-bala verdict (Tier 1 banner untouched — no nakshatras, no Tara), printing both counts, both remainders and traditional word for each direction, overall reading, Janma note where applicable, and scope line stating Tara is one of eight Ashtakoota factors reported with its own working — not folded into any 36-point score, prescribing nothing. Pinned worked examples: Rohini/Anuradha → 14→5 inauspicious / 15→6 auspicious; Jyeshtha/Purva Phalguni → 8 auspicious / 21→3 inauspicious. Returns `{ computed: false, missing, message }` naming missing side. EN/HI/GU. Smoke pins inclusive counting, 3/5/7 rule, both examples, Janma case, data attributes, degradation contract. |
+| Grid-authority tagging on event windows | Fixed (2.13.0) audit #1a | Every Dasha event window is now structurally tagged with the grid it actually evaluates: `natalConversion()` returns `grid: "vedic"`, every window row carries `data-natal-grid="vedic"`, and the grade logic names the **Vedic Ank Kundali grid (3–1–9 / 6–7–5 / 2–8–4)** verbatim instead of a generic "birth grid". A Lo Shu-only presence can no longer read as a Vedic presence: the reference audit chart (Amar Sambhvani, 24 Jan 1983 — 4 present Lo Shu, absent Vedic) now gets its "Going Abroad" windows graded against the Vedic array, and `natalConversion()` surfaces a `divergence` list whenever a significator sits in one grid but not the other, which the renderer prints as an explicit disclosure line. |
+| Kua cordoned off as an optional Feng Shui module | Fixed (2.13.0) audit #1b | The Kua number no longer rides inside the classical 16-zone Vedic Vastu section. It is an explicit optional module: `data-module="feng-shui-optional"`, `data-authority="feng-shui"`, labelled "Feng Shui (Chinese) system, not classical Vastu Shastra", collapsed by default and force-expanded only in practitioner print. In its place the classical Vastu section now stands on the **Ashta Dikpalaka** eight direction-rulers (Indra/Agni/Yama/Nirṛti/Varuṇa/Vāyu/Kubera/Īśāna) matched to the birth chart, declared under `data-authority="vedic-direction-rulers"`. |
+| Primary Dasha engine with cordoned cross-reference | Fixed (2.13.0) audit #1c | The dual-Dasha dilemma (Mercury in Ank Jyotish vs Jupiter in Vimshottari on the same chart) is now a deliberate, labelled two-clock design. **Ank Jyotish is the primary engine by default** (`nv360.dashaEngine.v1`, switchable in the report hero and in the intake Settings block). The secondary engine no longer renders as a competing card: it is cordoned behind an `<details class="dasha-crossref">` appendix titled "Advanced Astrological Cross-Reference", shown collapsed to laymen and force-expanded only in practitioner print. A `dasha-engine-banner` names both current lords side-by-side and states plainly that two clocks disagreeing is normal, so the Mercury/Jupiter split reads as design, not contradiction. Switching the primary engine swaps which system is cordoned — pinned by smoke. |
+| Goal aggregation kills copy-paste redundancy | Fixed (2.13.0) audit #2 | The renderer now aggregates goals that share a remedy signature into one **Combined Strategic Focus** section instead of repeating three identical sections (the audit's Money/Business/Career triple all mapped to missing 5). `goalSig()` fingerprints each goal's remedy set; goals with identical signatures merge into a single section titled e.g. "Combined Strategic Focus: Money, Business, Career (Mercury 5)" with `data-goal-aggregation="combined"` and a `data-combined-goals` list, rendering each remedy kit exactly once. |
+| Technical leaks stripped from client view | Fixed (2.13.0) audit #2 | Raw JSON contribution payload (`schemaVersion…`), Meeus engine strings ("Meeus ephemeris (AA) v1.1.0", "Meeus Ch.16") and the `h0=-0.8333°` ephemeris debug constant are now gated behind `.practitioner-only` / `[data-technical]` nodes. `body.report-mode-client` suppresses all of them on screen **and** in print via a print-scoped rule, so the client PDF never carries serialization strings, engine debug variables or schema models. |
+| Progressive disclosure layers | Added (2.13.0) audit #2 | Layer 1 (Executive Summary) now opens with the core numbers, top remedies, the active timing window and the weekly schedule; the cockpit and cross-reference appendices belong to the practitioner layer. The summary carries `data-report-layer="1"` and hosts the new layman action framework below. |
+| 7-Day Micro-Routine & DO / DO-NOT cards | Added (2.13.0) audit #3 | Two layman components render at the front of the summary: `renderMicroRoutine()` — a Time/Day → Planetary Anchor → Action Item table (Daily sunrise japa on the Tier-1 target, Daily night Chandra Bhedana cooling breath, per-weekday colour/donation/action rows keyed off `db.mantraShort` and `db.excessEnergy`) — and `renderDoAvoidCards()`, a contrast grid of DO items (live NE/Brahmasthan, channel excess Sun into mentoring) vs DO-NOT items (no dark-stone stacking, no gemstone buying in bulk, skip Surya Bhedana / midday sun / cold rituals under solar overload, one tier at a time). Both localise EN/HI/GU. |
+| Automated conflict muting | Added (2.13.0) audit #4c | Where the clinical scaffolding flags solar overload (high-Pitta + 3× Sun), conflicting Sun-activation tips are now visually muted rather than printed live beside the warning: the Tattva Agni plane mutes Surya Bhedana / Solar Activation rows, and the Micro-Routine Sunday Sun row gets `data-conflict-muted="solar-overload"` with a localised "Muted — run gently due to your solar-overload guardrail" hint. The DO cards never list Surya Bhedana when the guardrail is active. |
+| Client / Practitioner conditional bundling | Added (2.13.0) audit #4a | The report hero and the intake Settings block expose a Client/Practitioner mode switch (`nv360.reportMode.v1`). Client mode is a punchy dossier — cockpit panel, cross-reference appendices and the optional Kua module are hidden via body-class gating that survives print; practitioner mode force-expands `.dasha-crossref` and `.optional-module-card` and includes the cockpit. Presentation-only: no engine result changes. |
+| Name-correction practicality rating | Added (2.13.0) audit #4b | Name suggestions now carry a 1–5 **Pronunciation & practicality** rating (`namePracticality()`): trailing doubles and middle-initial options rate highest, internal consonant-cluster doubles (e.g. "Sambhhvani" — awkward for legal/banking) are penalised, and options are generated beyond trailing doubles via `initialCandidates()` (A–Z middle initial after the first token, scored on Chaldean value). The spelling table prints the rating column with stars and notes; the audit chart gets "Amar E Sambhvani" / "Amar H Sambhvani" (total 41→5, practicality 5/5) alongside the classic double. |
 | Knowledge-pack schema coverage | Pass | Smoke tests validate the schema contract and semantic pack invariants for every versioned file under `knowledge-pack/packs/`. |
 | Formula integrity | Pass | `formatConductorBreakdown()` derives the printed equation from raw DOB digits; smoke tests assert the 31/01/1978 string exactly. |
 | Practitioner workflow | Added | One-page printable Practitioner Cockpit module (`#practitioner-cockpit`) with its own cockpit-only print mode. |
@@ -45,6 +55,84 @@ Last reviewed: 2026-09-17 — Release 2.12.0 Partner Moon completeness batch (#4
 | Advanced Vedic comparison disclosure | **Regression fixed (2.9.0)** | Running the suite in a browser surfaced a genuine application defect that the previously-failing assertion had been masking. `README.md` documents the comparison as "closed by default", and the print stylesheet carries a dedicated `.advanced-vedic-comparison:not([open]) > .details-body` rule whose only purpose is to force it open for the PDF — but `app.js` rendered the `<details>` element with a hard-coded `open` attribute. The disclosure was therefore always expanded on screen, the print rule was dead code, and `smoke.test.js` had pinned the wrong behaviour with the assertion "advanced Vedic comparison is expanded so the birth grid prints in the PDF". The markup is now collapsed, the smoke assertion pins the documented contract (collapsed on screen **and** force-expanded by print CSS), and the Playwright spec exercises the real expand-on-click interaction. |
 | SEO/share metadata | Improved | Added robots, theme colour, Open Graph and Twitter summary metadata. |
 | Security headers | Improved | Added conservative CSP meta tag for same-origin scripts/styles/connects and data images. |
+
+## 2026-09 Architecture & UX audit — implementation notes
+
+The user's in-depth architectural and UX review (reference chart: **Amar
+Sambhvani, DOB 24 Jan 1983, 12:10 AM, Ahmedabad, focus Money / Business /
+Career**) was implemented end-to-end. Every pillar below is pinned by a
+smoke assertion built on that exact reference chart, so a regression turns
+the suite red rather than silently re-merging the old behaviour.
+
+**Reference-chart invariants (Amar Sambhvani).**
+Driver 6, Conductor 1. Lo Shu counts `{1:3,2:1,3:1,4:1,5:0,6:1,7:0,8:1,9:1}`
+(missing 5, 7); Vedic counts `{1:2,2:1,3:1,4:1,5:0,6:1,7:0,8:1,9:0}`
+(missing 5, 7, 9). Current dasha MD5/AD9. "Going Abroad" windows: 44–45
+(MD5/AD4, high), 45–47 (MD6/AD7, conditional), 51–53 (MD7/AD7, conditional).
+All three goals (Money, Business, Career) map to the single missing 5 and
+therefore merge into one combined section.
+
+**Pillar 1 — architectural & methodological fixes.**
+- *(1a) Grid tagging.* The audit's headline contradiction — a "Going Abroad"
+  window claiming "Rahu (4) sits in your Vedic birth grid" while the Vedic
+  Ank Kundali marks 4 absent (4 is present only natively in Lo Shu) — is
+  resolved structurally: `natalConversion()` returns `grid: "vedic"`, every
+  window row carries `data-natal-grid="vedic"`, the grade sentence names the
+  Vedic grid layout verbatim, and `divergence` flags any significator present
+  in one grid but not the other. A Lo Shu finding can never again be labelled
+  a "Vedic birth grid".
+- *(1b) Kua segregation.* Kua 8 (West-group, Feng Shui) is cordoned into an
+  optional `data-module="feng-shui-optional"` module and removed from the
+  classical 16-zone Vastu flow; the Vastu section now stands on the Ashta
+  Dikpalaka direction-rulers matched to the birth chart.
+- *(1c) Dual-Dasha dilemma.* Ank Jyotish is the primary engine by default and
+  switchable; the secondary (Vimshottari) is hidden behind a collapsed
+  "Advanced Astrological Cross-Reference" appendix for practitioners, and a
+  banner names both current lords so the Mercury (Ank) vs Jupiter (Vimshottari)
+  split reads as two deliberate clocks, not an error.
+
+**Pillar 2 — UX / layman transformation via progressive disclosure.**
+- Layer 1 (Executive Summary, front): core numbers, top remedies, active
+  timing window, weekly schedule. Deeper cockpit and cross-reference material
+  moves to the practitioner layer.
+- Goal aggregation loop: identical remedy signatures merge into one "Combined
+  Strategic Focus" section (Money, Business & Career → Mercury 5), each kit
+  rendered once.
+- Technical-leak sanitisation: the raw JSON contribution payload, Meeus engine
+  strings and the `h0=-0.8333°` debug constant are gated behind
+  `.practitioner-only` / `[data-technical]` and suppressed for clients on
+  screen **and** in print.
+
+**Pillar 3 — Layman Implementation Framework (Client Action Blueprint).**
+- `renderMicroRoutine()`: 7-Day Micro-Routine table (Time/Day | Planetary
+  Anchor | Action Item) — Daily sunrise japa on the Tier-1 target (27×), Daily
+  night Chandra Bhedana cooling breath, and per-weekday colour / donation /
+  action rows keyed off `db.mantraShort` and `db.excessEnergy`.
+- `renderDoAvoidCards()`: explicit DO vs DO-NOT contrast cards (live
+  NE/Brahmasthan, channel excess Sun into mentoring; no dark-stone stacking,
+  no bulk gemstone buying, skip Surya Bhedana / midday sun / cold rituals
+  under solar overload, one tier at a time).
+
+**Pillar 4 — technical recommendations.**
+- *(4a) Conditional bundling.* Client vs Practitioner mode toggle in the hero
+  and Settings; client mode is a punchy dossier (cockpit, cross-references and
+  the Kua module hidden via body-class gating that survives print), practitioner
+  mode force-expands the cordoned appendices and optional modules.
+- *(4b) Name correction.* `namePracticality()` adds a 1–5 Pronunciation &
+  practicality rating and `initialCandidates()` generates middle-initial
+  options (A–Z after the first token, Chaldean-scored), so the engine is no
+  longer limited to trailing-consonant doubles. Internal cluster doubles like
+  "Sambhhvani" rate low as awkward for legal/banking use.
+- *(4c) Automated conflict resolution.* Under solar overload (high-Pitta + 3×
+  Sun) the conflicting Sun-activation tips are visually muted
+  (`data-conflict-muted="solar-overload"`) in the Tattva Agni plane and the
+  Micro-Routine Sunday row, so an Agni-activation tip never prints live beside
+  a solar-load warning. The clinical scaffolding itself is preserved.
+
+The audit's clinical medical-astrology layer is deliberately kept; only the
+conflicting activation tips are muted. Full evidence lives in the smoke suite
+(`2026-09 architecture & UX audit fixes` block) and in `.arena/amar-report.html`
+(full 13/13 feature-probe render of the reference chart).
 
 ## Recommended release gate
 

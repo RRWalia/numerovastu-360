@@ -1159,7 +1159,11 @@ check("every localised Vimshottari key is translated in all three languages", ((
    Regression guard: as content grows, a remedy-bearing block must never be
    re-sourced by another module. Every authority tag must come from the known
    vocabulary, and no non-Lo-Shu scope may contain a remedy obligation. */
-const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note"]);
+/* Declared authority scopes. feng-shui (the cordoned-off optional Kua module)
+   and vedic-direction-rulers (the classical Ashta Dikpalaka reference card)
+   were added by the 2026-09 architecture audit; neither may carry Lo Shu
+   remedy obligations. */
+const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note", "feng-shui", "vedic-direction-rulers"]);
 const authorityNodes = $$("[data-authority]", authorityReportDom);
 check("every data-authority tag comes from the declared vocabulary", authorityNodes.length > 0 && authorityNodes.every((node) => AUTHORITY_VOCAB.has(node.getAttribute("data-authority"))));
 check("every remedy-bearing block nests inside Lo Shu authority", remedyBlocks.every((node) => !!node.closest('[data-authority="lo-shu-overlay"], [data-authority="clinical-cockpit"]') || !node.closest("[data-authority]")) && authorityNodes.filter((node) => node.getAttribute("data-authority") !== "lo-shu-overlay" && node.getAttribute("data-authority") !== "clinical-cockpit").every((node) => !node.querySelector("[data-remedy-authority]")));
@@ -1406,6 +1410,189 @@ check("the source archive is generated from HEAD, not hand-maintained", !!pkgScr
 check("the release gate includes the archive freshness check", /check:source-zip/.test(pkgScripts.check) && /check:source-zip/.test(read(path.join(".github", "workflows", "ci.yml"))));
 check("the source archive builder refuses to package a dirty tree", /uncommitted changes/.test(read("scripts/package-source.mjs")) && /status", "--porcelain"/.test(read("scripts/package-source.mjs")));
 check("every generated asset is reproducible from a committed script", fs.existsSync(path.join(root, "scripts", "build-icons.mjs")) && fs.existsSync(path.join(root, "scripts", "build-static.cjs")) && !!pkgScripts["icons:build"]);
+
+/* ---- 2026-09 architecture & UX audit fixes ------------------------------
+   Pillars: (1) strict grid tagging for event windows, Kua cordoned off as an
+   optional Feng Shui module, primary Dasha engine with a cordoned
+   cross-reference; (2) progressive disclosure with goal aggregation and no
+   technical leaks in the client view; (3) the 7-Day Micro-Routine and DO /
+   DO-NOT cards at the front; (4) Client/Practitioner bundling, practicality-
+   rated name corrections and automated conflict muting. */
+
+// Amar Sambhvani — the reference chart from the audit (24 Jan 1983, 00:10,
+// Ahmedabad; Money + Business + Career all map to missing 5).
+const amarProfile = profile({
+  name: "Amar Sambhvani", dob: "1983-01-24", gender: "male",
+  goals: ["Money", "Business", "Career"], birthTime: "00:10",
+  birthPlace: "Ahmedabad, Gujarat, India", healthTags: ["heat"]
+});
+const amarReport = window.__NV.renderReport(amarProfile);
+const amarDom = mount(amarReport);
+
+/* Pillar 1a — strict grid tagging on life-event windows */
+check("event-window grades always evaluate the Vedic array and say so", (() => {
+  const conv = window.__NV.natalConversion(
+    { primary: [4, 7], support: [5] }, 5, 4, amarProfile);
+  return conv.grid === "vedic" && conv.adPresent === (amarProfile.vedicCounts[4] > 0);
+})());
+check("event-window sentences name the Vedic Ank Kundali, never a generic birth grid", (() => {
+  const windows = $$('[data-window-grade]', amarDom);
+  return windows.length > 0 && windows.every((w) => w.getAttribute("data-natal-grid") === "vedic")
+    && /Vedic Ank Kundali grid \(3–1–9 \/ 6–7–5 \/ 2–8–4\)/.test(amarReport);
+})());
+check("grid divergences between Lo Shu and Vedic arrays are disclosed, not hidden", (() => {
+  // 9 plots in Amar's Lo Shu grid (century digit) but not in his Vedic grid —
+  // any window whose significator spans that gap must carry the disclosure.
+  const conv = window.__NV.natalConversion({ primary: [9], support: [] }, 9, 9, amarProfile);
+  return conv.divergence.includes(9) && conv.grid === "vedic";
+})());
+
+/* Pillar 1b — Kua cordoned off as an optional Feng Shui module */
+check("Kua is an explicit optional Feng Shui module, not a Vastu zone", (() => {
+  const sec = $("#kua-section", amarDom);
+  return !!sec && sec.getAttribute("data-module") === "feng-shui-optional"
+    && sec.getAttribute("data-authority") === "feng-shui"
+    && !!$("[data-kua-module]", sec)
+    && /optional, separate module/.test(sec.textContent)
+    && !$("#vastu-section [data-kua-module]", amarDom);
+})());
+check("the Vastu section stands on classical Ashta Dikpalaka direction rulers", (() => {
+  const card = $(".ashta-dikpalaka-card", amarDom);
+  return !!card && ["Indra", "Agni", "Yama", "Nirṛti", "Varuṇa", "Vāyu", "Kubera", "Īśāna"]
+    .every((deity) => card.textContent.includes(deity))
+    && card.getAttribute("data-authority") === "vedic-direction-rulers";
+})());
+
+/* Pillar 1c — primary Dasha engine with a cordoned cross-reference */
+check("the Dasha section declares its primary engine and cordons the other", (() => {
+  const sec = $("#dasha-section", amarDom);
+  const banner = $(".dasha-engine-banner", amarDom);
+  return !!sec && sec.getAttribute("data-primary-dasha-engine") === "ank"
+    && !!banner && /Two Dasha clocks/.test(banner.textContent)
+    && !!$('[data-crossref-engine="vimshottari"]', sec)
+    && !$('[data-crossref-engine="ank"]', sec);
+})());
+check("the banner names both current lords so Mercury vs Jupiter reads as two clocks", (() => {
+  const banner = $(".dasha-engine-banner", amarDom);
+  return !!banner && /Ank Jyotish Mercury \(5\)/.test(banner.textContent)
+    && /Vimshottari.*Jupiter|Jupiter/.test(banner.textContent)
+    && banner.getAttribute("data-dasha-agree") === "no";
+})());
+check("switching the primary engine swaps which system is cordoned off", (() => {
+  window.localStorage.setItem("nv360.dashaEngine.v1", "vimshottari");
+  window.__NV.setDashaEngine("vimshottari");
+  const rep = mount(window.__NV.renderReport(amarProfile));
+  const sec = $("#dasha-section", rep);
+  const ok = sec.getAttribute("data-primary-dasha-engine") === "vimshottari"
+    && !!$('[data-crossref-engine="ank"]', sec)
+    && !$('[data-crossref-engine="vimshottari"]', sec);
+  window.__NV.setDashaEngine("ank");
+  window.localStorage.removeItem("nv360.dashaEngine.v1");
+  return ok;
+})());
+
+/* Pillar 2a — goal aggregation kills the copy-paste redundancy */
+check("Money, Business and Career merge into one Combined Strategic Focus section", (() => {
+  const combined = $$('[data-goal-aggregation="combined"]', amarDom);
+  const goalHeadings = $$("h2.rsection-title", amarDom).filter((h) => /Lo Shu Remedy Focus/.test(h.textContent));
+  return combined.length === 1
+    && /Combined Strategic Focus: Money, Business, Career \(Mercury 5\)/.test(combined[0].textContent)
+    && !!combined[0].querySelector('[data-combined-goals="Money,Business,Career"]')
+    && goalHeadings.length === 0;
+})());
+check("a combined section renders each remedy kit exactly once", (() => {
+  const combined = $('[data-goal-aggregation="combined"]', amarDom);
+  const kits = $$(".card .num-value", combined).map((n) => n.textContent.trim());
+  return kits.filter((k) => k === "5").length === 1;
+})());
+
+/* Pillar 2b — technical leaks stripped from the client view */
+check("the raw JSON contribution payload is marked practitioner-only", (() => {
+  const block = $('[data-technical="contribution-scaffold"]', amarDom);
+  return !!block && block.classList.contains("practitioner-only")
+    && /schemaVersion/.test(block.textContent);
+})());
+check("client CSS suppresses every practitioner-only block on screen and in print", /body\.report-mode-client \.practitioner-only,\s*body\.report-mode-client \[data-technical\] \{ display: none !important; \}/.test(styles) && /body\.report-mode-client \.practitioner-only,\s*body\.report-mode-client \[data-technical\],\s*body\.report-mode-client \.dasha-crossref \{ display: none !important; \}/.test(styles));
+check("the Muhurtha section no longer leaks h0=-0.8333° or engine names to clients", (() => {
+  // The raw hour-angle constant is practitioner-only. In the default client
+  // view it may be entirely absent (toggle off) — the only requirement is that
+  // it can NEVER reach the client-facing markup.
+  const idx = amarReport.indexOf("h0=-0.8333");
+  let guarded = true;
+  if (idx !== -1) {
+    const before = amarReport.slice(Math.max(0, idx - 300), idx);
+    guarded = /practitioner-only/.test(before);
+  }
+  // Strip every practitioner-only node, then assert the client view is clean.
+  const visible = amarReport.replace(/<(div|span)[^>]*class="[^"]*practitioner-only[^"]*"[^>]*>[\s\S]*?<\/(div|span)>/g, "");
+  return guarded && !/h0=-0\.8333/.test(visible) && !/Meeus Ch\.16/.test(visible) && !/Meeus ephemeris \(AA\)/.test(visible);
+})());
+
+/* Pillar 3 — Layman Implementation Framework at the front */
+check("the 7-Day Micro-Routine table sits in the Layer-1 summary", (() => {
+  const layer = $('[data-report-layer="1"] .micro-routine-card', amarDom);
+  if (!layer) return false;
+  const rows = $$("tr", layer);
+  return rows.length >= 4
+    && /Daily \(Sunrise\)/.test(layer.textContent)
+    && /Daily \(Night\)/.test(layer.textContent)
+    && /Chant/.test(layer.textContent);
+})());
+check("the micro-routine sunrise row matches the Tier-1 target of the 40-day plan", (() => {
+  const card = $('[data-micro-routine]', amarDom);
+  const plan = window.__NV.activationPlan(amarProfile);
+  return card.textContent.includes(String(plan.targetN)) && card.textContent.includes("27");
+})());
+check("explicit DO / DO-NOT cards render in Layer 1 with contrast content", (() => {
+  const grid = $('[data-report-layer="1"] .do-avoid-grid', amarDom);
+  if (!grid) return false;
+  const dos = $$(".do-item", grid).map((n) => n.textContent);
+  const donts = $$(".dont-item", grid).map((n) => n.textContent);
+  return dos.length >= 2 && donts.length >= 2
+    && donts.some((t) => /stack multiple dark stones|gemstones/i.test(t))
+    && dos.some((t) => /North-East|Brahmasthan/i.test(t));
+})());
+check("solar overload + Pitta mutes the conflicting Sun day row instead of printing it live", (() => {
+  const muted = $$('.micro-routine-card tr[data-conflict-muted="solar-overload"]', amarDom);
+  const solar = window.__NV.solarOverload(amarProfile);
+  return solar && muted.length >= 1 && /Muted/.test(muted[0].textContent)
+    && $$(".do-item", amarDom).every((n) => !/Surya Bhedana/.test(n.textContent));
+})());
+check("the Tattva Agni plane mutes Surya Bhedana and Solar Activation under solar overload", (() => {
+  const tattva = mount(window.__NV.renderVedicTattvaSection(amarProfile));
+  const muted = $$('[data-conflict-muted="solar-overload"]', tattva);
+  return muted.length >= 1
+    && muted.every((row) => /Surya Bhedana|Solar Activation|सूर्य भेदन|सूर्य सक्रियण|સૂર્ય ભેદન|સૂર્ય સક્રિયકરણ/i.test(row.textContent));
+})());
+
+/* Pillar 4a — Client / Practitioner conditional bundling */
+check("the report hero carries the Client / Practitioner switch and engine picker", (() => {
+  const controls = $("[data-report-controls]", amarDom);
+  return !!controls
+    && $$("[data-report-mode-btn]", controls).length === 2
+    && !!$("[data-dasha-engine-select]", controls)
+    && !!$("#dashaEngineSelect") && !!$("#reportModeSelect");
+})());
+check("client print hides the cockpit panel and cross-reference appendices", /body\.report-mode-client #cockpit-panel \{ display: none !important; \}/.test(styles) && /@media print \{[\s\S]*body\.report-mode-client/.test(styles));
+check("practitioner print force-expands cross-references and the optional Kua module", /body\.report-mode-practitioner \.dasha-crossref:not\(\[open\]\) > \.dasha-crossref-body[\s\S]*?display: block !important;/.test(styles) && /body\.report-mode-practitioner \.optional-module-card:not\(\[open\]\) > \.card-body \{ display: block !important; \}/.test(styles));
+
+/* Pillar 4b — name correction: practicality rating + first-name/initial options */
+check("name suggestions carry a 1–5 pronunciation & practicality rating", (() => {
+  const sug = window.__NV.nameSuggestions(amarProfile);
+  const pool = (sug.variants || []).concat((sug.optional && sug.optional.variants) || []);
+  return pool.length > 0 && pool.every((v) => v.practicality && v.practicality.score >= 1 && v.practicality.score <= 5 && typeof v.practicality.label === "string");
+})());
+check("name suggestions include middle-initial options, not just trailing doubles", (() => {
+  const sug = window.__NV.nameSuggestions(amarProfile);
+  const pool = (sug.variants || []).concat((sug.optional && sug.optional.variants) || []);
+  return pool.some((v) => v.kind === "initial" && /add middle initial/.test(v.change));
+})());
+check("an internal consonant-cluster double rates lower than a middle initial", (() => {
+  const cluster = window.__NV.namePracticality({ text: "Amar Sambhhvani", change: 'double "h"', kind: "double" }, "Amar Sambhvani");
+  const initial = window.__NV.namePracticality({ text: "Amar H Sambhvani", change: 'add middle initial "H"', kind: "initial" }, "Amar Sambhvani");
+  return initial.score > cluster.score && cluster.score <= 3;
+})());
+check("the spelling table prints the practicality column", /data-practicality="\d"/.test(amarReport) && /Pronunciation & practicality/.test(amarReport));
 
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);

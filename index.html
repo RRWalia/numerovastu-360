@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari</title>
 <meta name="description" content="360° numerology and Vastu remedy engine: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, name and mobile analysis, and Vastu guidance." />
-<meta name="nv-version" content="2.12.0" />
+<meta name="nv-version" content="2.13.0" />
 <meta name="nv-build-label" content="Build 2026-09-17" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
@@ -113,7 +113,7 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.9.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.12.0 · Meeus engine</span>
+        <span class="status-pill status-app" id="appBadge">App v2.13.0 · On-device engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-09-17</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>
@@ -394,6 +394,33 @@
           </label>
         </div>
         <p class="field-hint" id="contributionHint" data-i18n="privacyFooterHint">Off by default. No names, dates of birth, phone numbers, vehicle numbers or free-text journal notes are shared.</p>
+      </div>
+
+      <!-- Report & Timing Settings (2026-09 audit): the practitioner chooses
+           the primary Dasha engine and the report bundling mode. Client mode
+           prints a punchy dossier; Practitioner mode prints the full
+           compendium including cockpit, telemetry and dual-dasha internals. -->
+      <div class="form-block">
+        <h2 class="form-block-title" data-i18n="reportSettingsTitle">Report &amp; Timing Settings</h2>
+        <p class="form-block-desc" data-i18n="reportSettingsDesc">Choose how the report is bundled for print, and which Dasha system leads the timing pages. Both can also be changed from the report itself.</p>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="dashaEngineSelect" data-i18n="primaryDashaEngine">Primary Dasha engine</label>
+            <select class="input" id="dashaEngineSelect" data-dasha-engine-select>
+              <option value="ank" selected>Ank Jyotish (default)</option>
+              <option value="vimshottari">Vimshottari (classical)</option>
+            </select>
+            <p class="field-hint" data-i18n="dashaEngineHint">The secondary engine stays available as an "Advanced Astrological Cross-Reference" appendix — the two clocks may name different current Mahadasha lords, and that is expected.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="reportModeSelect" data-i18n="reportModeLabel">Report mode</label>
+            <select class="input" id="reportModeSelect">
+              <option value="client" selected data-i18n="modeClient">Client dossier</option>
+              <option value="practitioner" data-i18n="modePractitioner">Practitioner compendium</option>
+            </select>
+            <p class="field-hint" data-i18n="reportModeHint">Client mode keeps the PDF punchy; Practitioner mode prints the full compendium with telemetry and cross-references.</p>
+          </div>
+        </div>
       </div>
 
       <!-- Compatibility (optional) -->

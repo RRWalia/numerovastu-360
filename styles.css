@@ -1569,3 +1569,100 @@ body {
      second page — breaking the single-page contract the sheet is packed for. */
   body.print-cockpit .report-closing { display: none !important; }
 }
+
+/* ============================================================
+   Report Mode bundling — Client dossier vs Practitioner compendium
+   (2026-09 audit). A single class on <body> decides what a client
+   sees on screen AND what lands in the PDF. Practitioner-only blocks
+   (cockpit telemetry, JSON scaffolds, ephemeris debug, engine strings)
+   are suppressed entirely in Client mode.
+   ============================================================ */
+body.report-mode-client .practitioner-only,
+body.report-mode-client [data-technical] { display: none !important; }
+
+/* In Client mode the raw Vimshottari ladder and the dual-dasha internals
+   stay folded inside the cross-reference appendix; only the primary engine
+   reads prominently. The Practitioner compendium expands everything. */
+body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
+@media print {
+  body.report-mode-client .practitioner-only,
+  body.report-mode-client [data-technical],
+  body.report-mode-client .dasha-crossref { display: none !important; }
+  /* Client dossiers never print the practitioner cockpit tab content. */
+  body.report-mode-client #cockpit-panel { display: none !important; }
+  /* The Practitioner compendium force-expands every collapsed cross-reference
+     and optional module so the full 45+ page record reaches the PDF. */
+  body.report-mode-practitioner .dasha-crossref:not([open]) > .dasha-crossref-body,
+  body.report-mode-practitioner .optional-module-card:not([open]) > .card-body { display: block !important; }
+}
+
+/* Report-mode switch + primary Dasha engine picker (report hero) */
+.report-controls {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  justify-content: space-between; margin: 14px 0 4px;
+}
+.report-mode-switch { display: inline-flex; gap: 8px; }
+.report-mode-switch .btn.active {
+  background: var(--label-primary); color: #fff; border-color: var(--label-primary);
+}
+.dasha-engine-picker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--label-secondary);
+}
+.dasha-engine-picker select {
+  font: inherit; font-size: 13px; padding: 6px 10px; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: var(--surface, #fff); color: var(--label-primary);
+}
+@media print { .report-controls { display: none !important; } }
+
+/* Dual-Dasha engine banner + cross-reference appendix */
+.dasha-engine-banner { border-left: 3px solid var(--kimi-blue, #3b6ef0); }
+.dasha-crossref { padding: 0; overflow: hidden; }
+.dasha-crossref > summary.dasha-crossref-summary {
+  cursor: pointer; list-style: none; padding: 14px 16px;
+  font-size: 14px; color: var(--label-secondary);
+  background: color-mix(in srgb, var(--kimi-blue, #3b6ef0) 6%, transparent);
+}
+.dasha-crossref > summary.dasha-crossref-summary::-webkit-details-marker { display: none; }
+.dasha-crossref > summary.dasha-crossref-summary::before { content: "▸ "; font-weight: 700; }
+.dasha-crossref[open] > summary.dasha-crossref-summary::before { content: "▾ "; }
+.dasha-crossref > .dasha-crossref-body { padding: 16px; border-top: 1px solid var(--border); }
+
+/* Optional Feng Shui (Kua) module — cordoned off, collapsible */
+.optional-module-card { padding: 0; overflow: hidden; }
+.optional-module-card > summary.optional-module-summary {
+  cursor: pointer; list-style: none; padding: 14px 16px; font-weight: 600;
+  color: var(--label-secondary);
+}
+.optional-module-card > summary.optional-module-summary::-webkit-details-marker { display: none; }
+.optional-module-card > summary.optional-module-summary::before { content: "▸ "; font-weight: 700; }
+.optional-module-card[open] > summary.optional-module-summary::before { content: "▾ "; }
+.optional-module-card > .card-body { padding: 16px; border-top: 1px solid var(--border); display: block; }
+
+/* Layman Implementation Framework — 7-Day Micro-Routine + DO/AVOID cards */
+.summary-action-layer { display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
+.micro-routine-card .micro-routine-table td, .micro-routine-card .micro-routine-table th { vertical-align: top; }
+.micro-routine-table td:first-child { white-space: nowrap; font-weight: 600; }
+.do-avoid-grid { align-items: stretch; }
+.do-card { border-top: 3px solid var(--positive); }
+.avoid-card { border-top: 3px solid var(--danger); }
+.do-item { color: var(--label-primary); }
+.dont-item { color: var(--label-primary); }
+.do-item::first-letter, .dont-item::first-letter { font-weight: 700; }
+
+/* Automated conflict resolution — visually mute a recommendation that a live
+   clinical guardrail contradicts (e.g. an Agni/solar tip beside a solar-load
+   warning) instead of printing the two side by side. */
+.conflict-muted { opacity: 0.55; text-decoration: line-through; text-decoration-thickness: 1px; }
+.conflict-muted-note {
+  display: inline-block; font-size: 11px; line-height: 16px; font-weight: 600;
+  color: #8a5a00; background: color-mix(in srgb, #8a5a00 12%, transparent);
+  border-radius: var(--r-full, 999px); padding: 1px 8px; margin-left: 6px;
+  text-decoration: none;
+}
+
+/* Grid-tagging disclosure note under life-event windows */
+.grid-divergence-note { border-left: 2px solid var(--kimi-blue, #3b6ef0); padding-left: 8px; }
+
+/* Ashta Dikpalaka classical direction card */
+.ashta-dikpalaka-card table td:first-child { white-space: nowrap; }
