@@ -1573,7 +1573,8 @@ check("the report hero carries the Client / Practitioner switch and engine picke
     && !!$("[data-dasha-engine-select]", controls)
     && !!$("#dashaEngineSelect") && !!$("#reportModeSelect");
 })());
-check("client print hides the cockpit panel and cross-reference appendices", /body\.report-mode-client #cockpit-panel \{ display: none !important; \}/.test(styles) && /@media print \{[\s\S]*body\.report-mode-client/.test(styles));
+check("client print hides the cockpit panel and cross-reference appendices", /body\.report-mode-client:not\(\.print-cockpit\) #cockpit-panel \{ display: none !important; \}/.test(styles) && /@media print \{[\s\S]*body\.report-mode-client/.test(styles));
+check("the explicit cockpit print job is honoured even in client mode", /body\.report-mode-client:not\(\.print-cockpit\) #cockpit-panel/.test(styles) && !/body\.report-mode-client\.print-cockpit #cockpit-panel \{ display: none/.test(styles));
 check("practitioner print force-expands cross-references and the optional Kua module", /body\.report-mode-practitioner \.dasha-crossref:not\(\[open\]\) > \.dasha-crossref-body[\s\S]*?display: block !important;/.test(styles) && /body\.report-mode-practitioner \.optional-module-card:not\(\[open\]\) > \.card-body \{ display: block !important; \}/.test(styles));
 
 /* Pillar 4b — name correction: practicality rating + first-name/initial options */
