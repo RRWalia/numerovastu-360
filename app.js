@@ -894,7 +894,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.12.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.13.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-13";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -906,7 +906,15 @@
     plan: "nv360.plan.v1",
     contributionEnabled: "nv360.contributionEnabled.v1",
     contributionOutbox: "nv360.contributionOutbox.v1",
-    fieldMode: "nv360.fieldMode.v1"
+    fieldMode: "nv360.fieldMode.v1",
+    // Conditional section bundling for the PDF export: "client" prints a
+    // punchy dossier (technical telemetry, JSON scaffolds and the practitioner
+    // cockpit are suppressed); "practitioner" prints the full compendium.
+    reportMode: "nv360.reportMode.v1",
+    // Primary Dasha engine: "ank" (Ank Jyotish, default) or "vimshottari".
+    // The non-primary engine is cordoned off as an explicit cross-reference
+    // appendix so the two systems never read as contradicting each other.
+    dashaEngine: "nv360.dashaEngine.v1"
   };
   const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, mobile: 7, vehicle: 8, watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, dasha: 14, memory: 15, vastu: 16, kua: 17, compatibility: 18, goalsStart: 19 };
 
@@ -1034,7 +1042,11 @@
     activeProfileKey: "",
     reportModule: "foundation",
     toastTimer: null,
-    updatePromise: null
+    updatePromise: null,
+    // Conditional section bundling — see STORAGE_KEYS.reportMode.
+    reportMode: "client",
+    // Primary Dasha engine — see STORAGE_KEYS.dashaEngine.
+    dashaEngine: "ank"
   };
 
   try {
@@ -1042,7 +1054,50 @@
     if (savedLang && ["en", "hi", "gu"].includes(savedLang)) {
       state.lang = savedLang;
     }
+    const savedMode = localStorage.getItem(STORAGE_KEYS.reportMode);
+    if (savedMode === "practitioner") state.reportMode = "practitioner";
+    const savedEngine = localStorage.getItem(STORAGE_KEYS.dashaEngine);
+    if (savedEngine === "vimshottari") state.dashaEngine = "vimshottari";
   } catch (e) {}
+
+  /* Report mode drives conditional section bundling. Client mode suppresses
+     every practitioner-only block (cockpit, telemetry, JSON scaffolds,
+     Vimshottari internals) on screen AND in the PDF; Practitioner mode
+     expands the full compendium. The class lives on <body> so both the live
+     view and the print stylesheet react to the same switch. */
+  function applyReportModeClass() {
+    try {
+      const mode = state.reportMode === "practitioner" ? "practitioner" : "client";
+      if (typeof document !== "undefined" && document.body) {
+        document.body.classList.toggle("report-mode-practitioner", mode === "practitioner");
+        document.body.classList.toggle("report-mode-client", mode === "client");
+        document.body.setAttribute("data-report-mode", mode);
+      }
+    } catch (e) {}
+  }
+
+  function setReportMode(mode) {
+    const next = mode === "practitioner" ? "practitioner" : "client";
+    state.reportMode = next;
+    try { localStorage.setItem(STORAGE_KEYS.reportMode, next); } catch (e) {}
+    applyReportModeClass();
+    $$("[data-report-mode-btn]").forEach((btn) => {
+      const active = btn.dataset.reportModeBtn === next;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+    const sel = $("#reportModeSelect");
+    if (sel) sel.value = next;
+    if (lastProfile) showReport(lastProfile, { preserveScroll: true });
+  }
+
+  function setDashaEngine(engine) {
+    const next = engine === "vimshottari" ? "vimshottari" : "ank";
+    state.dashaEngine = next;
+    try { localStorage.setItem(STORAGE_KEYS.dashaEngine, next); } catch (e) {}
+    $$("[data-dasha-engine-select]").forEach((sel) => { sel.value = next; });
+    if (lastProfile) showReport(lastProfile, { preserveScroll: true });
+  }
 
   function getLang() {
     return state.lang || "en";
@@ -1444,7 +1499,7 @@
     const label = `Knowledge pack v${pack ? pack.packVersion : APP_VERSION}`;
     const sourceText = pack ? (pack.source === "remote" ? "Live update active" : pack.source === "cached" ? "Cached update active" : "Bundled pack active") : "Bundled pack active";
     if ($("#knowledgeBadge")) $("#knowledgeBadge").textContent = label;
-    if ($("#appBadge")) $("#appBadge").textContent = `App v${APP_VERSION} · Meeus engine`;
+    if ($("#appBadge")) $("#appBadge").textContent = `App v${APP_VERSION} · On-device engine`;
     if ($("#buildBadge")) $("#buildBadge").textContent = BUILD_LABEL;
     if ($("#knowledgeVersionText")) $("#knowledgeVersionText").textContent = `v${pack ? pack.packVersion : APP_VERSION}`;
     if ($("#knowledgeStatusText")) $("#knowledgeStatusText").textContent = `${sourceText}. The app works instantly offline, then can optionally fetch a newer public knowledge pack.`;
@@ -2158,6 +2213,89 @@
     return candidates;
   }
 
+  /* Pronunciation & Practicality Rating (2026-09 audit enhancement).
+     A spelling that fixes a number but wrecks a bank form is not a good
+     remedy. Every candidate is scored 1–5 on how safely it survives legal /
+     banking / official formats, and the report prints the rating beside the
+     suggestion. Doubling a TRAILING consonant (Amar -> Amarj?) is cheaper
+     than doubling inside a consonant cluster (Sambhvani -> Sambhhvani, which
+     reads as a typo in legal formats) — the score encodes exactly that. */
+  function namePracticality(candidate, originalName) {
+    const lang = getLang();
+    const notes = [];
+    let score = 5;
+    const up = String(candidate.text || "").toUpperCase();
+    const orig = String(originalName || "").toUpperCase();
+    const VOWELS = "AEIOU";
+    // Internal consonant-cluster doubling (e.g. MBH -> MBHH) misreads as a typo.
+    if (candidate.kind === "double") {
+      const doubledAt = up.split("").findIndex((ch, i) => i > 0 && ch === up[i - 1] && !VOWELS.includes(ch));
+      const afterDoubled = up.slice(doubledAt + 1, doubledAt + 3);
+      const clusterInside = doubledAt > -1 && afterDoubled && !VOWELS.includes(afterDoubled[0] || "A");
+      const atWordEnd = doubledAt === up.length - 1 || up[doubledAt + 1] === " ";
+      if (clusterInside && !atWordEnd) {
+        score -= 2;
+        notes.push(lang === "hi" ? "भीतर का व्यंजन-समूह कानूनी/बैंक फॉर्म में टाइपो जैसा लग सकता है" : lang === "gu" ? "અંદરનો વ્યંજન-સમૂહ કાનૂની/બેંક ફોર્મમાં ટાઇપો જેવો લાગી શકે" : "internal consonant cluster can read like a typo on legal/banking forms");
+      } else if (!atWordEnd) {
+        score -= 1;
+        notes.push(lang === "hi" ? "शब्द के बीच दोहराव — उच्चारण सुरक्षित, पर वर्तनी की आदत बदलेगी" : lang === "gu" ? "શબ્દની વચ્ચે પુનરાવર્તન — ઉચ્ચાર સુરક્ષિત, પણ જોડણીની ટેવ બદલાશે" : "mid-word doubling — sound-safe, but spelling habits will shift");
+      } else {
+        notes.push(lang === "hi" ? "अंत में दोहराव — सबसे सुरक्षित बदलाव" : lang === "gu" ? "અંતે પુનરાવર્તન — સૌથી સુરક્ષિત ફેરફાર" : "trailing double — the safest letter change");
+      }
+    }
+    if (candidate.kind === "insert") {
+      score -= 0;
+      notes.push(lang === "hi" ? "स्वर-जोड़ (जैसे Suniel शैली) — उच्चारण समान रहता है" : lang === "gu" ? "સ્વર-ઉમેરો (જેમ કે Suniel શૈલી) — ઉચ્ચાર એ જ રહે છે" : "vowel insertion (Suniel-style) — pronunciation stays identical");
+    }
+    if (candidate.kind === "swap") {
+      score -= 1;
+      notes.push(lang === "hi" ? "समान-ध्वनि अदला-बदली — दस्तावेज़ों में पहचान बनी रहती है" : lang === "gu" ? "સમાન-ધ્વનિ અદલાબદલી — દસ્તાવેજોમાં ઓળખ જળવાય છે" : "same-sound swap — identity stays recognisable in documents");
+    }
+    if (candidate.kind === "initial") {
+      score += 1;
+      notes.push(lang === "hi" ? "मध्य-आद्यक्षर जोड़ना — कानूनी/बैंक रिकॉर्ड में सबसे व्यावहारिक विकल्प" : lang === "gu" ? "મધ્ય-આદ્યાક્ષર ઉમેરવો — કાનૂની/બેંક રેકોર્ડમાં સૌથી વ્યવહારુ વિકલ્પ" : "middle-initial addition — the most practical option for legal/banking records");
+    }
+    if (up.replace(/\s/g, "").length - orig.replace(/\s/g, "").length > 2) score -= 1;
+    score = Math.max(1, Math.min(5, Math.round(score)));
+    const label = score >= 5 ? (lang === "hi" ? "उत्कृष्ट" : lang === "gu" ? "ઉત્તમ" : "Excellent")
+      : score === 4 ? (lang === "hi" ? "अच्छा" : lang === "gu" ? "સારું" : "Good")
+      : score === 3 ? (lang === "hi" ? "ठीक" : lang === "gu" ? "ઠીક" : "Fair")
+      : score === 2 ? (lang === "hi" ? "सोच-समझकर" : lang === "gu" ? "વિચારીને" : "Use with care")
+      : (lang === "hi" ? "अव्यावहारिक" : lang === "gu" ? "અવ્યવહારુ" : "Awkward");
+    return { score, label, notes: notes.slice(0, 2) };
+  }
+
+  /* Middle-initial candidates (2026-09 audit enhancement): instead of only
+     doubling trailing consonants, also offer "first name + middle initial"
+     spellings — the change many clients actually need for legal/banking
+     formats. A single letter carries its Chaldean value, so we scan A–Z at the
+     middle-initial slot (after the first token) and keep only totals that hit
+     a requested target number. */
+  function initialCandidates(name, baseCompound) {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const tokens = String(name).trim().split(/\s+/);
+    const out = [];
+    const seen = new Set();
+    const pushAt = (idx) => {
+      for (const letter of letters) {
+        const next = tokens.slice(0, idx).concat(letter, tokens.slice(idx)).join(" ");
+        const key = next.toUpperCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const compound = chaldeanValue(next);
+        out.push({
+          text: next,
+          change: `add middle initial "${letter}"`,
+          compound, reduced: reduce(compound), kind: "initial",
+          delta: Math.abs(compound - baseCompound) + 0.5
+        });
+      }
+    };
+    if (tokens.length >= 2) pushAt(1);          // Amar S Sambhvani
+    else if (tokens.length === 1) pushAt(1);     // single name: append an initial
+    return out;
+  }
+
   /* Optional grid-filling spellings for an ALREADY-harmonious name.
      These never "correct" anything — they consciously fill a number that is
      missing from the Lo Shu Foundation grid, stay non-enemy to both Driver and Conductor,
@@ -2170,15 +2308,16 @@
       !p.loShuRepeated.includes(n)
     );
     if (!fillable.length) return { variants: [], targets: [] };
-    const candidates = spellingCandidates(p.name, p.nameCompound);
-    const kindRank = { double: 0, swap: 1, insert: 2 };
+    const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
+    const kindRank = { initial: 0, double: 1, swap: 2, insert: 3 };
     const variants = [];
     const seen = new Set();
     fillable.forEach((n) => {
       const planet = db.numbers[n].planet.split(" ")[0];
       const hits = candidates
         .filter((c) => c.reduced === n)
-        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
+        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }))
+        .sort((a, b) => b.practicality.score - a.practicality.score || kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
       hits.slice(0, 2).forEach((c) => {
         const key = c.text.toUpperCase();
         if (seen.has(key)) return;
@@ -2225,14 +2364,17 @@
     const targets = missingRanked.concat(harm);
     if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
 
-    const candidates = spellingCandidates(p.name, p.nameCompound);
+    // Middle-initial options join the pool so a correction is never limited to
+    // doubling trailing consonants (2026-09 audit).
+    const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
 
-    const kindRank = { double: 0, swap: 1, insert: 2 };
+    const kindRank = { initial: 0, double: 1, swap: 2, insert: 3 };
     const variants = [];
     targets.forEach((tgt) => {
       const hits = candidates
         .filter((c) => c.reduced === tgt.n)
-        .sort((a, b) => kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
+        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }))
+        .sort((a, b) => b.practicality.score - a.practicality.score || kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
       hits.slice(0, 2).forEach((c) => variants.push({ ...c, why: tgt.why, targetN: tgt.n }));
     });
 
@@ -3001,20 +3143,38 @@
   /* Conversion-probability grade for an event window. The window itself is
      timing (Dasha authority); this grade only says how directly it is likely
      to convert, based on whether the significator lords that make the window
-     are present in the Vedic birth grid.
+     are present in the VEDIC ANK KUNDALI grid.
+
+     Strict grid tagging (2026-09 audit fix): the evaluation array and the
+     printed label were allowed to drift in older builds — a window could be
+     evaluated against one grid while the sentence called it the "Vedic birth
+     grid", contradicting the Ank Kundali section pages earlier. The grade is
+     now ALWAYS computed against p.vedicCounts (the Vedic array), carries an
+     explicit `grid: "vedic"` tag for the renderer, and reports every
+     significator whose presence differs between the Vedic and Lo Shu arrays
+     so the renderer can disclose the divergence instead of hiding it. The
+     renderer must print exactly this grid's name — never a generic "birth
+     grid" label that could be read as either system.
        high        – the triggering AD lord is present natally (direct conversion)
        moderate    – AD lord absent but the MD lord (a significator) is present
        conditional – both triggering lords absent natally; needs the Vastu
                      sector of the AD lord activated before realisation */
+  const NATAL_CONVERSION_GRID = "vedic";
   function natalConversion(ev, mdN, adN, p) {
     const counts = p && p.vedicCounts ? p.vedicCounts : {};
+    const loShuCounts = p && p.loShuCounts ? p.loShuCounts : {};
     const present = (n) => (counts[n] || 0) > 0;
     const isSig = (n) => ev.primary.includes(n) || ev.support.includes(n);
     const adPresent = present(adN);
     const mdPresent = present(mdN) && isSig(mdN);
     const grade = adPresent ? "high" : mdPresent ? "moderate" : "conditional";
     const missing = [adN, mdN].filter((n, i, a) => a.indexOf(n) === i && isSig(n) && !present(n));
-    return { grade, adPresent, mdPresent, missing };
+    // Cross-grid disclosure: numbers where the Vedic and Lo Shu arrays answer
+    // differently (e.g. century digits plot in Lo Shu but not in the Vedic
+    // Ank Kundali). Listed so the window text can say WHICH grid was judged.
+    const divergence = [adN, mdN].filter((n, i, a) => a.indexOf(n) === i && isSig(n) &&
+      (((counts[n] || 0) > 0) !== ((loShuCounts[n] || 0) > 0)));
+    return { grade, adPresent, mdPresent, missing, grid: NATAL_CONVERSION_GRID, divergence };
   }
 
   function dashaTimeline(p, refDate) {
@@ -3698,6 +3858,9 @@
           grade: qualified.grade || (w.conversion && w.conversion.grade) || "conditional",
           probability: qualified.probability || "",
           natalStatus: qualified.natalStatus || "",
+          // Strict grid tagging: the cockpit passes p.vedicCounts into
+          // qualifyEventWindow, so the grade is Vedic-grid-derived — say so.
+          grid: NATAL_CONVERSION_GRID,
           clinicalNote: qualified.clinicalNote || ""
         }
       };
@@ -3827,7 +3990,7 @@
 
     const windowRows = c.windows.map((ev) => {
       if (!ev.window) return `<tr data-cockpit-window="${esc(ev.key)}"><td>${ev.icon} ${esc(ev.label)}</td><td colspan="3">Watch the next Dasha transition — no significator window inside the scan horizon.</td></tr>`;
-      return `<tr data-cockpit-window="${esc(ev.key)}" data-grade="${ev.window.grade}">
+      return `<tr data-cockpit-window="${esc(ev.key)}" data-grade="${ev.window.grade}" data-natal-grid="${esc(ev.window.grid || NATAL_CONVERSION_GRID)}">
         <td>${ev.icon} ${esc(ev.label)}</td>
         <td>${prettyDate(ev.window.startMs)} → ${prettyDate(ev.window.endMs)}<div class="cockpit-mini">ages ${ev.window.fromAge}–${ev.window.toAge}${ev.window.beyondBand ? " · late window" : ""}</div></td>
         <td>${ev.window.mdN} × ${ev.window.adN}</td>
@@ -3883,7 +4046,7 @@
           ${c.triage.withheld.length ? `<div class="cockpit-why"><strong>${esc(L.withheld)}:</strong> ${c.triage.withheld.map(esc).join(" · ")}</div>` : ""}
         </div>
         <div class="cockpit-block" data-cockpit-block="windows">
-          <div class="cockpit-label">${esc(L.windows)}</div>
+          <div class="cockpit-label">${esc(L.windows)} <span class="cockpit-mini" data-natal-grid="${NATAL_CONVERSION_GRID}">${lang === "hi" ? "(उपस्थिति वैदिक अंक-कुंडली ग्रिड से जांची गई है)" : lang === "gu" ? "(હાજરી વૈદિક અંક-કુંડળી ગ્રિડ પર ચકાસાયેલ છે)" : "(presence graded against the Vedic Ank Kundali grid)"}</span></div>
           <table class="cockpit-table"><tr><th>${esc(L.event)}</th><th>${esc(L.window)}</th><th>${esc(L.lords)}</th><th>${esc(L.probability)}</th></tr>${windowRows}</table>
         </div>
         <footer class="cockpit-foot">
@@ -4049,6 +4212,138 @@
       note: t(summaryScaleCopy.desc, "")
     });
     return { headline, story, cards, checks, moves };
+  }
+
+  /* ---- Layman Implementation Framework (2026-09 audit) --------------------
+     A layman does not remember planetary planes; they remember what to do on
+     Tuesday morning. These two builders turn the engines above into a
+     plug-and-play 7-Day Micro-Routine table and explicit DO / DO-NOT cards,
+     rendered at the very front of the report (Layer 1). Every row is derived
+     from data already computed elsewhere — nothing new is invented, and the
+     same clinical guardrails (solar overload, Moon-cold, under-18) mute
+     conflicting rows instead of printing them side by side. */
+  function renderMicroRoutine(p, activation, triage) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const solarHot = solarOverload(p) && pittaInBaseline(p);
+    const rows = [];
+    const L = {
+      daily: lang === "hi" ? "दैनिक (सूर्योदय)" : lang === "gu" ? "દૈનિક (સૂર્યોદય)" : "Daily (Sunrise)",
+      nightly: lang === "hi" ? "दैनिक (रात्रि)" : lang === "gu" ? "દૈનિક (રાત્રિ)" : "Daily (Night)",
+      time: lang === "hi" ? "समय / दिन" : lang === "gu" ? "સમય / દિવસ" : "Time / Day",
+      anchor: lang === "hi" ? "ग्रह-आधार" : lang === "gu" ? "ગ્રહ-આધાર" : "Planetary Anchor",
+      action: lang === "hi" ? "क्रिया" : lang === "gu" ? "ક્રિયા" : "Action Item",
+      mutedNote: lang === "hi" ? "संयमित — सूर्य-ओवरलोड गार्डरेल के कारण हल्के रूप में" : lang === "gu" ? "સંયમિત — સૂર્ય-ઓવરલોડ ગાર્ડરેલને કારણે હળવા રૂપમાં" : "Muted — run gently due to your solar-overload guardrail"
+    };
+    // Row 1 — the one Tier-1 sunrise practice (same target as the 40-day plan).
+    const tN = activation.targetN;
+    const tInfo = db.numbers[tN];
+    const tShort = db.mantraShort[tN];
+    if (activation.holdJapa) {
+      rows.push({ when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, action: lang === "hi" ? "जप इस चक्र होल्ड पर है — इसके बजाय सक्रिय क्षेत्र साधें (40-दिन योजना देखें)।" : lang === "gu" ? "જાપ આ ચક્રે હોલ્ડ પર છે — તેના બદલે સક્રિય ક્ષેત્ર સાધો (૪૦-દિવસ યોજના જુઓ)." : "Japa is on hold this cycle — work the active sector instead (see the 40-Day Plan).", muted: false, tag: "Tier 1 target" });
+    } else {
+      const solarMuteSunrise = solarHot && tN === 1;
+      rows.push({ when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, action: `${lang === "hi" ? "जापें" : lang === "gu" ? "જાપ કરો" : "Chant"} <span class="mantra">${esc(tShort.dev)}</span> <em>(${esc(tShort.pron)})</em> ${activation.sadhanaJapa}×${solarMuteSunrise ? ` — <span class="conflict-muted-note">${L.mutedNote}</span>` : ""}`, muted: solarMuteSunrise, tag: "Tier 1 target" });
+    }
+    // Row 2 — the nightly cooling / intention anchor.
+    if (solarOverload(p)) {
+      rows.push({ when: L.nightly, planet: lang === "hi" ? "चंद्र (शीतलन)" : lang === "gu" ? "ચંદ્ર (ઠંડક)" : "Moon (Cooling)", action: lang === "hi" ? "5 मिनट बाईं-नासिका श्वास (चंद्र भेदन) और शाम का भूमि-संपर्क।" : lang === "gu" ? "5 મિનિટ ડાબી-નાસિકા શ્વાસ (ચંદ્ર ભેદન) અને સાંજનો ભૂમિ-સંપર્ક." : "5 minutes left-nostril breathing (Chandra Bhedana) plus evening grounding.", muted: false, tag: "Cooling" });
+    } else {
+      rows.push({ when: L.nightly, planet: `${esc(tInfo.planet)} (${tN})`, action: lang === "hi" ? `संकल्प पत्र पर "${esc(tShort.affirmation)}" 11 बार लिखें।` : lang === "gu" ? `સંકલ્પ પત્ર પર "${esc(tShort.affirmation)}" 11 વખત લખો.` : `Write "${esc(tShort.affirmation)}" 11 times on your wish paper.`, muted: false, tag: "Intention" });
+    }
+    // Rows 3+ — weekday anchors: Driver/Conductor power days first, then the
+    // missing goal numbers, de-duplicated by weekday.
+    const dayRows = [];
+    const pushDayRow = (n, tag) => {
+      const info = db.numbers[n];
+      if (!info) return;
+      const day = dayOf(n);
+      if (dayRows.some((r) => r.when === day)) return;
+      const muted = solarHot && n === 1;
+      const colour = String(info.color || "").split(",")[0].toLowerCase();
+      const actionBits = [
+        colour ? (lang === "hi" ? `${esc(info.color.split(",")[0])} रंग पहनें` : lang === "gu" ? `${esc(info.color.split(",")[0])} રંગ પહેરો` : `Wear ${colour}`) : "",
+        info.charity ? (lang === "hi" ? `दान: ${esc(info.charity)}` : lang === "gu" ? `દાન: ${esc(info.charity)}` : `Donate: ${esc(info.charity)}`) : ""
+      ].filter(Boolean);
+      const lifestyle = String(info.lifestyle || "").split(";")[0];
+      if (lifestyle && actionBits.length < 3) actionBits.splice(1, 0, esc(lifestyle));
+      dayRows.push({ when: day, planet: `${esc(info.planet)} (${n})`, action: actionBits.join(" · ") + (muted ? ` — <span class="conflict-muted-note">${L.mutedNote}</span>` : ""), muted, tag });
+    };
+    pushDayRow(p.driver, lang === "hi" ? "मूलांक" : lang === "gu" ? "મૂળાંક" : "Driver");
+    if (p.conductor !== p.driver) pushDayRow(p.conductor, lang === "hi" ? "भाग्यांक" : lang === "gu" ? "ભાગ્યાંક" : "Conductor");
+    (activation.missingFocus || []).slice(0, 3).forEach((n) => pushDayRow(n, lang === "hi" ? "लो शू गैप" : lang === "gu" ? "લો શુ ગેપ" : "Lo Shu gap"));
+    rows.push(...dayRows.slice(0, 5));
+
+    const bodyRows = rows.map((r) => `<tr${r.muted ? ' class="conflict-muted" data-conflict-muted="solar-overload"' : ""}>
+      <td><strong>${r.when}</strong></td>
+      <td>${r.planet}<div class="card-sub">${esc(r.tag)}</div></td>
+      <td>${r.action}</td>
+    </tr>`).join("");
+    return `<div class="card micro-routine-card" data-micro-routine="7-day">
+      <div class="goal-head">
+        <div class="card-title">${lang === "hi" ? "आपकी 7-दिवसीय माइक्रो-रूटीन" : lang === "gu" ? "તમારી 7-દિવસીય માઇક્રો-રૂટિન" : "Your 7-Day Micro-Routine"}</div>
+        <span class="badge good">${lang === "hi" ? "पहले करें यही" : lang === "gu" ? "પહેલાં આ જ કરો" : "Start here"}</span>
+      </div>
+      <div class="card-sub">${lang === "hi" ? "घने चेकलिस्ट की जगह एक साफ सप्ताहिक कार्यक्रम — यही इस सप्ताह का पूरा अभ्यास है।" : lang === "gu" ? "ગીચ ચેકલિસ્ટને બદલે એક સ્વચ્છ સાપ્તાહિક કાર્યક્રમ — આ જ આ અઠવાડિયાનો આખો અભ્યાસ છે." : "One clean weekly schedule instead of a dense checklist — this table is the whole practice for this week."}</div>
+      <div class="table-scroll"><table class="rtable micro-routine-table">
+        <tr><th>${L.time}</th><th>${L.anchor}</th><th>${L.action}</th></tr>
+        ${bodyRows}
+      </table></div>
+    </div>`;
+  }
+
+  function renderDoAvoidCards(p, triage, vastuFindings) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const dos = [], donts = [];
+    const solarHot = solarOverload(p) && pittaInBaseline(p);
+    // DO: active Vastu sector from the Dasha triage.
+    const t1 = (triage && triage.tier1) || {};
+    if (t1.zone && t1.zoneRemedy) {
+      dos.push({ text: lang === "hi" ? `सक्रिय वास्तु क्षेत्र साधें — ${t1.zone}: ${t1.zoneRemedy}` : lang === "gu" ? `સક્રિય વાસ્તુ ક્ષેત્ર સાધો — ${t1.zone}: ${t1.zoneRemedy}` : `Activate the live Vastu sector — ${t1.zone}: ${t1.zoneRemedy}`, src: "dasha" });
+    }
+    // DO: keep NE + centre clear (general upkeep from the Vastu section).
+    dos.push({ text: lang === "hi" ? "घर के ईशान कोण और केंद्र (ब्रह्मस्थान) को भारी सामान से खाली रखें।" : lang === "gu" ? "ઘરના ઈશાન ખૂણા અને કેન્દ્ર (બ્રહ્મસ્થાન) ને ભારે સામાનથી ખાલી રાખો." : "Keep the North-East and the centre (Brahmasthan) of the home free of heavy clutter.", src: "vastu" });
+    // DO: channel repeated energy instead of feeding it.
+    if (p.loShuRepeated.length) {
+      const n = p.loShuRepeated[0];
+      const entry = (db.excessEnergy && db.excessEnergy[n]) || {};
+      const channel = loc(entry.channel, lang) || db.numbers[n].lifestyle;
+      dos.push({ text: lang === "hi" ? `अतिरिक्त ${db.numbers[n].planet} ऊर्जा (${p.loShuCounts[n]}× ${n}) को दिशा दें: ${channel}` : lang === "gu" ? `વધારાની ${db.numbers[n].planet} ઊર્જા (${p.loShuCounts[n]}× ${n}) ને દિશા આપો: ${channel}` : `Channel the excess ${db.numbers[n].planet} energy (${p.loShuCounts[n]}× ${n}): ${channel}`, src: "loshu" });
+    }
+    // DO NOT: never stack gemstones / dark stones.
+    donts.push({ text: lang === "hi" ? "एक साथ कई गहरे रत्न न खरीदें / न पहनें — एक सक्रिय रत्न पर्याप्त है।" : lang === "gu" ? "એકસાથે અનેક ઘેરા રત્નો ન ખરીદો / ન પહેરો — એક સક્રિય રત્ન પૂરતું છે." : "Do not stack multiple dark stones or buy several gemstones at once — one activating stone is enough.", src: "triage" });
+    // DO NOT: solar-overload heating practices.
+    if (solarHot) {
+      donts.push({ text: lang === "hi" ? "सूर्य भेदन या दोपहर का सूर्य-सक्रियण न करें; लंबा सूर्य-दर्शन भी नहीं।" : lang === "gu" ? "સૂર્ય ભેદન કે બપોરનું સૂર્ય-સક્રિયકરણ ન કરો; લાંબું સૂર્ય-દર્શન પણ નહીં." : "Skip Surya Bhedana and midday Solar Activation; no prolonged sun-gazing.", src: "solar" });
+    }
+    // DO NOT: Moon-cold forms for cold-sensitive charts.
+    if (moonColdSensitivity(p)) {
+      donts.push({ text: lang === "hi" ? "ठंडे जल के अनुष्ठान / सोमवार के ठंडे व्रत न करें — उष्ण रूप अपनाएं।" : lang === "gu" ? "ઠંડા જળના અનુષ્ઠાન / સોમવારના ઠંડા વ્રત ન કરો — ઉષ્ણ રૂપ અપનાવો." : "Avoid cold-water rituals and cold Monday fasts — run the lunar forms warm.", src: "moon-cold" });
+    }
+    // DO NOT: heavy gems for minors.
+    if (isMinorProfile(p)) {
+      donts.push({ text: lang === "hi" ? "18 वर्ष से पहले भारी रत्न (नीलम, गोमेद, लहसुनिया) न पहनें।" : lang === "gu" ? "18 વર્ષ પહેલાં ભારે રત્નો (નીલમ, ગોમેદ, લહેસુનિયા) ન પહેરો." : "Do not wear heavy gems (Blue Sapphire, Hessonite, Cat's Eye) before adulthood.", src: "age" });
+    }
+    // DO NOT: dosh placements from the home scan (max 2, shortened).
+    (vastuFindings || []).filter((f) => f.tone === "bad").slice(0, 2).forEach((f) => {
+      donts.push({ text: `${f.item} — ${f.note.split(".")[0]}.`, src: "vastu" });
+    });
+    // DO NOT: everything at once.
+    donts.push({ text: lang === "hi" ? "सारे उपाय एक साथ शुरू न करें — 40-दिन की योजना एक ही क्रम में चलती है।" : lang === "gu" ? "બધા ઉપાયો એકસાથે શરૂ ન કરો — ૪૦-દિવસની યોજના એક જ ક્રમમાં ચાલે છે." : "Do not start every remedy at once — the 40-day plan runs one tier at a time.", src: "triage" });
+
+    const doRows = dos.slice(0, 5).map((d) => `<div class="ar-item do-item" data-do-src="${d.src}">✓ ${esc(d.text)}</div>`).join("");
+    const dontRows = donts.slice(0, 5).map((d) => `<div class="ar-item dont-item" data-dont-src="${d.src}">✕ ${esc(d.text)}</div>`).join("");
+    return `<div class="card-grid two do-avoid-grid">
+      <div class="card do-card">
+        <div class="card-title">${lang === "hi" ? "क्या करें" : lang === "gu" ? "શું કરવું" : "What to DO"}</div>
+        <div class="adopt-release"><div class="adopt-col">${doRows}</div></div>
+      </div>
+      <div class="card avoid-card">
+        <div class="card-title">${lang === "hi" ? "क्या न करें" : lang === "gu" ? "શું ન કરવું" : "What to AVOID"}</div>
+        <div class="adopt-release"><div class="release-col">${dontRows}</div></div>
+      </div>
+    </div>`;
   }
 
   /* The 40-day mandala is a Lo Shu practice. It is deliberately isolated from
@@ -4385,7 +4680,7 @@
       return `<div class="card astro-snapshot-card" id="vedic-snapshot">
       <div class="goal-head">
         <div class="card-title">🪐 Astro-Identity Snapshot — your Vedic sky at birth</div>
-        <span class="badge info">Computed on this device · ${esc(a.engine)}</span>
+        <span class="badge info">Computed on this device<span class="practitioner-only"> · ${esc(a.engine)}</span></span>
       </div>
       <div class="astro-grid">
         ${astroCell("astro-sun", esc(a.sun.glyph), "Sun · Surya Rashi", `${esc(a.sun.sign)} ${esc(a.sun.degStr)}`, `${esc(a.sun.element)} · ruled by ${esc(a.sun.lord)}`, `Western tropical reference: ${esc(a.sun.tropicalGlyph)} ${esc(a.sun.tropicalSign)} ${esc(a.sun.tropicalDegStr)}`)}
@@ -4429,7 +4724,7 @@
         </div>
       </div>
       <div class="astro-foot">
-        Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Sun position computed for your birth date (sidereal / Nirayana) · ${esc(a.engine)} · Everything runs locally in your browser — nothing is sent anywhere.
+        Lahiri (Chitrapaksha) ayanamsa <strong>${fmtAy(a.ayanamsa)}</strong> · Sun position computed for your birth date (sidereal / Nirayana) <span class="practitioner-only"> · ${esc(a.engine)}</span> · Everything runs locally in your browser — nothing is sent anywhere.
       </div>
     </div>`;
   }
@@ -4483,7 +4778,7 @@
     return `<div class="card astro-pair-card" id="partner-astro-snapshot" data-authority="chandra-bala" data-partner-astro="full">
       <div class="goal-head">
         <div class="card-title">🪐 ${LT("Astro-Identity Snapshot", "ज्योतिष-पहचान झलक", "જ્યોતિષ-ઓળખ ઝલક")} — ${esc(selfFirst)} &amp; ${esc(partnerFirst)}</div>
-        <span class="badge info">${LT("Computed on this device", "इसी डिवाइस पर गणित", "આ જ ડિવાઇસ પર ગણિત")} · ${esc(pa.engine)}</span>
+        <span class="badge info">${LT("Computed on this device", "इसी डिवाइस पर गणित", "આ જ ડિવાઇસ પર ગણિત")}<span class="practitioner-only"> · ${esc(pa.engine)}</span></span>
       </div>
       <div class="table-scroll"><table class="rtable astro-pair-table">
         <tr><th>${LT("Factor", "घटक", "ઘટક")}</th><th>${esc(selfFirst)}</th><th>${esc(partnerFirst)}</th></tr>
@@ -4622,9 +4917,13 @@
   function spellingTableHtml(rows) {
     const lang = getLang();
     if (!rows || !rows.length) return "";
+    // Candidates without a computed practicality (legacy callers) are rated on
+    // the fly so the column is never blank.
+    const rated = rows.map((v) => v.practicality ? v : { ...v, practicality: namePracticality(v, "") });
+    const stars = (score) => "★".repeat(score) + "☆".repeat(Math.max(0, 5 - score));
     return `<div class="table-scroll"><table class="rtable">
-      <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
-      ${rows.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td>${esc(v.why)}</td></tr>`).join("")}
+      <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "व्यावहारिकता" : lang === "gu" ? "વ્યવહારુતા" : "Pronunciation & practicality"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
+      ${rated.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td data-practicality="${v.practicality.score}"><span class="practicality-stars" aria-hidden="true">${stars(v.practicality.score)}</span> ${esc(v.practicality.label)}${v.practicality.notes.length ? `<div class="card-sub">${v.practicality.notes.map(esc).join(" · ")}</div>` : ""}</td><td>${esc(v.why)}</td></tr>`).join("")}
     </table></div>`;
   }
 
@@ -5225,12 +5524,23 @@
     const anchors = vedicTattvaAnchors(p, lang);
     if (!anchors.length) return "";
     const deficientLabel = lang === "hi" ? "न्यून" : lang === "gu" ? "ઊણપ" : "Deficient";
+    /* Automated conflict resolution (2026-09 audit): when the solar-overload
+       guardrail is live (3+ Sun against a Pitta baseline), the Agni plane's
+       heating anchors — Surya Bhedana and the midday Solar Activation — are
+       visually MUTED in place instead of being printed live right next to the
+       moderation warning. The reader can still see what was withheld and why. */
+    const solarMuteActive = solarOverload(p) && pittaInBaseline(p);
+    const mutedHint = lang === "hi" ? "संयमित — सूर्य-ओवरलोड गार्डरेल सक्रिय है; इसे छोड़ें।" : lang === "gu" ? "સંયમિત — સૂર્ય-ઓવરલોડ ગાર્ડરેલ સક્રિય છે; આ છોડી દો." : "Muted — the solar-overload guardrail is active; skip this anchor.";
+    const isHeatingRow = (row) => /surya bhedana|solar activation|सूर्य भेदन|सूर्य सक्रियण|સૂર્ય ભેદન|સૂર્ય સક્રિયકરણ/i.test(`${row.label} ${row.value}`);
     const cards = anchors.map((plane) => {
       const chips = plane.cells.map((n) => `<span class="plane-chip ${p.vedicCounts[n] > 0 ? "on" : "off"}">${n}</span>`).join("");
       const badge = plane.state === "empty"
         ? `<span class="badge warn">${esc(deficientLabel)}</span>`
         : `<span class="badge info">${esc(copy.planePartial)}</span>`;
-      const rows = plane.rows.map((row) => `<div class="kit-row"><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${esc(row.label)}</div><div class="kit-value">${esc(row.value)}</div></div></div>`).join("");
+      const rows = plane.rows.map((row) => {
+        const muted = solarMuteActive && plane.key === "practical" && isHeatingRow(row);
+        return `<div class="kit-row${muted ? " conflict-muted" : ""}"${muted ? ' data-conflict-muted="solar-overload"' : ""}><div class="kit-ico">${row.ico}</div><div class="kit-body"><div class="kit-label">${esc(row.label)}${muted ? ` <span class="conflict-muted-note">${mutedHint}</span>` : ""}</div><div class="kit-value">${esc(row.value)}</div></div></div>`;
+      }).join("");
       return `<article class="card plane-card tattva-card" data-vedic-plane="${plane.key}" data-plane-state="${plane.state}" data-tattva="${esc(plane.tattva)}">
         <div class="goal-head"><div class="card-title">${esc(plane.name)} — ${esc(plane.tattva)}</div>${badge}</div>
         <div class="card-sub">${esc(plane.element)} · ${plane.cells.join(" – ")}</div>
@@ -5346,10 +5656,38 @@
     const evolving = evolvingChartData(p, timing);
     const summary = northstarSummary(p, triage);
     const activation = activationPlan(p, triage);
+    /* Layer 1 executive summary (2026-09 audit): surface the ACTIVE timing
+       window from the PRIMARY Dasha engine right on the front page, so the
+       client sees core numbers, top remedies, the live window and the weekly
+       schedule together before any deep-dive analysis. */
+    try {
+      const vimNow = state.dashaEngine === "vimshottari" ? vimshottariTimeline(p) : null;
+      const engineLabel = vimNow
+        ? (lang === "hi" ? "विम्शोत्तरी (प्राथमिक)" : lang === "gu" ? "વિમ્શોત્તરી (પ્રાથમિક)" : "Vimshottari (primary)")
+        : (lang === "hi" ? "अंक-ज्योतिष (प्राथमिक)" : lang === "gu" ? "અંક-જ્યોતિષ (પ્રાથમિક)" : "Ank Jyotish (primary)");
+      if (vimNow) {
+        summary.cards.splice(1, 0, {
+          label: t("activeWindowLabel", "Active timing window"),
+          value: `${esc(vimNow.current.md.lord)} MD · ${esc(vimNow.current.ad.lord)} AD`,
+          note: `${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "Antardasha"} ${esc(vimNow.current.ad.lord)} ${lang === "hi" ? "समाप्त होती है" : lang === "gu" ? "સમાપ્ત થાય છે" : "ends"} ${formatStampDate(new Date(vimNow.current.ad.endMs))} · ${engineLabel}`
+        });
+      } else {
+        const dlNow = dashaTimeline(p);
+        const mdNow = dlNow.current.md, adNow = dlNow.current.ad;
+        const mdPlanetNow = String(((db.numbers || {})[mdNow.n] || {}).planet || mdNow.n).split(" ")[0];
+        const adPlanetNow = String(((db.numbers || {})[adNow.n] || {}).planet || adNow.n).split(" ")[0];
+        summary.cards.splice(1, 0, {
+          label: t("activeWindowLabel", "Active timing window"),
+          value: `${esc(mdPlanetNow)} MD · ${esc(adPlanetNow)} AD`,
+          note: `${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "Antardasha"} ${adNow.n} (${esc(adPlanetNow)}) ${lang === "hi" ? "समाप्त होती है" : lang === "gu" ? "સમાપ્ત થાય છે" : "ends"} ${formatStampDate(new Date(adNow.endMs))} · ${engineLabel}`
+        });
+      }
+    } catch (e) { /* timing window is an enhancement — never break the summary */ }
+
     const dobDisplay = formatBirthDate(p); // unambiguous, locale-aware, timezone-safe
     const generatedOn = formatStampDate(new Date());
 
-    const summarySection = `<section class="rsection summary-section" id="summary-section">
+    const summarySection = `<section class="rsection summary-section" id="summary-section" data-report-layer="1">
       <div class="summary-shell">
         <p class="summary-kicker">${t("secSummary", "Northstar Summary")}</p>
         <h2 class="summary-title">${summary.headline}</h2>
@@ -5357,6 +5695,12 @@
         <p class="summary-story">${summary.story}</p>
         <div class="summary-card-grid">
           ${summary.cards.map((card) => `<div class="summary-card"><div class="summary-label">${card.label}</div><div class="summary-value">${card.value}</div><p>${card.note}</p></div>`).join("")}
+        </div>
+        <!-- Layman Implementation Framework (Layer 1): the weekly schedule and
+             explicit DO / DO-NOT cards live at the very front of the report. -->
+        <div class="summary-action-layer" data-report-layer="1">
+          ${renderMicroRoutine(p, activation, triage)}
+          ${renderDoAvoidCards(p, triage, vastu)}
         </div>
         <div class="summary-next">
           <div>
@@ -5465,7 +5809,7 @@
         ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Priority is given to spellings that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
+            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel), and middle-initial options are included so you are not limited to doubling trailing consonants. Every option carries a Pronunciation & Practicality rating for legal/banking formats. Priority is given to spellings that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
                ${spellingTableHtml(nameSug.variants)}
                <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.loShuMissing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
@@ -5712,7 +6056,7 @@
         if (!place || !isFinite(place.lat) || !isFinite(place.lon)) {
           return `<section class="rsection" id="muhurtha-section" data-muhurtha="no-place">
       <h2 class="rsection-title"><span class="idx">${SECTION.timing}b</span>${lang === "hi" ? "आज का मुहूर्त — सूर्योदय / राहु काल" : lang === "gu" ? "આજનું મુહૂર્ત — સૂર્યોદય / રાહુ કાળ" : "Today's Muhurtha — Sunrise & Rahu Kaal"}</h2>
-      <p class="rsection-desc">${lang === "hi" ? "जन्म स्थान उपलब्ध होने पर यहाँ वास्तविक सूर्योदय, सूर्यास्त और राहु काल की गणना दिखाई देगी (Meeus Ch.16, DST और ध्रुवीय दिन/रात सहित)।" : lang === "gu" ? "જન્મ સ્થાન ઉપલબ્ધ હોય ત્યારે અહીં વાસ્તવિક સૂર્યોદય, સૂર્યાસ્ત અને રાહુ કાળની ગણતરી બતાવવામાં આવશે (Meeus Ch.16, DST અને ધ્રુવીય દિવસ/રાત સહિત)." : "Add your birth place to see actual sunrise, sunset and Rahu Kaal for today at your location (Meeus Ch.16 engine, DST and polar-day aware)."}</p>
+      <p class="rsection-desc">${lang === "hi" ? "जन्म स्थान उपलब्ध होने पर यहाँ आज के वास्तविक सूर्योदय, सूर्यास्त और राहु काल की गणना दिखाई देगी (दिन-बचत समय और ध्रुवीय दिन/रात सहित)।" : lang === "gu" ? "જન્મ સ્થાન ઉપલબ્ધ હોય ત્યારે અહીં આજના વાસ્તવિક સૂર્યોદય, સૂર્યાસ્ત અને રાહુ કાળની ગણતરી બતાવવામાં આવશે (દિવસ-બચત સમય અને ધ્રુવીય દિવસ/રાત સહિત)." : "Add your birth place to see actual sunrise, sunset and Rahu Kaal for today at your location (daylight-saving and polar-day aware)."}</p>
       <div class="card"><div class="card-sub">${lang === "hi" ? "उदाहरण: त्रिवेंद्रम में सूर्योदय ६:०४ और श्रीनगर में ६:४७ एक ही दिन — बर्मिंघम GMT में ०८:०५ — इसलिए ६:३०-८:३० का हार्डकोड गलत था। अब वास्तविक गणना से समय निकलता है।" : lang === "gu" ? "ઉદાહરણ: ત્રિવેન્દ્રમમાં સૂર્યોદય ૬:૦૪ અને શ્રીનગરમાં ૬:૪૭ એક જ દિવસે — બર્મિંગહામ GMT માં ૦૮:૦૫ — તેથી ૬:૩૦-૮:૩૦ નો હાર્ડકોડ ખોટો હતો. હવે વાસ્તવિક ગણતરીથી સમય નીકળે છે." : "Example: 6:04 Trivandrum vs 6:47 Srinagar same day, 08:05 Birmingham GMT — so the hardcoded 6:30-8:30 window was inaccurate. Now computed from your actual location."}</div></div>
     </section>`;
         }
@@ -5756,7 +6100,7 @@
         const placeLabel = esc(place.name || (place.lat.toFixed(4)+", "+place.lon.toFixed(4))) + " (UTC"+(tzEff>=0?"+":"")+tzEff+")";
         return `<section class="rsection" id="muhurtha-section" data-muhurtha="ok" data-lat="${place.lat}" data-lon="${place.lon}" data-tz="${tzEff}">
       <h2 class="rsection-title"><span class="idx">${SECTION.timing}b</span>${lang === "hi" ? "आज का मुहूर्त — सूर्योदय / राहु काल (वास्तविक गणना)" : lang === "gu" ? "આજનું મુહૂર્ત — સૂર્યોદય / રાહુ કાળ (વાસ્તવિક ગણતરી)" : "Today's Muhurtha — Sunrise & Rahu Kaal (actual calculation)"}</h2>
-      <p class="rsection-desc">${lang === "hi" ? `स्थान ${placeLabel} पर आज ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} की Meeus Ch.16 गणना — DST और ध्रुवीय दिन/रात सहित। यही इंजन घड़ी पहनने के समय और power-day शुभ समय को भी ठीक करता है।` : lang === "gu" ? `સ્થાન ${placeLabel} પર આજે ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} ની Meeus Ch.16 ગણતરી — DST અને ધ્રુવીય દિવસ/રાત સહિત. આ જ એન્જિન ઘડિયાળ પહેરવાના સમય અને power-day શુભ સમયને પણ ઠીક કરે છે.` : `Meeus Ch.16 calculation for ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} at ${placeLabel} — DST and polar-day aware. Same engine now fixes watch wearing time and power-day windows.`}</p>
+      <p class="rsection-desc">${lang === "hi" ? `स्थान ${placeLabel} पर आज ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} की वास्तविक सूर्य-गणना — दिन-बचत समय और ध्रुवीय दिन/रात सहित। यही गणना घड़ी पहनने के समय और power-day शुभ समय को भी ठीक करती है।` : lang === "gu" ? `સ્થાન ${placeLabel} પર આજે ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} ની વાસ્તવિક સૂર્ય-ગણતરી — દિવસ-બચત સમય અને ધ્રુવીય દિવસ/રાત સહિત. આ જ ગણતરી ઘડિયાળ પહેરવાના સમય અને power-day શુભ સમયને પણ ઠીક કરે છે.` : `Actual solar calculation for ${Y}-${String(M).padStart(2,"0")}-${String(D).padStart(2,"0")} at ${placeLabel} — daylight-saving and polar-day aware. The same calculation fixes watch wearing time and power-day windows.`}</p>
       <div class="card-grid two">
         <div class="card">
           <div class="card-title">${lang === "hi" ? "सूर्योदय / सूर्यास्त" : lang === "gu" ? "સૂર્યોદય / સૂર્યાસ્ત" : "Sunrise / Sunset"}</div>
@@ -5765,7 +6109,7 @@
             <div class="kit-row"><div class="kit-ico">🌇</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "सूर्यास्त" : lang === "gu" ? "સૂર્યાસ્ત" : "Sunset"}</div><div class="kit-value">${sunsetStr} <span class="card-sub">${ss && ss.sunset!=null ? fmt24(ss.sunset) : ""} local</span></div></div></div>
             <div class="kit-row"><div class="kit-ico">☀️</div><div class="kit-body"><div class="kit-label">${lang === "hi" ? "मध्याह्न / दिन-मान" : lang === "gu" ? "મધ્યાહ્ન / દિવસ-માન" : "Transit / Day-length"}</div><div class="kit-value">${transitStr} / ${dayLenStr}</div></div></div>
           </div>
-          <div class="card-sub">${lang === "hi" ? "मानक अपवर्तन + सौर त्रिज्या h0=-0.8333° के साथ hour-angle विधि। ध्रुवीय क्षेत्रों में sunrise/sunset null और alwaysDay/alwaysNight flag सेट होता है।" : lang === "gu" ? "પ્રમાણભૂત રીફ્રેક્શન + સૌર ત્રિજ્યા h0=-0.8333° સાથે hour-angle પદ્ધતિ. ધ્રુવીય ક્ષેત્રોમાં sunrise/sunset null અને alwaysDay/alwaysNight flag સેટ થાય છે." : "Hour-angle method with standard refraction + solar radius h0=-0.8333°. Polar regions return null sunrise/sunset with alwaysDay/alwaysNight flags."}</div>
+          <div class="card-sub practitioner-only" data-technical="ephemeris-debug">${lang === "hi" ? "मानक अपवर्तन + सौर त्रिज्या h0=-0.8333° के साथ hour-angle विधि। ध्रुवीय क्षेत्रों में sunrise/sunset null और alwaysDay/alwaysNight flag सेट होता है।" : lang === "gu" ? "પ્રમાણભૂત રીફ્રેક્શન + સૌર ત્રિજ્યા h0=-0.8333° સાથે hour-angle પદ્ધતિ. ધ્રુવીય ક્ષેત્રોમાં sunrise/sunset null અને alwaysDay/alwaysNight flag સેટ થાય છે." : "Hour-angle method with standard refraction + solar radius h0=-0.8333°. Polar regions return null sunrise/sunset with alwaysDay/alwaysNight flags."}</div>
         </div>
         <div class="card">
           <div class="card-title">${lang === "hi" ? "राहु काल (आज)" : lang === "gu" ? "રાહુ કાળ (આજે)" : "Rahu Kaal (today)"}</div>
@@ -5787,6 +6131,16 @@
       const dashaDB = db.dasha || (window.DB && window.DB.dasha) || {};
       if (!dashaDB[1]) return "";
       const planetOf = (n) => esc(db.numbers[n].planet.split(" ")[0]);
+      /* Dual-Dasha dilemma fix (2026-09 audit): the two systems used to sit
+         side by side with equal visual weight, so a client read "you are in
+         Mercury Mahadasha" on one page and "Jupiter Mahadasha" a few pages
+         later and took it as a contradiction. The practitioner now picks a
+         PRIMARY engine (default: Ank Jyotish); the other engine is cordoned
+         off as a collapsed "Advanced Astrological Cross-Reference" appendix
+         and the banner below states plainly that two different clocks can
+         name two different current lords. */
+      const primaryEngine = state.dashaEngine === "vimshottari" ? "vimshottari" : "ank";
+      const vTimeline = vimshottariTimeline(p);
       const yearOfMs = (ms) => new Date(ms).getFullYear();
       const cur = dl.current;
       const mdInfo = dashaDB[cur.md.n] || {}, adInfo = dashaDB[cur.ad.n] || {}, pdInfo = dashaDB[cur.pd.n] || {};
@@ -5974,7 +6328,7 @@
          deliberately holds no remedy/zone content: the Classical layer is a
          timing read-out only. */
       const vimshottariCard = (function () {
-        const v = vimshottariTimeline(p);
+        const v = vTimeline;
         if (!v) {
           return `<div class="card vimshottari-card" data-authority="vimshottari" data-vimshottari="unavailable">
         <div class="goal-head"><div class="card-title">${t("vimshottariTitle", "Classical Vimshottari Dasha — Moon-Nakshatra Anchored")}</div><span class="badge info">${t("vimshottariKicker", "Vedic · nakshatra-anchored · fixed 120-year cycle")}</span></div>
@@ -6061,13 +6415,24 @@
                 : conv.grade === "moderate"
                   ? `<span class="badge info" data-conversion="moderate">${lang === "hi" ? "मध्यम — महादशा-कारक से समर्थित" : lang === "gu" ? "મધ્યમ — મહાદશા-કારકથી સમર્થિત" : "Moderate — carried by the Mahadasha significator"}</span>`
                   : `<span class="badge warn" data-conversion="conditional">${lang === "hi" ? "सशर्त — पहले वास्तु क्षेत्र सक्रिय करें" : lang === "gu" ? "શરતી — પહેલા વાસ્તુ ક્ષેત્ર સક્રિય કરો" : "Conditional — activate the Vastu sector first"}</span>`;
+              // Strict grid tagging: this sentence must name the exact array
+              // natalConversion() evaluated (the Vedic Ank Kundali). A generic
+              // "birth grid" label was the 2026-09 bug: readers matched it
+              // against the Lo Shu grid and read a contradiction.
+              const convGrid = conv.grid || NATAL_CONVERSION_GRID;
+              const gridNameVedic = lang === "hi" ? "वैदिक अंक-कुंडली ग्रिड (3–1–9 / 6–7–5 / 2–8–4)" : lang === "gu" ? "વૈદિક અંક-કુંડળી ગ્રિડ (3–1–9 / 6–7–5 / 2–8–4)" : "Vedic Ank Kundali grid (3–1–9 / 6–7–5 / 2–8–4)";
+              const divergenceNote = Array.isArray(conv.divergence) && conv.divergence.length
+                ? (lang === "hi" ? `<div class="card-sub grid-divergence-note" data-grid-divergence="${conv.divergence.join("-")}">ग्रिड-जांच: अंक ${conv.divergence.join(", ")} लो शू और वैदिक ग्रिड में अलग-अलग उपस्थिति दिखाते हैं — यह ग्रेड केवल ${gridNameVedic} से जांचा गया है, लो शू से नहीं।</div>`
+                  : lang === "gu" ? `<div class="card-sub grid-divergence-note" data-grid-divergence="${conv.divergence.join("-")}">ગ્રિડ-તપાસ: અંક ${conv.divergence.join(", ")} લો શુ અને વૈદિક ગ્રિડમાં જુદી હાજરી બતાવે છે — આ ગ્રેડ ફક્ત ${gridNameVedic} પર ચકાસાયો છે, લો શુ પર નહીં.</div>`
+                  : `<div class="card-sub grid-divergence-note" data-grid-divergence="${conv.divergence.join("-")}">Grid cross-check: number${conv.divergence.length > 1 ? "s" : ""} ${conv.divergence.join(", ")} plot${conv.divergence.length > 1 ? "" : "s"} differently in the Lo Shu and Vedic grids — this grade was evaluated against the ${gridNameVedic} only, not the Lo Shu grid.</div>`)
+                : "";
               const natalLabel = conv.grade === "high"
-                ? (lang === "hi" ? `कारक ${w.adN} (${planetOf(w.adN)}) जन्म-ग्रिड में उपस्थित है — यह विंडो सीधे फलित हो सकती है।` : lang === "gu" ? `કારક ${w.adN} (${planetOf(w.adN)}) જન્મ-ગ્રિડમાં હાજર છે — આ વિન્ડો સીધી ફળી શકે છે.` : `Natal significator present — ${planetOf(w.adN)} (${w.adN}) sits in your Vedic birth grid, so this window can convert directly.`)
+                ? (lang === "hi" ? `कारक ${w.adN} (${planetOf(w.adN)}) ${gridNameVedic} में उपस्थित है — यह विंडो सीधे फलित हो सकती है।` : lang === "gu" ? `કારક ${w.adN} (${planetOf(w.adN)}) ${gridNameVedic} માં હાજર છે — આ વિન્ડો સીધી ફળી શકે છે.` : `Natal significator present — ${planetOf(w.adN)} (${w.adN}) sits in your ${gridNameVedic}, so this window can convert directly.`)
                 : conv.grade === "moderate"
-                  ? (lang === "hi" ? `अंतर्दशा-कारक ${w.adN} जन्म-ग्रिड में अनुपस्थित है, पर महादशा-कारक ${w.mdN} (${planetOf(w.mdN)}) उपस्थित है — फल आता है, थोड़ा विलंब से।` : lang === "gu" ? `અંતર્દશા-કારક ${w.adN} જન્મ-ગ્રિડમાં ગેરહાજર છે, પણ મહાદશા-કારક ${w.mdN} (${planetOf(w.mdN)}) હાજર છે — ફળ આવે છે, થોડું મોડું.` : `AD lord ${planetOf(w.adN)} (${w.adN}) is absent natally, but the Mahadasha significator ${planetOf(w.mdN)} (${w.mdN}) is present — results arrive, usually a beat later than the window opens.`)
-                  : (lang === "hi" ? `कारक ${conv.missing.join(", ")} जन्म-ग्रिड में अनुपस्थित हैं — यह विंडो तभी फलित होती है जब ${zoneOf(w.adN)} क्षेत्र को पहले सक्रिय किया जाए (उपाय: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))})।` : lang === "gu" ? `કારક ${conv.missing.join(", ")} જન્મ-ગ્રિડમાં ગેરહાજર છે — આ વિન્ડો ત્યારે જ ફળે છે જ્યારે ${zoneOf(w.adN)} ક્ષેત્રને પહેલા સક્રિય કરાય (ઉપાય: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}).` : `Significator${conv.missing.length > 1 ? "s" : ""} ${conv.missing.map((n) => `${planetOf(n)} (${n})`).join(" and ")} absent from your Vedic birth grid — the window is real but needs remedy activation of the ${zoneOf(w.adN)} sector before realisation: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}`);
+                  ? (lang === "hi" ? `अंतर्दशा-कारक ${w.adN} ${gridNameVedic} में अनुपस्थित है, पर महादशा-कारक ${w.mdN} (${planetOf(w.mdN)}) उपस्थित है — फल आता है, थोड़ा विलंब से।` : lang === "gu" ? `અંતર્દશા-કારક ${w.adN} ${gridNameVedic} માં ગેરહાજર છે, પણ મહાદશા-કારક ${w.mdN} (${planetOf(w.mdN)}) હાજર છે — ફળ આવે છે, થોડું મોડું.` : `AD lord ${planetOf(w.adN)} (${w.adN}) is absent from your ${gridNameVedic}, but the Mahadasha significator ${planetOf(w.mdN)} (${w.mdN}) is present — results arrive, usually a beat later than the window opens.`)
+                  : (lang === "hi" ? `कारक ${conv.missing.join(", ")} ${gridNameVedic} में अनुपस्थित हैं — यह विंडो तभी फलित होती है जब ${zoneOf(w.adN)} क्षेत्र को पहले सक्रिय किया जाए (उपाय: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))})।` : lang === "gu" ? `કારક ${conv.missing.join(", ")} ${gridNameVedic} માં ગેરહાજર છે — આ વિન્ડો ત્યારે જ ફળે છે જ્યારે ${zoneOf(w.adN)} ક્ષેત્રને પહેલા સક્રિય કરાય (ઉપાય: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}).` : `Significator${conv.missing.length > 1 ? "s" : ""} ${conv.missing.map((n) => `${planetOf(n)} (${n})`).join(" and ")} absent from your ${gridNameVedic} — the window is real but needs remedy activation of the ${zoneOf(w.adN)} sector before realisation: ${esc(loc((dashaDB[w.adN] || {}).zoneRemedy, lang))}`);
               const lateBadge = w.beyondBand ? ` <span class="badge info" data-beyond-band="true">${lang === "hi" ? `शास्त्रीय आयु-सीमा ${e.def.band[0]}–${e.def.band[1]} के बाद` : lang === "gu" ? `શાસ્ત્રીય ઉંમર-મર્યાદા ${e.def.band[0]}–${e.def.band[1]} પછી` : `Late window — beyond the classical ${e.def.band[0]}–${e.def.band[1]} age band`}</span>` : "";
-              return `<div class="kit-value" data-window-grade="${conv.grade}"${w.beyondBand ? ' data-beyond-band="true"' : ""}><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge} ${gradeBadge}${lateBadge}<div class="card-sub">${natalLabel}</div></div>`;
+              return `<div class="kit-value" data-window-grade="${conv.grade}" data-natal-grid="${esc(convGrid)}"${w.beyondBand ? ' data-beyond-band="true"' : ""}><strong>${yearOfMs(w.startMs)}–${yearOfMs(w.endMs)}</strong> (${agesLbl2} ${w.fromAge}–${w.toAge}) — ${lang === "hi" ? "महादशा" : lang === "gu" ? "મહાદશા" : "MD"} ${w.mdN} (${planetOf(w.mdN)}) · ${lang === "hi" ? "अंतर्दशा" : lang === "gu" ? "અંતર્દશા" : "AD"} ${w.adN} (${planetOf(w.adN)})${badge} ${gradeBadge}${lateBadge}<div class="card-sub">${natalLabel}</div>${divergenceNote}</div>`;
             }).join("")
           : `<div class="kit-value">${lang === "hi" ? "इस scan में निकट भविष्य की कोई प्रबल दशा-window नहीं है — व्यवहारिक तैयारी जारी रखें और अगला दशा संक्रमण देखें।" : lang === "gu" ? "આ scan માં નજીકના ભવિષ્યની કોઈ પ્રબળ દશા-window નથી — વ્યવહારિક તૈયારી ચાલુ રાખો અને આગળનું દશા પરિવર્તન જુઓ." : "No strong upcoming Dasha window appears in this scan — keep practical preparation steady and watch the next Dasha transition."}</div>`;
         const bandLine = e.bandClosed
@@ -6096,16 +6461,52 @@
         <div class="kit">${eventRows}</div>
       </div>`;
 
-      return `<section class="rsection" id="dasha-section" data-authority="dasha">
+      /* Primary-engine banner + cross-reference gating. Both current MD lords
+         are named up-front so a differing pair reads as two clocks, not as a
+         contradiction inside one system. */
+      const ankLordName = String(((db.numbers || {})[cur.md.n] || {}).planet || "").split(" ")[0];
+      const vimLordName = vTimeline ? vTimeline.current.md.lord : "";
+      const lordsAgree = vimLordName && ankLordName && vimLordName.toLowerCase() === ankLordName.toLowerCase();
+      const engineBadge = primaryEngine === "vimshottari"
+        ? `<span class="badge info" data-primary-dasha="vimshottari">${lang === "hi" ? "प्राथमिक इंजन: विम्शोत्तरी" : lang === "gu" ? "પ્રાથમિક એન્જિન: વિમ્શોત્તરી" : "Primary engine: Vimshottari"}</span>`
+        : `<span class="badge info" data-primary-dasha="ank">${lang === "hi" ? "प्राथमिक इंजन: अंक-ज्योतिष" : lang === "gu" ? "પ્રાથમિક એન્જિન: અંક-જ્યોતિષ" : "Primary engine: Ank Jyotish"}</span>`;
+      const engineBanner = `<div class="card dasha-engine-banner" data-dasha-primary="${primaryEngine}" data-dasha-agree="${lordsAgree ? "yes" : "no"}">
+        <div class="goal-head">
+          <div class="card-title">${lang === "hi" ? "दो दशा-घड़ियाँ — एक ही समय पर दो अलग नाम संभव हैं" : lang === "gu" ? "બે દશા-ઘડિયાળો — એક જ સમયે બે જુદા નામ શક્ય છે" : "Two Dasha clocks — two different current lords are normal"}</div>
+          ${engineBadge}
+        </div>
+        <div class="kit-value">${lang === "hi"
+          ? `इस रिपोर्ट की <strong>${primaryEngine === "vimshottari" ? "विम्शोत्तरी (१२०-वर्ष, नक्षत्र-आधारित)" : "अंक-ज्योतिष (४५-वर्ष, अंक-आधारित)"}</strong> प्रणाली प्राथमिक है। ${vimLordName && ankLordName ? `वर्तमान महादशा: अंक-ज्योतिष <strong>${esc(ankLordName)} (${cur.md.n})</strong> · विम्शोत्तरी <strong>${esc(vimLordName)}</strong>।` : ""} ${lordsAgree ? "दोनों घड़ियाँ इस समय एक ही ग्रह दिखा रही हैं।" : "ये दो अलग-अलग घड़ियाँ हैं, इसलिए इस क्षण दो अलग ग्रह दिखना कोई विरोधाभास नहीं — नीचे दोनों को स्पष्ट रूप से अलग-अलग लेबल किया गया है।"}`
+          : lang === "gu"
+            ? `આ રિપોર્ટની <strong>${primaryEngine === "vimshottari" ? "વિમ્શોત્તરી (૧૨૦-વર્ષ, નક્ષત્ર-આધારિત)" : "અંક-જ્યોતિષ (૪૫-વર્ષ, અંક-આધારિત)"}</strong> પદ્ધતિ પ્રાથમિક છે. ${vimLordName && ankLordName ? `વર્તમાન મહાદશા: અંક-જ્યોતિષ <strong>${esc(ankLordName)} (${cur.md.n})</strong> · વિમ્શોત્તરી <strong>${esc(vimLordName)}</strong>.` : ""} ${lordsAgree ? "બંને ઘડિયાળો આ સમયે એક જ ગ્રહ બતાવે છે." : "આ બે જુદી ઘડિયાળો છે, એટલે આ ક્ષણે બે જુદા ગ્રહ દેખાવવા વિરોધાભાસ નથી — નીચે બંનેને સ્પષ્ટ રીતે અલગ લેબલ કર્યા છે."}`
+            : `This report's <strong>${primaryEngine === "vimshottari" ? "Vimshottari (120-year, nakshatra-anchored)" : "Ank Jyotish (45-year, number-anchored)"}</strong> system is the primary timing engine. ${vimLordName && ankLordName ? `Current Mahadasha: Ank Jyotish <strong>${esc(ankLordName)} (${cur.md.n})</strong> · Vimshottari <strong>${esc(vimLordName)}</strong>.` : ""} ${lordsAgree ? "Both clocks agree on the active lord right now." : "These are two separate clocks, so two different current lords at this moment is expected, not a contradiction — each is clearly labelled below."}`}</div>
+        <div class="card-sub">${lang === "hi" ? "सेटिंग में आप प्राथमिक दशा-इंजन बदल सकते हैं; द्वितीय इंजन 'एडवांस्ड क्रॉस-रेफरेंस' के रूप में रहता है।" : lang === "gu" ? "સેટિંગમાં તમે પ્રાથમિક દશા-એન્જિન બદલી શકો છો; બીજું એન્જિન 'એડવાન્સ્ડ ક્રોસ-રેફરન્સ' તરીકે રહે છે." : "Change the primary Dasha engine in Settings; the secondary engine stays available as an Advanced Cross-Reference."}</div>
+      </div>`;
+
+      /* Cordon the non-primary engine into a collapsed appendix. */
+      const crossRefTitle = lang === "hi" ? "एडवांस्ड ज्योतिष क्रॉस-रेफरेंस (केवल ज्योतिष अभ्यासियों के लिए)" : lang === "gu" ? "એડવાન્સ્ડ જ્યોતિષ ક્રોસ-રેફરન્સ (ફક્ત જ્યોતિષ અભ્યાસીઓ માટે)" : "Advanced Astrological Cross-Reference (for Jyotish practitioners)";
+      const vimshottariBlock = primaryEngine === "vimshottari"
+        ? vimshottariCard
+        : `<details class="card dasha-crossref" data-crossref-engine="vimshottari">
+            <summary class="dasha-crossref-summary"><strong>${crossRefTitle}</strong> — ${lang === "hi" ? "विम्शोत्तरी १२०-वर्ष चक्र" : lang === "gu" ? "વિમ્શોત્તરી ૧૨૦-વર્ષ ચક્ર" : "Vimshottari 120-year cycle"}</summary>
+            <div class="dasha-crossref-body">${vimshottariCard}</div>
+          </details>`;
+      const ankCards = `${stackCard}${microForecastCard}${pairSynthesis}${transitSynthesisCard}${ladderCard}${eventsCard}`;
+      const ankBlock = primaryEngine === "ank"
+        ? ankCards
+        : `<details class="card dasha-crossref" data-crossref-engine="ank">
+            <summary class="dasha-crossref-summary"><strong>${crossRefTitle}</strong> — ${lang === "hi" ? "अंक-ज्योतिष ४५-वर्ष चक्र" : lang === "gu" ? "અંક-જ્યોતિષ ૪૫-વર્ષ ચક્ર" : "Ank Jyotish 45-year cycle"}</summary>
+            <div class="dasha-crossref-body">${ankCards}</div>
+          </details>`;
+
+      return `<section class="rsection" id="dasha-section" data-authority="dasha" data-primary-dasha-engine="${primaryEngine}">
         <h2 class="rsection-title"><span class="idx">${SECTION.dasha}</span>${t("secDasha", "Dasha Timeline — Life Event Windows")}</h2>
         <p class="rsection-desc">${lang === "hi" ? "अंक-ज्योतिष की दशा प्रणाली: जन्म से आपका मूलांक अपनी महादशा शुरू करता है (अंक = वर्ष), फिर क्रम ९ अंकों में घूमता है। हर महादशा के भीतर अंतर्दशा और प्रत्यंतर दशा उसी अनुपात में चलती हैं — यही बताता है कि कौन-सा ग्रह अभी आपके जीवन का 'ऑपरेटिंग सिस्टम' चला रहा है।" : lang === "gu" ? "અંક-જ્યોતિષની દશા પ્રણાલી: જન્મથી તમારો મૂળાંક પોતાની મહાદશા શરૂ કરે છે (અંક = વર્ષ), પછી ક્રમ ૯ અંકોમાં ફરે છે. દરેક મહાદશાની અંદર અંતર્દશા અને પ્રત્યંતર દશા એ જ પ્રમાણમાં ચાલે છે — એ જ બતાવે છે કે કયો ગ્રહ અત્યારે તમારા જીવનની 'ઓપરેટિંગ સિસ્ટમ' ચલાવે છે." : "The Ank Jyotish dasha system: from birth, your Moolank opens its own Mahadasha (number = years), then the sequence walks the 9 numbers in order. Inside every Mahadasha run proportional Antardashas and Pratyantar dashas — together they show which planet is running your life's operating system right now."}</p>
-        ${stackCard}
-        ${microForecastCard}
-        ${pairSynthesis}
-        ${transitSynthesisCard}
-        ${ladderCard}
-        ${eventsCard}
-        ${vimshottariCard}
+        ${engineBanner}
+        ${primaryEngine === "vimshottari" ? vimshottariBlock : ""}
+        ${primaryEngine === "vimshottari" ? ankBlock : stackCard}
+        ${primaryEngine === "ank" ? `${microForecastCard}${pairSynthesis}${transitSynthesisCard}${ladderCard}${eventsCard}` : ""}
+        ${primaryEngine === "ank" ? vimshottariBlock : ""}
         <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${t("dashaJudgeNote", "")}${p.birthTime ? (lang === "hi" ? " आपका सटीक जन्म समय चक्र-सीमाओं को स्थिर करता है।" : lang === "gu" ? " તમારો ચોક્કસ જન્મ સમય ચક્ર-સીમાઓને સ્થિર કરે છે." : " Your exact birth time anchors the cycle boundaries.") : (lang === "hi" ? " चक्र-सीमाएँ जन्म तिथि की मध्यरात्रि पर टिकी हैं — बारीक सीमाओं के लिए जन्म समय भरें।" : lang === "gu" ? " ચક્ર-સીમાઓ જન્મ તારીખની મધ્યરાત્રિએ ટકે છે — બારીક સીમાઓ માટે જન્મ સમય ભરો." : " Cycle boundaries are anchored to your date of birth at midnight — add your exact birth time in the intake form for finer boundaries.")}</div>
       </section>`;
     })();
@@ -6155,7 +6556,11 @@
           </div>
         </div>
       </div>
-      <div class="card">
+      <!-- Technical-leak guard (2026-09 audit): the raw serialization payload
+           used to print verbatim in the client PDF ("schemaVersion": 1 …).
+           It is developer scaffolding, not guidance — hidden in Client mode
+           and never rendered to print for clients. -->
+      <div class="card practitioner-only" data-technical="contribution-scaffold" aria-hidden="true">
         <div class="goal-head">
           <div class="card-title">Anonymous contribution scaffold</div>
           <span class="badge ${state.contributionEnabled ? "good" : "warn"}">${state.contributionEnabled ? "Opted in" : "Off by default"}</span>
@@ -6164,6 +6569,33 @@
         <div class="code-block">${esc(JSON.stringify(evolving.previewPayload, null, 2))}</div>
       </div>
     </section>`;
+
+    /* Classical Vedic directional authenticity (2026-09 audit): the report
+       now anchors its Vastu read in the classical Ashta Dikpalaka guardians
+       matched to this engine's Vedic planetary compass, so the 16-zone Vastu
+       layer stands on its own Vedic footing and never leans on the separate
+       (Feng Shui) Kua module for directionality. */
+    const dikpalakaRows = [
+      { dir: lang === "hi" ? "पूर्व" : lang === "gu" ? "પૂર્વ" : "East (Pūrva)", deity: "Indra", n: VEDIC_VASTU_COMPASS_PLANETS.E },
+      { dir: lang === "hi" ? "आग्नेय" : lang === "gu" ? "આગ્નેય" : "South-East (Āgneya)", deity: "Agni", n: VEDIC_VASTU_COMPASS_PLANETS.SE },
+      { dir: lang === "hi" ? "दक्षिण" : lang === "gu" ? "દક્ષિણ" : "South (Dakshiṇa)", deity: "Yama", n: VEDIC_VASTU_COMPASS_PLANETS.S },
+      { dir: lang === "hi" ? "नैऋत्य" : lang === "gu" ? "નૈઋત્ય" : "South-West (Nairṛtya)", deity: "Nirṛti", n: VEDIC_VASTU_COMPASS_PLANETS.SW },
+      { dir: lang === "hi" ? "पश्चिम" : lang === "gu" ? "પશ્ચિમ" : "West (Paścima)", deity: "Varuṇa", n: VEDIC_VASTU_COMPASS_PLANETS.W },
+      { dir: lang === "hi" ? "वायव्य" : lang === "gu" ? "વાયવ્ય" : "North-West (Vāyavya)", deity: "Vāyu", n: VEDIC_VASTU_COMPASS_PLANETS.NW },
+      { dir: lang === "hi" ? "उत्तर" : lang === "gu" ? "ઉત્તર" : "North (Uttara)", deity: "Kubera", n: VEDIC_VASTU_COMPASS_PLANETS.N },
+      { dir: lang === "hi" ? "ईशान" : lang === "gu" ? "ઈશાન" : "North-East (Īśānya)", deity: "Īśāna", n: VEDIC_VASTU_COMPASS_PLANETS.NE }
+    ].map((row) => `<tr><td><strong>${esc(row.dir)}</strong></td><td>${esc(row.deity)}</td><td>${esc(db.numbers[row.n].planet)} (${row.n})</td></tr>`).join("");
+    const dikpalakaCard = `<div class="card ashta-dikpalaka-card" data-authority="vedic-direction-rulers">
+      <div class="goal-head">
+        <div class="card-title">${lang === "hi" ? "शास्त्रीय वैदिक दिशा-स्वामी — अष्ट दिक्पालक" : lang === "gu" ? "શાસ્ત્રીય વૈદિક દિશા-સ્વામી — અષ્ટ દિક્પાલક" : "Classical Vedic direction rulers — Ashta Dikpālaka"}</div>
+        <span class="badge info">${lang === "hi" ? "वैदिक वास्तु" : lang === "gu" ? "વૈદિક વાસ્તુ" : "Vedic Vastu"}</span>
+      </div>
+      <div class="table-scroll"><table class="rtable">
+        <tr><th>${lang === "hi" ? "दिशा" : lang === "gu" ? "દિશા" : "Direction"}</th><th>${lang === "hi" ? "दिक्पालक" : lang === "gu" ? "દિક્પાલક" : "Guardian"}</th><th>${lang === "hi" ? "ग्रह-स्वामी (इस रिपोर्ट का वास्तु कम्पास)" : lang === "gu" ? "ગ્રહ-સ્વામી (આ રિપોર્ટનો વાસ્તુ કોમ્પાસ)" : "Planetary ruler (this report's Vastu compass)"}</th></tr>
+        ${dikpalakaRows}
+      </table></div>
+      <div class="card-sub">${lang === "hi" ? "इस रिपोर्ट के सभी वास्तु-निर्णय इन्हीं शास्त्रीय वैदिक दिशाओं से आते हैं। कुआ/फेंगशुई (खंड " + SECTION.kua + ") एक अलग वैकल्पिक मॉड्यूल है और इन क्षेत्रों को नहीं बदलता।" : lang === "gu" ? "આ રિપોર્ટના બધા વાસ્તુ-નિર્ણયો આ જ શાસ્ત્રીય વૈદિક દિશાઓમાંથી આવે છે. કુઆ/ફેંગશુઈ (વિભાગ " + SECTION.kua + ") એક અલગ વૈકલ્પિક મોડ્યુલ છે અને આ ક્ષેત્રોને બદલતું નથી." : `Every Vastu decision in this report comes from these classical Vedic directions. The Kua / Feng Shui module (Section ${SECTION.kua}) is a separate optional module and never changes these zones.`}</div>
+    </div>`;
 
     /* This is a fixed home-placement context scan. It is intentionally placed
        in Timeline beside the Dasha-led active zone, but it never chooses that
@@ -6184,25 +6616,37 @@
             </div>
           </div>
           <p class="rsection-desc">${lang === "hi" ? "सामान्य रखरखाव: घर के मध्य (ब्रह्मस्थान) को खाली और साफ रखें; दोष वाले स्थान पर समुद्री नमक की कटोरी रखें और हर हफ्ते बदलें; ईशान कोण में रोज दीया जलाएं।" : lang === "gu" ? "સામાન્ય જાળવણી: ઘરના મધ્ય (બ્રહ્મસ્થાન) ને ખાલી અને સ્વચ્છ રાખો; દોષ વાળી જગ્યાએ દરિયાઈ મીઠાની વાટકી રાખો અને દર અઠવાડિયે બદલો; ઇશાન ખૂણામાં રોજ દીવો પ્રગટાવો." : "General upkeep: keep the centre (Brahmasthan) of the property empty and clean; place a bowl of sea salt in dosh zones and replace it weekly; keep the northeast lit with a daily diya."}</p>
+          ${dikpalakaCard}
         </section>`
       : `<section class="rsection" id="vastu-section" data-authority="home-vastu-context">
           <h2 class="rsection-title"><span class="idx">${SECTION.vastu}</span>${t("secVastu", "Home Vastu Context")}</h2>
           <p class="rsection-desc">${lang === "hi" ? "यह स्थिर home-context scan है; सक्रिय वास्तु क्षेत्र केवल वर्तमान दशा से आता है।" : lang === "gu" ? "આ સ્થિર home-context scan છે; સક્રિય વાસ્તુ ક્ષેત્ર ફક્ત વર્તમાન દશાથી આવે છે." : "This is a fixed home-context scan; the active Vastu zone comes only from the current Dasha."}</p>
           <div class="card"><div class="kit-value">${lang === "hi" ? "कोई वास्तु विवरण नहीं दिया गया था — मुख्य द्वार, रसोई, बेडरूम और टॉयलेट दर्ज कर पुनः जांचें।" : lang === "gu" ? "કોઈ વાસ્તુ વિગત આપી ન હતી — મુખ્ય દ્વાર, રસોડું, બેડરૂમ અને ટોઇલેટ દાખલ કરી ફરી તપાસો." : "No direction details were provided — re-run with your entrance, kitchen, bedroom and toilet directions for a full dosh scan."}</div></div>
+          ${dikpalakaCard}
         </section>`;
 
     const kuaInfo = p.kua ? db.kua[p.kua] : null;
-    const kuaSection = `<section class="rsection" id="kua-section">
-      <h2 class="rsection-title"><span class="idx">${SECTION.kua}</span>${t("secKua", "Personal Lucky Directions — Kua Number")}</h2>
-      <p class="rsection-desc">${lang === "hi" ? "नोट: <strong>कुआ अंक फेंगशुई (चीनी पद्धति)</strong> का हिस्सा है, शास्त्रीय वैदिक वास्तु का नहीं — इसे 'व्यक्तिगत शुभ दिशा' के रूप में यहां स्पष्ट रूप से अलग दिया गया है।" : lang === "gu" ? "નોંધ: <strong>કુઆ અંક ફેંગશુઈ (ચીની પદ્ધતિ)</strong> નો ભાગ છે, શાસ્ત્રીય વૈદિક વાસ્તુનો નહીં — તેને 'અંગત શુભ દિશા' તરીકે અહીં સ્પષ્ટ રીતે અલગ આપેલ છે." : 'Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra — we include it clearly separated because it is commonly requested as "your personal lucky direction".'}</p>
-      ${kuaInfo ? `<div class="card">
+    /* Kua system segregation (2026-09 audit): Kua is a Feng Shui (Chinese)
+       directional system. Mixing its East/West-group directionality into the
+       classical 16-zone Vedic Vastu read (Brahmasthan, Ishanya, etc.) diluted
+       the authenticity of a "Vedic Numerology & Vastu" product. It is now
+       cordoned off into an explicit, collapsible OPTIONAL module that stays
+       out of the Vastu section entirely and never overrides a Vastu zone. */
+    const kuaSection = `<section class="rsection" id="kua-section" data-module="feng-shui-optional" data-authority="feng-shui">
+      <h2 class="rsection-title"><span class="idx">${SECTION.kua}</span>${t("secKua", "Optional Module — Feng Shui Alignment (Kua Number)")}</h2>
+      <p class="rsection-desc">${lang === "hi" ? "नोट: <strong>कुआ अंक फेंगशुई (चीनी पद्धति)</strong> का हिस्सा है, शास्त्रीय वैदिक वास्तु का नहीं। यह एक <strong>वैकल्पिक, अलग मॉड्यूल</strong> है — यह ऊपर के वैदिक वास्तु क्षेत्रों (ब्रह्मस्थान, ईशान आदि) को बदलता या ओवरराइड नहीं करता।" : lang === "gu" ? "નોંધ: <strong>કુઆ અંક ફેંગશુઈ (ચીની પદ્ધતિ)</strong> નો ભાગ છે, શાસ્ત્રીય વૈદિક વાસ્તુનો નહીં. આ એક <strong>વૈકલ્પિક, અલગ મોડ્યુલ</strong> છે — તે ઉપરના વૈદિક વાસ્તુ ક્ષેત્રો (બ્રહ્મસ્થાન, ઈશાન વગેરે) ને બદલતું કે ઓવરરાઈડ કરતું નથી." : 'Note: the <strong>Kua number is a Feng Shui (Chinese) system</strong>, not classical Vastu Shastra. This is an <strong>optional, separate module</strong> — it does not change or override the Vedic Vastu zones (Brahmasthan, Ishanya, etc.) above.'}</p>
+      <details class="card optional-module-card" data-kua-module="true" open>
+        <summary class="optional-module-summary">${lang === "hi" ? "फेंगशुई अलाइनमेंट (वैकल्पिक मॉड्यूल) — खोलें / बंद करें" : lang === "gu" ? "ફેંગશુઈ અલાઇનમેન્ટ (વૈકલ્પિક મોડ્યુલ) — ખોલો / બંધ કરો" : "Feng Shui alignment (optional module) — open / close"}</summary>
+      ${kuaInfo ? `<div class="card-body">
         <div class="goal-head">
           <div class="card-title">${lang === "hi" ? `आपका कुआ अंक ${p.kua} है — ${esc(kuaInfo.group)}, ${esc(kuaInfo.element)} तत्व` : lang === "gu" ? `તમારો કુઆ અંક ${p.kua} છે — ${esc(kuaInfo.group)}, ${esc(kuaInfo.element)} તત્વ` : `Your Kua number is ${p.kua} — ${esc(kuaInfo.group)} group, ${esc(kuaInfo.element)} element`}</div>
-          <span class="badge info">Feng Shui</span>
+          <span class="badge info">Feng Shui · optional module</span>
         </div>
         <div class="kit-value">${lang === "hi" ? `आपकी सर्वोत्तम दिशा (शेंग ची — धन व सफलता) <strong>${esc(kuaInfo.shengChi)}</strong> है। काम करते या सोते समय इस दिशा में मुंह/सिर रखें।` : lang === "gu" ? `તમારી સર્વોત્તમ દિશા (શેંગ ચી — ધન અને સફળતા) <strong>${esc(kuaInfo.shengChi)}</strong> છે. કામ કરતી વખતે કે સૂતી વખતે આ દિશા તરફ મોં/માથું રાખો.` : `Your best direction (Sheng Chi — wealth &amp; success) is <strong>${esc(kuaInfo.shengChi)}</strong>. Face this direction when working or sleeping for maximum support.`}</div>
         <div class="kit-value">${lang === "hi" ? `आपकी चार शुभ दिशाएं: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>। टेबल, बिस्तर और मुख्य द्वार को इन दिशाओं में रखें।` : lang === "gu" ? `તમારી ચાર શુભ દિશાઓ: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. ટેબલ, પલંગ અને મુખ્ય દ્વારને આ દિશાઓમાં રાખો.` : `Your four auspicious directions: <strong>${kuaInfo.auspicious.map(esc).join(", ")}</strong>. Orient your desk, bed head and main door towards these wherever practical.`}</div>
-      </div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "कुआ अंक जानने के लिए फॉर्म में 'विवरण बदलें' पर जाकर अपना लिंग (Gender) चुनें।" : lang === "gu" ? "કુઆ અંક જાણવા માટે ફોર્મમાં 'વિગત બદલો' પર જઈને તમારી જાતિ (Gender) પસંદ કરો." : 'Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.'}</div></div>`}
+        <div class="card-sub">${lang === "hi" ? "यह मॉड्यूल केवल वैकल्पिक व्यक्तिगत-दिशा संदर्भ है; इस रिपोर्ट के वास्तु-निर्णय केवल शास्त्रीय वैदिक वास्तु से आते हैं।" : lang === "gu" ? "આ મોડ્યુલ ફક્ત વૈકલ્પિક વ્યક્તિગત-દિશા સંદર્ભ છે; આ રિપોર્ટના વાસ્તુ-નિર્ણયો ફક્ત શાસ્ત્રીય વૈદિક વાસ્તુમાંથી આવે છે." : "This module is an optional personal-direction reference only; every Vastu decision in this report comes from classical Vedic Vastu alone."}</div>
+      </div>` : `<div class="card-body"><div class="kit-value">${lang === "hi" ? "कुआ अंक जानने के लिए फॉर्म में 'विवरण बदलें' पर जाकर अपना लिंग (Gender) चुनें।" : lang === "gu" ? "કુઆ અંક જાણવા માટે ફોર્મમાં 'વિગત બદલો' પર જઈને તમારી જાતિ (Gender) પસંદ કરો." : 'Add your <strong>gender</strong> in the intake form (use "Edit Details" and re-run) to compute your Kua number and personal lucky directions.'}</div></div>`}
+      </details>
     </section>`;
 
     const partnerValid = p.partnerName && p.partnerDob && !isNaN(new Date(p.partnerDob).getTime());
@@ -6421,24 +6865,64 @@
     </section>`;
 
     const goalsStart = SECTION.goalsStart;
-    const goalSections = goals.map((g, i) => {
+    /* Copy-paste redundancy fix (2026-09 audit): Money, Business and Career all
+       map to the same missing number (e.g. missing 5) used to emit three
+       byte-identical full pages of the same beej mantra, crystals and guardrails.
+       We now aggregate goals whose remedy signature is identical into a single
+       "Combined Strategic Focus" section rendered exactly once. Health stays in
+       its own section because it carries distinct clinical banners. */
+    const goalSig = (g) => g.goal === "Health"
+      ? "health"
+      : `w:${g.weak.slice().sort((a, b) => a - b).join(",")}|f:${g.focus.map((f) => f.n).sort((a, b) => a - b).join(",")}`;
+    const goalGroups = [];
+    goals.forEach((g) => {
+      const sig = goalSig(g);
+      const last = goalGroups[goalGroups.length - 1];
+      if (last && last.sig === sig && g.goal !== "Health") last.goals.push(g);
+      else goalGroups.push({ sig, goals: [g] });
+    });
+    const goalSections = goalGroups.map((group, i) => {
+      const names = group.goals.map((g) => g.goal);
+      const merged = names.length > 1;
+      const first = group.goals[0];
+      const weakNums = first.weak;
+      // De-duplicate the remedy kits by number so a combined group never
+      // repeats the same planet's card.
+      const seenKit = new Set();
+      const kits = [];
+      group.goals.forEach((g) => g.focus.forEach((f) => {
+        if (!seenKit.has(f.n)) { seenKit.add(f.n); kits.push(f); }
+      }));
+      const focusPlanet = kits.length ? esc(db.numbers[kits[0].n].planet.split(" ")[0]) : "";
+      const focusNum = kits.length ? kits[0].n : null;
+      const titleSuffix = merged
+        ? (lang === "hi" ? "संयुक्त रणनीतिक फोकस" : lang === "gu" ? "સંયુક્ત વ્યૂહાત્મક ફોકસ" : "Combined Strategic Focus")
+        : (lang === "hi" ? "लो शू उपाय फोकस" : lang === "gu" ? "લો શુ ઉપાય ફોકસ" : "Lo Shu Remedy Focus");
+      const title = merged && focusNum
+        ? `${titleSuffix}: ${names.map(esc).join(", ")} (${focusPlanet} ${focusNum})`
+        : `${names.map(esc).join(", ")} — ${titleSuffix}`;
       // Health focus carries the Moon-cold banner at section level (the Moon
       // governs Health), plus an echo of any intake Health sub-tags.
-      const healthBanner = g.goal === "Health" ? moonColdHealthFocusHtml(p, lang) : "";
-      const doshaHealthBanner = g.goal === "Health" ? doshaContraHealthFocusHtml(p, lang) : "";
-      const taggedHealth = g.goal === "Health" ? healthTagsOf(p) : [];
+      const isHealth = first.goal === "Health";
+      const healthBanner = isHealth ? moonColdHealthFocusHtml(p, lang) : "";
+      const doshaHealthBanner = isHealth ? doshaContraHealthFocusHtml(p, lang) : "";
+      const taggedHealth = isHealth ? healthTagsOf(p) : [];
       const healthTagLine = taggedHealth.length
         ? `<p class="rsection-desc" data-health-tags="${esc(taggedHealth.join(","))}">${lang === "hi" ? "आपने चुना" : lang === "gu" ? "તમે પસંદ કર્યું" : "You flagged"}: <strong>${taggedHealth.map((tag) => esc(healthTagLabel(tag, lang))).join(" · ")}</strong></p>`
         : "";
-      return `<section class="rsection" data-remedy-authority="lo-shu">
-      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${esc(g.goal)} — ${lang === "hi" ? "लो शू उपाय फोकस" : lang === "gu" ? "લો શુ ઉપાય ફોકસ" : "Lo Shu Remedy Focus"}</h2>
-      <p class="rsection-desc">${g.weak.length
-        ? (lang === "hi" ? `आपके लो शू जन्म-ग्रिड में अनुपस्थित अंक <strong>${g.weak.join(", ")}</strong> इस लक्ष्य के लिए practice targets हैं।` : lang === "gu" ? `તમારા લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંક <strong>${g.weak.join(", ")}</strong> આ લક્ષ્ય માટે practice targets છે.` : `Missing Lo Shu Birth Grid number${g.weak.length > 1 ? "s" : ""} <strong>${g.weak.join(", ")}</strong> are the practice targets for this focus.`)
-        : (lang === "hi" ? "इस लक्ष्य से जुड़े लो शू अंक उपस्थित हैं — कोई अतिरिक्त remedy kit आवश्यक नहीं है।" : lang === "gu" ? "આ લક્ષ્ય સાથે જોડાયેલા લો શુ અંકો હાજર છે — વધારાની remedy kit જરૂરી નથી." : `The Lo Shu numbers connected to this focus are present — no extra remedy kit is required.`)}</p>
+      const mergedIntro = merged
+        ? (lang === "hi" ? `<p class="rsection-desc" data-combined-goals="${esc(names.join(","))}">${names.map(esc).join(", ")} — ये सभी लक्ष्य एक ही अनुपस्थित लो शू अंक <strong>${weakNums.join(", ")}</strong> से जुड़ते हैं, इसलिए इनका उपाय-सेट एक ही बार दिया गया है (दोहराया नहीं)।</p>` : lang === "gu" ? `<p class="rsection-desc" data-combined-goals="${esc(names.join(","))}">${names.map(esc).join(", ")} — આ બધા લક્ષ્યો એક જ ખૂટતા લો શુ અંક <strong>${weakNums.join(", ")}</strong> સાથે જોડાય છે, એટલે તેમનો ઉપાય-સેટ એક જ વાર અપાયો છે (પુનરાવર્તિત નથી).</p>` : `<p class="rsection-desc" data-combined-goals="${esc(names.join(","))}">${names.map(esc).join(", ")} all map to the same missing Lo Shu number${weakNums.length > 1 ? "s" : ""} <strong>${weakNums.join(", ")}</strong>, so their remedy set is presented once below — not repeated once per goal.</p>`)
+        : "";
+      return `<section class="rsection" data-remedy-authority="lo-shu"${merged ? ' data-goal-aggregation="combined"' : ""}>
+      <h2 class="rsection-title"><span class="idx">${goalsStart + i}</span>${title}</h2>
+      ${mergedIntro}
+      <p class="rsection-desc">${first.weak.length
+        ? (lang === "hi" ? `आपके लो शू जन्म-ग्रिड में अनुपस्थित अंक <strong>${first.weak.join(", ")}</strong> इस फोकस के लिए practice targets हैं।` : lang === "gu" ? `તમારા લો શુ જન્મ-ગ્રિડમાં ખૂટતા અંક <strong>${first.weak.join(", ")}</strong> આ ફોકસ માટે practice targets છે.` : `Missing Lo Shu Birth Grid number${first.weak.length > 1 ? "s" : ""} <strong>${first.weak.join(", ")}</strong> ${merged ? "are" : "is"} the practice target${first.weak.length > 1 ? "s" : ""} for this focus.`)
+        : (lang === "hi" ? "इस फोकस से जुड़े लो शू अंक उपस्थित हैं — कोई अतिरिक्त remedy kit आवश्यक नहीं है।" : lang === "gu" ? "આ ફોકસ સાથે જોડાયેલા લો શુ અંકો હાજર છે — વધારાની remedy kit જરૂરી નથી." : `The Lo Shu numbers connected to this focus are present — no extra remedy kit is required.`)}</p>
       ${healthTagLine}
       ${healthBanner}
       ${doshaHealthBanner}
-      ${g.weak.length ? `<div class="card-grid two">${g.focus.map((f) => kitCard(f.n, undefined, p)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
+      ${first.weak.length ? `<div class="card-grid two">${kits.map((f) => kitCard(f.n, undefined, p)).join("")}</div>` : `<div class="card"><div class="kit-value">${lang === "hi" ? "40-दिन की लो शू practice में पहले से चुने गए missing/repeated signal पर बने रहें; किसी present number को नया remedy target न बनाएं।" : lang === "gu" ? "૪૦-દિવસના લો શુ અભ્યાસમાં પહેલેથી પસંદ કરેલા missing/repeated signal પર જ રહો; કોઈ present number ને નવો remedy target ન બનાવો." : "Stay with the missing/repeated signal already selected in your 40-day Lo Shu practice; do not turn a present number into a new remedy target."}</div></div>`}
     </section>`;
     }).join("");
 
@@ -6575,6 +7059,18 @@
           <span class="status-pill status-knowledge">Knowledge pack v${esc(activePack().packVersion)}</span>
           <span class="status-pill status-memory">${evolving.snapshots.length} local snapshot${evolving.snapshots.length === 1 ? "" : "s"}</span>
           ${vedicPill}
+        </div>
+        <div class="report-controls" data-report-controls>
+          <div class="report-mode-switch" role="group" aria-label="${t("reportModeLabel", "Report mode")}">
+            <button type="button" class="btn btn-secondary btn-32${state.reportMode === "client" ? " active" : ""}" data-report-mode-btn="client" aria-pressed="${state.reportMode === "client"}" title="${t("clientModeHint", "Punchy client dossier — technical telemetry, JSON scaffolds and the cockpit stay out of the PDF.")}">${t("modeClient", "Client dossier")}</button>
+            <button type="button" class="btn btn-secondary btn-32${state.reportMode === "practitioner" ? " active" : ""}" data-report-mode-btn="practitioner" aria-pressed="${state.reportMode === "practitioner"}" title="${t("practitionerModeHint", "Full practitioner compendium — cockpit, telemetry and dual-dasha internals included.")}">${t("modePractitioner", "Practitioner compendium")}</button>
+          </div>
+          <label class="dasha-engine-picker">${t("primaryDashaEngine", "Primary Dasha engine")}
+            <select data-dasha-engine-select aria-label="${t("primaryDashaEngine", "Primary Dasha engine")}">
+              <option value="ank"${state.dashaEngine === "ank" ? " selected" : ""}>${t("engineAnk", "Ank Jyotish (default)")}</option>
+              <option value="vimshottari"${state.dashaEngine === "vimshottari" ? " selected" : ""}>${t("engineVimshottari", "Vimshottari (classical)")}</option>
+            </select>
+          </label>
         </div>
         <div class="module-tabs" role="tablist" aria-label="${t("moduleNavigation", "Report modules")}">
           <button class="module-tab${foundationSelected ? " active" : ""}" id="foundation-tab" type="button" role="tab" aria-selected="${foundationSelected}" aria-controls="foundation-panel" tabindex="${foundationSelected ? "0" : "-1"}" data-module-tab="foundation">${t("tabFoundation", "Foundation · Lo Shu")}</button>
@@ -6763,6 +7259,19 @@
 
   function bindReportInteractions() {
     bindReportModuleNavigation();
+    // Conditional section bundling: Client / Practitioner mode switch and the
+    // primary Dasha engine picker (2026-09 audit). Both persist to localStorage
+    // and re-render so the on-screen report always matches the PDF.
+    $$("[data-report-mode-btn]", $("#reportRoot")).forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", () => setReportMode(btn.dataset.reportModeBtn));
+    });
+    $$("[data-dasha-engine-select]", $("#reportRoot")).forEach((sel) => {
+      if (sel.dataset.bound) return;
+      sel.dataset.bound = "true";
+      sel.addEventListener("change", () => setDashaEngine(sel.value));
+    });
     const cockpitPrint = $("#printCockpitBtn", $("#reportRoot"));
     if (cockpitPrint && !cockpitPrint.dataset.bound) {
       cockpitPrint.dataset.bound = "true";
@@ -6898,6 +7407,7 @@
     const opts = options || {};
     const scrollTop = window.scrollY || 0;
     lastProfile = p;
+    applyReportModeClass();
     $("#reportRoot").innerHTML = renderReport(p);
     $("#intakeView").classList.add("hidden");
     $("#reportView").classList.remove("hidden");
@@ -7008,6 +7518,18 @@
     updateContributionUI();
     showToast(state.contributionEnabled ? "Anonymous aggregate contribution enabled" : "Anonymous aggregate contribution turned off", state.contributionEnabled ? "good" : "info");
   });
+
+  /* Report & Timing Settings (intake form). The report-hero controls call the
+     same setReportMode / setDashaEngine helpers, so the two stay in sync. */
+  if ($("#dashaEngineSelect")) {
+    $("#dashaEngineSelect").value = state.dashaEngine;
+    $("#dashaEngineSelect").addEventListener("change", (e) => setDashaEngine(e.target.value));
+  }
+  if ($("#reportModeSelect")) {
+    $("#reportModeSelect").value = state.reportMode;
+    $("#reportModeSelect").addEventListener("change", (e) => setReportMode(e.target.value));
+  }
+  applyReportModeClass();
   $("#refreshKnowledgeBtn").addEventListener("click", () => { refreshKnowledgePack({ silent: false }); });
   $("#loadLatestBtn").addEventListener("click", () => {
     const snap = latestSnapshot();
@@ -7107,6 +7629,7 @@
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
     normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
+    setReportMode, setDashaEngine, namePracticality, initialCandidates,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
     loShuGridLayout: LO_SHU_GRID_LAYOUT.map((row) => row.slice()),
