@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari</title>
 <meta name="description" content="360° numerology and Vastu remedy engine: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, name and mobile analysis, and Vastu guidance." />
-<meta name="nv-version" content="2.13.1" />
-<meta name="nv-build-label" content="Build 2026-09-17" />
+<meta name="nv-version" content="2.14.0" />
+<meta name="nv-build-label" content="Build 2026-09-19" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -113,8 +113,8 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.9.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.13.1 · On-device engine</span>
-        <span class="status-pill status-build" id="buildBadge">Build 2026-09-17</span>
+        <span class="status-pill status-app" id="appBadge">App v2.14.0 · On-device engine</span>
+        <span class="status-pill status-build" id="buildBadge">Build 2026-09-19</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>
     </div>
@@ -167,11 +167,22 @@
       <div class="form-block">
         <h2 class="form-block-title" data-i18n="personalDetails">Personal Details</h2>
 
+        <!-- Dual name intake: the everyday identity drives the primary reading,
+             the legal string is the only source of a real patronymic initial.
+             Two clearly separated fields, because one ambiguous "Full Name" box
+             cannot tell the engine which spelling the client actually lives in. -->
         <div class="field">
-          <label class="field-label" for="fullName"><span data-i18n="fullName">Full Name</span> <span class="req" aria-hidden="true">*</span></label>
-          <input class="input" id="fullName" name="fullName" type="text" placeholder="As used daily, e.g. Rahul Sharma" data-i18n-ph="fullNamePlaceholder" autocomplete="name" required aria-required="true" />
+          <label class="field-label" for="fullName"><span data-i18n="fullName">Everyday / Professional Name</span> <span class="req" aria-hidden="true">*</span></label>
+          <input class="input" id="fullName" name="fullName" type="text" placeholder="As used daily, e.g. Amar K Sambhvani" data-i18n-ph="fullNamePlaceholder" autocomplete="name" required aria-required="true" aria-describedby="fullNameHint" />
           <p class="field-error" id="err-fullName" hidden data-i18n="errFullName">Please enter your full name.</p>
-          <p class="field-hint" data-i18n="fullNameHint">Name spelling is analysed with the Chaldean system — use the spelling you actually use.</p>
+          <p class="field-hint" id="fullNameHint" data-i18n="fullNameHint">This is the name the world uses — business card, email signature, bank card, LinkedIn. It drives your main Name Number.</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="legalName"><span data-i18n="legalName">Full Legal Name (as on Aadhaar / PAN)</span> <span class="optional" data-i18n="legalNameOptional">(optional — but unlocks the strongest name remedy)</span></label>
+          <input class="input" id="legalName" name="legalName" type="text" placeholder="e.g. Amarkumar Kishorbhai Sambhvani" data-i18n-ph="legalNamePlaceholder" autocomplete="off" aria-describedby="legalNameHint" />
+          <p class="field-error" id="err-legalName" hidden data-i18n="errLegalName">Please check the legal name — letters are required.</p>
+          <p class="field-hint" id="legalNameHint" data-i18n="legalNameHint">The exact string on statutory records. Its middle name / patronymic (Kishorbhai → K) gives the engine your real family initial — it will never invent a random letter.</p>
         </div>
 
         <div class="field-row">

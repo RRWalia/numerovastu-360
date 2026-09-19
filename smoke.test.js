@@ -1673,14 +1673,21 @@ check("the optional menu restores spelling alterations beneath the middle initia
     && kinds.indexOf("double") > kinds.lastIndexOf("initial")
     && strategies.includes("middle-initial") && strategies.includes("spelling-alteration");
 })());
-check("the spelling table carries a Strategy column and tags every row", (() => {
+/* The dual-name pass added the "Applies to" (window) column, so the table is
+   six columns wide now — Strategy alone no longer tells the client whether a
+   spelling touches their professional profile or a statutory record. The old
+   five-column assertion is deliberately replaced, not weakened: the window
+   column is asserted, and every row must still carry its strategy tag. */
+check("the spelling table carries Strategy and Applies-to columns and tags every row", (() => {
   const table = $(".spelling-table", amarDom);
   if (!table) return false;
   const headers = $$("th", table).map((th) => th.textContent.trim());
   const strategies = $$("[data-strategy]", table).map((n) => n.getAttribute("data-strategy"));
-  return headers.includes("Strategy") && headers.includes("Suggested spelling")
-    && headers.length === 5
+  const windows = $$("tr[data-window]", table).map((n) => n.getAttribute("data-window"));
+  return headers.includes("Strategy") && headers.includes("Suggested spelling") && headers.includes("Applies to")
+    && headers.length === 6
     && strategies.includes("middle-initial") && strategies.includes("spelling-alteration")
+    && windows.length >= 4 && windows.every((w) => w === "public" || w === "legal")
     && $$("[data-practicality]", table).length >= 4;
 })());
 check("the strategy column explains each strategy once, not on every row", (() => {
@@ -1699,6 +1706,155 @@ check("middle-initial rows stay clean for legal records while alterations say di
     && /banking and legal records/.test(initialRow.textContent)
     && /social media, digital profiles/.test(alterationRow.textContent)
     && /\(5\)/.test(initialRow.textContent);
+})());
+
+/* Pillar 4d — dual-name intake: everyday vs full legal identity
+   One ambiguous "Full Name" box cannot tell the engine which spelling the
+   client actually lives in, and it hides the patronymic that carries the only
+   culturally free tuning lever: the real family initial. These checks pin the
+   intake contract, the authentic-initial priority and the golden rule that no
+   invented letter may be injected once the patronymic is known. */
+const dualProfile = profile({
+  name: "Amar K Sambhvani", legalName: "Amarkumar Kishorbhai Sambhvani",
+  dob: "1983-01-24", goals: ["Money", "Business", "Career"], gender: "male"
+});
+const duelProfile = profile({ name: "Randeep Walia", legalName: "Randeep Ravindra Walia", dob: "1976-08-05", goals: ["Career"], gender: "male" });
+const singleProfile = profile({ name: "Amar Sambhvani", dob: "1983-01-24", goals: ["Money"], gender: "male" });
+const dualHtml = window.__NV.renderReport(dualProfile);
+const dualDom = mount(dualHtml);
+
+check("the intake captures an everyday name and a separate, optional legal name", (() => {
+  const everyday = $("#fullName");
+  const legal = $("#legalName");
+  const everydayLabel = $('label[for="fullName"]').textContent.trim();
+  const legalLabel = $('label[for="legalName"]').textContent.trim();
+  return !!everyday && !!legal
+    && everyday.hasAttribute("required") && !legal.hasAttribute("required")
+    && /Everyday \/ Professional Name/.test(everydayLabel)
+    && /Full Legal Name \(as on Aadhaar \/ PAN\)/.test(legalLabel)
+    && /patronymic/.test($("#legalNameHint").textContent);
+})());
+check("the everyday name keeps the primary reading while the legal string is scored in parallel", (() => {
+  return dualProfile.name === "Amar K Sambhvani" && dualProfile.nameCompound === 38 && dualProfile.nameNum === 2
+    && dualProfile.legalName === "Amarkumar Kishorbhai Sambhvani"
+    && dualProfile.legalNameCompound === 80 && dualProfile.legalNameNum === 8 && dualProfile.nameDual === true
+    && dualProfile.patronymicTokens.join(",") === "Kishorbhai"
+    && dualProfile.patronymicInitials.join(",") === "K"
+    && singleProfile.nameDual === false && singleProfile.legalName === singleProfile.name
+    && singleProfile.legalNameCompound === singleProfile.nameCompound;
+})());
+check("a single-name chart keeps its classic reading and is only nudged to add the legal string", (() => {
+  const a = window.__NV.renderReport(singleProfile);
+  return singleProfile.nameCompound === 36 && singleProfile.nameNum === 9
+    && /Amar Sambhvani/.test(a) && !/id="legal-name-layer"/.test(a) && /id="legal-name-nudge"/.test(a)
+    && window.__NV.nameIdentity("Amar Sambhvani", "").availableAuthenticInitials.length === 0;
+})());
+check("the authentic patronymic initial is offered first, ahead of every spelling alteration", (() => {
+  const sug = window.__NV.nameSuggestions(duelProfile);
+  const variants = (sug.variants || []).concat((sug.optional && sug.optional.variants) || []);
+  const first = variants[0];
+  const authIndex = variants.findIndex((v) => v.kind === "authentic-initial");
+  const doubleIndex = variants.findIndex((v) => v.kind === "double");
+  return !!first && first.kind === "authentic-initial"
+    && first.text === "Randeep R Walia" && first.compound === 44 && first.reduced === 8
+    && first.window === "public" && first.authentic === true && first.letter === "R" && first.sourceToken === "Ravindra"
+    && /authentic patronymic initial "R" \(from "Ravindra"\)/.test(first.change)
+    && first.practicality.score === 5 && first.practicality.label === "Excellent"
+    && window.__NV.nameStrategyOf("authentic-initial").key === "authentic-middle-initial"
+    && authIndex === 0 && doubleIndex > authIndex;
+})());
+check("a patronymic already abbreviated on the record is still an authentic initial", (() => {
+  const id = window.__NV.nameIdentity("Amar Sambhvani", "Amarkumar K Sambhvani");
+  const pool = window.__NV.nameCandidatePool(profile({ name: "Amar Sambhvani", legalName: "Amarkumar K Sambhvani" }), id);
+  const auth = pool.find((c) => c.kind === "authentic-initial");
+  return id.patronymicInitials.join(",") === "K"
+    && !!auth && auth.text === "Amar K Sambhvani" && auth.letter === "K" && auth.sourceToken === "K";
+})());
+check("no arbitrary letter is injected once the legal patronymic is known", (() => {
+  const pool = window.__NV.nameCandidatePool(duelProfile, window.__NV.nameIdentity("Amar Sambhvani", "Amarkumar Kishorbhai Sambhvani"));
+  return pool.length > 0
+    && !pool.some((c) => c.kind === "initial")
+    && !pool.some((c) => /add middle initial/.test(c.change || ""))
+    && pool.some((c) => c.kind === "authentic-initial" && c.letter === "K")
+    && !pool.some((c) => c.kind === "authentic-initial" && c.letter !== "K");
+})());
+check("the golden rule rejects a second initial beside an existing middle token", (() => {
+  const soloId = window.__NV.nameIdentity("Amar Kishorbhai Sambhvani", "");
+  const soloPool = window.__NV.nameCandidatePool(profile({ name: "Amar Kishorbhai Sambhvani" }), soloId);
+  /* Same patronymic spelled out again in the legal string: the identity knows
+     the letter, but the everyday name already carries the token in full, so
+     the only legitimate lever is compression. */
+  const fullId = window.__NV.nameIdentity("Amar Kishorbhai Sambhvani", "Amarkumar Kishorbhai Sambhvani");
+  const fullPool = window.__NV.nameCandidatePool(profile({ name: "Amar Kishorbhai Sambhvani", legalName: "Amarkumar Kishorbhai Sambhvani" }), fullId);
+  const banned = (c) => /add middle initial/.test(c.change || "") || c.kind === "authentic-initial";
+  return soloId.hasOwnMiddleToken === true
+    && !soloPool.some((c) => c.kind === "initial")
+    && !soloPool.some((c) => c.kind === "authentic-initial")
+    && soloPool.some((c) => c.kind === "compress" && c.text === "Amar K Sambhvani")
+    && fullId.availableAuthenticInitials.length === 0
+    && !fullPool.some(banned);
+})());
+check("window 2 tunes only the first name and holds the patronymic byte-for-byte", (() => {
+  const sug = window.__NV.nameSuggestions(dualProfile);
+  const legal = sug.legalVariants || [];
+  return legal.length >= 1
+    && legal.every((v) => v.window === "legal"
+      && /Kishorbhai Sambhvani$/.test(v.text)
+      && /first name only/.test(v.change)
+      && ["double", "swap", "insert"].includes(v.kind));
+})());
+check("the report prints the Document / Legal total beside the everyday reading", (() => {
+  const card = $("#legal-name-layer", dualDom);
+  const publicLayer = $('[data-name-layer="public"]', dualDom);
+  return !!card && card.getAttribute("data-legal-total") === "80"
+    && /Chaldean total 80/.test(card.textContent) && /Name Number 8/.test(card.textContent)
+    && /Amarkumar Kishorbhai Sambhvani/.test(card.textContent)
+    && /authentic initial K/.test(card.textContent) && /Chaldean 2/.test(card.textContent)
+    && !!publicLayer && /Everyday \/ Public & Professional name/.test(publicLayer.textContent);
+})());
+check("the two windows of name correction are stated with the client's own examples", (() => {
+  const card = $("#name-windows", dualDom);
+  if (!card) return false;
+  const rows = $$("[data-window-row]", card);
+  return rows.length === 2
+    && rows[0].getAttribute("data-window-row") === "public" && /Window 1 — Everyday \/ Public/.test(rows[0].textContent) && /Amarkumar K Sambhvani/.test(rows[0].textContent)
+    && rows[1].getAttribute("data-window-row") === "legal" && /Window 2 — Formal \/ Document/.test(rows[1].textContent) && /Amarkumar Kishorbhai Sambhvani/.test(rows[1].textContent)
+    && /no paperwork/.test(rows[0].textContent)
+    && /Amarkumar U Kishorbhai/.test(card.textContent);
+})());
+check("the report table tags Window 1 and Window 2 rows separately", (() => {
+  const rows = $$("tr[data-window]", dualDom);
+  const windows = rows.map((r) => r.getAttribute("data-window"));
+  const badges = $$("[data-window-badge]", dualDom).map((n) => n.getAttribute("data-window-badge"));
+  return windows.includes("public") && windows.includes("legal")
+    && badges.includes("public") && badges.includes("legal")
+    && $$("[data-window-hint]", dualDom).length === 2
+    && rows.filter((r) => r.getAttribute("data-window") === "legal").every((r) => /Kishorbhai/.test(r.textContent));
+})());
+check("a legal total on a karmic number is scanned as its own source", (() => {
+  const karmic = profile({ name: "Adi An", legalName: "Adi Bala An", dob: "1983-01-24", goals: ["Money"], gender: "male" });
+  const debt = (karmic.karmicDebts || []).find((k) => k.source === "legalName");
+  const html = window.__NV.renderReport(karmic);
+  return karmic.legalNameCompound === 19 && !!debt && debt.n === 19
+    && /data-legal-karmic="19"/.test(html) && /Legal-name Chaldean total/.test(html);
+})());
+check("the intake submission stores both spellings and restores them from local memory", (() => {
+  $("#editBtn").click();
+  $("#fullName").value = "Amar K Sambhvani";
+  $("#legalName").value = "Amarkumar Kishorbhai Sambhvani";
+  $("#dob").value = "24-01-1983";
+  $("#mobile").value = "9876543210";
+  $$("#goalChips .chip").forEach((chip) => { if (chip.classList.contains("selected")) chip.click(); });
+  $("#goalChips .chip[data-goal='Money']").click();
+  $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+  const rendered = $("#reportRoot").innerHTML;
+  $("#editBtn").click();
+  $("#fullName").value = "";
+  $("#legalName").value = "";
+  $("#loadLatestBtn").click();
+  return /id="legal-name-layer"/.test(rendered)
+    && $("#fullName").value === "Amar K Sambhvani"
+    && $("#legalName").value === "Amarkumar Kishorbhai Sambhvani";
 })());
 
 if (failed) {

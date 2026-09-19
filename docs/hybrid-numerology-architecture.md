@@ -210,6 +210,9 @@ Report
 │   ├── Lo Shu planes, arrows, missing kits and repeated channeling
 │   ├── Advanced Vedic Comparison (open so it prints; birth grid + three plane readings)
 │   ├── 4A Vedic Plane Harmonization — Elemental Tattva Balancing (cards only for partial/empty planes)
+│   ├── Section 6 name layer: everyday card → Document / Legal total card
+│   │   ├── Patronymic analysis (authentic initial + the total it would produce)
+│   │   └── The Two Windows of Name Correction (Window 1 Everyday / Public, Window 2 Formal / Document)
 │   ├── Supporting identity / career / colour / Kua features
 │   └── Lo Shu 40-day activation plan + separate Driver/Conductor power-day reference
 └── Timeline · Ank Jyotish Dasha
@@ -333,6 +336,76 @@ profile.vedicRepeated;
 ```
 
 There is no generic downstream `profile.counts` or `profile.missing` field.
+
+The name layer is namespaced the same way. `profile.name` is always the
+**everyday / professional** identity and keeps every existing consumer (hero,
+Name Number, Lo Shu Name grid, Dasha identity band). The statutory string is
+scored beside it and never replaces it:
+
+```js
+profile.name;                 // everyday / professional string — primary reading
+profile.nameCompound;         // its Chaldean total, e.g. "Amar K Sambhvani" = 38
+profile.nameNum;              // reduced root, e.g. 38 → 2
+profile.nameDual;             // true only when a distinct legal string was entered
+profile.legalName;            // full legal string (falls back to profile.name)
+profile.legalNameCompound;    // Document / Legal Total, e.g. 80
+profile.legalNameNum;         // 80 → 8
+profile.legalNameRelD;        // relation to Driver
+profile.legalNameRelC;        // relation to Conductor
+profile.patronymicTokens;     // ["Kishorbhai"] — legal middles, first/last excluded
+profile.patronymicInitials;   // ["K"]
+profile.authenticInitials;    // [{ letter, token, chaldean, inEverydayFull }]
+profile.availableAuthenticInitials;  // letters not yet used and not carried in full
+profile.usedAuthenticInitials;       // letters the everyday name already carries
+profile.nameIdentity;         // the whole resolution, shared with the report
+```
+
+`patronymicTokens` is populated **only** from the legal string, and only when
+that string actually differs from the everyday one. An everyday name that
+already spells the patronymic out in full (`Amar Kishorbhai Sambhvani`) is
+never mined for a letter to duplicate beside the existing token — the only
+legitimate lever there is compression to the initial.
+
+## 6A. Dual-name intake and the two windows of correction
+
+A person carries two names and they rarely vibrate the same. Indian naming
+contracts the family patronymic all the time — `Amarkumar Kishorbhai Sambhvani`
+(80 → 8) becomes `Amar K Sambhvani` (38 → 2) — so a single "Full Name" box
+either hides the vibration the client lives inside or invents a name they never
+use. The intake therefore asks for both:
+
+| Field | Required | Role |
+| --- | --- | --- |
+| Everyday / Professional Name | yes | Business card, email signature, bank card, LinkedIn. Drives the primary Name Number, Lo Shu Name grid and hero. |
+| Full Legal Name (as on Aadhaar / PAN) | no | The statutory string. Scored as the Document / Legal Total; the only source of an authentic patronymic initial. |
+
+### Candidate hierarchy
+
+Suggestion generation walks one ordered hierarchy, and the first tier that can
+help wins:
+
+1. **Authentic middle initial** (`authentic-initial`) — the real first letter of
+   a captured patronymic (`Kishorbhai` → K, `Ravindra` → R). Offered ahead of
+   every spelling alteration. A real letter that lands on an enemy number is
+   reported and rejected, never recommended.
+2. **Middle initial** (`initial`) — the generic A–Z scan, kept only for charts
+   with no captured patronymic and no existing middle token.
+3. **Patronymic compression / omission** (`compress`, `drop`) — public-window
+   forms that shorten the patronymic; the statutory spelling is never touched.
+4. **Spelling alterations** (`double`, `swap`, `insert`) — the pronunciation-
+   preserving changes, applied to the everyday name (window 1) or to the first
+   name of the legal string with the patronymic held byte-for-byte (window 2).
+
+### Golden rules
+
+- No arbitrary letter is injected once the real patronymic is known.
+- No second initial is placed beside an existing middle token
+  (`Amarkumar U Kishorbhai` cannot be generated).
+- A patronymic already present in full is compressed, never duplicated.
+- Window 2 rows always keep every legal token after the first unchanged.
+
+Window 1 rows sort before window 2 rows; window, strategy and practicality are
+printed per row, and each group explanation prints once.
 
 ## 7. Interaction, localisation and print
 

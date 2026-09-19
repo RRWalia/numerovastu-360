@@ -1664,6 +1664,12 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 .micro-routine-table tr.solar-guardrail-row td:first-child { box-shadow: inset 3px 0 0 #b7791f; }
 .spelling-table .badge { margin-bottom: 2px; }
 .spelling-table td[data-practicality] .practicality-stars { letter-spacing: 0.5px; }
+/* Dual name layer: the patronymic analysis reads as a short list of family
+   tokens, so it keeps the card rhythm instead of the browser's default list
+   indentation. */
+.name-layer-list { margin: 6px 0 0; padding-left: 18px; }
+.name-layer-list li { margin-bottom: 2px; }
+#legal-name-layer[data-legal-total] .goal-head { align-items: flex-start; }
 .do-avoid-grid { align-items: stretch; }
 .do-card { border-top: 3px solid var(--positive); }
 .avoid-card { border-top: 3px solid var(--danger); }
