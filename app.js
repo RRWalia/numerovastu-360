@@ -894,8 +894,8 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.13.1";
-  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-13";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.14.0";
+  const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-19";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
     lang: "nv_lang",
@@ -1565,6 +1565,111 @@
     return name.toUpperCase().split("").reduce((a, ch) => a + (chaldean[ch] || 0), 0);
   }
 
+  /* ---------------- dual name layer: public identity vs legal record ----------------
+     A person carries two names, and they rarely vibrate the same:
+
+       • Everyday / Professional — business cards, LinkedIn, WhatsApp, email
+         signature, bank card, digital profiles. This is the identity the world
+         actually uses, so it drives the primary Name Number, the Lo Shu Name
+         grid, the Dasha identity band and the hero.
+       • Full legal — the exact string printed on Aadhaar / PAN / passport /
+         incorporation papers, patronymic included. It is reported beside the
+         everyday total as the Document / Legal Total.
+
+     Indian naming contracts the family patronymic all the time
+     ("Amarkumar Kishorbhai Sambhvani" → "Amar K Sambhvani"), and the two
+     strings carry different Chaldean totals — 80 → 8 against 38 → 2 in the
+     reference chart. Reading only one of them hides the vibration the client
+     lives inside, and reading only the other invents a name they never use.
+
+     The legal patronymic is also the single most valuable input we can ask
+     for: it tells the engine which middle initial is *real* ("Kishorbhai" → K,
+     "Ravindra" → R). Suggestion generation therefore prefers that authentic
+     family letter over any invented one — an initial the client already owns
+     on their own documents is a name change with zero cultural cost, and it
+     is offered before any spelling alteration of the first or last name. */
+  function nameTokens(name) {
+    return String(name == null ? "" : name).trim().split(/\s+/).filter(Boolean);
+  }
+  function tidyNameString(name) {
+    return nameTokens(name).join(" ");
+  }
+  const nameKey = (name) => tidyNameString(name).toUpperCase();
+  function firstLetterOf(token) {
+    const m = String(token || "").match(/[A-Za-z\u0900-\u097F\u0A80-\u0AFF]/);
+    return m ? m[0].toUpperCase() : "";
+  }
+  /* A middle token is an initial when exactly one letter survives punctuation
+     removal — "K", "K.", "R" all qualify, "Kishorbhai" does not. */
+  function isInitialToken(token) {
+    const letters = String(token || "").replace(/[^\p{L}]/gu, "");
+    return letters.length === 1;
+  }
+  /* Pure resolution of the two intake strings, shared by the engine and the
+     report so both always agree on which name is which. */
+  function nameIdentity(everydayName, legalName) {
+    const everyday = tidyNameString(everydayName);
+    const legalInput = tidyNameString(legalName);
+    const legal = legalInput || everyday;
+    const everydayTokens = nameTokens(everyday);
+    const legalTokens = nameTokens(legal);
+    /* Dual only when the client actually typed a different legal string —
+       otherwise the report stays exactly as it is today. */
+    const dual = !!everyday && !!legalInput && nameKey(legal) !== nameKey(everyday);
+    /* Patronymic tokens = every token between the first and the last of the
+       LEGAL string, and only when a distinct legal string was actually given.
+       A two-token legal name ("Randeep Walia") exposes none, which is precisely
+       why the everyday form may not invent one — and an everyday string that
+       already carries a full middle token is never mined for a letter to
+       duplicate beside it. */
+    const patronymics = (dual && legalTokens.length >= 3 ? legalTokens.slice(1, -1) : [])
+      .map((token, i) => ({
+        token,
+        initial: firstLetterOf(token),
+        abbreviated: isInitialToken(token),
+        position: i + 1
+      }))
+      .filter((p) => !!p.initial);
+    const middleTokensOf = (tokens) => tokens.slice(1, Math.max(1, tokens.length - 1));
+    const everydayInitials = middleTokensOf(everydayTokens).filter(isInitialToken).map(firstLetterOf);
+    /* Authentic letters are the ones the family record actually owns. A letter
+       with no Chaldean value cannot be scored, so it is listed but never
+       offered as a numeric lever. */
+    const authenticInitials = [];
+    patronymics.forEach((p) => {
+      /* A middle token already written as an initial on the legal record
+         ("Amarkumar K Sambhvani") is just as authentic as the full patronymic —
+         the letter is simply already abbreviated, so it can still be activated
+         on the everyday name when that form omits it. */
+      if (authenticInitials.some((a) => a.letter === p.initial)) return;
+      authenticInitials.push({
+        letter: p.initial, token: p.token, chaldean: chaldeanValue(p.initial),
+        /* The token may already live in the everyday name in full
+           ("Amar Kishorbhai Sambhvani") — then the lever is compression, never
+           a duplicated letter next to it. */
+        inEverydayFull: everydayTokens.some((t) => nameKey(t) === nameKey(p.token) && !isInitialToken(t))
+      });
+    });
+    const usedAuthenticInitials = authenticInitials.filter((a) => everydayInitials.includes(a.letter));
+    const availableAuthenticInitials = authenticInitials
+      .filter((a) => !everydayInitials.includes(a.letter) && !a.inEverydayFull && a.chaldean > 0);
+    return {
+      everyday, legal, dual,
+      everydayTokens, legalTokens,
+      middleTokens: middleTokensOf(everydayTokens),
+      /* A three-token everyday name already carries a middle token — the
+         golden rule then forbids dropping a random letter next to it. */
+      hasOwnMiddleToken: middleTokensOf(everydayTokens).length > 0,
+      patronymics,
+      patronymicTokens: patronymics.map((p) => p.token),
+      patronymicInitials: patronymics.map((p) => p.initial),
+      authenticInitials,
+      availableAuthenticInitials,
+      usedAuthenticInitials,
+      everydayInitials
+    };
+  }
+
   const compoundMeaning = (n) => {
     const db = getActiveDB();
     return (n >= 1 && n <= 108 && db.compound) ? db.compound[n] : null;
@@ -1904,6 +2009,9 @@
   function fillFormFromSnapshot(snapshot) {
     if (!snapshot || !snapshot.input) return;
     if ($("#fullName")) $("#fullName").value = snapshot.input.name || "";
+    // Snapshots saved before the dual-name intake carry no legalName — they
+    // restore exactly as before, with the second field simply left empty.
+    if ($("#legalName")) $("#legalName").value = snapshot.input.legalName || "";
     if ($("#dob")) $("#dob").value = formatDobForDisplay(snapshot.input.dob || "");
     if ($("#mobile")) $("#mobile").value = snapshot.input.mobile || "";
     if ($("#vehicle")) $("#vehicle").value = snapshot.input.vehicle || "";
@@ -2005,6 +2113,13 @@
     const badName = name.length < 2 || !/[a-zA-Z\u0900-\u097F\u0A80-\u0AFF]/.test(name);
     setErr("fullName", badName); if (badName) { ok = false; first = first || $("#fullName"); }
 
+    // The legal name is optional by design (the everyday name alone reproduces
+    // the pre-dual-layer report exactly), so it is only checked once the client
+    // has actually typed something into it.
+    const legalName = ($("#legalName") && $("#legalName").value.trim()) || "";
+    const badLegalName = !!legalName && (legalName.length < 2 || !/[a-zA-Z\u0900-\u097F\u0A80-\u0AFF]/.test(legalName));
+    setErr("legalName", badLegalName); if (badLegalName) { ok = false; first = first || $("#legalName"); }
+
     const dob = ($("#dob") && $("#dob").value) || "";
     const dobIso = normalizeDobInput(dob);
     const badDob = !dobIso || isFutureIso(dobIso);
@@ -2050,6 +2165,20 @@
     const nameRelD = relation(driver, nameNum);
     const nameRelC = relation(conductor, nameNum);
 
+    // Dual name layer (2026-09 intake): the everyday / professional string is
+    // the primary identity — it is what the world uses and what every other
+    // engine already reads. The full legal string is scored in parallel and
+    // reported as the Document / Legal Total, and its patronymic tokens are the
+    // only source of an AUTHENTIC middle initial. When no legal name was
+    // entered the identity collapses to the everyday name and the report is
+    // byte-for-byte what it was before.
+    const identity = nameIdentity(input.name, input.legalName);
+    const legalName = identity.legal;
+    const legalNameCompound = chaldeanValue(legalName);
+    const legalNameNum = reduce(legalNameCompound);
+    const legalNameRelD = relation(driver, legalNameNum);
+    const legalNameRelC = relation(conductor, legalNameNum);
+
     // Karmic Debt scan (13 / 14 / 16 / 19) — the classical rule checks the
     // UNREDUCED totals: the birth day itself, the full birth-date digit sum,
     // and the full Chaldean name total. When one of them lands on a karmic
@@ -2058,11 +2187,20 @@
     if (KARMIC_DEBT_POOL.includes(d)) karmicDebts.push({ n: d, source: "driver" });
     if (KARMIC_DEBT_POOL.includes(dobCompound)) karmicDebts.push({ n: dobCompound, source: "conductor" });
     if (KARMIC_DEBT_POOL.includes(nameCompound)) karmicDebts.push({ n: nameCompound, source: "name" });
+    // A legal string that reduces to a karmic total still governs a passport or
+    // a bank record, so it is scanned too — reported as its own source.
+    if (identity.dual && KARMIC_DEBT_POOL.includes(legalNameCompound)) karmicDebts.push({ n: legalNameCompound, source: "legalName" });
 
     const loShuNameCounts = {};
     for (let i = 1; i <= 9; i++) loShuNameCounts[i] = 0;
     const chaldeanMap = (window.DB && window.DB.chaldean) || {};
     input.name.toUpperCase().split("").forEach((ch) => { const v = chaldeanMap[ch]; if (v) loShuNameCounts[v]++; });
+    // Digits the everyday name lacks but the statutory string supplies: a
+    // missing number echoed only by the legal name is far less critical, so the
+    // severity scan reads both layers.
+    const legalNameCounts = {};
+    for (let i = 1; i <= 9; i++) legalNameCounts[i] = 0;
+    if (identity.dual) legalName.toUpperCase().split("").forEach((ch) => { const v = chaldeanMap[ch]; if (v) legalNameCounts[v]++; });
     const loShuCombinedCounts = {};
     for (let i = 1; i <= 9; i++) loShuCombinedCounts[i] = loShuGrid.counts[i] + loShuNameCounts[i];
 
@@ -2087,10 +2225,12 @@
     const loShuMissingSeverity = loShuSignals.missing.map((n) => {
       const inBirth = loShuGrid.counts[n] > 0;
       const inName = loShuNameCounts[n] > 0;
+      const inLegalName = legalNameCounts[n] > 0;
       const isDriverOrConductor = n === driver || n === conductor;
-      const critical = !inBirth && !inName && !isDriverOrConductor;
+      const critical = !inBirth && !inName && !inLegalName && !isDriverOrConductor;
       const echoedBy = [];
       if (inName) echoedBy.push("Name");
+      if (inLegalName) echoedBy.push("Legal Name");
       if (isDriverOrConductor) echoedBy.push(n === driver ? "Driver" : "Conductor");
       return { n, critical, echoedBy };
     });
@@ -2122,6 +2262,17 @@
       doshaProfile: buildDoshaProfile({ driver, conductor }),
       deityProfile: buildDeityProfile({ driver, conductor }),
       nameCompound, nameNum, nameRelD, nameRelC,
+      // Dual name layer — the everyday string above stays the primary reading;
+      // these fields carry the statutory string and its own totals.
+      legalName, legalNameCompound, legalNameNum, legalNameRelD, legalNameRelC,
+      legalNameCounts,
+      nameDual: identity.dual,
+      nameIdentity: identity,
+      patronymicTokens: identity.patronymicTokens,
+      patronymicInitials: identity.patronymicInitials,
+      authenticInitials: identity.authenticInitials,
+      availableAuthenticInitials: identity.availableAuthenticInitials,
+      usedAuthenticInitials: identity.usedAuthenticInitials,
       mobile: input.mobile, mobCompound, mobNum, mobRelD, mobRelC,
       vehicle: input.vehicle || "",
       goals: input.goals || [],
@@ -2299,6 +2450,13 @@
       score += 1;
       notes.push(lang === "hi" ? "मध्य-आद्यक्षर जोड़ना — कानूनी/बैंक रिकॉर्ड में सबसे व्यावहारिक विकल्प; मौजूदा नामों की वर्तनी वैसी ही रहती है" : lang === "gu" ? "મધ્ય-આદ્યાક્ષર ઉમેરવો — કાનૂની/બેંક રેકોર્ડમાં સૌથી વ્યવહારુ વિકલ્પ; હાલનાં નામોની જોડણી એવી જ રહે છે" : "middle-initial addition — the most practical option for legal/banking records; your existing names keep their spelling");
     }
+    if (candidate.kind === "authentic-initial") {
+      score += 1;
+      notes.push(lang === "hi" ? "प्रामाणिक पारिवारिक आद्यक्षर — कुछ भी काल्पनिक नहीं; पहचान पत्र और चेक पर पहले से पढ़ा जाने वाला अक्षर" : lang === "gu" ? "અસલી કૌટુંબિક આદ્યાક્ષર — કંઈ પણ બનાવટી નહીં; ઓળખપત્ર અને ચેક પર પહેલેથી વંચાતો અક્ષર" : "authentic family initial — nothing invented, and it already reads naturally on identity cards and cheques");
+    }
+    if (candidate.kind === "compress" || candidate.kind === "drop") {
+      notes.push(lang === "hi" ? "केवल दैनिक/सार्वजनिक उपयोग के लिए — कानूनी दस्तावेज़ की वर्तनी नहीं बदलती" : lang === "gu" ? "ફક્ત દૈનિક/જાહેર વપરાશ માટે — કાનૂની દસ્તાવેજની જોડણી બદલાતી નથી" : "everyday / public use only — the legal document spelling is never touched");
+    }
     if (up.replace(/\s/g, "").length - orig.replace(/\s/g, "").length > 2) score -= 1;
     score = Math.max(1, Math.min(5, Math.round(score)));
     const label = score >= 5 ? (lang === "hi" ? "उत्कृष्ट" : lang === "gu" ? "ઉત્તમ" : "Excellent")
@@ -2314,11 +2472,29 @@
      pronunciation-preserving letter alterations sit directly underneath as the
      digital/social route that needs no paperwork. */
   const NAME_STRATEGY = {
+    "authentic-initial": {
+      key: "authentic-middle-initial",
+      en: { label: "Authentic Middle Initial", hint: "Uses the real first letter of your legal patronymic — the way identity cards, cheques and family records already read it. Nothing invented, nothing to explain." },
+      hi: { label: "प्रामाणिक मध्य आद्यक्षर", hint: "आपके कानूनी पितृ-नाम का वास्तविक पहला अक्षर — जैसे पहचान पत्र, चेक और पारिवारिक रिकॉर्ड में पहले से है। कुछ भी काल्पनिक नहीं।" },
+      gu: { label: "અસલી મધ્ય આદ્યાક્ષર", hint: "તમારા કાનૂની પિતૃ-નામનો સાચો પ્રથમ અક્ષર — ઓળખપત્ર, ચેક અને કૌટુંબિક રેકોર્ડમાં પહેલેથી જેમ છે તેમ. કંઈ પણ બનાવટી નહીં." }
+    },
     initial: {
       key: "middle-initial",
       en: { label: "Middle Initial", hint: "Best for banking and legal records — both existing names keep their spelling." },
       hi: { label: "मध्य आद्यक्षर", hint: "बैंक और कानूनी रिकॉर्ड के लिए सर्वोत्तम — दोनों मौजूदा नामों की वर्तनी वैसी ही रहती है।" },
       gu: { label: "મધ્ય આદ્યાક્ષર", hint: "બેંક અને કાનૂની રેકોર્ડ માટે શ્રેષ્ઠ — હાલનાં બંને નામોની જોડણી એવી જ રહે છે." }
+    },
+    compress: {
+      key: "patronymic-initial",
+      en: { label: "Patronymic → Initial", hint: "Compresses the full patronymic into its own initial for daily use — the legal record keeps the full spelling untouched." },
+      hi: { label: "पितृ-नाम → आद्यक्षर", hint: "पूरे पितृ-नाम को उसी के आद्यक्षर में बदलकर दैनिक उपयोग हेतु — कानूनी रिकॉर्ड में पूरी वर्तनी अपरिवर्तित रहती है।" },
+      gu: { label: "પિતૃ-નામ → આદ્યાક્ષર", hint: "આખું પિતૃ-નામ તેના જ આદ્યાક્ષરમાં ઘટાડીને દૈનિક વપરાશ માટે — કાનૂની રેકોર્ડમાં આખી જોડણી અકબંધ રહે છે." }
+    },
+    drop: {
+      key: "patronymic-omitted",
+      en: { label: "Patronymic Omitted", hint: "Everyday / professional use only — the statutory string keeps the patronymic exactly as printed." },
+      hi: { label: "पितृ-नाम हटाना", hint: "केवल दैनिक/व्यावसायिक उपयोग हेतु — कानूनी दस्तावेज़ में पितृ-नाम जैसा है वैसा ही रहता है।" },
+      gu: { label: "પિતૃ-નામ છોડવું", hint: "ફક્ત દૈનિક/વ્યાવસાયિક વપરાશ માટે — કાનૂની દસ્તાવેજમાં પિતૃ-નામ જેમ છે તેમ રહે છે." }
     },
     double: {
       key: "spelling-alteration",
@@ -2345,66 +2521,196 @@
     const copy = entry[lang] || entry.en;
     return { key: entry.key, label: copy.label, hint: copy.hint, kind: entry.key };
   }
-  /* One menu shape for both paths: middle initials first, then the
-     pronunciation-preserving alterations, each tier capped so the table stays
-     a short menu rather than a candidate dump. */
-  const SPELLING_TIER_ORDER = ["initial", "double", "swap", "insert"];
-  const SPELLING_TIER_CAP = { initial: 2, double: 2, swap: 1, insert: 1 };
+  /* The two windows of name correction (2026-09 dual-name intake). Every
+     suggestion states which identity it is meant for, because the paperwork
+     consequence is completely different:
+
+       Window 1 — Everyday / Public: business cards, LinkedIn, WhatsApp, email
+       signature, letterheads. Immediate, no paperwork: drop the heavy
+       patronymic token, or carry it as its authentic initial.
+       Window 2 — Formal / Document: passport, banking KYC, Aadhaar,
+       incorporation. The patronymic stays exactly as printed (no family
+       lineage mismatch) and only the first name is tuned. */
+  const NAME_WINDOW = {
+    public: {
+      key: "public",
+      en: { label: "Window 1 — Everyday / Public", hint: "Business cards, LinkedIn, WhatsApp, email signature and letterheads. Live immediately — no paperwork required." },
+      hi: { label: "विंडो 1 — दैनिक / सार्वजनिक", hint: "विज़िटिंग कार्ड, LinkedIn, WhatsApp, ईमेल हस्ताक्षर और लेटरहेड। तुरंत लागू — कोई कागज़ी कार्रवाई नहीं।" },
+      gu: { label: "વિન્ડો 1 — દૈનિક / જાહેર", hint: "વિઝિટિંગ કાર્ડ, LinkedIn, WhatsApp, ઈમેલ સહી અને લેટરહેડ. તરત લાગુ — કોઈ કાગળકામ નહીં." }
+    },
+    legal: {
+      key: "legal",
+      en: { label: "Window 2 — Formal / Document", hint: "Passport, banking KYC, Aadhaar and incorporation papers. Your patronymic stays exactly as printed — only the first name is tuned." },
+      hi: { label: "विंडो 2 — औपचारिक / दस्तावेज़", hint: "पासपोर्ट, बैंक KYC, आधार और कंपनी पंजीकरण। पितृ-नाम बिलकुल वैसा ही रहता है — केवल पहला नाम बदला जाता है।" },
+      gu: { label: "વિન્ડો 2 — ઔપચારિક / દસ્તાવેજ", hint: "પાસપોર્ટ, બેંક KYC, આધાર અને કંપની નોંધણી. પિતૃ-નામ જેમ છે તેમ રહે છે — ફક્ત પ્રથમ નામ સુધારાય છે." }
+    }
+  };
+  function nameWindowOf(window, langOverride) {
+    const lang = langOverride || getLang();
+    const entry = NAME_WINDOW[window] || NAME_WINDOW.public;
+    const copy = entry[lang] || entry.en;
+    return { key: entry.key, label: copy.label, hint: copy.hint };
+  }
+  /* One menu shape for both paths: the authentic family initial first, then the
+     generic middle initials, then the pronunciation-preserving alterations,
+     each tier capped so the table stays a short menu rather than a candidate
+     dump. */
+  const SPELLING_TIER_ORDER = ["authentic-initial", "initial", "compress", "double", "swap", "insert", "drop"];
+  const SPELLING_TIER_CAP = { "authentic-initial": 2, initial: 2, compress: 1, double: 2, swap: 1, insert: 1, drop: 1 };
+  /* Rank used whenever variants are ordered for display: window 1 before
+     window 2, then the tier, then the best practice-safe rating, then how close
+     the candidate sits to the client's own totals. */
+  function spellingRowRank(v) {
+    const windowRank = v.window === "legal" ? 1 : 0;
+    const tier = SPELLING_TIER_ORDER.indexOf(v.kind);
+    return windowRank * 100 + (tier === -1 ? 50 : tier) * 10 - (v.practicality ? v.practicality.score : 0);
+  }
+  function compareSpellingRows(a, b) {
+    return spellingRowRank(a) - spellingRowRank(b)
+      || (a.delta || 0) - (b.delta || 0)
+      || String(a.text).localeCompare(String(b.text));
+  }
   function tieredSpellingMenu(hits) {
     const out = [];
     SPELLING_TIER_ORDER.forEach((kind) => {
       hits.filter((h) => h.kind === kind)
-        .sort((a, b) => b.practicality.score - a.practicality.score || a.delta - b.delta)
+        .sort((a, b) => compareSpellingRows(a, b))
         .slice(0, SPELLING_TIER_CAP[kind] || 0)
         .forEach((h) => out.push(h));
     });
     return out;
   }
   /* Correction path: keep the spread across target numbers, but give each
-     target one legal-safe and one digital-safe option instead of two clones. */
+     target one legal-safe and one digital-safe option instead of two clones.
+     When a real patronymic initial exists it takes the legal-safe slot, and the
+     digital-safe alteration sits directly beside it — the client sees the
+     zero-distortion option before the spelling change, never after it. */
   function pairedSpellingPick(hits) {
-    const ranked = hits.slice().sort((a, b) => b.practicality.score - a.practicality.score || a.delta - b.delta);
+    const ranked = hits.slice().sort((a, b) => compareSpellingRows(a, b));
     const pick = [];
-    const initial = ranked.find((h) => h.kind === "initial");
-    if (initial) pick.push(initial);
+    const authentic = ranked.find((h) => h.kind === "authentic-initial");
+    if (authentic) pick.push(authentic);
+    const initial = ranked.find((h) => h.kind === "initial" && pick.indexOf(h) === -1);
+    if (initial && !authentic) pick.push(initial);
     const alteration = ["double", "swap", "insert"]
       .map((kind) => ranked.find((h) => h.kind === kind && pick.indexOf(h) === -1))
       .filter(Boolean)
-      .sort((a, b) => b.practicality.score - a.practicality.score)[0];
+      .sort((a, b) => compareSpellingRows(a, b))[0];
     if (alteration) pick.push(alteration);
     ranked.forEach((h) => { if (pick.length < 2 && pick.indexOf(h) === -1) pick.push(h); });
     return pick.slice(0, 2);
   }
 
-  /* Middle-initial candidates (2026-09 audit enhancement): instead of only
-     doubling trailing consonants, also offer "first name + middle initial"
-     spellings — the change many clients actually need for legal/banking
-     formats. A single letter carries its Chaldean value, so we scan A–Z at the
-     middle-initial slot (after the first token) and keep only totals that hit
-     a requested target number. */
-  function initialCandidates(name, baseCompound) {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const tokens = String(name).trim().split(/\s+/);
+  /* Middle-initial candidates. Two sources, in strict order of preference:
+
+       1. AUTHENTIC — the first letters of the patronymic tokens typed into the
+          legal name ("Kishorbhai" → K, "Ravindra" → R). These are the only
+          initials the engine is allowed to propose for a client whose family
+          name is known, because the client already owns that letter on their
+          own records.
+       2. GENERIC — the A–Z scan, kept for clients who gave no legal name.
+          Suppressed whenever an authentic letter exists, and also suppressed
+          when the everyday name already carries a middle token: dropping an
+          arbitrary letter next to an existing middle token ("Amarkumar U
+          Kishorbhai") is exactly the invention this pass removes.
+
+     A single letter carries its Chaldean value, so a scan can find the right
+     total, but only the authentic letter is culturally free. */
+  function initialCandidates(name, baseCompound, options) {
+    const opts = options || {};
+    const identity = opts.identity || null;
+    const tokens = String(name).trim().split(/\s+/).filter(Boolean);
     const out = [];
     const seen = new Set();
-    const pushAt = (idx) => {
-      for (const letter of letters) {
-        const next = tokens.slice(0, idx).concat(letter, tokens.slice(idx)).join(" ");
-        const key = next.toUpperCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const compound = chaldeanValue(next);
-        out.push({
-          text: next,
-          change: `add middle initial "${letter}"`,
-          compound, reduced: reduce(compound), kind: "initial",
-          delta: Math.abs(compound - baseCompound) + 0.5
-        });
-      }
+    const push = (text, change, kind, delta, extra) => {
+      const key = text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const compound = chaldeanValue(text);
+      out.push(Object.assign({
+        text, change, compound, reduced: reduce(compound), kind,
+        window: "public", delta
+      }, extra || {}));
     };
-    if (tokens.length >= 2) pushAt(1);          // Amar S Sambhvani
-    else if (tokens.length === 1) pushAt(1);     // single name: append an initial
+    const insertAt = (idx, letter) => tokens.slice(0, idx).concat(letter, tokens.slice(idx)).join(" ");
+    /* The initial always lands after the first token: "Amar S Sambhvani" for a
+       two-word name, "Amar S Kumar Sambhvani" for a longer one. */
+    const slot = 1;
+    const authentic = (identity && identity.availableAuthenticInitials) || [];
+    authentic.forEach((a) => {
+      const text = insertAt(slot, a.letter);
+      push(text, `use the authentic patronymic initial "${a.letter}" (from "${a.token}")`,
+        "authentic-initial", Math.abs(chaldeanValue(text) - baseCompound) - 1,
+        { authentic: true, sourceToken: a.token, letter: a.letter });
+    });
+    /* Golden rule: never invent a letter beside a real middle token, and never
+       invent one at all once the family letter is known. */
+    const mayScan = !authentic.length && !opts.forbidArbitrary && !(identity && identity.hasOwnMiddleToken);
+    if (mayScan) {
+      for (const letter of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+        const text = insertAt(slot, letter);
+        push(text, `add middle initial "${letter}"`, "initial",
+          Math.abs(chaldeanValue(text) - baseCompound) + 0.5);
+      }
+    }
     return out;
+  }
+
+  /* Patronymic compression — the everyday half of the dual-name lever.
+     "Amarkumar Kishorbhai Sambhvani" reads as "Amarkumar K Sambhvani" on a
+     business card without touching the statutory string. Emitted for the
+     PUBLIC window only. */
+  function compressionCandidates(name, baseCompound) {
+    const tokens = String(name).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length < 3) return [];
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1];
+    const middles = tokens.slice(1, -1);
+    const out = [];
+    const seen = new Set();
+    const push = (text, change, kind, delta) => {
+      const key = text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const compound = chaldeanValue(text);
+      out.push({ text, change, compound, reduced: reduce(compound), kind, window: "public", delta });
+    };
+    /* Only genuine patronymic tokens are compressed — never a middle token that
+       is already an initial, and never a letter invented from nothing. */
+    const compressible = middles.filter((token) => !isInitialToken(token));
+    if (compressible.length && compressible.length === middles.length) {
+      const initials = compressible.map((token) => firstLetterOf(token));
+      if (initials.every((l) => chaldeanValue(l) > 0)) {
+        push(`${first} ${initials.join(" ")} ${last}`,
+          `compress the patronymic "${compressible.join(" ")}" to its own initial${initials.length > 1 ? "s" : ""} "${initials.join(" ")}"`,
+          "compress", Math.abs(chaldeanValue(`${first} ${initials.join(" ")} ${last}`) - baseCompound) - 0.5);
+      }
+    }
+    push(`${first} ${last}`, `drop the patronymic "${middles.join(" ")}" from the everyday name (the legal record keeps it)`,
+      "drop", Math.abs(chaldeanValue(`${first} ${last}`) - baseCompound) + 1);
+    return out;
+  }
+
+  /* Window 2 — Formal / Document Alignment.
+     Tunes ONLY the first name of the legal string and re-appends every
+     remaining token byte-for-byte, so the patronymic ("Kishorbhai") can never
+     be altered, reordered or dropped by a suggestion. */
+  function legalWindowCandidates(legalName, baseCompound) {
+    const tokens = String(legalName).trim().split(/\s+/).filter(Boolean);
+    if (tokens.length < 2) return [];
+    const first = tokens[0];
+    const rest = tokens.slice(1).join(" ");
+    return spellingCandidates(first, chaldeanValue(first)).map((c) => {
+      const text = `${c.text} ${rest}`;
+      const compound = chaldeanValue(text);
+      return {
+        text,
+        change: `${c.change} in the first name only — the remaining legal tokens "${rest}" stay exactly as printed`,
+        compound, reduced: reduce(compound), kind: c.kind, window: "legal",
+        scope: "first-name",
+        delta: Math.abs(compound - baseCompound)
+      };
+    });
   }
 
   /* Optional grid-filling spellings for an ALREADY-harmonious name.
@@ -2414,19 +2720,20 @@
   function buildOptionalSpellings(p) {
     const db = getActiveDB();
     const lang = getLang();
+    const identity = p.nameIdentity || nameIdentity(p.name, p.legalName);
     const fillable = p.loShuMissing.filter((n) =>
       relation(p.driver, n) !== "enemy" &&
       relation(p.conductor, n) !== "enemy" &&
       !p.loShuRepeated.includes(n)
     );
-    if (!fillable.length) return { variants: [], targets: [] };
-    const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
+    if (!fillable.length) return { variants: [], legalVariants: [], targets: [] };
+    const candidates = nameCandidatePool(p, identity);
     const variants = [];
     const seen = new Set();
     fillable.forEach((n) => {
       const planet = db.numbers[n].planet.split(" ")[0];
       const hits = candidates
-        .filter((c) => c.reduced === n)
+        .filter((c) => c.reduced === n && c.window !== "legal")
         .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }));
       /* The optional menu keeps BOTH strategies: the middle initials that are
          clean for legal/banking records first, then the pronunciation-
@@ -2446,7 +2753,90 @@
         variants.push({ ...c, targetN: n, why: optWhy });
       });
     });
-    return { variants: variants.slice(0, 4), targets: fillable };
+    /* An authentic family initial is admitted even when the grid is missing
+       nothing, provided the total it produces is harmonious with both birth
+       numbers. This is the lever the client asked for — the real letter from
+       their own documents — and it is offered ahead of every spelling change. */
+    authenticInitialAnalysis(p, identity).forEach((check) => {
+      if (!check.harmonious) return;
+      const key = check.text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const candidate = {
+        text: check.text,
+        change: `use the authentic patronymic initial "${check.letter}" (from "${check.token}")`,
+        compound: check.compound, reduced: check.reduced,
+        kind: "authentic-initial", window: "public", authentic: true,
+        sourceToken: check.token, letter: check.letter, delta: -1
+      };
+      const why = lang === "hi"
+        ? `वैकल्पिक: आपके असली पितृ-नाम "${check.token}" का अक्षर ${check.letter} दैनिक नाम में सक्रिय करता है — कुल ${check.compound} → ${check.reduced}, मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल; कोई अक्षर गढ़ा नहीं गया`
+        : lang === "gu"
+          ? `વૈકલ્પિક: તમારા સાચા પિતૃ-નામ "${check.token}" નો અક્ષર ${check.letter} દૈનિક નામમાં સક્રિય કરે છે — સરવાળો ${check.compound} → ${check.reduced}, મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ; કોઈ અક્ષર બનાવટી નથી`
+          : `optional: activates the authentic initial ${check.letter} of your patronymic "${check.token}" in the everyday name — total ${check.compound} → ${check.reduced}, harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and nothing invented`;
+      variants.push({ ...candidate, practicality: namePracticality(candidate, p.name), targetN: check.reduced, why });
+    });
+    variants.sort(compareSpellingRows);
+    return {
+      variants: variants.slice(0, 4),
+      legalVariants: buildLegalWindowVariants(p, identity, fillable, "optional"),
+      targets: fillable
+    };
+  }
+
+  /* Every spelling candidate the engine is willing to offer for a chart, in one
+     pool. Window 1 (everyday / public) carries the authentic family initial,
+     the generic alphabetic initials, patronymic compression and the ordinary
+     pronunciation-preserving alterations. Window 2 (legal) is generated from
+     the legal string itself and only ever rewrites the first name. */
+  function nameCandidatePool(p, identity) {
+    const id = identity || nameIdentity(p.name, p.legalName || p.name);
+    const pool = spellingCandidates(p.name, p.nameCompound)
+      .concat(initialCandidates(p.name, p.nameCompound, { identity: id }))
+      .concat(compressionCandidates(p.name, p.nameCompound));
+    if (id.dual) {
+      /* The legal string contributes its own compression option as a public
+         spelling ("Amarkumar K Sambhvani"), because that is the form the
+         client would print — and Window 2 rows for the statutory record. */
+      pool.push(...compressionCandidates(id.legal, p.legalNameCompound != null ? p.legalNameCompound : chaldeanValue(id.legal)));
+      pool.push(...legalWindowCandidates(id.legal, p.legalNameCompound != null ? p.legalNameCompound : chaldeanValue(id.legal)));
+    }
+    const seen = new Set();
+    return pool.filter((c) => {
+      const key = `${c.window}|${c.text.toUpperCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    }).map((c) => Object.assign({ window: "public" }, c));
+  }
+
+  /* Window 2 rows: legal-name spellings that hit a target while the patronymic
+     stays untouched. Kept deliberately short — the client who must change a
+     statutory record gets a couple of well-explained options, not a menu. */
+  function buildLegalWindowVariants(p, identity, targets, flavour) {
+    const lang = getLang();
+    const id = identity || p.nameIdentity || nameIdentity(p.name, p.legalName);
+    if (!id.dual) return [];
+    const legalCompound = p.legalNameCompound != null ? p.legalNameCompound : chaldeanValue(id.legal);
+    const pool = legalWindowCandidates(id.legal, legalCompound)
+      .map((c) => ({ ...c, practicality: namePracticality(c, id.legal) }));
+    const patronymic = id.patronymicTokens.join(" ") || (id.legalTokens.length > 2 ? id.legalTokens.slice(1, -1).join(" ") : "");
+    const out = [];
+    const seen = new Set();
+    targets.forEach((tgt) => {
+      const n = typeof tgt === "number" ? tgt : tgt.n;
+      const hits = pool.filter((c) => c.reduced === n).sort(compareSpellingRows);
+      const best = hits[0];
+      if (!best) return;
+      const key = best.text.toUpperCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const why = flavour === "optional"
+        ? (lang === "hi" ? `औपचारिक दस्तावेज़ के लिए वैकल्पिक: पहला नाम बदलकर कुल योग ${n} तक — पितृ-नाम "${patronymic}" ज्यों-का-त्यों सुरक्षित` : lang === "gu" ? `ઔપચારિક દસ્તાવેજ માટે વૈકલ્પિક: પ્રથમ નામ બદલીને સરવાળો ${n} સુધી — પિતૃ-નામ "${patronymic}" જેમ છે તેમ સુરક્ષિત` : `optional for the statutory record: first name tuned to reach total ${n} — the patronymic "${patronymic}" stays exactly as printed`)
+        : (lang === "hi" ? `पहला नाम बदलकर कुल योग ${n} तक ले जाता है और पितृ-नाम "${patronymic}" को ज्यों-का-त्यों रखता है — कुल योग ${n} ${tgt.why}` : lang === "gu" ? `પ્રથમ નામ બદલીને સરવાળો ${n} સુધી લાવે છે અને પિતૃ-નામ "${patronymic}" જેમ છે તેમ રાખે છે — સરવાળો ${n} ${tgt.why}` : `takes the first name to total ${n} while keeping the patronymic "${patronymic}" untouched — total ${n} ${tgt.why}`);
+      out.push({ ...best, why, targetN: n, window: "legal" });
+    });
+    out.sort(compareSpellingRows);
+    return out.slice(0, 2);
   }
 
   function nameSuggestions(p) {
@@ -2485,16 +2875,19 @@
       }
     }
     const targets = missingRanked.concat(harm);
-    if (!targets.length) return { needed: true, verdict: "enemy", variants: [], targets: [] };
+    if (!targets.length) return { needed: true, verdict: "enemy", variants: [], legalVariants: [], targets: [] };
 
-    // Middle-initial options join the pool so a correction is never limited to
-    // doubling trailing consonants (2026-09 audit).
-    const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
+    // Authentic patronymic initials, generic middle initials, patronymic
+    // compression and the pronunciation-preserving alterations all join the
+    // pool so a correction is never limited to doubling trailing consonants
+    // (2026-09 audit; dual-name intake).
+    const identity = p.nameIdentity || nameIdentity(p.name, p.legalName);
+    const candidates = nameCandidatePool(p, identity);
 
     const variants = [];
     targets.forEach((tgt) => {
       const hits = candidates
-        .filter((c) => c.reduced === tgt.n)
+        .filter((c) => c.reduced === tgt.n && c.window !== "legal")
         .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }));
       /* One legal-safe + one digital-safe option per target number. */
       pairedSpellingPick(hits).forEach((c) => variants.push({ ...c, why: tgt.why, targetN: tgt.n }));
@@ -2502,13 +2895,19 @@
 
     const finalSeen = new Set();
     const out = [];
-    variants.forEach((v) => {
-      const k = v.text.toUpperCase();
+    variants.sort(compareSpellingRows).forEach((v) => {
+      const k = `${v.window}|${v.text.toUpperCase()}`;
       if (finalSeen.has(k)) return;
       finalSeen.add(k); out.push(v);
     });
 
-    return { needed: true, verdict: "enemy", variants: out.slice(0, 6), targets: targets.map((tgt) => tgt.n), optional };
+    return {
+      needed: true, verdict: "enemy",
+      variants: out.slice(0, 6),
+      legalVariants: buildLegalWindowVariants(p, identity, targets, "correction"),
+      targets: targets.map((tgt) => tgt.n),
+      optional
+    };
   }
 
   function brandAnalysis(brand, p) {
@@ -4038,7 +4437,7 @@
     const w = {
       en: {
         title: "Practitioner Clinical Cockpit", sub: "One-page consultation sheet — everything below is computed on this device from the same engines as the full report.",
-        core: "Core", loshu: "Lo Shu (Foundation)", vedic: "Vedic (Ank Jyotish)", name: "Name",
+        core: "Core", loshu: "Lo Shu (Foundation)", vedic: "Vedic (Ank Jyotish)", name: "Name", legalName: "Legal",
         missing: "Missing", excess: "Excess", absent: "Absent", strong: "Strong",
         timing: "Current timing", macro: "Macro", current: "Current", micro: "Micro", transit: "Transit",
         triage: "Clinical triage", conflict: "Active conflict", spatial: "Urgent spatial Rx", japa: "Single japa target",
@@ -4050,7 +4449,7 @@
       },
       hi: {
         title: "प्रैक्टिशनर क्लिनिकल कॉकपिट", sub: "एक-पृष्ठ परामर्श शीट — सभी मान इसी डिवाइस पर, पूरी रिपोर्ट के समान इंजनों से गणना किए गए हैं।",
-        core: "मुख्य", loshu: "लो शू (Foundation)", vedic: "वैदिक (अंक ज्योतिष)", name: "नाम",
+        core: "मुख्य", loshu: "लो शू (Foundation)", vedic: "वैदिक (अंक ज्योतिष)", name: "नाम", legalName: "कानूनी",
         missing: "अनुपस्थित", excess: "अधिक", absent: "अनुपस्थित", strong: "प्रबल",
         timing: "वर्तमान समय-चक्र", macro: "महा", current: "वर्तमान", micro: "सूक्ष्म", transit: "ट्रांज़िट",
         triage: "क्लिनिकल ट्राइएज", conflict: "सक्रिय टकराव", spatial: "तात्कालिक वास्तु उपाय", japa: "एकमात्र जप लक्ष्य",
@@ -4062,7 +4461,7 @@
       },
       gu: {
         title: "પ્રેક્ટિશનર ક્લિનિકલ કોકપિટ", sub: "એક-પાનાની પરામર્શ શીટ — બધા મૂલ્યો આ જ ડિવાઇસ પર, પૂરા રિપોર્ટના સમાન એન્જિનથી ગણાયા છે.",
-        core: "મુખ્ય", loshu: "લો શુ (Foundation)", vedic: "વૈદિક (અંક જ્યોતિષ)", name: "નામ",
+        core: "મુખ્ય", loshu: "લો શુ (Foundation)", vedic: "વૈદિક (અંક જ્યોતિષ)", name: "નામ", legalName: "કાનૂની",
         missing: "ખૂટતા", excess: "વધુ", absent: "ગેરહાજર", strong: "પ્રબળ",
         timing: "વર્તમાન સમય-ચક્ર", macro: "મહા", current: "વર્તમાન", micro: "સૂક્ષ્મ", transit: "ટ્રાન્ઝિટ",
         triage: "ક્લિનિકલ ટ્રાયએજ", conflict: "સક્રિય ટકરાવ", spatial: "તાત્કાલિક વાસ્તુ ઉપાય", japa: "એકમાત્ર જાપ લક્ષ્ય",
@@ -4135,6 +4534,7 @@
           <div class="cockpit-cell"><div class="cockpit-label">${esc(L.core)}</div>
             <div class="cockpit-fact">D-${c.core.driver} (${esc(c.core.driverPlanet)}) · C-${c.core.conductor} (${esc(c.core.conductorPlanet)})${Number.isFinite(c.core.ageYears) ? ` · ${lang === "hi" ? "आयु" : lang === "gu" ? "ઉંમર" : "age"} ${c.core.ageYears}` : ""}</div>
             <div class="cockpit-fact">${esc(L.name)}: ${c.core.nameCompound} → ${c.core.nameNumber}${c.core.kua ? ` · Kua ${c.core.kua}` : ""}</div>
+            ${p.nameDual ? `<div class="cockpit-fact" data-cockpit-legal-total="${p.legalNameCompound}">${esc(L.legalName || "Legal")}: ${p.legalNameCompound} → ${p.legalNameNum}${p.patronymicInitials.length ? ` · ${esc(p.patronymicInitials.join("/"))}` : ""}</div>` : ""}
             ${isMinorProfile(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="under-18">⚠ ${lang === "hi" ? "18 से कम — भारी रत्न स्थगित; खंड 4A तत्व आधार + हल्के पत्थर (Amethyst/Citrine)" : lang === "gu" ? "18 થી ઓછી — ભારે રત્ન મુલ્તવી; વિભાગ 4A તત્વ આધાર + હળવા પથ્થર (Amethyst/Citrine)" : "Under 18 — heavy gems deferred; 4A Tattva anchors + mild stones (Amethyst/Citrine)"}</div>` : ""}
             ${solarOverload(p) && pittaInBaseline(p) ? `<div class="cockpit-fact" data-cockpit-guardrail="solar">☀ ${lang === "hi" ? `सूर्य 1×${solarLoadOf(p)} + पित्त — अर्घ्य लघु रखें; चंद्र भेदन/शाम भूमि-संपर्क से ठंडा करें` : lang === "gu" ? `સૂર્ય 1×${solarLoadOf(p)} + પિત્ત — અર્ઘ્ય ટૂંકો રાખો; ચંદ્ર ભેદન/સાંજ ભૂમિ-સંપર્કથી ઠંડક આપો` : `Sun 1×${solarLoadOf(p)} + Pitta — keep arghya brief; cool via Chandra Bhedana / evening grounding`}</div>` : ""}
             ${moonColdCockpitFactHtml(p, lang)}
@@ -5145,6 +5545,144 @@
   }
 
   /* Shared spelling table (used by both correction-required and optional-enhancement rows). */
+  /* Did the authentic family initial actually help THIS chart? The engine tests
+     it like any other candidate — the real letter is preferred, but it is never
+     pushed when it lands on a number that fights the Driver or Conductor. The
+     evaluation is reported either way, so the client sees the check happen. */
+  function authenticInitialAnalysis(p, identity) {
+    const id = identity || p.nameIdentity || nameIdentity(p.name, p.legalName);
+    const tokens = id.everydayTokens;
+    if (!tokens.length) return [];
+    return id.authenticInitials.map((a) => {
+      const inUse = id.everydayInitials.includes(a.letter);
+      const inFull = !!a.inEverydayFull;
+      const settled = inUse || inFull;
+      const text = settled ? id.everyday : tokens.slice(0, 1).concat(a.letter, tokens.slice(1)).join(" ");
+      const compound = settled && p.nameCompound != null ? p.nameCompound : chaldeanValue(text);
+      const n = reduce(compound);
+      const relD = relation(p.driver, n);
+      const relC = relation(p.conductor, n);
+      return {
+        letter: a.letter, token: a.token, text, compound, reduced: n, relD, relC, inUse, inFull,
+        harmonious: relD !== "enemy" && relC !== "enemy"
+      };
+    });
+  }
+
+  /* ---------------- dual name layer: report cards ----------------
+     Two layers, two totals, one honest picture. The everyday / professional
+     string is the reading the rest of the report runs on; the statutory string
+     is scored beside it so nobody discovers years later that the name on their
+     passport vibrates to an enemy number. */
+  function legalNameCard(p) {
+    const db = getActiveDB();
+    const lang = getLang();
+    const identity = p.nameIdentity || nameIdentity(p.name, p.legalName);
+    const master = masterNumber(p.legalNameCompound);
+    const compound = compoundMeaning(p.legalNameCompound);
+    const debt = (p.karmicDebts || []).find((k) => k.source === "legalName");
+    const hostile = p.legalNameRelD === "enemy" || p.legalNameRelC === "enemy";
+    const friendly = !hostile && p.legalNameRelD !== "neutral" && p.legalNameRelC !== "neutral";
+    /* The patronymic line is the bridge between the two layers: it names the
+       family token, its authentic initial and — because the engine actually
+       tests it — the total that initial would produce on the everyday name,
+       with the verdict. A real letter that lands on an enemy number is shown
+       and rejected explicitly rather than silently dropped. */
+    const patronymics = identity.patronymics || [];
+    const authenticChecks = authenticInitialAnalysis(p, identity);
+    const initialLine = (() => {
+      if (!patronymics.length) {
+        return lang === "hi" ? "इस नाम में पितृ-नाम (मध्य नाम) दर्ज नहीं है, इसलिए कोई प्रामाणिक आद्यक्षर उपलब्ध नहीं — सुझाव केवल वर्तनी-सुधार तक सीमित रहेंगे।"
+          : lang === "gu" ? "આ નામમાં પિતૃ-નામ (મધ્ય નામ) નથી, તેથી કોઈ અસલી આદ્યાક્ષર ઉપલબ્ધ નથી — સૂચનો ફક્ત જોડણી-સુધારા સુધી મર્યાદિત રહેશે."
+            : "No patronymic (middle name) is present in this string, so there is no authentic initial to draw on — suggestions stay limited to spelling adjustments.";
+      }
+      return patronymics.map((pt) => {
+        const check = authenticChecks.find((c) => c.letter === pt.initial) || {};
+        const status = check.inFull
+          ? (lang === "hi" ? `आपके दैनिक नाम में <strong>पूरा पितृ-नाम पहले से मौजूद</strong> है — इसलिए इंजन उसके बग़ल में दूसरा अक्षर जोड़ने के बजाय उसे ही आद्यक्षर में बदलने का विकल्प देता है (“${esc(check.text || "")}” = ${check.compound} → ${check.reduced}).` : lang === "gu" ? `તમારા દૈનિક નામમાં <strong>આખું પિતૃ-નામ પહેલેથી હાજર</strong> છે — તેથી એન્જિન તેની બાજુમાં બીજો અક્ષર ઉમેરવાને બદલે તેને જ આદ્યાક્ષરમાં ઘટાડવાનો વિકલ્પ આપે છે (“${esc(check.text || "")}” = ${check.compound} → ${check.reduced}).` : `<strong>already present in full in your everyday name</strong> — so the engine compresses it to its initial instead of adding a second letter beside it (“${esc(check.text || "")}” = ${check.compound} → ${check.reduced}).`)
+          : check.inUse
+          ? (lang === "hi" ? `<strong>आपके दैनिक नाम में पहले से सक्रिय</strong> — “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}.` : lang === "gu" ? `<strong>તમારા દૈનિક નામમાં પહેલેથી સક્રિય</strong> — “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}.` : `<strong>already active in your everyday name</strong> — “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}.`)
+          : check.harmonious
+            ? (lang === "hi" ? `जोड़ने पर “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, जो मूलांक ${p.driver} और भाग्यांक ${p.conductor} दोनों के अनुकूल है — <strong>सुझाव तालिका में सर्वप्रथम</strong>।` : lang === "gu" ? `ઉમેરતાં “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, જે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} બંને સાથે અનુકૂળ છે — <strong>સૂચન કોષ્ટકમાં સૌથી પહેલાં</strong>.` : `adding it gives “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, harmonious with both Driver ${p.driver} and Conductor ${p.conductor} — <strong>offered first in the table below</strong>.`)
+            : (lang === "hi" ? `जोड़ने पर “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, जो आपके जन्म अंकों से टकराता है — इसलिए इंजन इसे सुझाव तालिका में नहीं रखता (कोई हानिकारक सिफ़ारिश नहीं), परन्तु यह आपका असली पारिवारिक अक्षर बना रहता है।` : lang === "gu" ? `ઉમેરતાં “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, જે તમારા જન્મ અંકો સાથે અથડાય છે — તેથી એન્જિન તેને સૂચન કોષ્ટકમાં મૂકતું નથી (કોઈ નુકસાનકારક સૂચન નહીં), પણ તે તમારો સાચો કૌટુંબિક અક્ષર રહે છે.` : `adding it gives “${esc(check.text || "")}” = ${check.compound} → ${check.reduced}, which fights your birth numbers — so the engine deliberately keeps it out of the remedy table (no harmful recommendation), while it stays your authentic family letter.`);
+        return `<li><strong>${esc(pt.token)}</strong> → ${lang === "hi" ? "प्रामाणिक आद्यक्षर" : lang === "gu" ? "અસલી આદ્યાક્ષર" : "authentic initial"} <strong>${esc(pt.initial)}</strong> (${lang === "hi" ? "चाल्डियन" : lang === "gu" ? "કાલ્ડિયન" : "Chaldean"} ${chaldeanValue(pt.initial)}) — ${status}</li>`;
+      }).join("");
+    })();
+    const divergence = (() => {
+      if (!p.nameDual) return "";
+      const everydayHostile = p.nameRelD === "enemy" || p.nameRelC === "enemy";
+      if (!hostile && !everydayHostile) {
+        return lang === "hi" ? "दोनों नाम आपके जन्म अंकों के अनुकूल हैं — कोई छिपी हुई प्रतिकूलता नहीं मिली।"
+          : lang === "gu" ? "બંને નામ તમારા જન્મ અંકો સાથે અનુકૂળ છે — કોઈ છુપાયેલી પ્રતિકૂળતા મળી નથી."
+            : "Both layers sit well with your birth numbers — no hidden contrary vibration.";
+      }
+      if (hostile && !everydayHostile) {
+        return lang === "hi" ? `आपका दैनिक नाम अनुकूल है, परन्तु दस्तावेज़ी नाम <strong>${p.legalNameCompound} → ${p.legalNameNum}</strong> आपके जन्म अंकों से टकराता है — यही वह छिपी हुई ऊर्जा है जो केवल दोहरी गणना से दिखती है। पासपोर्ट/KYC जैसे दस्तावेज़ों पर विंडो 2 के सुझाव अपनाएँ।`
+          : lang === "gu" ? `તમારું દૈનિક નામ અનુકૂળ છે, પણ દસ્તાવેજી નામ <strong>${p.legalNameCompound} → ${p.legalNameNum}</strong> તમારા જન્મ અંકો સાથે અથડાય છે — આ જ એ છુપાયેલી ઊર્જા છે જે ફક્ત બેવડી ગણતરીથી દેખાય છે. પાસપોર્ટ/KYC જેવા દસ્તાવેજો પર વિન્ડો 2 નાં સૂચનો અપનાવો.`
+            : `Your everyday name is friendly, but the statutory string <strong>${p.legalNameCompound} → ${p.legalNameNum}</strong> clashes with your birth numbers — exactly the hidden vibration a single-field intake cannot see. Use the Window 2 suggestions for documents such as a passport or KYC.`;
+      }
+      if (everydayHostile && !hostile) {
+        return lang === "hi" ? `आपका दस्तावेज़ी नाम अनुकूल है, परन्तु दैनिक नाम <strong>${p.nameCompound} → ${p.nameNum}</strong> टकराता है — विंडो 1 के सुझाव बिना किसी कागज़ी कार्रवाई के दैनिक नाम सुधार देते हैं।`
+          : lang === "gu" ? `તમારું દસ્તાવેજી નામ અનુકૂળ છે, પણ દૈનિક નામ <strong>${p.nameCompound} → ${p.nameNum}</strong> અથડાય છે — વિન્ડો 1 નાં સૂચનો કોઈ કાગળકામ વગર દૈનિક નામ સુધારે છે.`
+            : `Your statutory name is friendly, yet the everyday name <strong>${p.nameCompound} → ${p.nameNum}</strong> clashes — the Window 1 suggestions fix the daily identity with no paperwork at all.`;
+      }
+      return lang === "hi" ? "दोनों नाम आपके जन्म अंकों से टकराते हैं — दोनों विंडो के सुझाव देखें।"
+        : lang === "gu" ? "બંને નામ તમારા જન્મ અંકો સાથે અથડાય છે — બંને વિન્ડોનાં સૂચનો જુઓ."
+          : "Both layers clash with your birth numbers — review the suggestions in both windows.";
+    })();
+    return `<div class="card" id="legal-name-layer" data-legal-total="${p.legalNameCompound}">
+      <div class="goal-head">
+        <div>
+          <div class="card-sub">${lang === "hi" ? "दस्तावेज़ / कानूनी नाम" : lang === "gu" ? "દસ્તાવેજ / કાનૂની નામ" : "Document / Legal Name"}</div>
+          <div class="card-title">${esc(p.legalName)}</div>
+        </div>
+        <span class="badge info">${lang === "hi" ? "चाल्डियन कुल" : lang === "gu" ? "કાલ્ડિયન સરવાળો" : "Chaldean total"} ${p.legalNameCompound}${master ? " (Master Number)" : ""} → ${lang === "hi" ? "नामांक" : lang === "gu" ? "નામાંક" : "Name Number"} ${p.legalNameNum}</span>
+        ${relBadge(hostile ? "enemy" : (p.legalNameRelD === "neutral" || p.legalNameRelC === "neutral") ? "neutral" : "friendly")}
+      </div>
+      <table class="rtable">
+        <tr><th>${lang === "hi" ? `नामांक बनाम मूलांक ${p.driver}` : lang === "gu" ? `નામાંક વિરુદ્ધ મૂળાંક ${p.driver}` : `Name number vs Driver ${p.driver}`}</th><td>${relBadge(p.legalNameRelD)}</td></tr>
+        <tr><th>${lang === "hi" ? `नामांक बनाम भाग्यांक ${p.conductor}` : lang === "gu" ? `નામાંક વિરુદ્ધ ભાગ્યાંક ${p.conductor}` : `Name number vs Conductor ${p.conductor}`}</th><td>${relBadge(p.legalNameRelC)}</td></tr>
+      </table>
+      ${master ? `<div class="judge-note"><strong>${esc(master.name)}:</strong> ${esc(master.meaning)}</div>` : (compound ? `<div class="judge-note"><strong>Compound Number ${p.legalNameCompound}:</strong> ${esc(compound)}</div>` : "")}
+      ${debt ? `<div class="judge-note" data-legal-karmic="${debt.n}"><strong>${lang === "hi" ? "कर्मऋण" : lang === "gu" ? "કર્મઋણ" : "Karmic debt"} ${debt.n}:</strong> ${lang === "hi" ? "दस्तावेज़ी नाम का कुल योग कर्मऋण अंक पर पड़ता है — यह केवल दोहरी गणना से दिखता है।" : lang === "gu" ? "દસ્તાવેજી નામનો સરવાળો કર્મઋણ અંક પર પડે છે — આ ફક્ત બેવડી ગણતરીથી દેખાય છે." : "the statutory total lands on a karmic debt number — visible only because both layers are scored."}</div>` : ""}
+      <div class="kit-value"><strong>${lang === "hi" ? "पितृ-नाम का विश्लेषण:" : lang === "gu" ? "પિતૃ-નામ વિશ્લેષણ:" : "Patronymic analysis:"}</strong> <ul class="name-layer-list">${initialLine}</ul></div>
+      <div class="judge-note" data-name-divergence="${hostile ? (p.nameRelD === "enemy" || p.nameRelC === "enemy" ? "both" : "legal") : "public"}">${divergence}</div>
+    </div>`;
+  }
+
+  /* The two windows of name correction, stated once in the client's own terms.
+     Window 1 can be lived from today; Window 2 is the paperwork decision. */
+  function nameWindowsCard(p) {
+    const lang = getLang();
+    const identity = p.nameIdentity || nameIdentity(p.name, p.legalName);
+    const publicExample = identity.dual || identity.patronymics.length
+      ? (() => {
+        const tokens = identity.legalTokens;
+        if (tokens.length >= 3) {
+          const initials = identity.patronymics.map((pt) => pt.initial).join(" ");
+          return `${tokens[0]}${initials ? " " + initials : ""} ${tokens[tokens.length - 1]}`;
+        }
+        return identity.everyday;
+      })()
+      : identity.everyday;
+    const rows = [
+      { w: nameWindowOf("public", lang), example: publicExample, usage: lang === "hi" ? "विज़िटिंग कार्ड, LinkedIn, WhatsApp, ईमेल हस्ताक्षर, लेटरहेड।" : lang === "gu" ? "વિઝિટિંગ કાર્ડ, LinkedIn, WhatsApp, ઈમેલ સહી, લેટરહેડ." : "Business cards, LinkedIn, WhatsApp, email signature, letterheads." },
+      { w: nameWindowOf("legal", lang), example: identity.legal, usage: lang === "hi" ? "पासपोर्ट, बैंक KYC, आधार, कंपनी पंजीकरण।" : lang === "gu" ? "પાસપોર્ટ, બેંક KYC, આધાર, કંપની નોંધણી." : "Passport, banking KYC, Aadhaar, company incorporation." }
+    ];
+    return `<div class="card" id="name-windows">
+      <div class="goal-head">
+        <div class="card-title">${lang === "hi" ? "नाम-सुधार की दो विंडो" : lang === "gu" ? "નામ-સુધારાની બે વિન્ડો" : "The Two Windows of Name Correction"}</div>
+        <span class="badge info">${lang === "hi" ? "एक ही व्यक्ति, दो पहचान" : lang === "gu" ? "એક જ વ્યક્તિ, બે ઓળખ" : "One person, two identities"}</span>
+      </div>
+      <table class="rtable">
+        <tr><th>${lang === "hi" ? "विंडो" : lang === "gu" ? "વિન્ડો" : "Window"}</th><th>${lang === "hi" ? "कहाँ प्रयोग होता है" : lang === "gu" ? "ક્યાં વપરાય છે" : "Where it lives"}</th><th>${lang === "hi" ? "आपका उदाहरण" : lang === "gu" ? "તમારું ઉદાહરણ" : "Your example"}</th></tr>
+        ${rows.map((r) => `<tr data-window-row="${esc(r.w.key)}"><td><strong>${esc(r.w.label)}</strong><div class="card-sub">${esc(r.w.hint)}</div></td><td>${esc(r.usage)}</td><td><strong>${esc(r.example || "—")}</strong></td></tr>`).join("")}
+      </table>
+      <div class="card-sub">${lang === "hi" ? "विंडो 1 तुरंत लागू होती है और व्यावसायिक प्रोफ़ाइल पर बिना किसी कागज़ी कार्रवाई के चलती है। विंडो 2 पहला नाम सुधारती है और पितृ-नाम को ज्यों-का-त्यों रखती है, ताकि वंश/पारिवारिक पहचान में कोई अंतर न आए।" : lang === "gu" ? "વિન્ડો 1 તરત લાગુ થાય છે અને વ્યાવસાયિક પ્રોફાઇલ પર કોઈ કાગળકામ વગર ચાલે છે. વિન્ડો 2 પ્રથમ નામ સુધારે છે અને પિતૃ-નામ જેમ છે તેમ રાખે છે, જેથી વંશ/કૌટુંબિક ઓળખમાં કોઈ ફરક ન પડે." : "Window 1 takes effect immediately on your professional profile and needs no paperwork. Window 2 tunes the first name while holding the patronymic exactly as printed, so no lineage or family mismatch can ever arise."}</div>
+      <div class="judge-note">${lang === "hi" ? "ना कभी पहले नाम के साथ कोई काल्पनिक दूसरा आद्यक्षर जोड़ा जाता है (जैसे <em>Amarkumar U Kishorbhai</em> अस्वीकार्य), ना ही मध्य नाम के बिना कोई अक्षर गढ़ा जाता है। पहले नाम की वर्तनी सुधारें, या पूरे पितृ-नाम को उसके आद्यक्षर में बदलें।" : lang === "gu" ? "પ્રથમ નામ સાથે ક્યારેય બનાવટી બીજો આદ્યાક્ષર ઉમેરાતો નથી (જેમ કે <em>Amarkumar U Kishorbhai</em> નામંજૂર), અને મધ્ય નામ વગર કોઈ અક્ષર ઘડાતો નથી. પ્રથમ નામની જોડણી સુધારો, અથવા આખું પિતૃ-નામ તેના આદ્યાક્ષરમાં ઘટાડો." : `No arbitrary second initial is ever injected beside an existing middle token (<em>Amarkumar U Kishorbhai</em> is rejected), and no letter is invented where a real patronymic is known. Tune the first name's spelling, or compress the full patronymic into its own initial.`}</div>
+    </div>`;
+  }
+
   function spellingTableHtml(rows) {
     const lang = getLang();
     if (!rows || !rows.length) return "";
@@ -5155,26 +5693,36 @@
     const H = {
       spelling: lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling",
       strategy: lang === "hi" ? "रणनीति" : lang === "gu" ? "વ્યૂહરચના" : "Strategy",
+      window: lang === "hi" ? "कहाँ लागू होगी" : lang === "gu" ? "ક્યાં લાગુ પડશે" : "Applies to",
       total: lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total",
       practicality: lang === "hi" ? "व्यावहारिकता" : lang === "gu" ? "વ્યવહારુતા" : "Pronunciation & practicality",
       why: lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"
     };
-    /* Two strategies, one table: middle initials first (legal/banking clean),
-       the pronunciation-preserving spelling alterations underneath (digital /
-       social), each row carrying its own honest practicality rating. The
-       specific letter change stays on the row as a data attribute so audits
-       and smoke assertions can still see exactly what was doubled or added. */
+    /* Window 1 then Window 2 — the everyday identity first because it is the
+       one the client can change today without a single form. Inside a window:
+       the authentic family initial, the generic middle initials, the
+       patronymic compressions, and finally the pronunciation-preserving
+       alterations. Each row states its window and strategy, each group
+       explains itself once, and the literal letter change stays on the row as
+       a data attribute so audits and smoke assertions can still see exactly
+       what was doubled, added or compressed. */
+    const source = rated.slice().sort(compareSpellingRows);
     return `<div class="table-scroll"><table class="rtable spelling-table">
-      <tr><th>${H.spelling}</th><th>${H.strategy}</th><th>${H.total}</th><th>${H.practicality}</th><th>${H.why}</th></tr>
-      ${rated.map((v, i) => {
+      <tr><th>${H.spelling}</th><th>${H.strategy}</th><th>${H.window}</th><th>${H.total}</th><th>${H.practicality}</th><th>${H.why}</th></tr>
+      ${source.map((v, i) => {
         const strategy = nameStrategyOf(v.kind, lang);
-        /* The strategy explanation belongs to the group, not to every row: it
-           prints once, on the first row that uses it. */
-        const previous = i > 0 ? nameStrategyOf(rated[i - 1].kind, lang) : null;
-        const showHint = !previous || previous.key !== strategy.key;
-        return `<tr data-spelling-strategy="${esc(strategy.key)}" data-change="${esc(v.change || "")}">
+        const win = nameWindowOf(v.window, lang);
+        /* The strategy and window explanations belong to their group, not to
+           every row: each prints once, on the first row that uses it. */
+        const prevStrategy = i > 0 ? nameStrategyOf(source[i - 1].kind, lang) : null;
+        const prevWindow = i > 0 ? nameWindowOf(source[i - 1].window, lang) : null;
+        const showStrategyHint = !prevStrategy || prevStrategy.key !== strategy.key;
+        const showWindowHint = !prevWindow || prevWindow.key !== win.key;
+        const legalSafe = strategy.key === "middle-initial" || strategy.key === "authentic-middle-initial";
+        return `<tr data-spelling-strategy="${esc(strategy.key)}" data-window="${esc(win.key)}" data-change="${esc(v.change || "")}"${v.authentic ? ' data-authentic-initial="true"' : ""}>
           <td><strong>${esc(v.text)}</strong></td>
-          <td><span class="badge ${strategy.key === "middle-initial" ? "good" : "info"}" data-strategy="${esc(strategy.key)}">${esc(strategy.label)}</span>${showHint ? `<div class="card-sub" data-strategy-hint="${esc(strategy.key)}">${esc(strategy.hint)}</div>` : ""}</td>
+          <td><span class="badge ${legalSafe ? "good" : "info"}" data-strategy="${esc(strategy.key)}">${esc(strategy.label)}</span>${showStrategyHint ? `<div class="card-sub" data-strategy-hint="${esc(strategy.key)}">${esc(strategy.hint)}</div>` : ""}</td>
+          <td><span class="badge ${win.key === "public" ? "info" : "warn"}" data-window-badge="${esc(win.key)}">${esc(win.label)}</span>${showWindowHint ? `<div class="card-sub" data-window-hint="${esc(win.key)}">${esc(win.hint)}</div>` : ""}</td>
           <td><strong>${v.compound}</strong> <span class="card-sub" data-new-number="${v.reduced}">(${v.reduced})</span></td>
           <td data-practicality="${v.practicality.score}"><span class="practicality-stars" aria-hidden="true">${stars(v.practicality.score)}</span> ${esc(v.practicality.label)}${v.practicality.notes.length ? `<div class="card-sub">${v.practicality.notes.map(esc).join(" · ")}</div>` : ""}</td>
           <td>${esc(v.why)}</td>
@@ -5220,7 +5768,9 @@
       ? (lang === "hi" ? "जन्म तिथि" : lang === "gu" ? "જન્મ તિથિ" : "Birth day")
       : src === "conductor"
         ? (lang === "hi" ? "पूर्ण जन्मतिथि का योग" : lang === "gu" ? "સંપૂર્ણ જન્મતારીખનો સરવાળો" : "Full birth-date total")
-        : (lang === "hi" ? "नाम का चाल्डियन योग" : lang === "gu" ? "નામનો કાલ્ડિયન સરવાળો" : "Name Chaldean total");
+        : src === "legalName"
+          ? (lang === "hi" ? "कानूनी नाम का चाल्डियन योग" : lang === "gu" ? "કાનૂની નામનો કાલ્ડિયન સરવાળો" : "Legal-name Chaldean total")
+          : (lang === "hi" ? "नाम का चाल्डियन योग" : lang === "gu" ? "નામનો કાલ્ડિયન સરવાળો" : "Name Chaldean total");
     const rows = debts.map((kd) => {
       const e = (db.karmicDebt && db.karmicDebt[kd.n]) || {};
       const rootInfo = db.numbers[reduce(kd.n)] || {};
@@ -6050,12 +6600,27 @@
 
     const nameVerdictTone = nameSug.verdict === "enemy" || (p.nameRelD === "enemy" || p.nameRelC === "enemy") ? "bad" : nameSug.verdict === "neutral" ? "warn" : "good";
     const nameMaster = masterNumber(p.nameCompound);
+    /* Dual-name layer: the statutory reading and the two-window explainer sit
+       directly under the everyday card; when no legal string was captured the
+       client simply gets told what adding one would unlock. */
+    const nameLayerBlock = p.nameDual
+      ? `${legalNameCard(p)}${nameWindowsCard(p)}`
+      : `<div class="card" id="legal-name-nudge">
+          <div class="goal-head">
+            <div class="card-title">${lang === "hi" ? "दस्तावेज़ी नाम की दूसरी परत जोड़ें" : lang === "gu" ? "દસ્તાવેજી નામનું બીજું સ્તર ઉમેરો" : "Unlock the Document / Legal layer"}</div>
+            <span class="badge info">${lang === "hi" ? "वैकल्पिक" : lang === "gu" ? "વૈકલ્પિક" : "Optional"}</span>
+          </div>
+          <div class="kit-value">${lang === "hi" ? "आपने केवल एक नाम दर्ज किया है। फ़ॉर्म में <strong>पूरा कानूनी नाम (आधार/PAN अनुसार)</strong> जोड़ें ताकि इंजन दस्तावेज़ी कुल योग की गणना कर सके और आपके असली पितृ-नाम का पहला अक्षर (जैसे <em>किशोरभाई → K</em>) निकाल सके — यह वह शून्य-विकृति विकल्प है जो किसी भी काल्पनिक अक्षर से पहले आता है।" : lang === "gu" ? "તમે ફક્ત એક નામ દાખલ કર્યું છે. ફોર્મમાં <strong>આખું કાનૂની નામ (આધાર/PAN પ્રમાણે)</strong> ઉમેરો જેથી એન્જિન દસ્તાવેજી સરવાળો ગણી શકે અને તમારા સાચા પિતૃ-નામનો પ્રથમ અક્ષર (જેમ કે <em>કિશોરભાઈ → K</em>) કાઢી શકે — આ શૂન્ય-વિકૃતિ વિકલ્પ કોઈ પણ બનાવટી અક્ષર પહેલાં આવે છે." : `You entered one name, so the report scores the identity you live in — the everyday one. Add your <strong>Full Legal Name (as on Aadhaar / PAN)</strong> on the intake form and the engine also reads the statutory string, then extracts your real patronymic's first letter (<em>Kishorbhai → K</em>) as a zero-distortion tuning lever offered before any invented initial.`}</div>
+        </div>`;
     const nameSection = `<section class="rsection">
       <h2 class="rsection-title"><span class="idx">${SECTION.name}</span>${t("secName", "Name Analysis & Spelling Correction")}</h2>
       <div class="card">
         <div class="goal-head">
-          <div class="card-title">${esc(p.name)}</div>
-          <span class="badge info">Chaldean total ${p.nameCompound}${nameMaster ? " (Master Number)" : ""} → Name Number ${p.nameNum}</span>
+          <div>
+            ${p.nameDual ? `<div class="card-sub" data-name-layer="public">${lang === "hi" ? "दैनिक / सार्वजनिक एवं व्यावसायिक नाम" : lang === "gu" ? "દૈનિક / જાહેર અને વ્યાવસાયિક નામ" : "Everyday / Public & Professional name"}</div>` : ""}
+            <div class="card-title">${esc(p.name)}</div>
+          </div>
+          <span class="badge info">${p.nameDual ? (lang === "hi" ? "सार्वजनिक कुल" : lang === "gu" ? "જાહેર સરવાળો" : "Public / Usage total") : "Chaldean total"} ${p.nameCompound}${nameMaster ? " (Master Number)" : ""} → Name Number ${p.nameNum}</span>
           ${relBadge(p.nameRelD === "enemy" || p.nameRelC === "enemy" ? "enemy" : p.nameRelD === "neutral" || p.nameRelC === "neutral" ? "neutral" : "friendly")}
         </div>
         <table class="rtable">
@@ -6065,8 +6630,8 @@
         ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Two strategies are offered: a <strong>middle initial</strong>, which keeps both existing names intact and is the cleanest route for banking and legal records, and a <strong>spelling alteration</strong>, which needs no paperwork and suits social media, digital profiles and business cards. Every option carries a Strategy label and a Pronunciation & Practicality rating. Priority is given to spellings that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
-               ${spellingTableHtml(nameSug.variants)}
+            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Each row states <em>where</em> it applies and <em>how</em> it changes: <strong>Window 1 — Everyday / Public</strong> (business cards, profiles, letterheads; no paperwork) or <strong>Window 2 — Formal / Document</strong> (passport, KYC, Aadhaar, incorporation, where your patronymic stays exactly as printed). The <strong>authentic middle initial</strong> — the real first letter of your legal patronymic — is always offered before any spelling alteration, because it is a letter you already own. Priority is given to options that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
+               ${spellingTableHtml((nameSug.variants || []).concat(nameSug.legalVariants || []))}
                <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.loShuMissing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
           : `<div class="kit-value">${esc(db.nameAdvice[nameVerdictTone === "good" ? "friendly" : "neutral"])}</div>${(nameSug.optional && nameSug.optional.variants && nameSug.optional.variants.length) ? `<div class="card" style="margin-top:12px">
@@ -6074,11 +6639,12 @@
                  <div class="card-title">${lang === "hi" ? "वैकल्पिक वृद्धि (Optional Enhancement)" : lang === "gu" ? "વૈકલ્પિક ઉન્નતિ (Optional Enhancement)" : "Optional Enhancement"}</div>
                  <span class="badge info">${lang === "hi" ? "केवल वैकल्पिक — कोई बदलाव आवश्यक नहीं" : lang === "gu" ? "માત્ર વૈકલ્પિક — કોઈ ફેરફાર જરૂરી નથી" : "Optional only — no change required"}</span>
                </div>
-               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो शू Foundation grid में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है। आप चुन सकते हैं: कानूनी/बैंक रिकॉर्ड के लिए मध्य आद्यक्षर, या डिजिटल/सोशल प्रोफ़ाइल के लिए वर्तनी-परिवर्तन।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો શુ Foundation grid માં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય. તમે પસંદ કરી શકો: કાનૂની/બેંક રેકોર્ડ માટે મધ્ય આદ્યાક્ષર, અથવા ડિજિટલ/સોશિયલ પ્રોફાઇલ માટે જોડણી-ફેરફાર.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu Foundation grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess. Choose a <strong>middle initial</strong> if the change should stay clean for banking and legal records, or a <strong>spelling alteration</strong> if you would rather keep the exact two-word name and use the new spelling on social, digital and card profiles.`}</div>
-               ${spellingTableHtml(nameSug.optional.variants)}
+               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो शू Foundation grid में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है। हर पंक्ति बताती है कि वह कहाँ लागू होगी — <strong>विंडो 1: दैनिक/सार्वजनिक</strong> (विज़िटिंग कार्ड, प्रोफ़ाइल, लेटरहेड; कोई कागज़ी कार्रवाई नहीं) या <strong>विंडो 2: औपचारिक/दस्तावेज़</strong> (पासपोर्ट, KYC, आधार, कंपनी पंजीकरण; पितृ-नाम ज्यों-का-त्यों)। आपके असली पितृ-नाम का अक्षर (प्रामाणिक मध्य आद्यक्षर) हमेशा किसी भी वर्तनी-परिवर्तन से पहले रखा जाता है।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો શુ Foundation grid માં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય. દરેક પંક્તિ કહે છે કે તે ક્યાં લાગુ પડશે — <strong>વિન્ડો 1: દૈનિક/જાહેર</strong> (વિઝિટિંગ કાર્ડ, પ્રોફાઇલ, લેટરહેડ; કોઈ કાગળકામ નહીં) અથવા <strong>વિન્ડો 2: ઔપચારિક/દસ્તાવેજ</strong> (પાસપોર્ટ, KYC, આધાર, કંપની નોંધણી; પિતૃ-નામ જેમ છે તેમ). તમારા સાચા પિતૃ-નામનો અક્ષર (અસલી મધ્ય આદ્યાક્ષર) હંમેશાં કોઈ પણ જોડણી-ફેરફાર પહેલાં રજૂ થાય છે.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu Foundation grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess. Choose a <strong>middle initial</strong> if the change should stay clean for banking and legal records, or a <strong>spelling alteration</strong> if you would rather keep the exact two-word name and use the new spelling on social, digital and card profiles.`}</div>
+               ${spellingTableHtml((nameSug.optional.variants || []).concat(nameSug.optional.legalVariants || []))}
                <div class="card-sub">${lang === "hi" ? "वैकल्पिक: यदि चाहें तो नई स्पेलिंग को ४० दिनों तक रोज २१ बार लिखें और पहले गैर-कानूनी प्रोफाइल पर उपयोग करें — कोई कानूनी बदलाव आवश्यक नहीं।" : lang === "gu" ? "વૈકલ્પિક: જો ઇચ્છો તો નવી સ્પેલિંગ ૪૦ દિવસ સુધી રોજ ૨૧ વખત લખો અને પહેલાં બિન-કાનૂની પ્રોફાઇલ પર વાપરો — કોઈ કાનૂની ફેરફાર જરૂરી નથી." : `Optional: if you wish to activate it, write the new spelling 21 times daily for 40 days and use it on non-legal profiles first — no legal change is required.`}</div>
              </div>` : ""}`}
       </div>
+      ${nameLayerBlock}
       ${brand ? `<div class="card">
         <div class="card-title">Business / Brand Name — Chaldean Success Reading</div>
         <div class="goal-head">
@@ -7807,6 +8373,9 @@
     if (!validate()) return;
     const input = {
       name: $("#fullName").value.trim(),
+      // Full legal string (Aadhaar / PAN spelling). Absent keeps the classic
+      // single-name behaviour, so every saved chart still loads unchanged.
+      legalName: ($("#legalName") && $("#legalName").value.trim()) || "",
       dob: normalizeDobInput($("#dob").value),
       mobile: $("#mobile").value.replace(/[^\d+]/g, ""),
       vehicle: $("#vehicle").value.trim(),
@@ -7893,7 +8462,9 @@
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
     normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
-    setReportMode, setDashaEngine, namePracticality, nameStrategyOf, initialCandidates, tidyText,
+    setReportMode, setDashaEngine, namePracticality, nameStrategyOf, nameWindowOf, initialCandidates, tidyText,
+    nameIdentity, nameTokens, isInitialToken, firstLetterOf, authenticInitialAnalysis, nameCandidatePool,
+    compressionCandidates, legalWindowCandidates, buildLegalWindowVariants, NAME_WINDOW, SPELLING_TIER_ORDER,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
     loShuGridLayout: LO_SHU_GRID_LAYOUT.map((row) => row.slice()),

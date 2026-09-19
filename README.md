@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.13.1 — Formatting & client-agency polish on the 2.13.0 architecture & UX audit (strict grid tagging, Kua segregation, primary Dasha engine, progressive disclosure, Client/Practitioner bundling, layman action framework)**
+**Release 2.14.0 — Dual-name intake: everyday identity vs statutory record, with the authentic patronymic initial as the first remedy**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,27 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.14.0
+
+One ambiguous **Full Name** box could not tell the engine which spelling the
+client actually lives in, and it hid the patronymic that carries the only
+culturally free tuning lever. The intake now captures two strings, and every
+suggestion states which identity it belongs to.
+
+Reference chart throughout: **Amar K Sambhvani** (38 → 2) as the everyday /
+professional identity and **Amarkumar Kishorbhai Sambhvani** (80 → 8) as the
+statutory record.
+
+| Area | 2.14.0 behaviour |
+| --- | --- |
+| **Dual-name intake** | Section 1 of the form now asks for an **Everyday / Professional Name** (required — business card, email signature, bank card, LinkedIn) and a **Full Legal Name (as on Aadhaar / PAN)** (optional). The legal field is the only *optional* one: leave it blank and the report is byte-for-byte what it was before, with a card inviting you to add it. Saved charts and pre-2.14.0 snapshots load unchanged. |
+| **Two layers, two totals** | The everyday string keeps the primary reading (hero, Name Number, Lo Shu Name grid, Dasha identity band) because that is the identity the world uses. The statutory string is scored in parallel and reported as the **Document / Legal Total** card, with its own Driver/Conductor relation badges, compound meaning, master number and karmic scan. A legal total landing on 13/14/16/19 is reported as its own karmic source. |
+| **Authentic Middle Initial (#1 priority)** | When the legal patronymic is captured (`Kishorbhai` → K, `Ravindra` → R) the engine tests that **real** letter on the everyday name first. If it lands on a number harmonious with the Driver and Conductor it is offered **before any spelling alteration**, under its own *Authentic Middle Initial* strategy at ★★★★★ — e.g. `Randeep R Walia` (44 → 8) ranked above every double. If it lands on an enemy number it is shown and explicitly rejected in the patronymic analysis rather than silently dropped. |
+| **No invented letters** | The A–Z initial scan is suppressed whenever a real family letter is known, and also whenever the everyday name already carries a middle token (`Amarkumar U Kishorbhai` can no longer be generated). A patronymic already present in full (`Amar Kishorbhai Sambhvani`) is *compressed* to its own initial instead of being duplicated. |
+| **The two windows of name correction** | Every row of the spelling table now carries an **Applies to** column: **Window 1 — Everyday / Public** (business cards, LinkedIn, WhatsApp, email signature, letterheads; live immediately, no paperwork) and **Window 2 — Formal / Document** (passport, banking KYC, Aadhaar, incorporation). Window 2 suggestions are generated from the legal string with the patronymic held byte-for-byte — only the first name is tuned, e.g. `Amarkuumar Kishorbhai Sambhvani` (86 → 5). Window 1 also offers compression (`Amarkumar K Sambhvani`) and omission for the daily form. |
+| **Report & cockpit** | A **Two Windows of Name Correction** card states where each window lives, using the client's own strings, plus a **Patronymic analysis** list naming each family token, its Chaldean value and the verdict of the authentic-initial test. The practitioner cockpit prints the statutory total beside the everyday one (`Legal: 80 → 8`). |
+| **Pack / app version** | Knowledge data unchanged (`latestVersion` stays **2.9.0**); `appVersion` moves to **2.14.0** in `knowledge-pack/latest.json`, and `APP_VERSION`, the `index.html` meta, `sw.js` cache, the i18n status pills, the build label and `package.json`/`package-lock.json` follow. Source archive regenerated from HEAD. |
 
 ## What changed in 2.13.1
 
