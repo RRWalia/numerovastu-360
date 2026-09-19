@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.13.0 — Architecture & UX audit: strict grid tagging, Kua segregation, primary Dasha engine, progressive disclosure, Client/Practitioner bundling, layman action framework**
+**Release 2.13.1 — Formatting & client-agency polish on the 2.13.0 architecture & UX audit (strict grid tagging, Kua segregation, primary Dasha engine, progressive disclosure, Client/Practitioner bundling, layman action framework)**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,21 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.13.1
+
+A review of the printed consultation dossier (reference chart: **Amar
+Sambhvani, 24 Jan 1983 — Money / Business / Career**) found four client-facing
+defects on top of the 2.13.0 architecture. None of them changed an engine
+result; all of them changed what the client actually reads.
+
+| Area | 2.13.1 behaviour |
+| --- | --- |
+| **Micro-Routine cell formatting (#1)** | The 7-Day Micro-Routine action cell no longer concatenates its sources ("Wear white. Wear clean, fragrant clothes Donate: Donate white sweets…"). Each row prints labelled bullets — **Wear:** / **Action:** / **Donate:** — stacked vertically, the "Donate" prefix is never doubled, and a lifestyle clause that merely repeats the colour slot ("green on Wednesdays" beside `Wear: Green`) is dropped instead of echoed. Pinned by smoke on the Friday row. |
+| **Solar mute clarity (#2)** | A solar-overload chart previously read "Offer water to the rising Sun daily … Muted", which left the one solar practice the client has always done looking banned. The muted Sun row now prints **"Brief sunrise Arghya only (30 sec); avoid midday sun and skip Surya Bhedana"**, the DO column carries *"Keep the sun practice minimal: a brief 30-second sunrise Arghya only, then cool down with Chandra Bhedana or evening grounding"*, and the DO-NOT column bans only the extended forms (extended sun rituals, midday Solar Activation, Surya Bhedana, prolonged sun-gazing). The row keeps `data-conflict-muted="solar-overload"` for the automated audit but is tinted rather than struck through — striking through a permitted practice read as "do not do this". |
+| **Print-text hygiene & the dangling hyphen (#3)** | `tidyText()` now runs over every data-driven cell (colour, lifestyle, charity, Vastu zone remedy): broken compounds are repaired (`clutterfree-;` → `clutter-free;`), a hyphen touching punctuation is dropped, spaced or doubled punctuation collapses. The 90-day Pratyantar Vastu micro-action additionally prints **clause-per-line** — one complete sentence per bullet — so a wrapped line can never strand a hyphen, and the printed "North-West — Keep the North-West clutter-free; add brass decor and check stored water." now reads as two clean bullets under the zone heading. A smoke assertion scans the whole rendered report for `clutterfree` and for any `letter-, letter-; letter-.` artefact. |
+| **Tiered name menu with a Strategy column (#4)** | Section 6 keeps client agency over *how* the name changes. The spelling table gains a **Strategy** column — **Middle Initial** (best for banking/legal records; both core names keep their spelling) and **Spelling Alteration** (same pronunciation; social media, digital profiles and business cards) — with middle initials listed first and the alterations directly underneath. The rating is now tiered by strategy instead of blanket-penalising every double: middle initial **5 Excellent**, low-contrast double such as `Amar Sambhhvani` **4 Good** ("visually subtle"), ending-shifting double such as `Amar Sambhvanni` **3 Moderate**, same-sound swap 4, mid-name vowel insert 3, ending vowel insert (Suniel pattern) 4. The reference chart gets exactly the four-row menu **Amar E Sambhvani · Amar H Sambhvani · Amar Sambhhvani · Amar Sambhvanni**, and the group explanation prints once per strategy rather than on every row. The specific letter change stays on each row as `data-change` for audits. |
+| **Pack / app version** | Knowledge data unchanged (`latestVersion` stays **2.9.0**); `appVersion` moves to **2.13.1** in `knowledge-pack/latest.json`, and `APP_VERSION`, the `index.html` meta, `sw.js` cache, the i18n status pills and `package.json`/`package-lock.json` follow. Source archive regenerated from HEAD. |
 
 ## What changed in 2.13.0
 

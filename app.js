@@ -894,7 +894,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.13.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.13.1";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-13";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -2213,13 +2213,43 @@
     return candidates;
   }
 
-  /* Pronunciation & Practicality Rating (2026-09 audit enhancement).
-     A spelling that fixes a number but wrecks a bank form is not a good
-     remedy. Every candidate is scored 1–5 on how safely it survives legal /
-     banking / official formats, and the report prints the rating beside the
-     suggestion. Doubling a TRAILING consonant (Amar -> Amarj?) is cheaper
-     than doubling inside a consonant cluster (Sambhvani -> Sambhhvani, which
-     reads as a typo in legal formats) — the score encodes exactly that. */
+  /* Pronunciation & Practicality Rating (2026-09 audit; tiered in the polish
+     pass). A spelling that fixes a number but wrecks a bank form is not a good
+     remedy, so every candidate is scored 1–5 AND assigned to the strategy the
+     client is actually choosing between:
+
+       5 Excellent     — middle initial (the legal/banking-clean option: both
+                         core names keep their existing spelling), a trailing
+                         double, or an ending vowel insertion (Suniel pattern)
+       4 Good          — a low-contrast double such as "Sambhhvani": visually
+                         subtle, ideal for social media, digital profiles and
+                         business cards, without touching legal documents
+       3 Moderate      — doubling the consonant before the closing vowel
+                         ("Sambhvanni") shifts the visible ending
+       2 Use with care — doubling inside a hard consonant cluster, which reads
+                         like a typo on legal formats
+
+     Doubling a TRAILING consonant stays the safest letter change; the middle
+     initial stays the safest overall. */
+  const NAME_LOW_CONTRAST_DOUBLES = "H";
+  /* Where a single inserted letter landed, and how many letters of that word
+     follow it — the difference between an end-of-name vowel ("Amare", the
+     Suniel pattern) and a vowel dropped into the middle ("Amear"). Returns -1
+     when the candidate is not a clean single insertion. */
+  function insertionGap(candidateText, originalName) {
+    const a = String(candidateText || "").toUpperCase();
+    const b = String(originalName || "").toUpperCase();
+    if (!b || a.length !== b.length + 1) return -1;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        if (a.slice(i + 1) !== b.slice(i)) return -1;
+        const nextSpace = a.indexOf(" ", i);
+        const tokenEnd = nextSpace === -1 ? a.length : nextSpace;
+        return tokenEnd - i - 1;
+      }
+    }
+    return -1;
+  }
   function namePracticality(candidate, originalName) {
     const lang = getLang();
     const notes = [];
@@ -2227,25 +2257,39 @@
     const up = String(candidate.text || "").toUpperCase();
     const orig = String(originalName || "").toUpperCase();
     const VOWELS = "AEIOU";
-    // Internal consonant-cluster doubling (e.g. MBH -> MBHH) misreads as a typo.
     if (candidate.kind === "double") {
       const doubledAt = up.split("").findIndex((ch, i) => i > 0 && ch === up[i - 1] && !VOWELS.includes(ch));
-      const afterDoubled = up.slice(doubledAt + 1, doubledAt + 3);
-      const clusterInside = doubledAt > -1 && afterDoubled && !VOWELS.includes(afterDoubled[0] || "A");
-      const atWordEnd = doubledAt === up.length - 1 || up[doubledAt + 1] === " ";
-      if (clusterInside && !atWordEnd) {
+      const doubledLetter = doubledAt > -1 ? up[doubledAt] : "";
+      const nextChar = up[doubledAt + 1] || " ";
+      const atWordEnd = doubledAt === up.length - 1 || nextChar === " ";
+      /* A doubled VOWEL (Tripti -> Triptii) is the classic sound-preserving
+         remedy and never penalised; `includes("")` is true, so the guard has
+         to test the index as well as the letter. */
+      const lowContrast = doubledAt > -1 && NAME_LOW_CONTRAST_DOUBLES.includes(doubledLetter);
+      if (doubledAt === -1) {
+        notes.push(lang === "hi" ? "स्वर दोहराव — उच्चारण और रूप दोनों सुरक्षित रहते हैं" : lang === "gu" ? "સ્વર પુનરાવર્તન — ઉચ્ચાર અને દેખાવ બંને સુરક્ષિત રહે છે" : "repeated vowel — sound and shape both stay safe");
+      } else if (atWordEnd) {
+        notes.push(lang === "hi" ? "अंत में दोहराव — सबसे सुरक्षित बदलाव" : lang === "gu" ? "અંતે પુનરાવર્તન — સૌથી સુરક્ષિત ફેરફાર" : "trailing double — the safest letter change");
+      } else if (lowContrast) {
+        score -= 1;
+        notes.push(lang === "hi" ? "कम-दृश्यमान दोहराव — आँख को हल्का लगता है; सोशल मीडिया, डिजिटल प्रोफ़ाइल और कार्ड के लिए उपयुक्त, कानूनी दस्तावेज़ वैसे ही रखें" : lang === "gu" ? "ઓછું દૃશ્ય ડબલ — આંખને હળવું લાગે; સોશિયલ મીડિયા, ડિજિટલ પ્રોફાઇલ અને કાર્ડ માટે યોગ્ય, કાનૂની દસ્તાવેજ એવા જ રાખો" : "low-contrast double — visually subtle; ideal for social media, digital profiles and business cards without touching legal documents");
+      } else if (VOWELS.includes(nextChar)) {
+        score -= 2;
+        notes.push(lang === "hi" ? "अंतिम स्वर से पहले का व्यंजन दोहराता है — दिखने वाला अंत बदल जाता है; गैर-कानूनी प्रोफ़ाइल तक रखें" : lang === "gu" ? "અંતિમ સ્વર પહેલાંનો વ્યંજન ડબલ થાય છે — દેખાતો અંત બદલાય છે; બિન-કાનૂની પ્રોફાઇલ સુધી રાખો" : "doubles the consonant before the closing vowel, so the visible ending shifts — best kept to non-legal profiles");
+      } else {
         score -= 2;
         notes.push(lang === "hi" ? "भीतर का व्यंजन-समूह कानूनी/बैंक फॉर्म में टाइपो जैसा लग सकता है" : lang === "gu" ? "અંદરનો વ્યંજન-સમૂહ કાનૂની/બેંક ફોર્મમાં ટાઇપો જેવો લાગી શકે" : "internal consonant cluster can read like a typo on legal/banking forms");
-      } else if (!atWordEnd) {
-        score -= 1;
-        notes.push(lang === "hi" ? "शब्द के बीच दोहराव — उच्चारण सुरक्षित, पर वर्तनी की आदत बदलेगी" : lang === "gu" ? "શબ્દની વચ્ચે પુનરાવર્તન — ઉચ્ચાર સુરક્ષિત, પણ જોડણીની ટેવ બદલાશે" : "mid-word doubling — sound-safe, but spelling habits will shift");
-      } else {
-        notes.push(lang === "hi" ? "अंत में दोहराव — सबसे सुरक्षित बदलाव" : lang === "gu" ? "અંતે પુનરાવર્તન — સૌથી સુરક્ષિત ફેરફાર" : "trailing double — the safest letter change");
       }
     }
     if (candidate.kind === "insert") {
-      score -= 0;
-      notes.push(lang === "hi" ? "स्वर-जोड़ (जैसे Suniel शैली) — उच्चारण समान रहता है" : lang === "gu" ? "સ્વર-ઉમેરો (જેમ કે Suniel શૈલી) — ઉચ્ચાર એ જ રહે છે" : "vowel insertion (Suniel-style) — pronunciation stays identical");
+      const gap = insertionGap(up, orig);
+      if (gap === -1 || gap <= 1) {
+        score -= 1;
+        notes.push(lang === "hi" ? "नाम के अंत में स्वर-जोड़ (Suniel शैली) — उच्चारण समान रहता है" : lang === "gu" ? "નામના અંતે સ્વર-ઉમેરો (Suniel શૈલી) — ઉચ્ચાર એ જ રહે છે" : "ending vowel insertion (Suniel-style) — pronunciation stays identical");
+      } else {
+        score -= 2;
+        notes.push(lang === "hi" ? "नाम के बीच स्वर जोड़ना — कानूनी फॉर्म में वर्तनी-दोष जैसा पढ़ा जाता है" : lang === "gu" ? "નામની વચ્ચે સ્વર ઉમેરવો — કાનૂની ફોર્મમાં જોડણી-દોષ જેવું વંચાય છે" : "vowel inserted inside the name — reads like a misspelling on legal forms");
+      }
     }
     if (candidate.kind === "swap") {
       score -= 1;
@@ -2253,16 +2297,83 @@
     }
     if (candidate.kind === "initial") {
       score += 1;
-      notes.push(lang === "hi" ? "मध्य-आद्यक्षर जोड़ना — कानूनी/बैंक रिकॉर्ड में सबसे व्यावहारिक विकल्प" : lang === "gu" ? "મધ્ય-આદ્યાક્ષર ઉમેરવો — કાનૂની/બેંક રેકોર્ડમાં સૌથી વ્યવહારુ વિકલ્પ" : "middle-initial addition — the most practical option for legal/banking records");
+      notes.push(lang === "hi" ? "मध्य-आद्यक्षर जोड़ना — कानूनी/बैंक रिकॉर्ड में सबसे व्यावहारिक विकल्प; मौजूदा नामों की वर्तनी वैसी ही रहती है" : lang === "gu" ? "મધ્ય-આદ્યાક્ષર ઉમેરવો — કાનૂની/બેંક રેકોર્ડમાં સૌથી વ્યવહારુ વિકલ્પ; હાલનાં નામોની જોડણી એવી જ રહે છે" : "middle-initial addition — the most practical option for legal/banking records; your existing names keep their spelling");
     }
     if (up.replace(/\s/g, "").length - orig.replace(/\s/g, "").length > 2) score -= 1;
     score = Math.max(1, Math.min(5, Math.round(score)));
     const label = score >= 5 ? (lang === "hi" ? "उत्कृष्ट" : lang === "gu" ? "ઉત્તમ" : "Excellent")
       : score === 4 ? (lang === "hi" ? "अच्छा" : lang === "gu" ? "સારું" : "Good")
-      : score === 3 ? (lang === "hi" ? "ठीक" : lang === "gu" ? "ઠીક" : "Fair")
+      : score === 3 ? (lang === "hi" ? "मध्यम" : lang === "gu" ? "મધ્યમ" : "Moderate")
       : score === 2 ? (lang === "hi" ? "सोच-समझकर" : lang === "gu" ? "વિચારીને" : "Use with care")
       : (lang === "hi" ? "अव्यावहारिक" : lang === "gu" ? "અવ્યવહારુ" : "Awkward");
     return { score, label, notes: notes.slice(0, 2) };
+  }
+
+  /* The two strategies a client chooses between (2026-09 polish). Middle
+     initials are listed first because they are the legal/banking-clean route;
+     pronunciation-preserving letter alterations sit directly underneath as the
+     digital/social route that needs no paperwork. */
+  const NAME_STRATEGY = {
+    initial: {
+      key: "middle-initial",
+      en: { label: "Middle Initial", hint: "Best for banking and legal records — both existing names keep their spelling." },
+      hi: { label: "मध्य आद्यक्षर", hint: "बैंक और कानूनी रिकॉर्ड के लिए सर्वोत्तम — दोनों मौजूदा नामों की वर्तनी वैसी ही रहती है।" },
+      gu: { label: "મધ્ય આદ્યાક્ષર", hint: "બેંક અને કાનૂની રેકોર્ડ માટે શ્રેષ્ઠ — હાલનાં બંને નામોની જોડણી એવી જ રહે છે." }
+    },
+    double: {
+      key: "spelling-alteration",
+      en: { label: "Spelling Alteration", hint: "Same pronunciation; ideal for social media, digital profiles and business cards — no legal change needed." },
+      hi: { label: "वर्तनी-परिवर्तन", hint: "उच्चारण वही; सोशल मीडिया, डिजिटल प्रोफ़ाइल और कार्ड के लिए उपयुक्त — कोई कानूनी बदलाव आवश्यक नहीं।" },
+      gu: { label: "જોડણી-ફેરફાર", hint: "ઉચ્ચાર એ જ; સોશિયલ મીડિયા, ડિજિટલ પ્રોફાઇલ અને કાર્ડ માટે યોગ્ય — કોઈ કાનૂની ફેરફાર જરૂરી નથી." }
+    },
+    swap: {
+      key: "spelling-alteration",
+      en: { label: "Spelling Alteration", hint: "Same-sound letters only; the name stays recognisable on documents." },
+      hi: { label: "वर्तनी-परिवर्तन", hint: "केवल समान-ध्वनि अक्षर; दस्तावेज़ों में नाम पहचाना जाता रहता है।" },
+      gu: { label: "જોડણી-ફેરફાર", hint: "ફક્ત સમાન-ધ્વનિ અક્ષરો; દસ્તાવેજોમાં નામ ઓળખાય એવું રહે છે." }
+    },
+    insert: {
+      key: "spelling-alteration",
+      en: { label: "Spelling Alteration", hint: "A vowel is added (Suniel-style) — pronunciation stays identical." },
+      hi: { label: "वर्तनी-परिवर्तन", hint: "स्वर जोड़ा जाता है (Suniel शैली) — उच्चारण बिलकुल वही रहता है।" },
+      gu: { label: "જોડણી-ફેરફાર", hint: "સ્વર ઉમેરાય છે (Suniel શૈલી) — ઉચ્ચાર બિલકુલ એ જ રહે છે." }
+    }
+  };
+  function nameStrategyOf(kind, langOverride) {
+    const lang = langOverride || getLang();
+    const entry = NAME_STRATEGY[kind] || NAME_STRATEGY.double;
+    const copy = entry[lang] || entry.en;
+    return { key: entry.key, label: copy.label, hint: copy.hint, kind: entry.key };
+  }
+  /* One menu shape for both paths: middle initials first, then the
+     pronunciation-preserving alterations, each tier capped so the table stays
+     a short menu rather than a candidate dump. */
+  const SPELLING_TIER_ORDER = ["initial", "double", "swap", "insert"];
+  const SPELLING_TIER_CAP = { initial: 2, double: 2, swap: 1, insert: 1 };
+  function tieredSpellingMenu(hits) {
+    const out = [];
+    SPELLING_TIER_ORDER.forEach((kind) => {
+      hits.filter((h) => h.kind === kind)
+        .sort((a, b) => b.practicality.score - a.practicality.score || a.delta - b.delta)
+        .slice(0, SPELLING_TIER_CAP[kind] || 0)
+        .forEach((h) => out.push(h));
+    });
+    return out;
+  }
+  /* Correction path: keep the spread across target numbers, but give each
+     target one legal-safe and one digital-safe option instead of two clones. */
+  function pairedSpellingPick(hits) {
+    const ranked = hits.slice().sort((a, b) => b.practicality.score - a.practicality.score || a.delta - b.delta);
+    const pick = [];
+    const initial = ranked.find((h) => h.kind === "initial");
+    if (initial) pick.push(initial);
+    const alteration = ["double", "swap", "insert"]
+      .map((kind) => ranked.find((h) => h.kind === kind && pick.indexOf(h) === -1))
+      .filter(Boolean)
+      .sort((a, b) => b.practicality.score - a.practicality.score)[0];
+    if (alteration) pick.push(alteration);
+    ranked.forEach((h) => { if (pick.length < 2 && pick.indexOf(h) === -1) pick.push(h); });
+    return pick.slice(0, 2);
   }
 
   /* Middle-initial candidates (2026-09 audit enhancement): instead of only
@@ -2302,6 +2413,7 @@
      and never add to a number the person already has in excess. */
   function buildOptionalSpellings(p) {
     const db = getActiveDB();
+    const lang = getLang();
     const fillable = p.loShuMissing.filter((n) =>
       relation(p.driver, n) !== "enemy" &&
       relation(p.conductor, n) !== "enemy" &&
@@ -2309,24 +2421,29 @@
     );
     if (!fillable.length) return { variants: [], targets: [] };
     const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
-    const kindRank = { initial: 0, double: 1, swap: 2, insert: 3 };
     const variants = [];
     const seen = new Set();
     fillable.forEach((n) => {
       const planet = db.numbers[n].planet.split(" ")[0];
       const hits = candidates
         .filter((c) => c.reduced === n)
-        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }))
-        .sort((a, b) => b.practicality.score - a.practicality.score || kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
-      hits.slice(0, 2).forEach((c) => {
+        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }));
+      /* The optional menu keeps BOTH strategies: the middle initials that are
+         clean for legal/banking records first, then the pronunciation-
+         preserving spelling alterations (doubles, same-sound swaps, ending
+         vowels) directly underneath, so the client is never limited to one
+         route and never pushed toward a spelling they would not want on a
+         document. */
+      const optWhy = lang === "hi"
+        ? `वैकल्पिक: आपके अनुपस्थित अंक ${n} (${planet}) को भरता है — मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहता है`
+        : lang === "gu"
+          ? `વૈકલ્પિક: તમારો ખૂટતો અંક ${n} (${planet}) ભરે છે — મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે`
+          : `optional: fills your missing number ${n} (${planet}) — stays harmonious with Driver ${p.driver} and Conductor ${p.conductor}`;
+      tieredSpellingMenu(hits).forEach((c) => {
         const key = c.text.toUpperCase();
         if (seen.has(key)) return;
         seen.add(key);
-        variants.push({
-          ...c,
-          targetN: n,
-          why: `optional: fills your missing number ${n} (${planet}) — stays harmonious with Driver ${p.driver} and Conductor ${p.conductor}`
-        });
+        variants.push({ ...c, targetN: n, why: optWhy });
       });
     });
     return { variants: variants.slice(0, 4), targets: fillable };
@@ -2339,6 +2456,7 @@
     }
 
     const db = getActiveDB();
+    const lang = getLang();
     const missingRanked = p.loShuMissing.slice().sort((a, b) => {
       const score = (n) => {
         const rd = relation(p.driver, n), rc = relation(p.conductor, n);
@@ -2347,7 +2465,12 @@
         return 2;
       };
       return score(a) - score(b);
-    }).map((n) => ({ n, why: `compensates your missing number ${n} (${db.numbers[n].planet})` }));
+    }).map((n) => ({
+      n,
+      why: lang === "hi" ? `आपके अनुपस्थित अंक ${n} (${db.numbers[n].planet}) की भरपाई करता है`
+        : lang === "gu" ? `તમારા ખૂટતા અંક ${n} (${db.numbers[n].planet}) ની ભરપાઈ કરે છે`
+          : `compensates your missing number ${n} (${db.numbers[n].planet})`
+    }));
 
     const harm = [];
     for (let n = 1; n <= 9; n++) {
@@ -2356,8 +2479,8 @@
         harm.push({
           n,
           why: rd === "friendly" && rc === "friendly"
-            ? `harmonious with both Driver ${p.driver} and Conductor ${p.conductor}`
-            : `acceptable to Driver ${p.driver} and Conductor ${p.conductor}`
+            ? (lang === "hi" ? `मूलांक ${p.driver} और भाग्यांक ${p.conductor} दोनों के अनुकूल` : lang === "gu" ? `મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} બંને સાથે અનુકૂળ` : `harmonious with both Driver ${p.driver} and Conductor ${p.conductor}`)
+            : (lang === "hi" ? `मूलांक ${p.driver} और भाग्यांक ${p.conductor} के लिए स्वीकार्य` : lang === "gu" ? `મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} માટે સ્વીકાર્ય` : `acceptable to Driver ${p.driver} and Conductor ${p.conductor}`)
         });
       }
     }
@@ -2368,14 +2491,13 @@
     // doubling trailing consonants (2026-09 audit).
     const candidates = spellingCandidates(p.name, p.nameCompound).concat(initialCandidates(p.name, p.nameCompound));
 
-    const kindRank = { initial: 0, double: 1, swap: 2, insert: 3 };
     const variants = [];
     targets.forEach((tgt) => {
       const hits = candidates
         .filter((c) => c.reduced === tgt.n)
-        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }))
-        .sort((a, b) => b.practicality.score - a.practicality.score || kindRank[a.kind] - kindRank[b.kind] || a.delta - b.delta);
-      hits.slice(0, 2).forEach((c) => variants.push({ ...c, why: tgt.why, targetN: tgt.n }));
+        .map((c) => ({ ...c, practicality: namePracticality(c, p.name) }));
+      /* One legal-safe + one digital-safe option per target number. */
+      pairedSpellingPick(hits).forEach((c) => variants.push({ ...c, why: tgt.why, targetN: tgt.n }));
     });
 
     const finalSeen = new Set();
@@ -4222,6 +4344,54 @@
      from data already computed elsewhere — nothing new is invented, and the
      same clinical guardrails (solar overload, Moon-cold, under-18) mute
      conflicting rows instead of printing them side by side. */
+  /* ---- Client-text hygiene (2026-09 polish) -------------------------------
+     A printed cell composes three data sentences (colour, lifestyle, charity)
+     and a label. Line-wrapping a PDF can leave a dangling hyphen in front of
+     punctuation ("clutterfree-;"), which reads as a typo in a paid dossier.
+     Every client-facing cell therefore passes one tidy pass: the known
+     hyphenated compounds are repaired, a hyphen touching punctuation is
+     dropped, spaced or doubled punctuation and repeated spaces collapse. */
+  const TEXT_REPAIRS = [
+    [/\bclutterfree\b/gi, "clutter-free"],
+    [/\bclutter free\b/gi, "clutter-free"]
+  ];
+  function tidyText(value) {
+    let out = String(value == null ? "" : value);
+    if (!out) return "";
+    TEXT_REPAIRS.forEach((pair) => { out = out.replace(pair[0], pair[1]); });
+    out = out.replace(/\s+/g, " ")
+      .replace(/\s+([,;:.!?])/g, "$1")
+      .replace(/([,;:])(?:\s*\1)+/g, "$1")
+      .replace(/-([,;.])/g, "$1")
+      .replace(/\s*—\s*/g, " — ")
+      .trim();
+    return out;
+  }
+
+  /* A remedy sentence is often a "do this; then that" pair. Each clause prints
+     as its own complete bullet sentence instead of running into the next. */
+  function sentenceClause(value) {
+    const text = tidyText(value);
+    if (!text) return "";
+    const capped = text.charAt(0).toUpperCase() + text.slice(1);
+    return /[.!?]$/.test(capped) ? capped : `${capped}.`;
+  }
+
+  /* One labelled bullet per slot inside the Micro-Routine action cell. A
+     layman must be able to run a weekday row without re-reading concatenated
+     prose ("Wear white. Wear clean, fragrant clothes Donate: Donate white
+     sweets…"), so each row renders fixed slots — Wear / Action / Donate —
+     stacked vertically, and a "Donate" prefix is never doubled. */
+  function microActionCell(lines, mutedNote) {
+    const items = (lines || []).filter((line) => line && line.value)
+      .map((line) => `<li data-action-kind="${line.key}"><span class="micro-action-label">${line.label}:</span> ${line.value}</li>`)
+      .join("");
+    return `<td class="micro-action-cell">
+      <ul class="micro-action-list" data-micro-action="steps">${items}</ul>
+      ${mutedNote ? `<div class="conflict-muted-note">${mutedNote}</div>` : ""}
+    </td>`;
+  }
+
   function renderMicroRoutine(p, activation, triage) {
     const db = getActiveDB();
     const lang = getLang();
@@ -4233,6 +4403,16 @@
       time: lang === "hi" ? "समय / दिन" : lang === "gu" ? "સમય / દિવસ" : "Time / Day",
       anchor: lang === "hi" ? "ग्रह-आधार" : lang === "gu" ? "ગ્રહ-આધાર" : "Planetary Anchor",
       action: lang === "hi" ? "क्रिया" : lang === "gu" ? "ક્રિયા" : "Action Item",
+      /* Per-slot labels inside the action cell. */
+      wearLabel: lang === "hi" ? "पहनें" : lang === "gu" ? "પહેરો" : "Wear",
+      actionLabel: lang === "hi" ? "क्रिया" : lang === "gu" ? "ક્રિયા" : "Action",
+      donateLabel: lang === "hi" ? "दान" : lang === "gu" ? "દાન" : "Donate",
+      /* The one solar practice that survives the solar-overload guardrail. */
+      briefArghya: lang === "hi"
+        ? "केवल संक्षिप्त सूर्योदय अर्घ्य (30 सेकंड); दोपहर की धूप और सूर्य भेदन छोड़ें"
+        : lang === "gu"
+          ? "ફક્ત ટૂંકું સૂર્યોદય અર્ઘ્ય (30 સેકન્ડ); બપોરનો તડકો અને સૂર્ય ભેદન છોડો"
+          : "Brief sunrise Arghya only (30 sec); avoid midday sun and skip Surya Bhedana",
       mutedNote: lang === "hi" ? "संयमित — सूर्य-ओवरलोड गार्डरेल के कारण हल्के रूप में" : lang === "gu" ? "સંયમિત — સૂર્ય-ઓવરલોડ ગાર્ડરેલને કારણે હળવા રૂપમાં" : "Muted — run gently due to your solar-overload guardrail"
     };
     // Row 1 — the one Tier-1 sunrise practice (same target as the 40-day plan).
@@ -4240,16 +4420,40 @@
     const tInfo = db.numbers[tN];
     const tShort = db.mantraShort[tN];
     if (activation.holdJapa) {
-      rows.push({ when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, action: lang === "hi" ? "जप इस चक्र होल्ड पर है — इसके बजाय सक्रिय क्षेत्र साधें (40-दिन योजना देखें)।" : lang === "gu" ? "જાપ આ ચક્રે હોલ્ડ પર છે — તેના બદલે સક્રિય ક્ષેત્ર સાધો (૪૦-દિવસ યોજના જુઓ)." : "Japa is on hold this cycle — work the active sector instead (see the 40-Day Plan).", muted: false, tag: "Tier 1 target" });
+      rows.push({
+        when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, muted: false, tag: "Tier 1 target",
+        cell: microActionCell([{
+          key: "practice", label: L.actionLabel,
+          value: lang === "hi" ? "जप इस चक्र होल्ड पर है — इसके बजाय सक्रिय क्षेत्र साधें (40-दिन योजना देखें)।" : lang === "gu" ? "જાપ આ ચક્રે હોલ્ડ પર છે — તેના બદલે સક્રિય ક્ષેત્ર સાધો (૪૦-દિવસ યોજના જુઓ)." : "Japa is on hold this cycle — work the active sector instead (see the 40-Day Plan)."
+        }], "")
+      });
     } else {
       const solarMuteSunrise = solarHot && tN === 1;
-      rows.push({ when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, action: `${lang === "hi" ? "जापें" : lang === "gu" ? "જાપ કરો" : "Chant"} <span class="mantra">${esc(tShort.dev)}</span> <em>(${esc(tShort.pron)})</em> ${activation.sadhanaJapa}×${solarMuteSunrise ? ` — <span class="conflict-muted-note">${L.mutedNote}</span>` : ""}`, muted: solarMuteSunrise, tag: "Tier 1 target" });
+      rows.push({
+        when: L.daily, planet: `${esc(tInfo.planet)} (${tN})`, muted: solarMuteSunrise, tag: "Tier 1 target",
+        cell: microActionCell([{
+          key: "practice", label: L.actionLabel,
+          value: `${lang === "hi" ? "जापें" : lang === "gu" ? "જાપ કરો" : "Chant"} <span class="mantra">${esc(tShort.dev)}</span> <em>(${esc(tShort.pron)})</em> ${activation.sadhanaJapa}×`
+        }], solarMuteSunrise ? L.mutedNote : "")
+      });
     }
     // Row 2 — the nightly cooling / intention anchor.
     if (solarOverload(p)) {
-      rows.push({ when: L.nightly, planet: lang === "hi" ? "चंद्र (शीतलन)" : lang === "gu" ? "ચંદ્ર (ઠંડક)" : "Moon (Cooling)", action: lang === "hi" ? "5 मिनट बाईं-नासिका श्वास (चंद्र भेदन) और शाम का भूमि-संपर्क।" : lang === "gu" ? "5 મિનિટ ડાબી-નાસિકા શ્વાસ (ચંદ્ર ભેદન) અને સાંજનો ભૂમિ-સંપર્ક." : "5 minutes left-nostril breathing (Chandra Bhedana) plus evening grounding.", muted: false, tag: "Cooling" });
+      rows.push({
+        when: L.nightly, planet: lang === "hi" ? "चंद्र (शीतलन)" : lang === "gu" ? "ચંદ્ર (ઠંડક)" : "Moon (Cooling)", muted: false, tag: "Cooling",
+        cell: microActionCell([{
+          key: "practice", label: L.actionLabel,
+          value: lang === "hi" ? "5 मिनट बाईं-नासिका श्वास (चंद्र भेदन) और शाम का भूमि-संपर्क।" : lang === "gu" ? "5 મિનિટ ડાબી-નાસિકા શ્વાસ (ચંદ્ર ભેદન) અને સાંજનો ભૂમિ-સંપર્ક." : "5 minutes left-nostril breathing (Chandra Bhedana) plus evening grounding."
+        }], "")
+      });
     } else {
-      rows.push({ when: L.nightly, planet: `${esc(tInfo.planet)} (${tN})`, action: lang === "hi" ? `संकल्प पत्र पर "${esc(tShort.affirmation)}" 11 बार लिखें।` : lang === "gu" ? `સંકલ્પ પત્ર પર "${esc(tShort.affirmation)}" 11 વખત લખો.` : `Write "${esc(tShort.affirmation)}" 11 times on your wish paper.`, muted: false, tag: "Intention" });
+      rows.push({
+        when: L.nightly, planet: `${esc(tInfo.planet)} (${tN})`, muted: false, tag: "Intention",
+        cell: microActionCell([{
+          key: "practice", label: L.actionLabel,
+          value: lang === "hi" ? `संकल्प पत्र पर "${esc(tShort.affirmation)}" 11 बार लिखें।` : lang === "gu" ? `સંકલ્પ પત્ર પર "${esc(tShort.affirmation)}" 11 વખત લખો.` : `Write "${esc(tShort.affirmation)}" 11 times on your wish paper.`
+        }], "")
+      });
     }
     // Rows 3+ — weekday anchors: Driver/Conductor power days first, then the
     // missing goal numbers, de-duplicated by weekday.
@@ -4260,24 +4464,45 @@
       const day = dayOf(n);
       if (dayRows.some((r) => r.when === day)) return;
       const muted = solarHot && n === 1;
-      const colour = String(info.color || "").split(",")[0].toLowerCase();
-      const actionBits = [
-        colour ? (lang === "hi" ? `${esc(info.color.split(",")[0])} रंग पहनें` : lang === "gu" ? `${esc(info.color.split(",")[0])} રંગ પહેરો` : `Wear ${colour}`) : "",
-        info.charity ? (lang === "hi" ? `दान: ${esc(info.charity)}` : lang === "gu" ? `દાન: ${esc(info.charity)}` : `Donate: ${esc(info.charity)}`) : ""
-      ].filter(Boolean);
-      const lifestyle = String(info.lifestyle || "").split(";")[0];
-      if (lifestyle && actionBits.length < 3) actionBits.splice(1, 0, esc(lifestyle));
-      dayRows.push({ when: day, planet: `${esc(info.planet)} (${n})`, action: actionBits.join(" · ") + (muted ? ` — <span class="conflict-muted-note">${L.mutedNote}</span>` : ""), muted, tag });
+      const colour = tidyText(String(info.color || "").split(",")[0]);
+      const lifestyle = tidyText(String(info.lifestyle || "").split(";")[0]);
+      /* "Wear green on Wednesdays" beside the colour slot "Green" repeats
+         itself, so a wear clause that opens with the colour word is dropped. */
+      const colourHead = (colour.split(/\s+/)[0] || "").toLowerCase();
+      const rawWearClause = /^wear\b/i.test(lifestyle) ? tidyText(lifestyle.replace(/^wear\b/i, "")) : "";
+      const wearClause = rawWearClause && colourHead && !rawWearClause.toLowerCase().startsWith(colourHead) ? rawWearClause : "";
+      const actionClause = /^wear\b/i.test(lifestyle) ? "" : lifestyle;
+      const lines = [];
+      const wearValue = [colour, wearClause].filter(Boolean).join(" · ");
+      if (wearValue) lines.push({ key: "wear", label: L.wearLabel, value: esc(wearValue) });
+      /* Solar guardrail: on a Sun-heavy chart the row is muted, and the one
+         solar practice that survives is the brief sunrise arghya — the long
+         "offer water daily" routine is exactly what must not print live. */
+      if (muted) lines.push({ key: "action", label: L.actionLabel, value: esc(L.briefArghya) });
+      else if (actionClause) lines.push({ key: "action", label: L.actionLabel, value: esc(actionClause) });
+      if (info.charity) {
+        const charity = tidyText(String(info.charity).replace(/^donate[d]?\s+/i, ""));
+        if (charity) lines.push({ key: "donate", label: L.donateLabel, value: esc(charity) });
+      }
+      dayRows.push({
+        when: day, planet: `${esc(info.planet)} (${n})`, tag, muted,
+        cell: microActionCell(lines, muted ? L.mutedNote : "")
+      });
     };
     pushDayRow(p.driver, lang === "hi" ? "मूलांक" : lang === "gu" ? "મૂળાંક" : "Driver");
     if (p.conductor !== p.driver) pushDayRow(p.conductor, lang === "hi" ? "भाग्यांक" : lang === "gu" ? "ભાગ્યાંક" : "Conductor");
     (activation.missingFocus || []).slice(0, 3).forEach((n) => pushDayRow(n, lang === "hi" ? "लो शू गैप" : lang === "gu" ? "લો શુ ગેપ" : "Lo Shu gap"));
     rows.push(...dayRows.slice(0, 5));
 
-    const bodyRows = rows.map((r) => `<tr${r.muted ? ' class="conflict-muted" data-conflict-muted="solar-overload"' : ""}>
+    /* A solar-muted row no longer carries the blanket strikethrough used
+       elsewhere: the row now prints the ONE practice that survives (the brief
+       sunrise arghya), so striking it through would read as "do not do this".
+       It is tinted as a guardrail row and keeps `data-conflict-muted` for the
+       automated safety audit. */
+    const bodyRows = rows.map((r) => `<tr${r.muted ? ' class="solar-guardrail-row" data-conflict-muted="solar-overload"' : ""}>
       <td><strong>${r.when}</strong></td>
       <td>${r.planet}<div class="card-sub">${esc(r.tag)}</div></td>
-      <td>${r.action}</td>
+      ${r.cell}
     </tr>`).join("");
     return `<div class="card micro-routine-card" data-micro-routine="7-day">
       <div class="goal-head">
@@ -4300,7 +4525,8 @@
     // DO: active Vastu sector from the Dasha triage.
     const t1 = (triage && triage.tier1) || {};
     if (t1.zone && t1.zoneRemedy) {
-      dos.push({ text: lang === "hi" ? `सक्रिय वास्तु क्षेत्र साधें — ${t1.zone}: ${t1.zoneRemedy}` : lang === "gu" ? `સક્રિય વાસ્તુ ક્ષેત્ર સાધો — ${t1.zone}: ${t1.zoneRemedy}` : `Activate the live Vastu sector — ${t1.zone}: ${t1.zoneRemedy}`, src: "dasha" });
+      const zoneRemedy = tidyText(t1.zoneRemedy);
+      dos.push({ text: lang === "hi" ? `सक्रिय वास्तु क्षेत्र साधें — ${t1.zone}: ${zoneRemedy}` : lang === "gu" ? `સક્રિય વાસ્તુ ક્ષેત્ર સાધો — ${t1.zone}: ${zoneRemedy}` : `Activate the live Vastu sector — ${t1.zone}: ${zoneRemedy}`, src: "dasha" });
     }
     // DO: keep NE + centre clear (general upkeep from the Vastu section).
     dos.push({ text: lang === "hi" ? "घर के ईशान कोण और केंद्र (ब्रह्मस्थान) को भारी सामान से खाली रखें।" : lang === "gu" ? "ઘરના ઈશાન ખૂણા અને કેન્દ્ર (બ્રહ્મસ્થાન) ને ભારે સામાનથી ખાલી રાખો." : "Keep the North-East and the centre (Brahmasthan) of the home free of heavy clutter.", src: "vastu" });
@@ -4313,9 +4539,14 @@
     }
     // DO NOT: never stack gemstones / dark stones.
     donts.push({ text: lang === "hi" ? "एक साथ कई गहरे रत्न न खरीदें / न पहनें — एक सक्रिय रत्न पर्याप्त है।" : lang === "gu" ? "એકસાથે અનેક ઘેરા રત્નો ન ખરીદો / ન પહેરો — એક સક્રિય રત્ન પૂરતું છે." : "Do not stack multiple dark stones or buy several gemstones at once — one activating stone is enough.", src: "triage" });
-    // DO NOT: solar-overload heating practices.
+    /* Solar-overload pair. A guardrail that only prints bans leaves the client
+       guessing whether the sunrise water offering they have always done is
+       now forbidden, so the DO column names the one practice that survives
+       (a brief 30-second arghya) and the DO-NOT column bans only the
+       heat-building forms. */
     if (solarHot) {
-      donts.push({ text: lang === "hi" ? "सूर्य भेदन या दोपहर का सूर्य-सक्रियण न करें; लंबा सूर्य-दर्शन भी नहीं।" : lang === "gu" ? "સૂર્ય ભેદન કે બપોરનું સૂર્ય-સક્રિયકરણ ન કરો; લાંબું સૂર્ય-દર્શન પણ નહીં." : "Skip Surya Bhedana and midday Solar Activation; no prolonged sun-gazing.", src: "solar" });
+      dos.push({ text: lang === "hi" ? "सूर्य-अभ्यास न्यूनतम रखें: सूर्योदय पर केवल 30-सेकंड का संक्षिप्त अर्घ्य, फिर चंद्र भेदन या शाम के भूमि-संपर्क से शीतलता।" : lang === "gu" ? "સૂર્ય-અભ્યાસ ન્યૂનતમ રાખો: સૂર્યોદયે ફક્ત 30-સેકન્ડનું ટૂંકું અર્ઘ્ય, પછી ચંદ્ર ભેદન કે સાંજના ભૂમિ-સંપર્કથી ઠંડક." : "Keep the sun practice minimal: a brief 30-second sunrise Arghya only, then cool down with Chandra Bhedana or evening grounding.", src: "solar" });
+      donts.push({ text: lang === "hi" ? "दीर्घ सूर्य-अनुष्ठान, दोपहर का सूर्य सक्रियण और सूर्य भेदन छोड़ें — लंबा सूर्य-दर्शन भी नहीं।" : lang === "gu" ? "લાંબા સૂર્ય-અનુષ્ઠાન, બપોરનું સૂર્ય સક્રિયકરણ અને સૂર્ય ભેદન છોડો — લાંબું સૂર્ય-દર્શન પણ નહીં." : "Skip extended sun rituals, midday Solar Activation and Surya Bhedana; no prolonged sun-gazing.", src: "solar" });
     }
     // DO NOT: Moon-cold forms for cold-sensitive charts.
     if (moonColdSensitivity(p)) {
@@ -4921,9 +5152,34 @@
     // the fly so the column is never blank.
     const rated = rows.map((v) => v.practicality ? v : { ...v, practicality: namePracticality(v, "") });
     const stars = (score) => "★".repeat(score) + "☆".repeat(Math.max(0, 5 - score));
-    return `<div class="table-scroll"><table class="rtable">
-      <tr><th>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling"}</th><th>${lang === "hi" ? "बदलाव" : lang === "gu" ? "ફેરફાર" : "Change"}</th><th>${lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total"}</th><th>${lang === "hi" ? "नया अंक" : lang === "gu" ? "નવો અંક" : "New number"}</th><th>${lang === "hi" ? "व्यावहारिकता" : lang === "gu" ? "વ્યવહારુતા" : "Pronunciation & practicality"}</th><th>${lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"}</th></tr>
-      ${rated.map((v) => `<tr><td><strong>${esc(v.text)}</strong></td><td>${esc(v.change)}</td><td>${v.compound}</td><td>${v.reduced}</td><td data-practicality="${v.practicality.score}"><span class="practicality-stars" aria-hidden="true">${stars(v.practicality.score)}</span> ${esc(v.practicality.label)}${v.practicality.notes.length ? `<div class="card-sub">${v.practicality.notes.map(esc).join(" · ")}</div>` : ""}</td><td>${esc(v.why)}</td></tr>`).join("")}
+    const H = {
+      spelling: lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Suggested spelling",
+      strategy: lang === "hi" ? "रणनीति" : lang === "gu" ? "વ્યૂહરચના" : "Strategy",
+      total: lang === "hi" ? "नया कुल योग" : lang === "gu" ? "નવો સરવાળો" : "New total",
+      practicality: lang === "hi" ? "व्यावहारिकता" : lang === "gu" ? "વ્યવહારુતા" : "Pronunciation & practicality",
+      why: lang === "hi" ? "यह कैसे मदद करता है" : lang === "gu" ? "આ કેવી રીતે મદદ કરે છે" : "Why it helps"
+    };
+    /* Two strategies, one table: middle initials first (legal/banking clean),
+       the pronunciation-preserving spelling alterations underneath (digital /
+       social), each row carrying its own honest practicality rating. The
+       specific letter change stays on the row as a data attribute so audits
+       and smoke assertions can still see exactly what was doubled or added. */
+    return `<div class="table-scroll"><table class="rtable spelling-table">
+      <tr><th>${H.spelling}</th><th>${H.strategy}</th><th>${H.total}</th><th>${H.practicality}</th><th>${H.why}</th></tr>
+      ${rated.map((v, i) => {
+        const strategy = nameStrategyOf(v.kind, lang);
+        /* The strategy explanation belongs to the group, not to every row: it
+           prints once, on the first row that uses it. */
+        const previous = i > 0 ? nameStrategyOf(rated[i - 1].kind, lang) : null;
+        const showHint = !previous || previous.key !== strategy.key;
+        return `<tr data-spelling-strategy="${esc(strategy.key)}" data-change="${esc(v.change || "")}">
+          <td><strong>${esc(v.text)}</strong></td>
+          <td><span class="badge ${strategy.key === "middle-initial" ? "good" : "info"}" data-strategy="${esc(strategy.key)}">${esc(strategy.label)}</span>${showHint ? `<div class="card-sub" data-strategy-hint="${esc(strategy.key)}">${esc(strategy.hint)}</div>` : ""}</td>
+          <td><strong>${v.compound}</strong> <span class="card-sub" data-new-number="${v.reduced}">(${v.reduced})</span></td>
+          <td data-practicality="${v.practicality.score}"><span class="practicality-stars" aria-hidden="true">${stars(v.practicality.score)}</span> ${esc(v.practicality.label)}${v.practicality.notes.length ? `<div class="card-sub">${v.practicality.notes.map(esc).join(" · ")}</div>` : ""}</td>
+          <td>${esc(v.why)}</td>
+        </tr>`;
+      }).join("")}
     </table></div>`;
   }
 
@@ -5809,7 +6065,7 @@
         ${nameMaster ? `<div class="judge-note"><strong>${esc(nameMaster.name)}:</strong> ${esc(nameMaster.meaning)}</div>` : (compoundMeaning(p.nameCompound) ? `<div class="judge-note"><strong>Compound Number ${p.nameCompound}:</strong> ${esc(compoundMeaning(p.nameCompound))}</div>` : "")}
         ${nameSug.needed
           ? (nameSug.variants && nameSug.variants.length
-            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel), and middle-initial options are included so you are not limited to doubling trailing consonants. Every option carries a Pronunciation & Practicality rating for legal/banking formats. Priority is given to spellings that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
+            ? `<div class="card-sub"><strong>${lang === "hi" ? "सुझाई गई स्पेलिंग" : lang === "gu" ? "સૂચવેલી સ્પેલિંગ" : "Recommended spellings"}</strong> — ${lang === "hi" ? "उच्चारण वही रहता है; अक्षरों को ध्वनि-सुरक्षित तरीके से बदला गया है:" : lang === "gu" ? "ઉચ્ચાર એ જ રહે છે; અક્ષરોને ધ્વનિ-સુરક્ષિત રીતે બદલવામાં આવ્યા છે:" : "pronunciation stays the same; letters are doubled, added or swapped for same-sound equivalents (the way Tripti became Triptii and Sunil became Suniel). Two strategies are offered: a <strong>middle initial</strong>, which keeps both existing names intact and is the cleanest route for banking and legal records, and a <strong>spelling alteration</strong>, which needs no paperwork and suits social media, digital profiles and business cards. Every option carries a Strategy label and a Pronunciation & Practicality rating. Priority is given to spellings that fill the missing numbers in your Lo Shu Foundation grid:"}</div>
                ${spellingTableHtml(nameSug.variants)}
                <div class="card-sub">${lang === "hi" ? `नई स्पेलिंग को रोज २१ बार ४० दिनों तक लिखें और ${dayOf(p.driver)} से शुरुआत करें।` : lang === "gu" ? `નવી સ્પેલિંગ રોજ ૨૧ વખત ૪૦ દિવસ સુધી લખો અને ${dayOf(p.driver)} ના દિવસે શરૂ કરો.` : `Write the new spelling 21 times daily for 40 days, update it on non-legal items first (email signature, social profiles, visiting cards), and introduce it on a ${DAY_OF[p.driver]}.`}</div>`
             : `<div class="card-sub">Consult a numerologist for a custom spelling — targets friendly to both your numbers are limited. Favour spellings totalling a number that fills a missing number in your grid (${p.loShuMissing.join(", ") || "none missing"}) or is friendly to Driver ${p.driver} and Conductor ${p.conductor}.</div>`)
@@ -5818,7 +6074,7 @@
                  <div class="card-title">${lang === "hi" ? "वैकल्पिक वृद्धि (Optional Enhancement)" : lang === "gu" ? "વૈકલ્પિક ઉન્નતિ (Optional Enhancement)" : "Optional Enhancement"}</div>
                  <span class="badge info">${lang === "hi" ? "केवल वैकल्पिक — कोई बदलाव आवश्यक नहीं" : lang === "gu" ? "માત્ર વૈકલ્પિક — કોઈ ફેરફાર જરૂરી નથી" : "Optional only — no change required"}</span>
                </div>
-               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो शू Foundation grid में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો શુ Foundation grid માં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu Foundation grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess.`}</div>
+               <div class="kit-value">${lang === "hi" ? `आपका नाम पहले से ही आपके जन्म अंकों के अनुकूल है, इसलिए कुछ भी बदलना आवश्यक नहीं है। नीचे दी गई स्पेलिंगें आपके लो शू Foundation grid में अनुपस्थित अंक को जोड़ने का एक <em>वैकल्पिक</em> तरीका हैं — इनका उच्चारण समान रहता है, ये मूलांक ${p.driver} और भाग्यांक ${p.conductor} के अनुकूल रहती हैं, और ऐसे अंक में कभी वृद्धि नहीं करतीं जो आपके पास पहले से अधिक मात्रा में है। आप चुन सकते हैं: कानूनी/बैंक रिकॉर्ड के लिए मध्य आद्यक्षर, या डिजिटल/सोशल प्रोफ़ाइल के लिए वर्तनी-परिवर्तन।` : lang === "gu" ? `તમારું નામ પહેલેથી જ તમારા જન્મ અંકો સાથે સુમેળભર્યું છે, તેથી કંઈ બદલવાની જરૂર નથી. નીચે આપેલી સ્પેલિંગો તમારા લો શુ Foundation grid માં ખૂટતો અંક ઉમેરવાનો <em>વૈકલ્પિક</em> માર્ગ છે — ઉચ્ચાર એ જ રહે છે, તે મૂળાંક ${p.driver} અને ભાગ્યાંક ${p.conductor} સાથે અનુકૂળ રહે છે, અને એવા અંકમાં ક્યારેય વધારો કરતી નથી જે તમારી પાસે પહેલેથી વધુ માત્રામાં હોય. તમે પસંદ કરી શકો: કાનૂની/બેંક રેકોર્ડ માટે મધ્ય આદ્યાક્ષર, અથવા ડિજિટલ/સોશિયલ પ્રોફાઇલ માટે જોડણી-ફેરફાર.` : `Your name already harmonises with your birth numbers, so nothing needs to change. The spellings below are an <em>optional</em> way to consciously add a number your Lo Shu Foundation grid is missing — they keep the same pronunciation, stay harmonious with Driver ${p.driver} and Conductor ${p.conductor}, and never add fuel to a number you already have in excess. Choose a <strong>middle initial</strong> if the change should stay clean for banking and legal records, or a <strong>spelling alteration</strong> if you would rather keep the exact two-word name and use the new spelling on social, digital and card profiles.`}</div>
                ${spellingTableHtml(nameSug.optional.variants)}
                <div class="card-sub">${lang === "hi" ? "वैकल्पिक: यदि चाहें तो नई स्पेलिंग को ४० दिनों तक रोज २१ बार लिखें और पहले गैर-कानूनी प्रोफाइल पर उपयोग करें — कोई कानूनी बदलाव आवश्यक नहीं।" : lang === "gu" ? "વૈકલ્પિક: જો ઇચ્છો તો નવી સ્પેલિંગ ૪૦ દિવસ સુધી રોજ ૨૧ વખત લખો અને પહેલાં બિન-કાનૂની પ્રોફાઇલ પર વાપરો — કોઈ કાનૂની ફેરફાર જરૂરી નથી." : `Optional: if you wish to activate it, write the new spelling 21 times daily for 40 days and use it on non-legal profiles first — no legal change is required.`}</div>
              </div>` : ""}`}
@@ -6184,7 +6440,15 @@
       };
       const microActionOf = (n) => {
         const info = dashaDB[n] || {};
-        return `${esc(loc(info.zone, lang))} — ${esc(loc(info.zoneRemedy, lang))}`;
+        const zone = tidyText(loc(info.zone, lang));
+        /* Clause-per-line. One long wrapped sentence is both slower to scan and
+           where a PDF line-wrap can strand a hyphen (a wrapped "clutter-free;"
+           extracts as "clutterfree-;"), so each remedy clause prints as its own
+           bullet with its own full stop. */
+        const clauses = String(loc(info.zoneRemedy, lang)).split(/;\s*/).filter(Boolean)
+          .map((clause) => `<li>${esc(sentenceClause(clause))}</li>`)
+          .join("");
+        return `<strong>${esc(zone)}</strong><ul class="micro-action-list micro-forecast-list">${clauses}</ul>`;
       };
       const rangeLabel = (u, i) => {
         const from = i === 0 && u.current ? (lang === "hi" ? "अभी" : lang === "gu" ? "હમણાં" : "Now") : prettyDate(u.startMs);
@@ -7629,7 +7893,7 @@
     moonColdSensitivity, getRemedyClinicalGuardrail, healthTagLabel, doshaChannelInBaseline, doshaContraSensitivity,
     normalizeDobInput, formatDobForDisplay, formatBirthDate, formatStampDate,
     normalizePack, contributionPayload, formatBirthTime, setLanguage, getLang,
-    setReportMode, setDashaEngine, namePracticality, initialCandidates,
+    setReportMode, setDashaEngine, namePracticality, nameStrategyOf, initialCandidates, tidyText,
     renderLoShuGrid, renderVedicGrid, renderVedicBirthComparison, renderReport, showReport, showIntake, getActiveDB,
     setReportModule, reportModuleFromHash,
     loShuGridLayout: LO_SHU_GRID_LAYOUT.map((row) => row.slice()),
