@@ -1645,6 +1645,25 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
 .summary-action-layer { display: flex; flex-direction: column; gap: 16px; margin-top: 18px; }
 .micro-routine-card .micro-routine-table td, .micro-routine-card .micro-routine-table th { vertical-align: top; }
 .micro-routine-table td:first-child { white-space: nowrap; font-weight: 600; }
+/* Each weekday cell is a labelled list (Wear / Action / Donate) instead of one
+   concatenated sentence, so a client can run the row at a glance and no two
+   labels ever run together in the printed PDF. */
+.micro-action-cell { min-width: 240px; }
+.micro-action-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.micro-action-list > li { line-height: 18px; }
+.micro-action-label { font-weight: 600; color: var(--label-secondary); }
+.micro-forecast-list { margin-top: 2px; gap: 2px; }
+.micro-forecast-list > li { font-size: 13px; line-height: 18px; }
+/* Hyphenated compounds must never be split by the browser's own hyphenation,
+   which strands a hyphen mid-line in print and lets a PDF text extraction
+   show the compound with the hyphen on the wrong side of the punctuation. */
+.micro-routine-table td, .micro-forecast-table td, .spelling-table td { hyphens: none; -webkit-hyphens: none; }
+/* A solar-muted row keeps its guardrail notice but is tinted, not struck
+   through: the row still prints the one practice that survives the guardrail. */
+.micro-routine-table tr.solar-guardrail-row { background: color-mix(in srgb, #8a5a00 6%, transparent); }
+.micro-routine-table tr.solar-guardrail-row td:first-child { box-shadow: inset 3px 0 0 #b7791f; }
+.spelling-table .badge { margin-bottom: 2px; }
+.spelling-table td[data-practicality] .practicality-stars { letter-spacing: 0.5px; }
 .do-avoid-grid { align-items: stretch; }
 .do-card { border-top: 3px solid var(--positive); }
 .avoid-card { border-top: 3px solid var(--danger); }

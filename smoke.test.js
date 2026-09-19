@@ -1558,6 +1558,63 @@ check("solar overload + Pitta mutes the conflicting Sun day row instead of print
   return solar && muted.length >= 1 && /Muted/.test(muted[0].textContent)
     && $$(".do-item", amarDom).every((n) => !/Surya Bhedana/.test(n.textContent));
 })());
+/* Pillar 3b — 2026-09 polish: the routine must be runnable at a glance, the
+   solar guardrail must not read as "all sun practice is banned", and no cell
+   may print a hyphen mangled by a PDF line-wrap. */
+check("micro-routine action cells print labelled lines instead of concatenated prose", (() => {
+  const card = $("[data-micro-routine]", amarDom);
+  if (!card) return false;
+  const cells = $$("td.micro-action-cell", card);
+  const kinds = new Set($$("td.micro-action-cell [data-action-kind]", card).map((n) => n.getAttribute("data-action-kind")));
+  const text = card.textContent.replace(/\s+/g, " ");
+  return cells.length >= 5 && kinds.has("wear") && kinds.has("donate")
+    && !/Wear:\s*Wear/i.test(text) && !/Donate:\s*Donate/i.test(text);
+})());
+check("the Friday row keeps colour, wear clause and charity on separate labelled lines", (() => {
+  const card = $("[data-micro-routine]", amarDom);
+  const friday = $$("tr", card).find((tr) => /Shukra/.test(tr.textContent));
+  if (!friday) return false;
+  const items = $$("[data-action-kind]", friday).map((n) => n.getAttribute("data-action-kind"));
+  const text = friday.textContent.replace(/\s+/g, " ");
+  return items[0] === "wear" && items.includes("donate")
+    && /Wear: White · clean, fragrant clothes/.test(text)
+    && /Donate: white sweets, rice, curd/.test(text);
+})());
+check("the solar-muted Sun row still allows a brief sunrise arghya and drops the daily offering ritual", (() => {
+  const card = $("[data-micro-routine]", amarDom);
+  const row = $$('tr[data-conflict-muted="solar-overload"]', card).find((tr) => /Surya/.test(tr.textContent))
+    || $$('tr[data-conflict-muted="solar-overload"]', card)[0];
+  if (!row) return false;
+  const text = row.textContent.replace(/\s+/g, " ");
+  return /Brief sunrise Arghya only \(30 sec\)/.test(text)
+    && /avoid midday sun/.test(text)
+    && !/Offer water to the rising Sun daily/.test(text)
+    && /Muted/.test(text);
+})());
+check("the DO card keeps the brief arghya while the DO-NOT card bans only the extended forms", (() => {
+  const grid = $('[data-report-layer="1"] .do-avoid-grid', amarDom);
+  const dos = $$(".do-item", grid).map((n) => n.textContent);
+  const donts = $$(".dont-item", grid).map((n) => n.textContent);
+  return dos.some((t) => /30-second sunrise Arghya/.test(t))
+    && donts.some((t) => /Skip extended sun rituals/.test(t) && /Surya Bhedana/.test(t))
+    && !dos.some((t) => /Surya Bhedana/.test(t));
+})());
+check("micro-forecast Vastu micro-actions print clause-per-line with clean punctuation", (() => {
+  const card = $(".dasha-micro-forecast", amarDom);
+  if (!card) return false;
+  const lists = $$(".micro-forecast-list", card);
+  const moonRow = $$("tr", card).find((tr) => /clutter-free/.test(tr.textContent));
+  return lists.length >= 3
+    && lists.every((list) => $$("li", list).length >= 1 && $$("li", list).every((li) => /[.!?]$/.test(li.textContent.trim())))
+    && !!moonRow && /Keep the North-West clutter-free\./.test(moonRow.textContent);
+})());
+check("client text hygiene repairs dangling hyphens, spaced punctuation and the reported typo", (() => {
+  const tidy = window.__NV.tidyText("Clear the zone; it stays clutterfree-; and , tidy");
+  const clientText = amarReport.replace(/<[^>]+>/g, " ").replace(/&#\d+;/g, " ");
+  return tidy === "Clear the zone; it stays clutter-free; and, tidy"
+    && !/clutterfree/i.test(clientText)
+    && !/[A-Za-z]-[;,.]/.test(clientText);
+})());
 check("the Tattva Agni plane mutes Surya Bhedana and Solar Activation under solar overload", (() => {
   const tattva = mount(window.__NV.renderVedicTattvaSection(amarProfile));
   const muted = $$('[data-conflict-muted="solar-overload"]', tattva);
@@ -1588,12 +1645,61 @@ check("name suggestions include middle-initial options, not just trailing double
   const pool = (sug.variants || []).concat((sug.optional && sug.optional.variants) || []);
   return pool.some((v) => v.kind === "initial" && /add middle initial/.test(v.change));
 })());
-check("an internal consonant-cluster double rates lower than a middle initial", (() => {
-  const cluster = window.__NV.namePracticality({ text: "Amar Sambhhvani", change: 'double "h"', kind: "double" }, "Amar Sambhvani");
+/* 2026-09 polish pass — the rating is tiered by strategy rather than blanket-
+   penalised, so a client can see that the legal-safe route and the digital-
+   safe route are different products: middle initial 5, low-contrast double 4,
+   ending-shifting double 3. The old assertion ("cluster double <= 3") pinned
+   the previous blanket penalty and is deliberately replaced, not weakened. */
+check("name practicality is tiered by strategy: initial 5, subtle double 4, ending-shifting double 3", (() => {
   const initial = window.__NV.namePracticality({ text: "Amar H Sambhvani", change: 'add middle initial "H"', kind: "initial" }, "Amar Sambhvani");
-  return initial.score > cluster.score && cluster.score <= 3;
+  const lowContrast = window.__NV.namePracticality({ text: "Amar Sambhhvani", change: 'double "h"', kind: "double" }, "Amar Sambhvani");
+  const endingShift = window.__NV.namePracticality({ text: "Amar Sambhvanni", change: 'double "n"', kind: "double" }, "Amar Sambhvani");
+  const midNameInsert = window.__NV.namePracticality({ text: "Amear Sambhvani", change: 'insert "E" after "m"', kind: "insert" }, "Amar Sambhvani");
+  return initial.score === 5 && lowContrast.score === 4 && endingShift.score === 3
+    && initial.score > lowContrast.score && lowContrast.score > endingShift.score
+    && midNameInsert.score < lowContrast.score
+    && lowContrast.label === "Good" && endingShift.label === "Moderate";
 })());
 check("the spelling table prints the practicality column", /data-practicality="\d"/.test(amarReport) && /Pronunciation & practicality/.test(amarReport));
+
+/* Pillar 4c — client agency over the name change: both strategies, one table */
+check("the optional menu restores spelling alterations beneath the middle initials", (() => {
+  const optional = window.__NV.buildOptionalSpellings(amarProfile);
+  const variants = optional.variants || [];
+  const kinds = variants.map((v) => v.kind);
+  const strategies = variants.map((v) => window.__NV.nameStrategyOf(v.kind).key);
+  return kinds.indexOf("initial") === 0
+    && kinds.filter((k) => k === "initial").length >= 2
+    && kinds.indexOf("double") > kinds.lastIndexOf("initial")
+    && strategies.includes("middle-initial") && strategies.includes("spelling-alteration");
+})());
+check("the spelling table carries a Strategy column and tags every row", (() => {
+  const table = $(".spelling-table", amarDom);
+  if (!table) return false;
+  const headers = $$("th", table).map((th) => th.textContent.trim());
+  const strategies = $$("[data-strategy]", table).map((n) => n.getAttribute("data-strategy"));
+  return headers.includes("Strategy") && headers.includes("Suggested spelling")
+    && headers.length === 5
+    && strategies.includes("middle-initial") && strategies.includes("spelling-alteration")
+    && $$("[data-practicality]", table).length >= 4;
+})());
+check("the strategy column explains each strategy once, not on every row", (() => {
+  const table = $(".spelling-table", amarDom);
+  const hints = $$("[data-strategy-hint]", table);
+  const keys = hints.map((n) => n.getAttribute("data-strategy-hint"));
+  return hints.length === 2 && new Set(keys).size === 2
+    && keys.includes("middle-initial") && keys.includes("spelling-alteration")
+    && $$("tr[data-spelling-strategy]", table).length >= 4;
+})());
+check("middle-initial rows stay clean for legal records while alterations say digital-first", (() => {
+  const table = $(".spelling-table", amarDom);
+  const initialRow = $('tr[data-spelling-strategy="middle-initial"]', table);
+  const alterationRow = $('tr[data-spelling-strategy="spelling-alteration"]', table);
+  return !!initialRow && !!alterationRow
+    && /banking and legal records/.test(initialRow.textContent)
+    && /social media, digital profiles/.test(alterationRow.textContent)
+    && /\(5\)/.test(initialRow.textContent);
+})());
 
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
