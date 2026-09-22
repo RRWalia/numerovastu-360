@@ -1797,3 +1797,40 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
     border: 0 !important;
   }
 }
+
+/* ---------- 2.15.0 print-regression fix (RRWalia): the Layer-1 action
+   layer MUST collapse to plain block flow in print so Chrome can page-break
+   between the micro-routine, DO and AVOID cards instead of pushing the
+   whole grid to page 2 and leaving page 1 blank.
+
+   The earlier @media print block (above) already sets these properties, but
+   the screen-layout rules for .summary-action-layer (display:flex) and
+   .summary-next (display:grid) appear AFTER that print block in source order
+   and therefore WIN over it at equal specificity — breaking the visual test
+   expect(printFlow.layerDisplay).toBe('block'). This higher-specificity
+   override sits last in the cascade and uses !important to guarantee the
+   print intent cannot be overridden by any later screen rule. */
+@media print {
+  .summary-action-layer {
+    display: block !important;
+  }
+
+  .do-avoid-grid {
+    display: block !important;
+  }
+
+  .micro-routine-card,
+  .do-card,
+  .avoid-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .summary-next {
+    display: block !important;
+  }
+
+  .do-avoid-grid .adopt-release {
+    grid-template-columns: 1fr;
+  }
+}
