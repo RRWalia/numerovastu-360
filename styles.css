@@ -1481,6 +1481,36 @@ body {
   .summary-section { break-inside: auto; }
   .summary-kicker, .summary-title { break-after: avoid-page; }
   .summary-card, .summary-actions li, .summary-way-forward, .summary-cta { break-inside: avoid-page; }
+  /* The Layer-1 action pair has the same "whole block jumps, page left
+     blank" failure the section rule above already fixed one level up: on
+     screen it is a flex column wrapping the 7-day micro-routine card and a
+     TWO-COLUMN CSS grid (DO / AVOID). Page breaks are unreliable on
+     flex/grid children — a grid container in particular is one
+     unfragmentable box for the print engine — so when the DO/AVOID grid no
+     longer fit in the space left on the page, Chrome moved the entire grid
+     onto the next page: the "What to AVOID" card started on page 2 while
+     the bottom of page 1 printed blank. Force the layer to plain block flow
+     and keep every card atomic, so breaks can land BETWEEN the micro-routine
+     card, the DO card and the AVOID card instead of pushing a whole grid row
+     across. Stacking the pair full-width also means each item wraps far less
+     than in a half-width grid cell, so both cards print shorter and more of
+     the Layer-1 plan stays on the first page. */
+  .summary-action-layer { display: block; }
+  .summary-action-layer > * + * { margin-top: 16px; }
+  .micro-routine-card { break-inside: avoid-page; page-break-inside: avoid; }
+  .do-avoid-grid { display: block; }
+  .do-avoid-grid > .card { break-inside: avoid-page; page-break-inside: avoid; }
+  .do-avoid-grid > .card + .card { margin-top: 16px; }
+  /* Each DO/AVOID card wraps its list in a 2-col adopt-release grid with a
+     SINGLE child, so the items only ever got half the card width. With the
+     cards now full-width in print, let the items run the full column. */
+  .do-avoid-grid .adopt-release { grid-template-columns: 1fr; }
+  /* "First three moves" + "Way forward" is a 2-column grid on screen; as a
+     grid it is another unfragmentable box that can jump to page 2 and leave
+     a blank band. In print it flows as blocks, and the move list may break
+     between items (each li above is already atomic). */
+  .summary-next { display: block; }
+  .summary-next > * + * { margin-top: 16px; }
   /* The Ethical & Health Notice is a bordered block on paper too: it must stay
      whole (never split across the page break) and print as ink on white. */
   .summary-notice { break-inside: avoid-page; page-break-inside: avoid; background: #fff; border: 1px solid #999; border-left: 3px solid #8a5a00; }
@@ -1765,5 +1795,42 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
   .cockpit-sheet .tier-badge,
   .cockpit-sheet .cadence {
     border: 0 !important;
+  }
+}
+
+/* ---------- 2.15.0 print-regression fix (RRWalia): the Layer-1 action
+   layer MUST collapse to plain block flow in print so Chrome can page-break
+   between the micro-routine, DO and AVOID cards instead of pushing the
+   whole grid to page 2 and leaving page 1 blank.
+
+   The earlier @media print block (above) already sets these properties, but
+   the screen-layout rules for .summary-action-layer (display:flex) and
+   .summary-next (display:grid) appear AFTER that print block in source order
+   and therefore WIN over it at equal specificity — breaking the visual test
+   expect(printFlow.layerDisplay).toBe('block'). This higher-specificity
+   override sits last in the cascade and uses !important to guarantee the
+   print intent cannot be overridden by any later screen rule. */
+@media print {
+  .summary-action-layer {
+    display: block !important;
+  }
+
+  .do-avoid-grid {
+    display: block !important;
+  }
+
+  .micro-routine-card,
+  .do-card,
+  .avoid-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .summary-next {
+    display: block !important;
+  }
+
+  .do-avoid-grid .adopt-release {
+    grid-template-columns: 1fr;
   }
 }

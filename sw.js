@@ -22,7 +22,7 @@
    Bump CACHE_VERSION on any change to this file or to the
    precache list; the activate handler deletes old caches.
    ============================================================ */
-const CACHE_VERSION = "nv360-v2.14.1";
+const CACHE_VERSION = "nv360-v2.15.0";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const PACK_CACHE = `${CACHE_VERSION}-pack`;
 
