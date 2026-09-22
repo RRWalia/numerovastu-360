@@ -14,17 +14,36 @@ var DB = {
     S:3, T:4, U:6, V:6, W:6, X:5, Y:1, Z:7
   },
 
-  /* ---- Classical Vedic planetary friendship ---- */
+  /* ---- Planetary friendship (Maitri / Shatru) — the classical one-way
+     table, corrected 2026-09 (renowned-practitioner audit).
+     The engine reads it one-way (relation(driver, other) = driver's view),
+     so each row is the standard printed Moolank Maitri chart for that
+     planet's number:
+       1 Surya   F 6,9      N 5,8     E 2,3,4,7
+       2 Chandra F 1,5      N 3,6,8   E 4,7,9
+       3 Guru    F 2,5      N 6,9     E 1,4,7,8
+       5 Budha   F 1,2      N 3,6,8,9 E —
+       6 Shukra  F 2,9      N 3,5,8   E 1
+       8 Shani   F 5,6,7    N 1,2,3   E 9
+       9 Mangal  F 1,6      N 5,8     E 2,3,4,7
+     The table is intentionally ASYMMETRIC: the Moon is a friend of the Sun
+     (row 2) while the Sun's own row classifies the Moon as an enemy — the
+     same asymmetry every printed Lagnamitra chart carries. Rahu (4) and
+     Ketu (7) have no classical Lagnamitra row (shadow planets), so they keep
+     this project's documented shadow stance, unchanged; wherever a shadow
+     number sits inside a classical row (rows 5/6/8) the project's shadow
+     stance for it is retained. Every row must partition the other eight
+     numbers into friends / neutral / enemies. */
   friendship: {
-    1: { friends:[2,3,9], neutral:[5],   enemies:[4,6,7,8] },
-    2: { friends:[1,5],   neutral:[3,6,8,9], enemies:[4,7] },
-    3: { friends:[1,2,9], neutral:[8],   enemies:[4,5,6,7] },
+    1: { friends:[6,9], neutral:[5,8], enemies:[2,3,4,7] },
+    2: { friends:[1,5], neutral:[3,6,8], enemies:[4,7,9] },
+    3: { friends:[2,5], neutral:[6,9], enemies:[1,4,7,8] },
     4: { friends:[5,6,7,8], neutral:[3], enemies:[1,2,9] },
-    5: { friends:[1,4,6,7,8], neutral:[3,9], enemies:[2] },
-    6: { friends:[4,5,7,8], neutral:[3,9], enemies:[1,2] },
+    5: { friends:[1,2,4,7], neutral:[3,6,8,9], enemies:[] },
+    6: { friends:[2,4,7,9], neutral:[3,5,8], enemies:[1] },
     7: { friends:[4,5,6,8], neutral:[3], enemies:[1,2,9] },
-    8: { friends:[4,5,6,7], neutral:[3], enemies:[1,2,9] },
-    9: { friends:[1,2,3], neutral:[5,6,8], enemies:[4,7] }
+    8: { friends:[4,5,6,7], neutral:[1,2,3], enemies:[9] },
+    9: { friends:[1,6], neutral:[5,8], enemies:[2,3,4,7] }
   },
 
   /* ---- The 9 numbers: planet, traits, full remedy kit ---- */
@@ -701,10 +720,14 @@ var DB = {
 
   /* ---- Vastu: 8 zones, ruling planet, best use, doshas & fixes ----
      These are Vedic planetary compass directions, never Lo Shu grid positions
-     or Bagua axes. Ketu's NE / Center axis is used in the dasha guidance. */
+     or Bagua axes. Ketu's NE / Center axis is used in the dasha guidance.
+     Element per zone is the classical Navadikpalaka pancha-bhuta mapping:
+     N/NE Water (Jala), E/SE/S Fire (Agni), W/NW Air (Vayu), SW Earth
+     (Prithvi), centre Brahmasthan Space (Akasha). The North carries Water —
+     the Kubera / wealth-flow element — not Earth (corrected 2026-09 audit). */
   vastu: {
     directions: {
-      "N":  { planet: 5, element: "Earth", label: "North (Mercury)",        best: "Living room, study, office desk, cash locker", worst: "Master bedroom, toilet, heavy storage",
+      "N":  { planet: 5, element: "Water", label: "North (Mercury)",        best: "Living room, study, office desk, cash locker", worst: "Master bedroom, toilet, heavy storage",
               fix: "Keep north light, open and green. For dosh: place green plants, a money plant, or a Mercury/Buddha yantra; use light green decor; keep the zone clutter-free for cash flow." },
       "NE": { planet: 3, element: "Water", label: "Northeast (Jupiter)",    best: "Pooja/meditation room, entrance, study, water element", worst: "Kitchen, toilet, master bedroom, heavy storage, dustbin",
               fix: "Most sacred zone. For dosh: place a water fountain or bowl, light a diya daily, keep a Guru/Jupiter yantra, paint in light yellow/white; shift heavy items out; sea-salt bowl changed weekly absorbs negativity." },
@@ -1821,10 +1844,14 @@ var DB = {
       caution: { en: "Scattered focus and over-trading; finish what you start.",
                  hi: "बिखरा ध्यान और अति-व्यापार; शुरू किया काम पूरा करें।",
                  gu: "વિખરાયેલું ધ્યાન અને અતિ-વેપાર; શરૂ કરેલું કામ પૂરું કરો." },
-      zone: { en: "Center (Brahmasthan)", hi: "केंद्र (ब्रह्मस्थान)", gu: "કેન્દ્ર (બ્રહ્મસ્થાન)" }, zoneElement: "Space",
-      zoneRemedy: { en: "Keep the centre open — free of pillars, heavy items and clutter.",
-                    hi: "ब्रह्मस्थान (केंद्र) खुला रखें — खंभे, भारी सामान और अव्यवस्था से मुक्त।",
-                    gu: "બ્રહ્મસ્થાન (કેન્દ્ર) ખુલ્લું રાખો — થાંભલા, ભારે સામાન અને અવ્યવસ્થાથી મુક્ત." }
+      /* Mercury's classical direction is the North (the Kubera sector of
+         this report's Vedic compass, N → 5) — the 2026-09 audit moved it
+         off the Brahmasthan, which belongs to the zone-less shadow axis
+         below, not to Budha. */
+      zone: { en: "North", hi: "उत्तर (बुध)", gu: "ઉત્તર (બુધ)" }, zoneElement: "Water",
+      zoneRemedy: { en: "Keep the North (Kubera) sector light, open and green; for dosh add a money plant or a Mercury/Budh yantra and keep it clutter-free for cash flow.",
+                    hi: "उत्तर (कुबेर) दिशा को हल्का, खुला और हरा-भरा रखें; दोष में मनी प्लांट या बुध यंत्र लगाएं और धन-प्रवाह के लिए इसे अव्यवस्था से मुक्त रखें।",
+                    gu: "ઉત્તર (કુબેર) દિશાને હળવી, ખુલ્લી અને હરિયાળી રાખો; દોષમાં મની પ્લાન્ટ કે બુધ યંત્ર લગાવો અને ધન-પ્રવાહ માટે તેને અવ્યવસ્થાથી મુક્ત રાખો." }
     },
     6: {
       theme: { en: "Love, comfort and refinement — relationships, luxury and creative success flower.",
@@ -1909,8 +1936,8 @@ var DB = {
 const KNOWLEDGE_PACK = {
   app: "NumeroVastu 360",
   schemaVersion: 2,
-  packVersion: "2.9.0",
-  generatedAt: "2026-09-13T00:00:00Z",
+  packVersion: "2.10.0",
+  generatedAt: "2026-09-22T00:00:00Z",
   manifestPath: "knowledge-pack/latest.json",
   contribution: {
     mode: "scaffold",

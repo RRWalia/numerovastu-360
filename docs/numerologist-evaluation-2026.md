@@ -241,3 +241,39 @@ will keep disagreeing by design.
 *Re-evaluated with an independent hand-calc of the Vimshottari stack for the
 05-08-1976 chart; no numeric discrepancy found in either the Ank Jyotish or the
 classical engine.*
+
+## 9. Re-evaluation at 2.15.0 — full-report practitioner audit (2026-09-22)
+
+A complete re-reading of the rendered report, table by table, against the
+standard printed sources. Everything listed in §4 that was already canonical
+stayed untouched; four things required correction and one structural guard
+was hardened.
+
+1. **Planetary friendship (Moolank Maitri).** The shipped matrix was an
+   unsourced hybrid — e.g. Mercury friendly to Jupiter, Mars friendly to both
+   Moon and Jupiter (both Grahan-conflict pairs the app flags elsewhere), and
+   the Sun friendly to both Moon and Jupiter. It now follows the
+   classical one-way Moolank Maitri chart; the Rahu/Ketu shadow stance is
+   preserved (rows 4/7 byte-identical), and 22 of the 72 one-way entries moved.
+   All nine rows are smoke-pinned, as are the key one-way pairs and every
+   engine output that reads the table.
+2. **North element.** The North (Kubera, Mercury's sector) carried "Earth";
+   its own remedy text describes the classical Water / wealth-flow zone.
+   Corrected in the DB, EN mirror and pack.
+3. **Mercury Dasha zone.** Zone 5 read "Center (Brahmasthan)", contradicting
+   the app's own Vedic compass (N → 5). It is now the North (Kubera sector),
+   with the EN/HI/GU zone remedy re-pointed; `validatePack` enforces the
+   corrected map.
+4. **Print pagination.** The Layer-1 "What to AVOID" column jumped to page 2,
+   leaving page 1 nearly blank: the two-column grid inside a flex layer and
+   an `overflow-x` scroller is unfragmentable in Chrome print. The grid
+   collapses to one column in print only. New Playwright print-flow test.
+5. **Structural guard.** The corrected table made reachable a latent bug the
+   audit chart exposed: when every missing number is hostile to one of the
+   birth numbers, the optional name menu used to drop the client's own
+   authentic patronymic initial. The early-out is removed; the initial is
+   always offered when its total is non-hostile.
+
+**Rating: 5 / 5** — the report's classical layer is now fully source-verified
+and machine-pinned. Soft flag left as house style: the mantra "full cycle"
+counts (7,000–23,000) match no classical japa scheme.

@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.14.0 — Dual-name intake: everyday identity vs statutory record, with the authentic patronymic initial as the first remedy**
+**Release 2.15.0 — Practitioner audit of the whole report: the planetary friendship matrix now follows the classical one-way Moolank Maitri chart, the North carries Water, and the Mercury (5) Dasha-Vastu zone is the North (Kubera sector) — plus the print fix that kept "What to AVOID" from jumping a page**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,23 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.15.0
+
+A full practitioner audit of the rendered report (reference charts: **Amar
+Sambhvani, 24 Jan 1983 — Money / Business / Career** and **Randeep Walia,
+5 Aug 1976 — Career**) re-verified every classical table against the standard
+printed sources. Four things needed correction; everything else was confirmed
+as already canonical and is now smoke-pinned.
+
+| Area | 2.15.0 behaviour |
+| --- | --- |
+| **Planetary friendship matrix (Moolank Maitri)** | `DB.friendship` now follows the classical one-way Moolank Maitri chart — e.g. the Sun (1) befriends Venus (6) and Mars (9), not the Moon (2) or Jupiter (3); the Moon (2) befriends Sun (1) and Mercury (5) and is hostile to Mars (9); Mercury (5) has no enemy number. The previously bundled matrix was an unsourced hybrid (Mercury friendly to Jupiter, Mars friendly to Moon *and* Jupiter, and the Sun (1) friendly to the Moon (2) and Jupiter (3)). Each row still classifies the other eight numbers exactly once, one-way; the documented shadow stance toward Rahu (4) / Ketu (7) is preserved and rows 4/7 are byte-identical to before. 22 of the 72 one-way entries were reclassified; smoke now pins all nine rows and the key one-way pairs, and the mobile / name-engine expectations were re-pinned to the corrected table. |
+| **North Vastu element** | The North — Kubera's wealth direction (Mercury's sector) — now carries its classical **Water** element instead of Earth, in the bundled `DB`, the EN i18n mirror and the release pack. The North remedy text ("light, open, green … clutter-free for cash flow") already described a Water/Kubera zone and is unchanged. |
+| **Mercury (5) Dasha-Vastu zone** | Zone 5 is the **North** — the Kubera sector of the app's own Vedic compass (N → 5) — instead of "Center (Brahmasthan)", which belongs to the zone-less shadow axis of Ketu (7) alone and where a remedial practice should never be prescribed. The EN/HI/GU zone remedy for 5 is re-pointed to the North sector, and `validatePack` now enforces the corrected `VEDIC_DASHA_ZONES` map. |
+| **Print: "What to AVOID" no longer jumps a page** | In the printed dossier the second column of the Layer-1 DO/AVOID card could be pushed to page 2 while page 1 was left nearly blank: the two-column `.do-avoid-grid` sat inside a flex summary layer wrapped by an `overflow-x: auto` scroller, a combination Chrome's print engine cannot fragment, so the whole grid jumped. In print media only the grid collapses to a single column (`.do-avoid-grid .adopt-release { grid-template-columns: 1fr }`), so the DO and AVOID lists flow across the page break; screen layout is untouched. Pinned by a new Playwright print-flow test. |
+| **Optional name menu keeps the authentic initial** | `buildOptionalSpellings` returned early when every missing Lo Shu number was hostile to one of the birth numbers — silently dropping the authentic patronymic initial even though the code's own contract says it is admitted "even when the grid is missing nothing". The early-out is gone: the authentic initial is always tested, and only the spelling-alteration menu may be empty. |
+| **Pack / app version** | Knowledge data changed, so `latestVersion` moves to **2.10.0** with `knowledge-pack/packs/2.10.0.json` regenerated from the bundled pack, and `appVersion` moves to **2.15.0** in `knowledge-pack/latest.json`; `APP_VERSION`, the `index.html` meta, the `sw.js` cache, the i18n status pills and `package.json`/`package-lock.json` follow. Source archive regenerated from HEAD. |
 
 ## What changed in 2.14.0
 

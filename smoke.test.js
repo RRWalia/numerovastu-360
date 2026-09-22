@@ -13,7 +13,7 @@ const html = read("index.html");
 const styles = read("styles.css");
 const schema = JSON.parse(read("knowledge-pack/schema.json"));
 const latestManifest = JSON.parse(read("knowledge-pack/latest.json"));
-const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.9.0.json"));
+const serializedReleasePack = JSON.parse(read("knowledge-pack/packs/2.10.0.json"));
 const versionedPackFiles = fs.readdirSync(path.join(root, "knowledge-pack", "packs"))
   .filter((file) => /^\d+\.\d+\.\d+\.json$/.test(file))
   .sort();
@@ -393,6 +393,38 @@ const rahuMoon = sambandha(4, 2, 4);
 check("Rahu MD × Moon AD is a Grahan conflict and can never be green", rahuMoon.relation === "enemy" && rahuMoon.grahan === true && rahuMoon.cssClass === "badge-conflict" && rahuMoon.tone === "bad" && /Grahan/.test(rahuMoon.guidance) && sambandha(2, 4, 2).relation === "enemy" && sambandha(4, 1, 4).grahan === true);
 check("classical hostile pairs are symmetric even when a pack lists one side neutral", sambandha(3, 6, 1).relation === "enemy" && sambandha(6, 3, 1).relation === "enemy" && sambandha(9, 8, 1).relation === "enemy" && sambandha(8, 9, 1).relation === "enemy" && sambandha(1, 8, 1).relation === "enemy");
 check("only a neutral MD × AD falls back to Driver compatibility", sambandha(5, 3, 1).relation === "neutral" && sambandha(5, 3, 1).source === "driver-fallback" && sambandha(5, 3, 3).cssClass === "badge-friendly" && sambandha(5, 3, 4).cssClass === "badge-neutral" && sambandha(4, 5, 4).source === "md-ad" && sambandha(4, 5, 4).cssClass === "badge-friendly");
+/* ---- Classical Maitri table (2026-09 practitioner audit, pack 2.10.0) ----
+   relation(driver, other) is ONE-WAY: the driver's row classifies the other
+   number. The table is the standard printed Moolank Maitri chart — the Sun
+   is friendly to Venus and Mars (not to Moon/Jupiter), the Moon befriends
+   Sun and Mercury (Mars is her enemy), and so on. Pin the whole matrix so a
+   future "symmetry tidy-up" cannot silently re-enemy the classical friends
+   (22 of the 72 one-way entries moved in this audit; rows 4/7 and the
+   per-row shadow stances are the documented exception). */
+const maitriExpected = {
+  1: { friends: [6, 9], neutral: [5, 8], enemies: [2, 3, 4, 7] },
+  2: { friends: [1, 5], neutral: [3, 6, 8], enemies: [4, 7, 9] },
+  3: { friends: [2, 5], neutral: [6, 9], enemies: [1, 4, 7, 8] },
+  4: { friends: [5, 6, 7, 8], neutral: [3], enemies: [1, 2, 9] },
+  5: { friends: [1, 2, 4, 7], neutral: [3, 6, 8, 9], enemies: [] },
+  6: { friends: [2, 4, 7, 9], neutral: [3, 5, 8], enemies: [1] },
+  7: { friends: [4, 5, 6, 8], neutral: [3], enemies: [1, 2, 9] },
+  8: { friends: [4, 5, 6, 7], neutral: [1, 2, 3], enemies: [9] },
+  9: { friends: [1, 6], neutral: [5, 8], enemies: [2, 3, 4, 7] }
+};
+const rel = window.__NV.relation;
+const maitriRowOk = Object.entries(maitriExpected).every(([num, expected]) => {
+  const row = window.__NV.getActiveDB().friendship[Number(num)];
+  const matches = (tier) => same(row[tier].slice().sort((a, b) => a - b), expected[tier].slice().sort((a, b) => a - b));
+  return matches("friends") && matches("neutral") && matches("enemies");
+});
+check("friendship matrix matches the classical one-way Moolank Maitri chart (pack 2.10.0)", maitriRowOk);
+check("friendship stays one-way where the classical chart says so", rel(2, 1) === "friendly" && rel(1, 2) === "enemy" && rel(9, 6) === "friendly" && rel(6, 9) === "friendly" && rel(5, 6) === "neutral" && rel(6, 5) === "neutral" && rel(1, 6) === "friendly" && rel(6, 1) === "enemy" && rel(3, 1) === "enemy" && rel(1, 3) === "enemy");
+check("every friendship row partitions the other eight numbers", Object.keys(maitriExpected).every((num) => {
+  const row = window.__NV.getActiveDB().friendship[Number(num)];
+  const all = [...row.friends, ...row.neutral, ...row.enemies];
+  return all.length === 8 && all.every((x) => x >= 1 && x <= 9 && x !== Number(num)) && new Set(all).size === 8;
+}));
 check("the rendered Antardasha badge carries the Sambhandha source", adBadge.classList.contains("badge-conflict") && adBadge.dataset.sambandha === "grahan" && !adBadge.classList.contains("good") && /Grahan \(eclipse\) sub-period/.test($(".stack-badge-guidance", waliaDashaSection).textContent));
 
 const qualify = window.__NV.qualifyEventWindow;
@@ -467,7 +499,7 @@ legacySchemaPack.schemaVersion = 1;
 const missingDashaPack = JSON.parse(JSON.stringify(window.__NV_BUNDLED_PACK));
 delete missingDashaPack.db.dasha;
 check("hybrid knowledge pack validates and schema requires both grids plus Dasha", validPack.ok && schema.properties.schemaVersion.minimum === 2 && schema.properties.db.required.includes("loShuGrid") && schema.properties.db.required.includes("vedicGrid") && schema.properties.db.required.includes("dasha"));
-check("serialized 2.9.0 release pack exactly matches the bundled hybrid pack", same(serializedReleasePack, window.__NV_BUNDLED_PACK) && window.__NV.validatePack(serializedReleasePack).ok && latestManifest.latestVersion === "2.9.0" && latestManifest.packUrl === "knowledge-pack/packs/2.9.0.json");
+check("serialized 2.10.0 release pack exactly matches the bundled hybrid pack", same(serializedReleasePack, window.__NV_BUNDLED_PACK) && window.__NV.validatePack(serializedReleasePack).ok && latestManifest.latestVersion === "2.10.0" && latestManifest.packUrl === "knowledge-pack/packs/2.10.0.json");
 check("life-event bands cover wealth till 75 inside the 80-year lifespan horizon", same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.wealth.band, [21, 75]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.property.band, [24, 75]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.career.band, [21, 70]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.abroad.band, [16, 60]) && same(window.__NV_BUNDLED_PACK.db.dasha.lifeEvents.marriage.band, [18, 45]) && window.__NV.DASHA_LIFESPAN_YEARS === 80 && window.__NV.DASHA_FUTURE_WINDOWS === 5 && window.__NV.DASHA_LATE_WINDOWS === 3);
 check("validator rejects crossed grids, malformed Dasha zones and legacy hybrid pack shapes", !window.__NV.validatePack(malformedLoShu).ok && !window.__NV.validatePack(malformedVedic).ok && !window.__NV.validatePack(malformedDasha).ok && !window.__NV.validatePack(legacySchemaPack).ok && !window.__NV.validatePack(missingDashaPack).ok);
 check("canonical Vastu and Dasha mappings remain Vedic and independent of layouts", window.__NV_BUNDLED_PACK.db.vastu.directions.NE.planet === 3 && window.__NV_BUNDLED_PACK.db.vastu.directions.SW.planet === 4 && window.__NV_BUNDLED_PACK.db.dasha[7].zone.en === "North-East / Center Axis");
@@ -775,11 +807,12 @@ check("dob input: live mask does not mangle a pasted yyyy-mm-dd ISO", isoUnmangl
 check("dob input: live mask leaves typed dd-mm-yyyy intact", typedDd === "05-08-1976");
 
 /* ---- Mobile number remedy: the ideal total list must never be blank ----
-   A total friendly to *both* birth numbers does not exist for 24 of the 81
-   Driver×Conductor pairs (Driver 6 × Conductor 1 among them), which used to
-   render "pick one whose digits total ." — the highest-impact remedy in the
-   report with no number in it. The engine must fall back rather than go quiet,
-   and must never recommend a root that is an outright enemy of either number. */
+   A total friendly to *both* birth numbers does not exist for a small set of
+   Driver×Conductor pairs (Driver 3 × Conductor 9 among them, under the
+   classical one-way Maitri table of pack 2.10.0), which used to render
+   "pick one whose digits total ." — the highest-impact remedy in the report
+   with no number in it. The engine must fall back rather than go quiet, and
+   must never recommend a root that is an outright enemy of either number. */
 const mobHostile = { mobRelD: "enemy", mobRelC: "enemy" };
 const mobPairs = [];
 for (let d = 1; d <= 9; d++) {
@@ -798,9 +831,12 @@ const mobBlank = mobPairs.filter((row) => !row.listed).map((row) => row.pair);
 const mobEnemy = mobPairs.filter((row) => !row.clean).map((row) => row.pair);
 check("mobile remedy: every Driver×Conductor pair gets a non-empty ideal total list", mobBlank.length === 0);
 check("mobile remedy: no suggested total reduces to an enemy of either birth number", mobEnemy.length === 0);
-check("mobile remedy: Driver 6 × Conductor 1 (no total is friendly to both) still falls back", (() => {
-  const roots = window.__NV.mobileSuggestion(Object.assign({ driver: 6, conductor: 1 }, mobHostile)).goodTotals.map((total) => window.__NV.reduce(total));
-  return roots.length === 6 && roots.every((r) => [3, 5, 9].includes(r));
+/* 3 × 9 (Jupiter / Mars) has no root friendly to both under the classical
+   Maitri table — 3's friends {2,5} and 9's friends {1,6} never meet, and the
+   self-rows are enemy/neutral — so the fallback tier is exercised here. */
+check("mobile remedy: Driver 3 × Conductor 9 (no total is friendly to both) still falls back", (() => {
+  const roots = window.__NV.mobileSuggestion(Object.assign({ driver: 3, conductor: 9 }, mobHostile)).goodTotals.map((total) => window.__NV.reduce(total));
+  return roots.length === 6 && roots.every((r) => [5, 6, 9].includes(r));
 })());
 check("mobile remedy: harmonious numbers stay harmonious — no suggestion is forced", window.__NV.mobileSuggestion({ driver: 6, conductor: 1, mobRelD: "friendly", mobRelC: "friendly" }).needed === false);
 
@@ -813,14 +849,18 @@ check("Simardeep gets a concrete ideal mobile total list", simardeepSug.needed =
 const simardeepMobile = mount(window.__NV.renderReport(simardeep)).textContent
   .split("Vehicle Number Vibration")[0]
   .replace(/\s+/g, " ");
-check("Simardeep report names the ideal mobile totals instead of an empty gap", /pick one whose digits total 9, 12, 14, 18, 21, 23\./.test(simardeepMobile) && !/digits total\s*\./.test(simardeepMobile));
+/* Under the classical Maitri table (pack 2.10.0) roots 6 and 9 are friendly
+   to BOTH Driver 6 and Conductor 1 (Mars befriends both Shukra and Surya;
+   Surya befriends Shukra and Mars), so the ideal list is 9/15/18/24/27/33. */
+check("Simardeep report names the ideal mobile totals instead of an empty gap", /pick one whose digits total 9, 15, 18, 24, 27, 33\./.test(simardeepMobile) && !/digits total\s*\./.test(simardeepMobile));
 
 /* ---- Mobile verdict must never contradict its own ideal-total list ---------
    The reported chart is Driver 5 / Conductor 9 (Mercury / Mars): the only root
    friendly to *both* is 1 (Sun), so 8155056910 (40 → 4) was hostile to Mars and
    the report recommended 10/19/28/37/46/55. The replacement 7574011152 totals
-   33 → 6 (Venus): Mercury befriends Venus, Mars is neutral to her — friendly to
-   one, neutral to the other. That is genuinely not hostile, so `needed` stays
+   33 → 6 (Venus): under the classical Maitri table (pack 2.10.0) Mars
+   befriends Venus while Mercury is neutral to her — friendly to one, neutral
+   to the other. That is genuinely not hostile, so `needed` stays
    false; but the old code then printed "vibrates acceptably, no change
    required" and rendered no ideal totals at all, contradicting the list the
    same report had just recommended. The engine now classifies three verdicts
@@ -847,10 +887,10 @@ check("mobile verdict: 64 → 1 is optimal even though 64 is outside the printed
   const sug = window.__NV.mobileSuggestion({ driver: 5, conductor: 9, mobCompound: 64, mobRelD: "friendly", mobRelC: "friendly" });
   return sug.verdict === "optimal" && !sug.goodTotals.includes(64);
 })());
-/* The fallback tier (Driver 6 x Conductor 1) has no both-friendly root, so
+/* The fallback tier (Driver 3 x Conductor 9) has no both-friendly root, so
    every non-enemy root is inside the ideal set and off-target can never fire. */
-check("mobile verdict: a fallback-tier pair can never report off-target", [3, 5, 9].every((r) => {
-  const sug = window.__NV.mobileSuggestion({ driver: 6, conductor: 1, mobCompound: r * 9 + r, mobRelD: window.__NV.relation(6, r), mobRelC: window.__NV.relation(1, r) });
+check("mobile verdict: a fallback-tier pair can never report off-target", [5, 6, 9].every((r) => {
+  const sug = window.__NV.mobileSuggestion({ driver: 3, conductor: 9, mobCompound: r * 9 + r, mobRelD: window.__NV.relation(3, r), mobRelC: window.__NV.relation(9, r) });
   return sug.needed === false && sug.verdict === "optimal";
 }));
 
@@ -1812,14 +1852,20 @@ check("the authentic patronymic initial is offered first, ahead of every spellin
   const variants = (sug.variants || []).concat((sug.optional && sug.optional.variants) || []);
   const first = variants[0];
   const authIndex = variants.findIndex((v) => v.kind === "authentic-initial");
-  const doubleIndex = variants.findIndex((v) => v.kind === "double");
   return !!first && first.kind === "authentic-initial"
     && first.text === "Randeep R Walia" && first.compound === 44 && first.reduced === 8
     && first.window === "public" && first.authentic === true && first.letter === "R" && first.sourceToken === "Ravindra"
     && /authentic patronymic initial "R" \(from "Ravindra"\)/.test(first.change)
     && first.practicality.score === 5 && first.practicality.label === "Excellent"
     && window.__NV.nameStrategyOf("authentic-initial").key === "authentic-middle-initial"
-    && authIndex === 0 && doubleIndex > authIndex;
+    && authIndex === 0
+    /* Under the classical Maitri table (pack 2.10.0) Mars is hostile to all
+       three of this chart's missing numbers (Moon, Jupiter, Rahu), so no
+       spelling alteration may be offered at all — the authentic initial
+       alone remains, and every offered total must stay non-hostile to both
+       birth numbers. */
+    && variants.length === 1
+    && variants.every((v) => window.__NV.relation(duelProfile.driver, v.reduced) !== "enemy" && window.__NV.relation(duelProfile.conductor, v.reduced) !== "enemy");
 })());
 check("a patronymic already abbreviated on the record is still an authentic initial", (() => {
   const id = window.__NV.nameIdentity("Amar Sambhvani", "Amarkumar K Sambhvani");

@@ -162,6 +162,48 @@ test.describe('hybrid report browser regression', () => {
     expect(printBreaks.rows.every((value) => value !== 'auto')).toBe(true);
   });
 
+  test('Layer-1 DO/AVOID pair flows across the page break instead of jumping to page 2', async ({ page }) => {
+    await generateCompleteReport(page);
+    // On screen the pair is a 2-column CSS grid inside a flex column. A grid
+    // container is one unfragmentable box for the print engine, so when the
+    // grid no longer fit in the space left on the page Chrome moved the whole
+    // DO/AVOID pair onto the next page and the bottom of page 1 printed
+    // blank. Print must run it as block flow with atomic cards so breaks land
+    // BETWEEN the micro-routine card, the DO card and the AVOID card.
+    await page.emulateMedia({ media: 'print' });
+    const printFlow = await page.evaluate(() => {
+      const layer = document.querySelector('.summary-action-layer');
+      const grid = document.querySelector('.do-avoid-grid');
+      const micro = document.querySelector('.micro-routine-card');
+      const doCard = document.querySelector('.do-card');
+      const avoidCard = document.querySelector('.avoid-card');
+      const next = document.querySelector('.summary-next');
+      const adoptRelease = document.querySelector('.do-avoid-grid .adopt-release');
+      return {
+        layerDisplay: layer && getComputedStyle(layer).display,
+        gridDisplay: grid && getComputedStyle(grid).display,
+        microBreak: micro && getComputedStyle(micro).breakInside,
+        doBreak: doCard && getComputedStyle(doCard).breakInside,
+        avoidBreak: avoidCard && getComputedStyle(avoidCard).breakInside,
+        nextDisplay: next && getComputedStyle(next).display,
+        // Full-width items, not the half-width single-child grid column.
+        itemWidth: avoidCard && avoidCard.querySelector('.ar-item').getBoundingClientRect().width,
+        cardWidth: avoidCard && avoidCard.getBoundingClientRect().width,
+        releaseColumns: adoptRelease && getComputedStyle(adoptRelease).gridTemplateColumns.split(' ').length,
+      };
+    });
+    expect(printFlow.layerDisplay).toBe('block');
+    expect(printFlow.gridDisplay).toBe('block');
+    expect(printFlow.microBreak).not.toBe('auto');
+    expect(printFlow.doBreak).not.toBe('auto');
+    expect(printFlow.avoidBreak).not.toBe('auto');
+    expect(printFlow.nextDisplay).toBe('block');
+    expect(printFlow.releaseColumns).toBe(1);
+    // Items run (almost) the full card width in print — the on-screen 2-col
+    // adopt-release grid with one child used to halve them.
+    expect(printFlow.itemWidth / printFlow.cardWidth).toBeGreaterThan(0.9);
+  });
+
   test('mobile Timeline navigation is keyboard and horizontal-scroll safe', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await generateCompleteReport(page);

@@ -35,8 +35,11 @@
   // The Vastu compass is a separate Vedic planetary mapping — grid positions
   // must never be mistaken for Lo Shu / Bagua directional positions.
   const VEDIC_VASTU_COMPASS_PLANETS = Object.freeze({ N: 5, NE: 3, E: 1, SE: 6, S: 9, SW: 4, W: 8, NW: 2 });
+  /* 5 (Mercury) maps to the North — the Kubera sector of the Vedic compass
+     (N → 5) — after the 2026-09 audit; only 7 (Ketu, no compass sector)
+     keeps the NE / Center axis. */
   const VEDIC_DASHA_ZONES = Object.freeze({
-    1: "East", 2: "North-West", 3: "North-East", 4: "South-West", 5: "Center (Brahmasthan)",
+    1: "East", 2: "North-West", 3: "North-East", 4: "South-West", 5: "North",
     6: "South-East", 7: "North-East / Center Axis", 8: "West", 9: "South"
   });
   const KARMIC_DEBT_POOL = [13, 14, 16, 19];
@@ -894,7 +897,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.14.1";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.15.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-19";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -2726,7 +2729,10 @@
       relation(p.conductor, n) !== "enemy" &&
       !p.loShuRepeated.includes(n)
     );
-    if (!fillable.length) return { variants: [], legalVariants: [], targets: [] };
+    /* No early-out here: when every missing number is hostile to one of the
+       birth numbers the spelling menu is empty, but the authentic family
+       initial (below) is still admitted when its own total is harmonious —
+       it is the one lever that must never be dropped. (2026-09 audit.) */
     const candidates = nameCandidatePool(p, identity);
     const variants = [];
     const seen = new Set();
