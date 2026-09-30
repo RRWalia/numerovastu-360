@@ -1,0 +1,18 @@
+# numerovastu-360 - Netlify build configuration
+# Free plan: 300 credits/month. Skip builds that cannot change the live site,
+# so every credit is spent on real updates.
+
+[build]
+  # Skip the build (0 credits) when:
+  #   1. the commit message contains [skip netlify] / [skip netlify deploy] / [skip ci], or
+  #   2. the push only touches files that are NOT part of the shipped site
+  #      (tests/, docs/, reference/, .github/, *.zip source archive, *.md, LICENSE,
+  #      playwright.config.mjs, smoke.test.js, share.bat).
+  # Site files (index.html, *.js, styles.css, sw.js, icons/, atlas/, knowledge-pack/,
+  # package*.json, vite.config.mjs, ...) always build normally.
+  ignore = "git log -1 --pretty=%B | grep -qE '\\[(skip netlify deploy|skip netlify|skip ci)\\]' && exit 0 ; git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)tests' ':(exclude)docs' ':(exclude)reference' ':(exclude).github' ':(exclude).gitignore' ':(exclude)LICENSE' ':(exclude)*.md' ':(exclude)*.zip' ':(exclude)playwright.config.mjs' ':(exclude)smoke.test.js' ':(exclude)share.bat' && exit 0 || exit 1"
+
+[context.deploy-preview]
+  # Same skip logic for PR previews: pushes that only touch tests/docs/archives
+  # build no preview and spend no credits.
+  ignore = "git log -1 --pretty=%B | grep -qE '\\[(skip netlify deploy|skip netlify|skip ci)\\]' && exit 0 ; git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)tests' ':(exclude)docs' ':(exclude)reference' ':(exclude).github' ':(exclude).gitignore' ':(exclude)LICENSE' ':(exclude)*.md' ':(exclude)*.zip' ':(exclude)playwright.config.mjs' ':(exclude)smoke.test.js' ':(exclude)share.bat' && exit 0 || exit 1"
