@@ -1,9 +1,9 @@
 {
   "id": "/numerovastu-360/",
   "version": "2.15.0",
-  "name": "NumeroVastu 360 — Lo Shu Foundation, Ank Jyotish Dasha & Classical Vimshottari",
+  "name": "NumeroVastu 360 — Free Numerology & Vastu App",
   "short_name": "NumeroVastu 360",
-  "description": "Private, browser-only numerology and Vastu guidance: classic Lo Shu Foundation grids, a separate Ank Jyotish Dasha timeline, a true nakshatra-anchored Classical Vimshottari layer, and practitioner-ready reports. All calculation happens on your device.",
+  "description": "Free Indian numerology and Vastu app: Lo Shu grid calculator, Driver and Conductor (Mulank/Bhagyank) numbers, name and mobile number numerology, Ank Jyotish dasha timeline and practical Vastu remedies. Private, offline-capable, all calculation on your device.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -62,6 +62,15 @@
           "type": "image/png"
         }
       ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icons/og-cover.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "NumeroVastu 360 — free numerology and Vastu app"
     }
   ]
 }
