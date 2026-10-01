@@ -150,7 +150,7 @@ Adopting it would mean: transmitting birth data and floor plans off-device, stan
 
 **Hierarchical CDN/Redis caching** is likewise already solved, and better: `sw.js` precaches the knowledge pack and assets for genuine offline operation. A service worker beats a CDN here — it serves with no network at all, which matters for a consultant doing a site visit in a basement.
 
-### Real finding — F4: the knowledge-pack version is stripped from the printed report
+### Real finding — F4: the knowledge-pack version is stripped from the printed report — **RESOLVED 2026-10-01**
 
 The brief's "relational audit trail / historical reproducibility" concern is legitimate — a practitioner must be able to reproduce a reading given months ago. The versioned `knowledge-pack` already provides the mechanism, and `updateKnowledgeUI()` (`app.js:1500`) surfaces the active version, source and publication date on screen.
 
@@ -158,7 +158,20 @@ The brief's "relational audit trail / historical reproducibility" concern is leg
 
 Because remote pack updates are supported (`source: "remote" | "cached" | "bundled"`), two clients can receive materially different readings from identical inputs with nothing in either document to explain the difference. For a professional practice that may need to defend a reading months later, this is the real reproducibility gap — and it is not a database problem.
 
-**Fix:** stamp `packVersion`, `schemaVersion`, `APP_VERSION` and the generation timestamp into the report footer, inside the printed area. Low effort, and it delivers essentially all the reproducibility value of the proposed immutable audit schema with no server.
+**Fix shipped.** A print-only `<footer class="report-provenance">` is emitted at the end of every report by `renderReportProvenance()` (`app.js`), rendering:
+
+```
+Pack v2.10.0 · schema v2 · bundled · App v2.18.0 · Build 2026-09-19 · Generated 1 Oct 2026, 11:30 am
+```
+
+Four decisions worth recording:
+
+- **Sibling, not child, of `.report-closing`.** Investigating the fix surfaced a worse case than the audit originally described: the cockpit print job hides `.report-hero` *and* `.report-closing` (`styles.css:1773`, `:1783`), so the single-page consultation sheet — the page most likely to be filed and produced months later — previously carried **neither a generation date nor a version**. Making the stamp a sibling means suppressing the brand block can never suppress the audit trail.
+- **Print-only.** On screen the intake status pills already carry this; repeating it would be noise. `.report-provenance { display: none; }` with a `display: block !important` override inside `@media print`.
+- **Pack `source` instead of a content hash.** The schema has no checksum field. `source` (`bundled` / `cached` / `remote`) is the more informative signal anyway — it distinguishes shipped content from a pack fetched after release, which is the actual cause of two clients diverging.
+- **No PII, 9px, `break-inside: avoid`.** Version strings and a render timestamp only, so an emailed PDF discloses nothing new; sized to preserve the cockpit's one-A4 contract.
+
+Ten tests added (554 → 564), covering presence, the stamped version/schema/source/build, the civil timestamp, PII absence, print-only CSS, cockpit survival, compactness, and Hindi/Gujarati localisation with Latin-digit version identifiers. Full `npm run check` gate green: tests, `npm audit` (0 vulnerabilities), static build, source-zip parity.
 
 ---
 
@@ -190,7 +203,7 @@ The CSP and the documented threat boundary agree with the code. This is the post
 | **F2** | Magnetic declination advised in prose, not computed, while the engine flags 2° errors as material | **High** | Medium | **Implement.** WMM with real coefficients + hard epoch-expiry fallback. Never a dipole approximation. |
 | **F1** | `app.js` is a 9,807-line IIFE mixing geometry, calculation and rendering | Medium | Medium | Extract incrementally, geometry first. No big-bang rewrite. |
 | **F3** | No floor-plan ingestion; polygon/centroid/PIP pipeline does not exist | Medium (feature gap) | Large | Roadmap epic. Separate design doc. Greiner–Hormann, not Sutherland–Hodgman. Drop DWG. |
-| **F4** | Knowledge-pack version is shown on screen but stripped from the printed report, so delivered PDFs are not reproducible | Medium | Trivial | **Best effort-to-value ratio.** Stamp pack/schema/app version + timestamp into the printed footer. |
+| ~~**F4**~~ | ~~Knowledge-pack version stripped from the printed report~~ | ~~Medium~~ | ~~Trivial~~ | **✅ Shipped 2026-10-01.** Print-only provenance footer; 10 tests added. |
 
 **Checked and found already correct** (no action): CSP `connect-src` allowlist (`index.html:28`) · Photon egress documented with its data boundary (`SECURITY.md:47`) · no PII persisted · knowledge-pack versioning and `ajv` schema validation · offline precache via `sw.js`.
 
@@ -212,4 +225,4 @@ The highest-value engineering available is **F2**: make the degree compass corre
 
 A note on method: several items I expected to raise as findings turned out to be already solved — the CSP allowlist, the documented egress boundary, content/algorithm separation, and offline caching. They are recorded in §6 as verified rather than dropped, so a future reviewer does not re-litigate them.
 
-**Recommended sequence:** F4 first (trivial effort, removes a reproducibility hole in every PDF already being delivered) → F2, the substantive win → F1 geometry extraction as groundwork → F3 as a scoped epic with its own design review.
+**Recommended sequence:** ~~F4 first~~ **(done)** → **F2 next, the substantive win** → F1 geometry extraction as groundwork → F3 as a scoped epic with its own design review.
