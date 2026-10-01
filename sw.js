@@ -22,7 +22,7 @@
    Bump CACHE_VERSION on any change to this file or to the
    precache list; the activate handler deletes old caches.
    ============================================================ */
-const CACHE_VERSION = "nv360-v2.15.0";
+const CACHE_VERSION = "nv360-v2.18.0";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const PACK_CACHE = `${CACHE_VERSION}-pack`;
 
@@ -33,6 +33,13 @@ const SHELL_ASSETS = [
   "./index.html",
   "./app.js",
   "./astro.js",
+  /* Both of these are loaded by index.html. muhurtha.js was missing from this
+     list, so an installed PWA went offline without the sunrise / Rahu Kaal /
+     Panchang engine and the whole Muhurtha section vanished in the field —
+     exactly the situation the offline mode exists for. */
+  "./muhurtha.js",
+  "./insights.js",
+  "./calendar.js",
   "./data.js",
   "./i18n.js",
   "./styles.css",

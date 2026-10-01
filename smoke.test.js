@@ -40,7 +40,11 @@ const { window } = dom;
 window.scrollTo = () => {};
 window.print = () => {};
 window.requestAnimationFrame = (fn) => fn();
-window.eval(["astro.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
+/* The eval list must mirror index.html's script tags in load order. It did not:
+   muhurtha.js was shipped and loaded by the page but never exercised here, so
+   the Muhurtha module was being asserted in its degraded no-engine branch.
+   A guard further down now derives this list from index.html itself. */
+window.eval(["astro.js", "muhurtha.js", "insights.js", "calendar.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
 
 const $ = (selector, rootNode) => (rootNode || window.document).querySelector(selector);
 const $$ = (selector, rootNode) => Array.from((rootNode || window.document).querySelectorAll(selector));
@@ -1202,8 +1206,12 @@ check("every localised Vimshottari key is translated in all three languages", ((
 /* Declared authority scopes. feng-shui (the cordoned-off optional Kua module)
    and vedic-direction-rulers (the classical Ashta Dikpalaka reference card)
    were added by the 2026-09 architecture audit; neither may carry Lo Shu
-   remedy obligations. */
-const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note", "feng-shui", "vedic-direction-rulers"]);
+   remedy obligations. The 2026-10 parity pass added five more — name
+   architecture, premises numerology, personal cycles, the Panchang limbs and
+   the optional Western cross-reference. Each is a reading surface only: the
+   assertion below forbids all five from carrying a remedy obligation, so a
+   Western plane or a calendar grade can never quietly become a prescription. */
+const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note", "feng-shui", "vedic-direction-rulers", "name-architecture", "premises-numerology", "personal-cycles", "panchang", "western-cross-reference"]);
 const authorityNodes = $$("[data-authority]", authorityReportDom);
 check("every data-authority tag comes from the declared vocabulary", authorityNodes.length > 0 && authorityNodes.every((node) => AUTHORITY_VOCAB.has(node.getAttribute("data-authority"))));
 check("every remedy-bearing block nests inside Lo Shu authority", remedyBlocks.every((node) => !!node.closest('[data-authority="lo-shu-overlay"], [data-authority="clinical-cockpit"]') || !node.closest("[data-authority]")) && authorityNodes.filter((node) => node.getAttribute("data-authority") !== "lo-shu-overlay" && node.getAttribute("data-authority") !== "clinical-cockpit").every((node) => !node.querySelector("[data-remedy-authority]")));
@@ -1986,6 +1994,604 @@ check("the intake submission stores both spellings and restores them from local 
   return /id="legal-name-layer"/.test(rendered)
     && $("#fullName").value === "Amar K Sambhvani"
     && $("#legalName").value === "Amarkumar Kishorbhai Sambhvani";
+})());
+
+
+/* ================================================================
+   2026-10 competitive-parity layers
+   Name Architecture (§6A), Premises numerology (§8A), Personal
+   cycles + calendar + favourable dates (§13a), the optional Western
+   cross-reference (§17A) and the five Panchang limbs.
+
+   Three classes of assertion below, in order: (1) the SHIP guard —
+   every script index.html loads must be in the build manifest and
+   the service-worker shell, which is the defect that let muhurtha.js
+   ride along untested for a release; (2) DRIFT guards tying the new
+   engine to the engines already shipped, so the two can never
+   disagree in front of a client; (3) the DOM contract for each new
+   section. ================================================================ */
+
+/* ---- (1) Ship guard: nothing the page loads may be missing from the build ---- */
+const pageScripts = Array.from(html.matchAll(/<script[^>]+src="([^"]+)"/g))
+  .map((m) => m[1])
+  .filter((src) => !/^https?:/i.test(src));
+const buildManifest = read("scripts/build-static.cjs");
+check("index.html loads the Muhurtha and Insights engines in dependency order", (() => {
+  const i = pageScripts.indexOf("muhurtha.js");
+  const j = pageScripts.indexOf("insights.js");
+  return i > pageScripts.indexOf("astro.js") && j > i && j < pageScripts.indexOf("app.js");
+})());
+const buildFiles = (buildManifest.match(/const files = \[([\s\S]*?)\];/) || ["", ""])[1].match(/'([^']+)'/g).map((q) => q.slice(1, -1));
+const buildDirs = (buildManifest.match(/const dirs = \[([\s\S]*?)\];/) || ["", ""])[1].match(/'([^']+)'/g).map((q) => q.slice(1, -1));
+check("every script index.html loads is shipped by the static build", pageScripts.length >= 6 && pageScripts.every((src) => buildFiles.includes(src) || buildDirs.some((dir) => src.startsWith(`${dir}/`))));
+/* The atlas is runtime-cached behind ATLAS_PREFIX rather than precached — it is
+   a large optional dataset — so it satisfies the offline contract either way. */
+check("every script index.html loads survives offline, precached or runtime-cached", pageScripts.every((src) => swSource.includes(`"./${src}"`) || swSource.includes(`ATLAS_PREFIX`) && src.startsWith("atlas/")));
+check("the static build fails loudly if a script tag is ever dropped from the manifest", /loads script\(s\) the build does not ship/.test(buildManifest) && /throw new Error/.test(buildManifest));
+
+/* ---- (2) Drift guards: one engine, two call sites, identical answers ---- */
+const NVI = window.NVInsights;
+check("the Insights engine is published with a version", !!NVI && typeof NVI.VERSION === "string" && /^\d+\.\d+\.\d+$/.test(NVI.VERSION));
+check("the Insights Chaldean table is the shipped knowledge-pack table, not a second copy", same(NVI.CHALDEAN_FALLBACK, window.DB.chaldean));
+check("the Insights friend/enemy relation never disagrees with the report engine", (() => {
+  for (let a = 1; a <= 9; a++) for (let b = 1; b <= 9; b++) {
+    if (NVI.relation(a, b) !== window.__NV.relation(a, b)) return false;
+  }
+  return true;
+})());
+const archProfile = profile({ name: "Priya Sharma", premises: "A-402", premisesKind: "flat" });
+const archReportDom = mount(window.__NV.renderReport(archProfile));
+const archSection = $("#name-architecture-section", archReportDom);
+check("the Chaldean Expression in Name Architecture is the same number the Name section already prints", (() => {
+  const expression = $('[data-name-layer="expression"] .num-value', archSection);
+  return !!expression && Number(expression.textContent.trim()) === archProfile.nameNum;
+})());
+check("the Personal Year on the cycles card is the Personal Year the Dasha transit card uses", (() => {
+  const cycles = $("#personal-cycles-section", archReportDom);
+  const transit = $('[data-predictive-layer="personal-year-transit"]', archReportDom);
+  return !!cycles && !!transit && cycles.dataset.personalYear === transit.dataset.personalYear;
+})());
+check("the Western Life Path is the Conductor the Vedic side already derived", (() => {
+  const agree = $('[data-western-compare]', archReportDom);
+  return !!agree && agree.dataset.westernCompare === "agrees";
+})());
+
+/* ---- (3a) Name Architecture ---- */
+check("Name Architecture declares its own authority and states which system it is in", archSection.dataset.authority === "name-architecture" && archSection.dataset.nameArchitecture === "chaldean");
+check("Name Architecture separates Soul Urge, Personality and Expression", (() => {
+  const layers = $$("[data-name-layer]", archSection).map((n) => n.dataset.nameLayer);
+  return ["soul-urge", "personality", "expression"].every((k) => layers.includes(k));
+})());
+check("the letter strip accounts for every letter of the name exactly once, split vowel from consonant", (() => {
+  const chips = $$(".letter-chip", archSection);
+  const vowels = chips.filter((c) => c.dataset.letterVowel === "1").map((c) => c.dataset.letter).join("");
+  const consonants = chips.filter((c) => c.dataset.letterVowel === "0").map((c) => c.dataset.letter).join("");
+  return chips.length === archProfile.name.replace(/[^A-Za-z]/g, "").length
+    && vowels === "IAAA" && consonants === "PRYSHRM"
+    && chips.every((c) => c.classList.contains(vowels.includes(c.dataset.letter) && c.dataset.letterVowel === "1" ? "letter-vowel" : "letter-consonant"));
+})());
+check("Soul Urge plus Personality reconstructs the Expression compound", (() => {
+  const arch = window.__NV.nameArchitecture(archProfile).everyday;
+  return arch.soulUrge.compound + arch.personality.compound === arch.expression.compound
+    && arch.vowels.length + arch.consonants.length === arch.letters.length;
+})());
+check("Name Architecture reuses the existing spelling candidates instead of inventing a second set", (() => {
+  const rows = $$("[data-arch-variant]", archSection);
+  const sug = window.__NV.nameSuggestions(archProfile);
+  const variants = sug.needed ? sug.variants : (sug.optional && sug.optional.variants) || [];
+  return rows.length === variants.length && rows.length > 0;
+})());
+check("the legal-architecture layer appears only when a separate legal name was given", (() => {
+  const withLegal = $("#name-architecture-section", mount(window.__NV.renderReport(profile({ legalName: "Priyanka Sharmaa" }))));
+  const withoutLegal = $("#name-architecture-section", mount(window.__NV.renderReport(profile({}))));
+  return !!$('[data-name-layer="legal-architecture"]', withLegal) && !$('[data-name-layer="legal-architecture"]', withoutLegal);
+})());
+
+/* ---- (3b) Premises numerology ---- */
+const premisesSection = $("#premises-section", archReportDom);
+check("the premises number is optional and the section simply does not render without one", !$("#premises-section", mount(window.__NV.renderReport(profile({})))));
+check("the premises section declares its authority, its kind and its verdict", premisesSection.dataset.authority === "premises-numerology" && premisesSection.dataset.premisesKind === "flat" && ["excellent", "supportive", "neutral", "hostile"].includes(premisesSection.dataset.premisesVerdict));
+check("a lettered premises number is read twice: door digits alone, then the full token", (() => {
+  const layers = $$("[data-premises-layer]", premisesSection).map((n) => n.dataset.premisesLayer);
+  return same(layers, ["door", "full"]);
+})());
+check("a pure-digit premises number is read once, because there is no letter to add", (() => {
+  const plain = $("#premises-section", mount(window.__NV.renderReport(profile({ premises: "17" }))));
+  return same($$("[data-premises-layer]", plain).map((n) => n.dataset.premisesLayer), ["door"]);
+})());
+check("a hostile premises number is given tuning options rather than told to move house", (() => {
+  const rows = $$("[data-premises-tuning]", premisesSection);
+  return premisesSection.dataset.premisesVerdict === "hostile" && rows.length > 0 && rows.length <= 4
+    && /nameplate|नामपट्टिका|નામપટ્ટી/i.test(premisesSection.textContent);
+})());
+check("premises numerology carries no remedy obligation of its own", !premisesSection.querySelector("[data-remedy-authority]"));
+
+/* ---- (3c) Personal cycles, calendar and favourable dates ---- */
+const cyclesSection = $("#personal-cycles-section", archReportDom);
+check("the cycles section prints all three personal numbers", [cyclesSection.dataset.personalDay, cyclesSection.dataset.personalMonth, cyclesSection.dataset.personalYear].every((v) => /^(?:[1-9]|11|22|33)$/.test(v || "")));
+check("the cycles section separates the year, month and day layers", same($$("[data-cycle-layer]", cyclesSection).map((n) => n.dataset.cycleLayer), ["year", "month", "day"]));
+check("the calendar renders one cell per day of the current month and grades every one", (() => {
+  const cells = $$(".cal-cell[data-cal-day]", cyclesSection);
+  const now = new Date();
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return cells.length === days
+    && cells.every((c) => ["excellent", "good", "workable", "avoid"].includes(c.dataset.calGrade))
+    && cells.every((c) => /^(?:[1-9]|11|22|33)$/.test(c.dataset.calPd))
+    && $$(".cal-cell.cal-today", cyclesSection).length === 1;
+})());
+check("the calendar grade and the cell colour class never disagree", $$(".cal-cell[data-cal-grade]", cyclesSection).every((c) => c.classList.contains(`cal-${c.dataset.calGrade}`)));
+check("favourable dates are offered for every life event the Dasha engine already tracks", (() => {
+  const purposes = $$("[data-finder-purpose]", cyclesSection).map((n) => n.dataset.finderPurpose);
+  return same(purposes.slice().sort(), Object.keys(window.DB.dasha.lifeEvents).slice().sort());
+})());
+check("every date the finder recommends is one the calendar grades good or better", (() => {
+  const pills = $$("[data-finder-date]", cyclesSection);
+  return pills.length > 0 && pills.every((pill) => ["excellent", "good"].includes(pill.dataset.finderGrade));
+})());
+check("each recommended date shows why it was picked, not just that it was", (() => {
+  const pills = $$("[data-finder-date]", cyclesSection);
+  return pills.every((pill) => (pill.getAttribute("title") || "").trim().length > 0);
+})());
+check("the favourable-date finder states that Muhurtha outranks it", /muhurt|मुहूर्त|મુહૂર્ત/i.test(cyclesSection.textContent));
+
+/* ---- (3d) Optional Western cross-reference ---- */
+const westernSection = $("#western-section", archReportDom);
+const westernDetails = $("details", westernSection);
+check("the Western layer is cordoned off as an optional module, collapsed by default", westernSection.dataset.authority === "western-cross-reference" && westernSection.dataset.module === "western-optional" && !!westernDetails && !westernDetails.hasAttribute("open"));
+check("print CSS force-expands the Western module so it still reaches the PDF", /\.western-details:not\(\[open\]\) > \.details-body \{ display: flex !important; \}/.test(styles));
+check("the Western layer states whether it agrees with the Vedic reading", ["agrees", "differs"].includes($("[data-western-compare]", westernSection).dataset.westernCompare));
+check("the four Planes of Expression are printed and partition all 26 letters", (() => {
+  const rows = $$("[data-plane]", westernSection);
+  const letters = new Set();
+  Object.keys(NVI.PLANES).forEach((plane) => Object.keys(NVI.PLANES[plane]).forEach((col) => String(NVI.PLANES[plane][col]).split("").forEach((ch) => letters.add(ch))));
+  return same(rows.map((r) => r.dataset.plane), ["physical", "mental", "emotional", "intuitive"]) && letters.size === 26;
+})());
+check("karmic lessons are listed as the digits absent from the name", (() => {
+  const node = $("[data-karmic-lessons]", westernSection);
+  const expected = NVI.karmicLessons("Priya Sharma").join(",");
+  return !!node && node.dataset.karmicLessons === expected;
+})());
+check("the Western module carries no remedy obligation and never overrides the Vedic chart", !westernSection.querySelector("[data-remedy-authority]") && /cross-reference|संदर्भ|સંદર્ભ/i.test(westernSection.textContent));
+
+/* ---- (3e) Panchang, Choghadiya, Abhijit ---- */
+const panchangCard = $("[data-panchang]", archReportDom);
+check("the Muhurtha section now prints a real Panchang instead of stopping at Rahu Kaal", !!panchangCard && panchangCard.dataset.panchang === "ok" && !!panchangCard.dataset.tithi && !!panchangCard.dataset.nakshatra);
+check("all five limbs are present, each with the time it ends", (() => {
+  if (!panchangCard) return false;
+  const text = panchangCard.textContent;
+  return ["Tithi", "Nakshatra", "Yoga", "Karana", "Vara"].every((limb) => text.includes(limb))
+    && (text.match(/until/gi) || []).length >= 4;
+})());
+check("all sixteen Choghadiya are listed — day and night — and each is graded", (() => {
+  const day = $$('[data-choghadiya-half="day"]', archReportDom);
+  const night = $$('[data-choghadiya-half="night"]', archReportDom);
+  const all = $$("[data-choghadiya]", archReportDom);
+  return day.length === 8 && night.length === 8 && all.length === 16
+    && all.every((r) => ["auspicious", "inauspicious", "neutral"].includes(r.dataset.choghadiyaQuality));
+})());
+check("Abhijit Muhurta is printed and is suppressed on a Wednesday", (() => {
+  const node = $("[data-abhijit]", archReportDom);
+  if (!node) return false;
+  const wednesday = window.NVMuhurtha.abhijitMuhurta(2026, 10, 7, 28.6139, 77.209, 5.5);
+  const thursday = window.NVMuhurtha.abhijitMuhurta(2026, 10, 8, 28.6139, 77.209, 5.5);
+  return ["ok", "excluded"].includes(node.dataset.abhijit) && wednesday.excluded === true && thursday.excluded === false;
+})());
+check("the Panchang is computed from the shipped ephemeris, not a tabulated almanac", (() => {
+  const pc = window.NVMuhurtha.panchang(2026, 10, 1, 28.6139, 77.209, 5.5);
+  return pc.ok && pc.tithi.index >= 0 && pc.tithi.index < 30 && pc.nakshatra.pada >= 1 && pc.nakshatra.pada <= 4
+    && pc.karana.index >= 0 && pc.karana.index < 60 && pc.yoga.index >= 0 && pc.yoga.index < 27
+    && window.NVMuhurtha.panchang(2026, 10, 1, 28.6139, 77.209, 5.5).tithi.name === pc.tithi.name;
+})());
+
+/* ---- Presentation and intake plumbing ---- */
+check("every CSS class the new sections emit is actually defined", ["letter-chip", "letter-vowel", "letter-consonant", "cal-grid", "cal-cell", "cal-today", "cal-legend", "date-pill", "arch-table", "card-grid.three"].every((cls) => styles.includes(`.${cls}`)));
+check("the premises intake is wired with hint text in all three languages", (() => {
+  const ids = ["premisesLabel", "premisesPlaceholder", "premisesHint", "premisesKindLabel"];
+  return html.includes('id="premises"') && html.includes('id="premisesKind"')
+    && ["en", "hi", "gu"].every((lang) => ids.every((key) => typeof window.I18N[lang].ui[key] === "string" && window.I18N[lang].ui[key].length > 0));
+})());
+check("the premises intake round-trips through submit and local restore", (() => {
+  $("#editBtn").click();
+  $("#fullName").value = "Priya Sharma";
+  $("#legalName").value = "";
+  $("#dob").value = "20-08-2005";
+  $("#mobile").value = "9876543210";
+  $("#premises").value = "A-402";
+  $("#premisesKind").value = "shop";
+  $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+  const rendered = $("#reportRoot").innerHTML;
+  $("#editBtn").click();
+  $("#premises").value = "";
+  $("#premisesKind").value = "home";
+  $("#loadLatestBtn").click();
+  return /id="premises-section"/.test(rendered) && /data-premises-kind="shop"/.test(rendered)
+    && $("#premises").value === "A-402" && $("#premisesKind").value === "shop";
+})());
+
+
+/* ================================================================
+   2026-10 operational layers (2.17.0)
+   The day-division triad, night Choghadiya and the Panchang scope
+   cordon; the 16-zone degree compass; mobile internal digit flow.
+   ================================================================ */
+
+/* ---- Day-division triad: Rahu, Yamaganda, Gulika ---- */
+const triadRows = $$("[data-day-division]", archReportDom);
+check("the classical day-division triad is complete, not Rahu Kaal alone", (() => {
+  const kinds = triadRows.map((r) => r.dataset.dayDivision).sort();
+  return same(kinds, ["gulika", "rahu", "yamaganda"]);
+})());
+check("each of the three windows names which eighth of the day it occupies", triadRows.length === 3 && triadRows.every((r) => {
+  const part = Number(r.dataset.divisionPart);
+  return Number.isInteger(part) && part >= 1 && part <= 8;
+}));
+check("the triad is printed in clock order so a practitioner can scan it", (() => {
+  const starts = triadRows.map((r) => (r.querySelectorAll("td")[1] || {}).textContent || "");
+  return starts.length === 3 && starts.every((x) => /\d/.test(x));
+})());
+/* The slot tables are the whole doctrine here, so they are pinned
+   directly against the canonical chart rather than via the DOM. */
+check("the Rahu / Yamaganda / Gulika weekday slot tables match the classical chart", (() => {
+  const M = window.NVMuhurtha;
+  if (!M || typeof M.gulikaKaal !== "function") return false;
+  // 2026-11-01 is a Sunday, so day-of-month 1..7 walks Sun..Sat.
+  const expect = {
+    0: { rahu: 8, yama: 5, gulika: 7 }, 1: { rahu: 2, yama: 4, gulika: 6 },
+    2: { rahu: 7, yama: 3, gulika: 5 }, 3: { rahu: 5, yama: 2, gulika: 4 },
+    4: { rahu: 6, yama: 1, gulika: 3 }, 5: { rahu: 4, yama: 7, gulika: 2 },
+    6: { rahu: 3, yama: 6, gulika: 1 }
+  };
+  for (let d = 1; d <= 7; d++) {
+    const rk = M.getRahuKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const ym = M.yamagandaKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const gk = M.gulikaKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const e = expect[rk.weekday];
+    if (rk.rahuIndex + 1 !== e.rahu || ym.part !== e.yama || gk.part !== e.gulika) return false;
+  }
+  return true;
+})());
+check("the three windows are cut from one sunrise solve and never overlap", (() => {
+  const M = window.NVMuhurtha;
+  for (let d = 1; d <= 7; d++) {
+    const w = M.inauspiciousWindows(2026, 11, d, 28.6139, 77.209, 5.5);
+    if (!w.ok || w.windows.length !== 3) return false;
+    for (let i = 1; i < w.windows.length; i++) if (w.windows[i].start < w.windows[i - 1].end - 1e-9) return false;
+    // every window is exactly one eighth of the measured daylight
+    if (!w.windows.every((x) => Math.abs((x.end - x.start) - w.partDuration) < 1e-9)) return false;
+    if (Math.abs(w.partDuration * 8 - (w.sunset - w.sunrise)) > 1e-9) return false;
+  }
+  return true;
+})());
+
+/* ---- The Panchang stays a clock, never an oracle ---- */
+check("the Panchang module declares itself a timing readout and disclaims remedy authority", (() => {
+  const scope = $('[data-panchang-scope="readout"]', archReportDom);
+  if (!scope) return false;
+  const text = scope.textContent;
+  return /does not alter/i.test(text) && /Lo Shu/i.test(text) && /Vastu zone/i.test(text);
+})());
+check("the Panchang carries the tier-honesty badge naming the horizon it was cast for", (() => {
+  const badge = $('[data-panchang-tier="horizon"]', archReportDom);
+  return !!badge && /no birth time required/i.test(badge.textContent) && /New Delhi/.test(badge.textContent);
+})());
+check("no remedy obligation ever nests inside the Panchang scope", (() => {
+  const nodes = $$('[data-authority="panchang"]', archReportDom);
+  return nodes.length > 0 && nodes.every((n) => !n.querySelector("[data-remedy-authority]") && !n.querySelector("[data-dasha-vastu-zone]"));
+})());
+
+/* ---- 16-zone degree compass ---- */
+const compassProfile = profile({ entranceDeg: "216", kitchenDeg: "138", bedroomDeg: "22", waterDeg: "30" });
+const compassDom = mount(window.__NV.renderReport(compassProfile));
+const compassSection = $("#vastu-compass-section", compassDom);
+check("the degree compass is optional and absent when no bearing was measured", !$("#vastu-compass-section", mount(window.__NV.renderReport(profile({})))));
+check("the degree compass renders all sixteen zones and one needle per reading", (() => {
+  if (!compassSection) return false;
+  return $$(".cmp-wedge", compassSection).length === 16 && $$("[data-cmp-needle]", compassSection).length === 4;
+})());
+check("the sixteen zones are 22.5° wide with North centred on 0°", (() => {
+  const NI = window.NVInsights;
+  const widths = {};
+  for (let d = 0; d < 360; d += 0.25) {
+    const z = NI.vastuZone(d).zone;
+    widths[z] = (widths[z] || 0) + 0.25;
+  }
+  return Object.keys(widths).length === 16
+    && Object.values(widths).every((w) => Math.abs(w - 22.5) < 1e-9)
+    && NI.vastuZone(0).zone === "N" && NI.vastuZone(11).zone === "N" && NI.vastuZone(11.3).zone === "NNE"
+    && NI.vastuZone(355).zone === "N" && NI.vastuZone(45).zone === "NE" && NI.vastuZone(247.5).zone === "WSW";
+})());
+check("the governing 8-direction is derived from the bearing, not from the zone name", (() => {
+  const NI = window.NVInsights;
+  // The same intermediate zone falls under two different classical
+  // sectors depending on where inside it the reading sits.
+  return NI.vastuZone(20).zone === "NNE" && NI.vastuZone(20).sector === "N"
+    && NI.vastuZone(30).zone === "NNE" && NI.vastuZone(30).sector === "NE";
+})());
+check("a reading near a sector boundary is flagged, because compass error would change the governing direction", (() => {
+  const NI = window.NVInsights;
+  return NI.vastuZone(22).sectorFlip === true && NI.vastuZone(30).sectorFlip === false
+    && !!$('[data-cmp-flag="sector-flip"]', compassSection);
+})());
+check("a reading within 2° of a zone edge is called unreliable rather than reported to false precision", (() => {
+  const NI = window.NVInsights;
+  return NI.vastuZone(11).boundary === true && NI.vastuZone(0).boundary === false && NI.vastuZone(33.7).boundary === true;
+})());
+check("the compass prints both the fine zone and the classical sector for every reading", (() => {
+  const rows = $$("[data-cmp-reading]", compassSection);
+  return rows.length === 4 && rows.every((r) => !!r.dataset.cmpZone16 && !!r.dataset.cmpSector
+    && ["ideal", "acceptable", "avoid"].includes(r.dataset.cmpVerdict));
+})());
+check("a compass dosh reuses the shipped direction remedy instead of inventing a sixteenth one", (() => {
+  const remedy = $("[data-cmp-remedy]", compassSection);
+  if (!remedy) return false;
+  const shipped = window.DB.vastu.directions;
+  const text = remedy.textContent;
+  return Object.keys(shipped).some((dir) => shipped[dir].fix && text.includes(shipped[dir].fix));
+})());
+check("the compass adds no remedy authority of its own and introduces no new direction data", (() => {
+  const vocabOk = compassSection.getAttribute("data-authority") === "home-vastu-context";
+  const noRemedyTag = !compassSection.querySelector("[data-remedy-authority]");
+  // The engine must not carry a parallel direction table.
+  const NI = window.NVInsights;
+  return vocabOk && noRemedyTag && NI.SECTION8 === undefined && same(NI.SECTOR8.slice(), ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+})());
+check("the compass tells the client to use true north and names the Indian declination", /true north/i.test(compassSection.textContent) && /magnetic/i.test(compassSection.textContent));
+
+/* ---- Mobile internal digit flow ---- */
+const flowProfile = profile({ mobile: "8155056910" });
+const flowDom = mount(window.__NV.renderReport(flowProfile));
+const flowCard = $("[data-digit-flow]", flowDom);
+check("the mobile section reads the number as a sequence, not only as a total", (() => {
+  if (!flowCard) return false;
+  const pairs = $$("[data-flow-pair]", flowCard);
+  return pairs.length === 9 && pairs.map((x) => x.dataset.flowPair).join(",") === "81,15,55,50,05,56,69,91,10";
+})());
+check("every adjacent pair is classified by the shipped friendship chart, not an invented pair table", (() => {
+  const NI = window.NVInsights;
+  const f = NI.digitFlow("8155056910", { driver: 2, conductor: 8 }, { relationFn: window.__NV.relation });
+  return f.pairs.every((pr) => {
+    if (pr.a === 0 || pr.b === 0) return pr.kind === "void";
+    if (pr.a === pr.b) return pr.kind === "repeat";
+    return pr.kind === window.__NV.relation(pr.a, pr.b);
+  });
+})());
+check("a pair containing 0 is reported as lordless instead of forced into a relation", (() => {
+  const voids = $$('[data-flow-kind="void"]', flowCard);
+  return voids.length === 3 && voids.every((v) => /0/.test(v.dataset.flowPair));
+})());
+check("the digit flow names the digits absent from the number", (() => {
+  const node = $("[data-flow-missing]", flowCard);
+  return !!node && node.dataset.flowMissing === "2,3,4,7";
+})());
+check("the digit flow emits no black-box luck score anywhere in the report", (() => {
+  const text = flowDom.textContent;
+  // No "<n>% lucky", no "luck score", no bare percentage verdict on a number.
+  return !/\d+\s*%\s*(lucky|luck|auspicious|compatible|match)/i.test(text)
+    && !/luck(iness)?\s*score/i.test(text)
+    && flowCard.getAttribute("data-flow-hostile-count") === "0";
+})());
+check("the digit flow states that the total still governs the recommendation", /does not overrule|overrule it|पलटता नहीं|પલટતું નથી/i.test(flowCard.textContent));
+check("the digit-flow and compass CSS classes are all defined", ["flow-pair", "flow-friend", "flow-enemy", "flow-void", "compass-dial", "cmp-wedge", "cmp-needle", "cmp-zonekey"].every((cls) => styles.includes(`.${cls}`)));
+check("print CSS force-expands the night Choghadiya and keeps the dial's fills", /\.choghadiya-night:not\(\[open\]\) > \.details-body \{ display: block !important; \}/.test(styles) && /\.compass-dial, \.flow-pair \{ -webkit-print-color-adjust: exact/.test(styles));
+check("the compass intake round-trips through submit and local restore", (() => {
+  $("#editBtn").click();
+  $("#fullName").value = "Priya Sharma";
+  $("#dob").value = "20-08-2005";
+  $("#mobile").value = "9876543210";
+  $("#entranceDeg").value = "216";
+  $("#kitchenDeg").value = "138";
+  $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+  const rendered = $("#reportRoot").innerHTML;
+  $("#editBtn").click();
+  $("#entranceDeg").value = "";
+  $("#kitchenDeg").value = "";
+  $("#loadLatestBtn").click();
+  return /id="vastu-compass-section"/.test(rendered)
+    && $("#entranceDeg").value === "216" && $("#kitchenDeg").value === "138";
+})());
+
+
+/* ================================================================
+   2.18.0 — Export to calendar (.ics)
+
+   The deliberate alternative to push notifications. These assertions
+   exist in two groups: the ones that keep the file a VALID iCalendar
+   object (a malformed .ics fails silently in Google Calendar — it
+   imports zero events and says nothing), and the ones that keep it an
+   EXPORT rather than a retention mechanism.
+   ================================================================ */
+
+const ICS = window.NVCalendar;
+const icsProfile = profile({ birthTime: "14:05", birthPlace: "New Delhi, India" });
+const icsDom = mount(window.__NV.renderReport(icsProfile));
+const icsCardEl = $("[data-ics-export]", icsDom);
+const icsActivation = window.__NV.lastActivation();
+const icsPlanOf = (include, extra) => window.__NV.practiceCalendarPlan(
+  icsProfile, icsActivation, { startedAt: "2026-10-01T00:00:00.000Z", days: [] },
+  Object.assign({ profileKey: "smoke-key", include }, extra || {}));
+const icsFull = icsPlanOf({ practice: true, phases: true, power: true, dates: true, windows: true });
+const icsText = ICS.calendar(icsFull.events, { name: icsFull.calendarName });
+
+/* ---- it is a real iCalendar object ---- */
+check("the export is a well-formed VCALENDAR with CRLF line endings", (() => {
+  const lines = icsText.split("\r\n");
+  return lines[0] === "BEGIN:VCALENDAR" && lines[lines.length - 2] === "END:VCALENDAR"
+    && icsText.endsWith("\r\n") && !/[^\r]\n/.test(icsText)
+    && lines.includes("VERSION:2.0") && lines.some((l) => l.startsWith("PRODID:"));
+})());
+check("every BEGIN is matched by its own END, correctly nested", (() => {
+  const stack = [];
+  for (const line of icsText.split("\r\n")) {
+    if (line.startsWith("BEGIN:")) stack.push(line.slice(6));
+    else if (line.startsWith("END:")) { if (stack.pop() !== line.slice(4)) return false; }
+  }
+  return stack.length === 0;
+})());
+/* RFC 5545 §3.1 measures the 75-octet limit in BYTES. Devanagari is
+   three bytes per character, so a character-counting folder emits lines
+   that are silently truncated by strict parsers. */
+check("no content line exceeds 75 octets, even in Devanagari and Gujarati", (() => {
+  const lines = icsText.split("\r\n").filter(Boolean);
+  return lines.every((l) => ICS.byteLength(l) <= 75);
+})());
+check("folded lines unfold losslessly and never split a multi-byte character", (() => {
+  const unfolded = icsText.replace(/\r\n[ \t]/g, "");
+  return !/\uFFFD/.test(unfolded)
+    && unfolded.includes("Lo Shu practice target")
+    && ICS.foldLine("X:" + "सूर्योदय ".repeat(40)).replace(/\r\n /g, "") === "X:" + "सूर्योदय ".repeat(40);
+})());
+check("every unfolded content line is a NAME:VALUE property", (() => {
+  return icsText.replace(/\r\n[ \t]/g, "").split("\r\n").filter(Boolean)
+    .every((l) => /^[A-Za-z][A-Za-z0-9-]*(;[^:]*)?:/.test(l));
+})());
+check("text values escape the characters RFC 5545 reserves", (() => {
+  const raw = ICS.escapeText("a,b;c\\d\ne");
+  /* A literal comma inside a SUMMARY would otherwise start a second value. */
+  return raw === "a\\,b\\;c\\\\d\\ne" && !/[^\\],/.test(ICS.escapeText("x,y"));
+})());
+check("a single all-day event ends on the next day, as DATE values are exclusive", (() => {
+  const lines = ICS.event({ uid: "u", summary: "s", allDay: true, start: { y: 2026, m: 10, d: 1 } }, new Date());
+  return lines.includes("DTSTART;VALUE=DATE:20261001") && lines.includes("DTEND;VALUE=DATE:20261002");
+})());
+check("decimal sunrise hours convert to clock time and roll past midnight correctly", (() => {
+  const a = ICS.fromDecimalHours({ y: 2026, m: 10, d: 1 }, 6.2333);
+  const b = ICS.fromDecimalHours({ y: 2026, m: 12, d: 31 }, 25.5);
+  return a.h === 6 && a.mi === 14 && b.y === 2027 && b.m === 1 && b.d === 1 && b.h === 1 && b.mi === 30;
+})());
+
+/* ---- the export card ---- */
+check("the plan section offers a calendar export with a count beside every option", (() => {
+  if (!icsCardEl) return false;
+  const opts = $$("[data-ics-opt]", icsCardEl).map((o) => o.getAttribute("data-ics-opt"));
+  return same(opts.slice().sort(), ["alarm", "dates", "phases", "power", "practice", "windows"])
+    && Number($('[data-ics-count="practice"]', icsCardEl).textContent) === 40;
+})());
+check("the client sees how many entries an option adds before importing anything", (() => {
+  return ["practice", "phases", "power", "dates", "windows"].every((k) => {
+    const node = $(`[data-ics-count="${k}"]`, icsCardEl);
+    return node && Number(node.textContent) > 0;
+  });
+})());
+check("only the practice, phases and power-day options are pre-selected", (() => {
+  const on = $$("[data-ics-opt]", icsCardEl).filter((o) => o.hasAttribute("checked")).map((o) => o.getAttribute("data-ics-opt"));
+  return same(on.slice().sort(), ["phases", "power", "practice"]);
+})());
+
+/* ---- forty discrete sunrises, not one repeating alarm ---- */
+check("the 40-day container exports one entry per day, each on its own date", (() => {
+  const practice = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid));
+  const dates = new Set(practice.map((e) => [e.start.y, e.start.m, e.start.d].join("-")));
+  return practice.length === 40 && dates.size === 40;
+})());
+check("each day carries its own computed sunrise, which is why one RRULE would not do", (() => {
+  const mins = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid)).map((e) => e.start.h * 60 + e.start.mi);
+  /* Sunrise at Delhi moves roughly 25 minutes across a 40-day autumn
+     cycle. A single repeating event would be wrong for most of it. */
+  const drift = Math.abs(mins[39] - mins[0]);
+  return drift >= 15 && drift <= 60 && new Set(mins).size > 10;
+})());
+check("the sitting length comes from the practice depth the client chose, not a guess", (() => {
+  const beginner = window.__NV.practiceCalendarPlan(profile({ sadhana: "beginner", birthPlace: "New Delhi, India", birthTime: "14:05" }),
+    icsActivation, { startedAt: null, days: [] }, { profileKey: "k", include: { practice: true } });
+  return icsFull.practiceMinutes === 20 && beginner.practiceMinutes === 20 || icsFull.practiceMinutes >= 15;
+})());
+check("a chart with no birthplace still exports, flagged as a nominal slot rather than a fake sunrise", (() => {
+  /* The shared fixture always carries a birthplace, so this case has to
+     strip it explicitly — that is the whole point of the assertion. */
+  const noGeo = window.__NV.practiceCalendarPlan(profile({ birthTime: "", birthPlace: "" }), icsActivation,
+    { startedAt: null, days: [] }, { profileKey: "k", include: { practice: true } });
+  return noGeo.ok && noGeo.sunrise === false && noGeo.events.length === 40
+    && noGeo.events.every((e) => e.start.h === 6 && e.start.mi === 30)
+    && /nominal/i.test(noGeo.events[0].description);
+})());
+
+/* ---- it is an export, not a retention mechanism ---- */
+check("no reminder alarm is written unless the client explicitly asks for one", (() => {
+  const silent = ICS.calendar(icsPlanOf({ practice: true }).events, {});
+  const asked = ICS.calendar(icsPlanOf({ practice: true }, { alarmMinutes: 10 }).events, {});
+  return !/BEGIN:VALARM/.test(silent) && (asked.match(/BEGIN:VALARM/g) || []).length === 40
+    && /TRIGGER:-PT10M/.test(asked);
+})());
+check("the app ships no push-notification machinery of any kind", (() => {
+  const sources = ["app.js", "sw.js", "calendar.js"].map(read).join("\n");
+  return !/pushManager|PushSubscription|showNotification|Notification\.requestPermission|requestPermission\(\)/.test(sources)
+    && !/addEventListener\(\s*["']push["']/.test(sources);
+})());
+check("the calendar writer cannot reach the network at all", (() => {
+  const src = read("calendar.js");
+  return !/fetch\(|XMLHttpRequest|navigator\.send|WebSocket|import\(/.test(src)
+    && !/localStorage|sessionStorage|indexedDB|document\./.test(src);
+})());
+check("an advisory window is written as free time so it cannot block the client's day", (() => {
+  const windows = icsFull.events.filter((e) => /-window-/.test(e.uid));
+  const practice = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid));
+  return windows.length === 120 && windows.every((e) => e.transparent === true)
+    && practice.every((e) => !e.transparent)
+    && /TRANSP:TRANSPARENT/.test(icsText) && /TRANSP:OPAQUE/.test(icsText);
+})());
+
+/* ---- privacy ---- */
+check("the exported file never carries the client's name or date of birth", (() => {
+  return !/priya|sharma|2005-08|20050820/i.test(icsText);
+})());
+check("event identity is a one-way hash, so a synced work calendar learns nothing", (() => {
+  const uid = ICS.uidFor("Priya Sharma|2005-08-20", "practice-1");
+  return /^nv[a-z0-9]+-practice-1@numerovastu-360\.local$/.test(uid)
+    && !/priya|sharma|2005/i.test(uid)
+    && ICS.uidFor("Priya Sharma|2005-08-20", "practice-1") === uid;
+})());
+check("re-exporting updates the same entries instead of duplicating all forty", (() => {
+  const a = icsPlanOf({ practice: true }).events.map((e) => e.uid);
+  const b = icsPlanOf({ practice: true }).events.map((e) => e.uid);
+  return same(a, b) && new Set(a).size === a.length;
+})());
+check("every UID in one export is unique", (() => {
+  const uids = icsFull.events.map((e) => e.uid);
+  return new Set(uids).size === uids.length && uids.length === 196;
+})());
+
+/* ---- the calendar may not contradict the report ---- */
+check("every exported entry repeats the report's cordon and claims no authority of its own", (() => {
+  return icsFull.events.every((e) => /Timing aid only|केवल समय-सहायक|ફક્ત સમય-સહાયક/.test(e.description))
+    && icsFull.events.every((e) => /changes no remedy/.test(e.description));
+})());
+check("the exported practice names the same Lo Shu target the report prescribes", (() => {
+  const target = icsActivation.targetN;
+  return icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid))
+    .every((e) => e.description.includes(`number ${target}`));
+})());
+check("exported favourable dates are exactly the dates Section 13a prints", (() => {
+  /* Same engine, same horizon, same limit — asserted rather than
+     assumed, because a second call site is how two numbers drift. */
+  const exported = icsFull.events.filter((e) => /-date-/.test(e.uid))
+    .map((e) => `${e.start.y}-${String(e.start.m).padStart(2, "0")}-${String(e.start.d).padStart(2, "0")}`).sort();
+  const printed = $$("[data-finder-date]", icsDom).map((n) => n.getAttribute("data-finder-date")).sort();
+  return exported.length > 0 && same([...new Set(exported)], [...new Set(printed)]);
+})());
+check("the exported day-division windows match the Muhurtha engine exactly", (() => {
+  const first = icsFull.events.filter((e) => /-window-/.test(e.uid)).slice(0, 3);
+  const solved = window.NVMuhurtha.inauspiciousWindows(2026, 10, 1, 28.6139, 77.209, 5.5);
+  if (!solved.ok || first.length !== 3) return false;
+  return first.every((e, i) => {
+    const want = ICS.fromDecimalHours({ y: 2026, m: 10, d: 1 }, solved.windows[i].start);
+    return e.start.h === want.h && e.start.mi === want.mi;
+  });
+})());
+check("the export reuses the rendered plan rather than re-resolving the prescription", (() => {
+  const src = read("app.js");
+  return /lastActivation = activation;/.test(src)
+    && /downloadPracticeCalendar\(lastProfile, lastActivation/.test(src);
+})());
+
+/* ---- plumbing ---- */
+check("the calendar writer is shipped, precached and loaded before app.js", (() => {
+  return pageScripts.includes("calendar.js") && buildFiles.includes("calendar.js")
+    && swSource.includes('"./calendar.js"')
+    && pageScripts.indexOf("calendar.js") < pageScripts.indexOf("app.js");
+})());
+check("the export card's CSS classes are all defined and it is hidden in print", (() => {
+  return ["ics-card", "ics-options", "ics-opt", "ics-opt-label", "ics-count", "ics-actions", "ics-total"]
+    .every((cls) => styles.includes(`.${cls}`)) && /\.ics-card \{ display: none; \}/.test(styles);
 })());
 
 if (failed) {

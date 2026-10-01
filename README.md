@@ -1,6 +1,10 @@
 # NumeroVastu 360
 
-**Release 2.15.0 — Practitioner audit of the whole report: the planetary friendship matrix now follows the classical one-way Moolank Maitri chart, the North carries Water, and the Mercury (5) Dasha-Vastu zone is the North (Kubera sector) — plus the print fix that kept "What to AVOID" from jumping a page**
+**Release 2.18.0 — Export to Calendar (.ics): the client's 40-day container, phase milestones, power-day check-ins, favourable dates and Rahu/Yamaganda/Gulika windows written to a standard calendar file on-device — chosen over push notifications on purpose**
+
+Previously: **2.17.0 — Operational layer: the complete day-division triad (Rahu + Yamaganda + Gulika), all sixteen Choghadiya, a 16-zone degree-precise Vastu compass with boundary and sector-flip warnings, and mobile internal digit-flow analysis — with no luck scores, pinned by test**
+
+Previously: **2.16.0 — Competitive-parity release: Name Architecture, Premises Numerology, Personal Cycles with a graded calendar and favourable-date finder, the full five-limb Panchang with Choghadiya and Abhijit, and an optional cordoned Western cross-reference — plus the build/offline fix that was dropping `muhurtha.js` from production**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +24,79 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.18.0
+
+A client who wants the 40-day container to sit beside their work and family commitments can be
+served two ways, and only one of them belongs in a consultation dossier.
+
+**What was rejected.** Push notifications: a service-worker subscription, an OS permission prompt,
+a vendor push endpoint and a server that necessarily learns when each client practises. That is
+daily-active-user machinery borrowed from ad-funded portals, and pointing it at someone's sadhana
+converts a self-directed practice into an app that nags. Smoke now asserts the codebase ships no
+`pushManager`, `showNotification` or `Notification.requestPermission` anywhere — the decision is
+pinned, not just documented.
+
+**What was built instead.** The browser serialises a static RFC 5545 file on the device and hands
+it over. The client imports it into the calendar they already live in, and from that moment the app
+is out of the loop: nothing subscribed, nothing running in the background, nothing reported back,
+no battery cost, and every entry deletable without asking us.
+
+| Area | 2.18.0 behaviour |
+| --- | --- |
+| **Five independently selectable sets** | The 40-day container, phase milestones, Driver/Conductor power-day check-ins, the favourable dates from Section 13a, and the Rahu / Yamaganda / Gulika windows. Each checkbox shows **how many entries it will add** before the client commits — 40, 4, 12, 20, 120 on a typical chart. Only the first three are pre-selected. |
+| **Forty discrete sunrises, not one repeating rule** | Sunrise moves roughly **25 minutes** across a 40-day cycle at Indian latitudes, so a single `RRULE` at 06:14 would be wrong for most of the container. Each day carries its own solved sunrise, and the per-day solve picks up any daylight-saving shift mid-cycle. A chart with no birthplace falls back to a nominal 06:30 slot **that says so** rather than faking a sunrise. |
+| **Sitting length is derived, not guessed** | Taken from the Scaled Sadhana depth the client already chose — it is not a new number invented at export time. |
+| **UTF-8 octet line folding** | RFC 5545 measures its 75-character limit in **octets**. Devanagari and Gujarati are three bytes per character, so a character-counting folder emits 225-byte lines that strict parsers truncate. The folder counts real bytes and refuses to split inside a character or a surrogate pair; smoke asserts folded Devanagari unfolds losslessly with no replacement characters. |
+| **Calendar semantics done properly** | All-day events end on the *following* day, because `DATE` values are exclusive and getting this wrong renders a one-day event as a two-day banner. Advisory windows are written `TRANSP:TRANSPARENT` so an almanac note shows as free time and cannot block a colleague from booking over it — it is information, not an appointment. |
+| **Privacy in the file itself** | Event UIDs are a **one-way hash**, never the name or date of birth, because a calendar entry frequently syncs to Google or Exchange and `priya-sharma-2005-04-12@…` would quietly export a client's identity to a third party the consultation never agreed to involve. Smoke asserts the rendered file contains neither the fixture's name nor its DOB. The hash is also stable, so **re-exporting updates the same entries instead of duplicating all forty**. |
+| **Reminders are opt-in** | No `VALARM` is written unless the client ticks the box. When they do, it is their own calendar reminding them — no permission prompt, no push endpoint, nothing in the background. |
+| **The calendar cannot contradict the report** | Every description is assembled from the already-rendered plan (`lastActivation`), and the exported favourable dates are asserted to be **exactly** the dates Section 13a prints — same engine, same horizon, same limit. Every entry repeats the cordon: *"Timing aid only… changes no remedy, dose or guardrail."* |
+| **Pack / app version** | `latestVersion` stays **2.10.0**; `appVersion` → **2.18.0**. New file `calendar.js` is wired into `index.html`, the static build manifest and the service-worker precache. Smoke 524 → **554 assertions**. |
+
+## What changed in 2.17.0
+
+A second competitive review (Occult King, Pinnacle Vastu and the same class of commercial portal)
+scored the app ahead on privacy, clinical safety, epistemic honesty and practitioner utility, and
+behind on **spatial tooling** and **daily retention**. Full disposition of every item is in
+[docs/competitive-gap-analysis-2026.md §8](docs/competitive-gap-analysis-2026.md). Again app-logic
+only — no remedy, dosha, deity, mantra, crystal, charity, fasting or Vastu prescription field was
+touched, so the knowledge pack stays at **2.10.0**.
+
+| Area | 2.17.0 behaviour |
+| --- | --- |
+| **Day-division triad completed** | Rahu Kaal was half the picture. **Yamaganda** and **Gulika Kaal** now sit beside it, all three cut from the same sunrise solve — measured daylight ÷ 8, one fixed part per weekday. The slot tables (Rahu: Sun 8th … Sat 3rd; Yamaganda: Sun 5th … Sat 6th; Gulika counting backwards from Saturn's own day, Sat 1st through Sun 7th) were cross-checked against five independent almanac sources and are pinned in smoke for all seven weekdays, along with the invariants that they never overlap and each is exactly one eighth of *measured* daylight. |
+| **All sixteen Choghadiya** | The engine always computed day **and** night; the report printed only the eight daytime slots. Night Choghadiya now renders behind a disclosure that print force-expands. |
+| **Panchang stays a clock, not an oracle** | The module now states its cordon in the client's own view, not just in markup: a *"Timing & horizon readout only"* card disclaiming any effect on Lo Shu void remedies, crystal assignments, deity selection or Vastu zone activations, plus a tier-honesty badge — *"Calculated for the local horizon at {City} — date and location only; no birth time required."* Smoke asserts no remedy obligation can nest inside the Panchang scope. |
+| **§16A — 16-zone degree compass** | Optional 0–360° bearings for the main entrance, kitchen burner, master bed and water source. Each resolves to a 22.5° zone **and** to the classical 45° sector computed from *the same bearing* — so an N-N-E reading at 20° is governed by the North and the same zone at 30° by the North-East. Two honesty flags no competitor ships: a reading within 2° of a **zone edge** is called unreliable rather than reported to false precision, and a reading within 2° of a **sector boundary** warns that ordinary compass error would change which direction governs the remedy. Any dosh is answered with the **shipped eight-direction remedy verbatim** — no sixteenth doctrine was invented, which is exactly why this stays outside the content gate. Tells you to use true north and names the Indian declination. |
+| **§7 — mobile internal digit flow** | The number is now read as a sequence as well as a total: adjacent pairs, absent digits, over-weighted digits, longest hostility-free stretch. Each pair is classified by the **same one-way Moolank Maitri relation** the rest of the report uses, so every label traces to a row of the shipped friendship chart rather than an invented two-digit meaning table. A pair containing 0 is reported as **lordless** instead of being forced into a relation the system does not give it. |
+| **No luck scores — enforced** | A smoke assertion scans the entire rendered report and fails on any `N% lucky / auspicious / compatible` pattern or any "luck score". Counts you can verify by eye, never a number you cannot. |
+| **Pack / app version** | `latestVersion` stays **2.10.0**; `appVersion` → **2.17.0** across `app.js`, the `index.html` meta, the `sw.js` cache name, the i18n status pills and `package.json`/`package-lock.json`. Smoke 497 → **524 assertions**. Source archive regenerated from HEAD. |
+
+## What changed in 2.16.0
+
+A competitive teardown of the Indian numerology hubs (AstroTalk, Dinesh Atrish,
+PanchangBodh, AstroVed), the global numerology apps (Numerologist, Mistic,
+SoulChart) and the professional Vastu suites (Applied Vastu, Reyansh) found the
+product ahead on rigour and behind on **surface area and cadence**. Five gaps
+are closed here; the rest are recorded with reasons in
+[docs/competitive-gap-analysis-2026.md](docs/competitive-gap-analysis-2026.md).
+
+All five new sections are **reading surfaces**: smoke asserts each contains zero
+`[data-remedy-authority]` nodes, so none can ever quietly become a prescription.
+No remedy, dosha, deity, mantra, crystal, charity, fasting or Vastu field was
+touched, so the knowledge pack stays at **2.10.0**.
+
+| Area | 2.16.0 behaviour |
+| --- | --- |
+| **§6A Name Architecture** | The Chaldean name is decomposed the way every competitor does it: vowels → **Soul Urge**, consonants → **Personality**, both → **Expression** (with `Soul Urge + Personality = Expression` pinned as an invariant), plus **Cornerstone**, **Capstone**, **First Vowel** and a per-letter chip strip showing each letter's value so the client can audit the total by eye. It stays Chaldean — the Expression here is byte-identical to the Name Number in §6, and the correction table re-states `nameSuggestions()` rather than generating a second, conflicting set of spellings. |
+| **§8A Premises Numerology** | New optional intake — house / flat / plot / office / shop / desk / bank-account number. Read in **two layers**: the door digits alone (`A-402` → 402 → 6) and the full token with its block letter. Graded against both birth numbers into excellent / supportive / neutral / hostile. A hostile verdict offers up to four **nameplate tuning** options rather than telling anyone to move house, and a closing card lists the door totals that suit the chart. Omit the field and every existing chart is byte-for-byte unchanged. |
+| **§13a Personal Cycles** | **Personal Year / Month / Day** with the arithmetic shown, a **graded month calendar** (every day carries its Personal Day and a four-tier colour grade, today outlined), and a **90-day favourable-date finder** for the five life events the knowledge pack already defines for the Dasha windows. Each date carries its full scoring trail as a tooltip. The Personal Year is pinned equal to the Dasha transit card's, and the section states plainly that a good date is not a good hour — it sends you to §13b for Abhijit / Choghadiya placement. |
+| **§13b Panchang depth** | The Muhurtha section stopped at sunrise, sunset and Rahu Kaal. It now computes all five limbs — **tithi** (paksha, Rikta flag), **nakshatra** (pada, lord), **yoga**, **karana** (Vishti / Bhadra flag) and **vara** — each **with the time it ends**, because a tithi without its boundary is false for part of the day. Plus the **eight daytime Choghadiya**, each graded, and **Abhijit Muhurta** with its classical Wednesday exclusion. All solved on the shipped Meeus ephemeris, not a printed almanac. |
+| **§17A Western cross-reference** | Clients arrive asking for "their Life Path". The honest answer is a cordoned **optional module**, built exactly like the Feng Shui / Kua one: collapsed by default, labelled as a different school, structurally forbidden from choosing a remedy, crystal, deity, Vastu zone or Dasha. Reports Life Path, Expression, Soul Urge, Personality, Maturity, Balance, Rational Thought, Karmic Lessons, Hidden Passion, Subconscious Self and the Decoz **Planes of Expression**, and states explicitly whether it **agrees** or **differs** with the Vedic reading. |
+| **P0 — production was missing an engine** | `index.html` loaded `muhurtha.js`, but `scripts/build-static.cjs` never copied it and `sw.js` never precached it: the production bundle 404'd and an installed PWA lost the whole Muhurtha section offline. Both files (and the new `insights.js`) are now shipped, **and the build throws if `index.html` references any script `dist/` does not contain**. The smoke suite now evaluates the same script list the page loads — it had been omitting `muhurtha.js`, so a shipped engine was only ever asserted in its degraded no-engine branch. |
+| **New engine** | `insights.js` (`window.NVInsights`) — a pure, DOM-free calculation module. Three drift guards tie it to what already ships: its Chaldean table must deep-equal `DB.chaldean`, its `relation()` must agree with `__NV.relation()` on all 81 ordered pairs, and its Expression / Personal Year must equal the report's. |
+| **Pack / app version** | App-logic only, so `latestVersion` stays **2.10.0**; `appVersion` moves to **2.16.0** in `knowledge-pack/latest.json`, with `APP_VERSION`, the `index.html` meta, the `sw.js` cache name, the i18n status pills and `package.json`/`package-lock.json` following. Smoke grew from 453 to **497 assertions**. Source archive regenerated from HEAD. |
 
 ## What changed in 2.15.0
 
