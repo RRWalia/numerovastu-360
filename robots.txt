@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://numerovastu-360.netlify.app/sitemap.xml

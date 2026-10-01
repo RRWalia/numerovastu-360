@@ -1299,7 +1299,29 @@ check("the service worker precaches only static shell assets, never personal dat
   const list = swSource.slice(swSource.indexOf("const SHELL_ASSETS"), swSource.indexOf("];", swSource.indexOf("const SHELL_ASSETS")));
   return !/localStorage|sessionStorage|indexedDB|\?name=|\bdob\b/i.test(list) && /\.\/index\.html/.test(list) && /\.\/app\.js/.test(list);
 })());
-check("registration is CSP-safe and can be bypassed with ?sw=off", !/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/.test(html) && /serviceWorker\.register\("sw\.js"\)/.test(read("app.js")) && /sw=off/.test(read("app.js")));
+check("registration is CSP-safe and can be bypassed with ?sw=off", !/<script(?![^>]*\bsrc=)(?![^>]*application\/ld\+json)[^>]*>[\s\S]*?<\/script>/.test(html) && /serviceWorker\.register\("sw\.js"\)/.test(read("app.js")) && /sw=off/.test(read("app.js")));
+check("the homepage ships crawlable SEO copy, FAQ and structured data", (() => {
+  const ld = $$('script[type="application/ld+json"]');
+  if (ld.length !== 1) return false;
+  let graph;
+  try { graph = JSON.parse(ld[0].textContent)["@graph"] || []; } catch { return false; }
+  const types = graph.map((node) => node["@type"]);
+  const faq = graph.find((node) => node["@type"] === "FAQPage");
+  const landing = $(".seo-landing");
+  return ["WebSite", "SoftwareApplication", "FAQPage", "Organization"].every((t) => types.includes(t))
+    && Array.isArray(faq.mainEntity) && faq.mainEntity.length >= 5
+    && !!landing && landing.querySelectorAll(".seo-card").length >= 6
+    && landing.querySelectorAll(".seo-faq details").length === faq.mainEntity.length
+    && /<title>[^<]*free[^<]*numerology/i.test(html)
+    && !!$('link[rel="canonical"]')
+    && !!$('meta[property="og:image"]');
+})());
+check("robots.txt and sitemap.xml are present and shipped by the static build", (() => {
+  const buildSrc = read("scripts/build-static.cjs");
+  return /Sitemap: https:\/\/[^\s]+\/sitemap\.xml/.test(read("robots.txt"))
+    && /<loc>https:\/\/[^<]+<\/loc>/.test(read("sitemap.xml"))
+    && /'robots\.txt'/.test(buildSrc) && /'sitemap\.xml'/.test(buildSrc);
+})());
 check("the static build copies the manifest, worker and icons into dist/", (() => {
   const buildSrc = read("scripts/build-static.cjs");
   return /'sw\.js'/.test(buildSrc) && /'manifest\.webmanifest'/.test(buildSrc) && /'icons'/.test(buildSrc) && /CACHE_VERSION/.test(buildSrc);
