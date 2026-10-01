@@ -14,7 +14,7 @@ const dist = path.join(root, 'dist');
  * and the whole Muhurtha / Rahu Kaal section silently rendered empty in dist/
  * while working perfectly in local dev. The guard below makes that class of
  * omission impossible to repeat. */
-const files = ['index.html', 'favicon.ico', 'app.js', 'astro.js', 'muhurtha.js', 'insights.js',
+const files = ['index.html', 'favicon.ico', 'app.js', 'astro.js', 'muhurtha.js', 'insights.js', 'calendar.js',
   'data.js', 'i18n.js', 'styles.css',
   'sw.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml', 'google77280abb8794a6d3.html'];
 const dirs = ['knowledge-pack', 'atlas', 'icons'];

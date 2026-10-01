@@ -897,7 +897,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.17.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.18.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-19";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -5173,6 +5173,305 @@
     return { targetN, target: { ...target, short: targetShort }, missingFocus: targets.missing, repeatedFocus: targets.repeated, daily, powerDays, phases, acute, holdJapa, tier1N: tier1.n, tier1Mode: tier1.mode, triageNote, sadhana: sadhana.key, sadhanaJapa: sadhana.japa };
   }
 
+
+  /* ---------------- Export to calendar (.ics) ----------------------
+     A client who wants the 40-day container to sit beside their work
+     and family commitments has two possible mechanisms, and only one
+     of them belongs in a consultation dossier.
+
+     The rejected one is a push notification daemon: a service-worker
+     subscription, an OS permission prompt, a vendor push endpoint and
+     a server that necessarily learns when each client practises. That
+     is daily-active-user machinery borrowed from ad-funded portals,
+     and pointing it at someone's spiritual practice would quietly
+     convert a self-directed sadhana into an app that nags.
+
+     This is the other one. The browser serialises a static text file
+     on the device; the client imports it wherever they already keep
+     their life; the app is then completely out of the loop. Nothing
+     is subscribed, nothing runs in the background, nothing phones
+     home, and the client can delete any entry without asking us.
+
+     Doctrinal rule, identical to the one the 16-zone compass follows:
+     this exports text the report already rendered and resolves no new
+     prescription of its own. Every description below is assembled from
+     `activation.*`, which the practitioner-gated knowledge pack
+     produced, so the calendar cannot drift from the page. The only
+     new computation is per-day sunrise — arithmetic, not doctrine. */
+  const PLAN_WEEKDAY_INDEX = { 1: 0, 2: 1, 9: 2, 7: 2, 5: 3, 3: 4, 6: 5, 8: 6, 4: 6 };
+
+  function planCalendarAnchor(planState) {
+    const raw = planState && planState.startedAt ? new Date(planState.startedAt) : new Date();
+    const d = isNaN(raw.getTime()) ? new Date() : raw;
+    return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
+  }
+
+  /* Returns language-neutral *structure* with language-specific text
+     already resolved, plus the counts the export card needs to tell the
+     client exactly how many entries each option will add. */
+  function practiceCalendarPlan(p, activation, planState, options) {
+    const ICS = (typeof window !== "undefined" && window.NVCalendar) ? window.NVCalendar : null;
+    const empty = { ok: false, events: [], counts: { practice: 0, phases: 0, power: 0, dates: 0, windows: 0 }, sunrise: false };
+    if (!ICS || !p || !activation) return empty;
+
+    const opts = options || {};
+    const lang = getLang();
+    const T = (en, hi, gu) => triText(lang, en, hi, gu);
+    const plain = (html) => ICS.htmlToPlain(html);
+    const DAYS = 40;
+    const include = opts.include || { practice: true, phases: true, power: true, dates: false, windows: false };
+    const alarmMinutes = Number(opts.alarmMinutes) > 0 ? Math.trunc(Number(opts.alarmMinutes)) : 0;
+    const key = opts.profileKey || state.activeProfileKey || profileKeyOf(p) || "anonymous";
+    const uid = (slot) => ICS.uidFor(key, slot);
+    const anchor = planCalendarAnchor(planState);
+
+    const scale = SADHANA_SCALE[activation.sadhana] || SADHANA_SCALE[SADHANA_DEFAULT];
+    /* Length of the sitting, derived from the practice depth the client
+       already chose — never a number invented here. */
+    const practiceMinutes = Math.max(15, (scale.breathMinutes || 10) + 10);
+
+    /* The one line that keeps the file honest about what it is. */
+    const cordon = T(
+      "Timing aid only. This entry repeats text from your NumeroVastu 360 report and changes no remedy, dose or guardrail in it. Open the report for the full reasoning.",
+      "केवल समय-सहायक। यह प्रविष्टि आपकी NumeroVastu 360 रिपोर्ट का पाठ दोहराती है और उसमें किसी उपाय, मात्रा या सुरक्षा-नियम को नहीं बदलती। पूरा तर्क रिपोर्ट में देखें।",
+      "ફક્ત સમય-સહાયક. આ એન્ટ્રી તમારા NumeroVastu 360 રિપોર્ટનો લખાણ દોહરાવે છે અને તેમાં કોઈ ઉપાય, માત્રા કે સુરક્ષા-નિયમ બદલતી નથી. પૂરું તર્ક રિપોર્ટમાં જુઓ."
+    );
+
+    /* Per-day solar solve. getRealSunriseForProfile already handles the
+       daylight-saving offset for the date it is asked about, so a cycle
+       that crosses a DST boundary stays correct instead of drifting an
+       hour mid-practice. */
+    let sunriseInfo = null;
+    try { sunriseInfo = getRealSunriseForProfile(p); } catch (e) { sunriseInfo = null; }
+    const place = sunriseInfo && sunriseInfo.place ? sunriseInfo.place : null;
+    const placeName = place ? (place.name || `${Number(place.lat).toFixed(2)}, ${Number(place.lon).toFixed(2)}`) : "";
+    const sunriseFor = (parts) => {
+      if (!place) return null;
+      let info = null;
+      try { info = getRealSunriseForProfile(p, parts.y, parts.m, parts.d); } catch (e) { info = null; }
+      if (!info || !info.ss || info.ss.sunrise == null || !isFinite(info.ss.sunrise)) return null;
+      return info;
+    };
+
+    const events = [];
+    const counts = { practice: 0, phases: 0, power: 0, dates: 0, windows: 0 };
+
+    /* ---- 1 · the daily container -------------------------------
+       Forty discrete entries rather than one RRULE, because sunrise
+       moves by roughly twenty-five minutes over forty days at Indian
+       latitudes. A single repeating 06:14 event would be wrong for most
+       of the cycle, and a sunrise practice that is wrong about sunrise
+       is worse than no entry at all. */
+    const dailyText = (activation.daily || [])
+      .map((row) => `• ${plain(row.label)}: ${plain(row.value)}`)
+      .join("\n");
+    const targetLine = T(
+      `Lo Shu practice target: number ${activation.targetN}.`,
+      `लो शू अभ्यास लक्ष्य: अंक ${activation.targetN}।`,
+      `લો શુ અભ્યાસ લક્ષ્ય: અંક ${activation.targetN}.`
+    );
+    if (include.practice) {
+      for (let i = 0; i < DAYS; i++) {
+        const day = ICS.addDays(anchor, i);
+        const info = sunriseFor(day);
+        const start = info
+          ? ICS.fromDecimalHours(day, info.ss.sunrise)
+          : { y: day.y, m: day.m, d: day.d, h: 6, mi: 30, s: 0 };
+        const horizon = info
+          ? T(`Sunrise ${placeName}: computed for this date.`,
+              `सूर्योदय ${placeName}: इसी तिथि के लिए गणना।`,
+              `સૂર્યોદય ${placeName}: આ જ તારીખ માટે ગણતરી.`)
+          : T("No birthplace on file, so this is a nominal 6:30 AM slot — move it to your own sunrise.",
+              "फ़ाइल में जन्मस्थान नहीं है, अतः यह नाममात्र ६:३० AM का समय है — इसे अपने सूर्योदय पर ले जाएँ।",
+              "ફાઇલમાં જન્મસ્થળ નથી, તેથી આ નામમાત્ર ૬:૩૦ AM નો સમય છે — તેને તમારા સૂર્યોદય પર ખસેડો.");
+        events.push({
+          uid: uid(`practice-${i + 1}`),
+          summary: T(`Lo Shu practice — Day ${i + 1} of ${DAYS}`,
+            `लो शू अभ्यास — दिन ${i + 1} / ${DAYS}`,
+            `લો શુ અભ્યાસ — દિવસ ${i + 1} / ${DAYS}`),
+          start,
+          end: ICS.addMinutes(start, practiceMinutes),
+          description: [targetLine, dailyText, horizon, cordon].filter(Boolean).join("\n\n"),
+          categories: ["NumeroVastu 360"],
+          alarmMinutes
+        });
+        counts.practice++;
+      }
+    }
+
+    /* ---- 2 · phase milestones ---------------------------------- */
+    if (include.phases) {
+      (activation.phases || []).forEach((phase, idx) => {
+        /* "Days 8-21" / "Day 40+" — take the first integer as the offset. */
+        const match = /(\d+)/.exec(String(phase.badge || ""));
+        const dayNo = match ? Math.max(1, Math.min(DAYS, Number(match[1]))) : idx * 10 + 1;
+        const at = ICS.addDays(anchor, dayNo - 1);
+        events.push({
+          uid: uid(`phase-${idx + 1}`),
+          summary: `${plain(phase.badge)} — ${plain(phase.title)}`,
+          allDay: true,
+          start: at,
+          description: [(phase.rows || []).map((r) => `• ${plain(r)}`).join("\n"), cordon].filter(Boolean).join("\n\n"),
+          categories: ["NumeroVastu 360"],
+          transparent: true
+        });
+        counts.phases++;
+      });
+    }
+
+    /* ---- 3 · power-day check-ins -------------------------------
+       Driver and Conductor weekdays only, and the description repeats
+       the report's own caveat that these schedule a check-in and never
+       move the Lo Shu target. */
+    if (include.power) {
+      const dayNumbers = [p.driver, p.conductor].filter((n, i, arr) => isFinite(n) && arr.indexOf(n) === i);
+      dayNumbers.forEach((n, slot) => {
+        const target = PLAN_WEEKDAY_INDEX[n];
+        if (target === undefined) return;
+        const info = (activation.powerDays || [])[slot] || null;
+        for (let i = 0; i < DAYS; i++) {
+          const day = ICS.addDays(anchor, i);
+          if (new Date(day.y, day.m - 1, day.d).getDay() !== target) continue;
+          events.push({
+            uid: uid(`power-${n}-${i + 1}`),
+            summary: T(`Power-day check-in — ${DAY_NAMES.en[n]} (${n})`,
+              `पावर-डे चेक-इन — ${DAY_NAMES.hi[n]} (${n})`,
+              `પાવર-ડે ચેક-ઇન — ${DAY_NAMES.gu[n]} (${n})`),
+            allDay: true,
+            start: day,
+            description: [info ? plain(info.note) : "", info ? `${T("Charity", "दान", "દાન")}: ${plain(info.charity)}` : "", cordon].filter(Boolean).join("\n\n"),
+            categories: ["NumeroVastu 360"],
+            transparent: true
+          });
+          counts.power++;
+        }
+      });
+    }
+
+    /* ---- 4 · favourable dates ----------------------------------
+       Deliberately the same engine call as Section 13a — same horizon,
+       same limit, same purpose keys — so an exported date can never
+       disagree with the date printed in the report. */
+    if (include.dates) {
+      const NI = insightsEngine();
+      const db = getActiveDB();
+      const lifeEvents = (db.dasha && db.dasha.lifeEvents) || {};
+      const chart = { driver: p.driver, conductor: p.conductor, day: p.day, month: p.month };
+      Object.keys(lifeEvents).forEach((purpose) => {
+        const row = lifeEvents[purpose] || {};
+        const label = (row.label && (row.label[lang] || row.label.en)) || purpose;
+        let found = null;
+        try { found = NI.favourableDates(chart, { purpose, fromMs: Date.now(), days: 90, limit: 4 }); } catch (e) { found = null; }
+        if (!found) return;
+        found.best.filter((b) => b.grade !== "avoid").forEach((b) => {
+          const parts = { y: b.date.getFullYear(), m: b.date.getMonth() + 1, d: b.date.getDate() };
+          events.push({
+            uid: uid(`date-${purpose}-${b.iso.replace(/-/g, "")}`),
+            summary: T(`Favourable for ${label} — ${b.grade}`,
+              `${label} हेतु अनुकूल — ${b.grade}`,
+              `${label} માટે અનુકૂળ — ${b.grade}`),
+            allDay: true,
+            start: parts,
+            description: [
+              `${T("Personal Day", "व्यक्तिगत दिन", "વ્યક્તિગત દિવસ")} ${b.cycles.personalDay} · ${T("score", "अंक", "ગુણ")} ${b.score} (${b.grade})`,
+              T("Scored from your Personal Day against Driver and Conductor, the date root and the weekday lord. Section 13a prints the full trail.",
+                "व्यक्तिगत दिन की मूलांक-भाग्यांक, तिथि-मूल और वार-स्वामी से तुलना करके अंक दिए गए। पूरा विवरण खंड 13a में है।",
+                "વ્યક્તિગત દિવસની મૂળાંક-ભાગ્યાંક, તિથિ-મૂળ અને વાર-સ્વામી સાથે તુલના કરીને ગુણ અપાયા. પૂરી વિગત વિભાગ 13a માં છે."),
+              cordon
+            ].join("\n\n"),
+            categories: ["NumeroVastu 360"],
+            transparent: true
+          });
+          counts.dates++;
+        });
+      });
+    }
+
+    /* ---- 5 · inauspicious day-division windows -----------------
+       Rahu, Yamaganda and Gulika for each day of the container. Marked
+       TRANSPARENT on purpose: these are advisory, and a window that
+       blocked the client's calendar would stop colleagues booking over
+       it and turn an almanac note into a scheduling obstruction. */
+    if (include.windows && place && typeof window !== "undefined" && window.NVMuhurtha
+      && typeof window.NVMuhurtha.inauspiciousWindows === "function") {
+      const labels = {
+        rahu: T("Rahu Kaal", "राहु काल", "રાહુ કાળ"),
+        yamaganda: T("Yamaganda Kaal", "यमगंड काल", "યમગંડ કાળ"),
+        gulika: T("Gulika Kaal", "गुलिक काल", "ગુલિક કાળ")
+      };
+      for (let i = 0; i < DAYS; i++) {
+        const day = ICS.addDays(anchor, i);
+        let tzEff = place.tz;
+        try {
+          const info = getRealSunriseForProfile(p, day.y, day.m, day.d);
+          if (info && isFinite(info.tzEff)) tzEff = info.tzEff;
+        } catch (e) { /* fall back to the stored offset */ }
+        let solved = null;
+        try { solved = window.NVMuhurtha.inauspiciousWindows(day.y, day.m, day.d, place.lat, place.lon, tzEff); } catch (e) { solved = null; }
+        if (!solved || !solved.ok) continue;
+        solved.windows.forEach((w) => {
+          const start = ICS.fromDecimalHours(day, w.start);
+          const end = ICS.fromDecimalHours(day, w.end);
+          if (!start || !end) return;
+          events.push({
+            uid: uid(`window-${w.kind}-${day.y}${String(day.m).padStart(2, "0")}${String(day.d).padStart(2, "0")}`),
+            summary: `${labels[w.kind] || w.kind} — ${T("avoid new beginnings", "नए आरंभ से बचें", "નવી શરૂઆત ટાળો")}`,
+            start,
+            end,
+            transparent: true,
+            description: [
+              T(`Part ${w.part} of 8 of the measured daylight at ${placeName}.`,
+                `${placeName} पर मापे गए दिनमान के ८ भागों में से भाग ${w.part}।`,
+                `${placeName} પર માપેલા દિનમાનના ૮ ભાગોમાંથી ભાગ ${w.part}.`),
+              T("Shown as free time, not busy — this is an almanac note, not an appointment.",
+                "यह व्यस्त नहीं, मुक्त समय दिखेगा — यह पंचांग की टिप्पणी है, कोई अपॉइंटमेंट नहीं।",
+                "આ વ્યસ્ત નહીં, મુક્ત સમય દેખાશે — આ પંચાંગની નોંધ છે, કોઈ એપોઇન્ટમેન્ટ નથી."),
+              cordon
+            ].join("\n\n"),
+            categories: ["NumeroVastu 360"]
+          });
+          counts.windows++;
+        });
+      }
+    }
+
+    return {
+      ok: events.length > 0,
+      events,
+      counts,
+      anchor,
+      sunrise: !!place,
+      placeName,
+      practiceMinutes,
+      filename: `numerovastu-360-practice-${anchor.y}-${String(anchor.m).padStart(2, "0")}-${String(anchor.d).padStart(2, "0")}.ics`,
+      calendarName: T("NumeroVastu 360 — 40-day practice", "NumeroVastu 360 — ४०-दिवसीय अभ्यास", "NumeroVastu 360 — ૪૦-દિવસનો અભ્યાસ")
+    };
+  }
+
+  /* Serialise and hand the file to the browser. Blob + object URL keeps
+     the bytes on the device; there is no endpoint to post them to. */
+  function downloadPracticeCalendar(p, activation, planState, options) {
+    const ICS = (typeof window !== "undefined" && window.NVCalendar) ? window.NVCalendar : null;
+    const built = practiceCalendarPlan(p, activation, planState, options);
+    if (!ICS || !built.ok) return built;
+    const text = ICS.calendar(built.events, { name: built.calendarName });
+    try {
+      const blob = new Blob([text], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = built.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      /* Revoked on the next tick so Safari has finished reading it. */
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      return Object.assign({}, built, { ok: false, reason: "download-failed" });
+    }
+    return Object.assign({}, built, { text });
+  }
+
   function saveSnapshot(input, profile, timing) {
     const snapshot = {
       id: `${profileKeyOf(input)}|${Date.now()}`,
@@ -7318,6 +7617,7 @@
     const evolving = evolvingChartData(p, timing);
     const summary = northstarSummary(p, triage);
     const activation = activationPlan(p, triage);
+    lastActivation = activation;
     /* Layer 1 executive summary (2026-09 audit): surface the ACTIVE timing
        window from the PRIMARY Dasha engine right on the front page, so the
        client sees core numbers, top remedies, the live window and the weekly
@@ -8631,6 +8931,54 @@
         ? (lang === "hi" ? `अपने लो शू अभ्यास के साथ आज शुरुआत करें और दिन १ पर टैप करें। निरंतरता ही उपाय है।` : lang === "gu" ? `તમારા લો શુ અભ્યાસ સાથે આજે શરૂઆત કરો અને દિવસ ૧ પર ટેપ કરો. સાતત્ય જ ઉપાય છે.` : `Begin your Lo Shu practice today, then tap Day 1. Consistency is the remedy.`)
         : (lang === "hi" ? `${planDone} / ${PLAN_DAYS} दिन पूर्ण — अगला दिन ${planNext + 1} है। नियम न तोड़ें।` : lang === "gu" ? `${planDone} / ${PLAN_DAYS} દિવસ પૂર્ણ — આગામી દિવસ ${planNext + 1} છે. સાતત્ય જાળવી રાખો.` : `${planDone} of ${PLAN_DAYS} days done — Day ${planNext + 1} is next${planNext + 1 <= PLAN_DAYS ? `, ${PLAN_DAYS - planDone} day${PLAN_DAYS - planDone === 1 ? "" : "s"} to go` : ""}. Keep the thread unbroken.`);
 
+    /* Calendar export. Counts are resolved up front so the card can tell
+       the client exactly how many entries each checkbox will add to their
+       calendar before they commit to importing anything — the opposite of
+       a notification they never agreed to. */
+    const icsPreview = practiceCalendarPlan(p, activation, planState, {
+      profileKey: planKey,
+      include: { practice: true, phases: true, power: true, dates: true, windows: true }
+    });
+    const icsOpt = (keyName, checked, label, count) => `<label class="ics-opt"><input type="checkbox" data-ics-opt="${keyName}"${checked ? " checked" : ""}><span class="ics-opt-label">${label}</span><span class="ics-count" data-ics-count="${keyName}">${count}</span></label>`;
+    const icsCard = !icsPreview.ok ? "" : `<div class="card ics-card" data-ics-export="ok" data-ics-sunrise="${icsPreview.sunrise ? "computed" : "nominal"}">
+        <div class="goal-head">
+          <div class="card-title">${triText(lang, "Export to your own calendar (.ics)", "अपने कैलेंडर में निर्यात करें (.ics)", "તમારા પોતાના કેલેન્ડરમાં નિકાસ કરો (.ics)")}</div>
+          <span class="badge info">${triText(lang, "On-device", "डिवाइस पर", "ડિવાઇસ પર")}</span>
+        </div>
+        <div class="card-sub">${triText(lang,
+          "Writes a standard calendar file on this device and hands it to you. Import it into Google, Apple or Outlook and your practice sits beside the rest of your life. There is no notification service here, nothing to subscribe to and nothing that reports back — once the file is downloaded this app is out of the loop.",
+          "यह डिवाइस पर एक मानक कैलेंडर फ़ाइल बनाकर आपको देता है। इसे Google, Apple या Outlook में आयात करें और आपका अभ्यास बाकी जीवन के साथ दिखेगा। यहाँ कोई notification सेवा नहीं, कोई subscription नहीं और कुछ भी वापस रिपोर्ट नहीं होता — फ़ाइल डाउनलोड होते ही यह ऐप बीच से हट जाता है।",
+          "આ ડિવાઇસ પર એક પ્રમાણભૂત કેલેન્ડર ફાઇલ બનાવીને તમને આપે છે. તેને Google, Apple કે Outlook માં આયાત કરો અને તમારો અભ્યાસ બાકીના જીવન સાથે દેખાશે. અહીં કોઈ notification સેવા નથી, કોઈ subscription નથી અને કશું પાછું રિપોર્ટ થતું નથી — ફાઇલ ડાઉનલોડ થતાં જ આ એપ વચ્ચેથી હટી જાય છે."
+        )}</div>
+        <div class="ics-options">
+          ${icsOpt("practice", true, triText(lang, "Daily practice at your sunrise", "आपके सूर्योदय पर दैनिक अभ्यास", "તમારા સૂર્યોદય પર દૈનિક અભ્યાસ"), icsPreview.counts.practice)}
+          ${icsOpt("phases", true, triText(lang, "Phase milestones", "चरण-पड़ाव", "તબક્કાના પડાવ"), icsPreview.counts.phases)}
+          ${icsOpt("power", true, triText(lang, "Power-day check-ins", "पावर-डे चेक-इन", "પાવર-ડે ચેક-ઇન"), icsPreview.counts.power)}
+          ${icsOpt("dates", false, triText(lang, "Favourable dates from Section " + SECTION.cycles, "खंड " + SECTION.cycles + " की अनुकूल तिथियाँ", "વિભાગ " + SECTION.cycles + " ની અનુકૂળ તારીખો"), icsPreview.counts.dates)}
+          ${icsPreview.counts.windows ? icsOpt("windows", false, triText(lang, "Rahu / Yamaganda / Gulika windows", "राहु / यमगंड / गुलिक काल", "રાહુ / યમગંડ / ગુલિક કાળ"), icsPreview.counts.windows) : ""}
+          ${icsOpt("alarm", false, triText(lang, "Add a 10-minute reminder to each practice entry", "प्रत्येक अभ्यास प्रविष्टि पर १० मिनट पहले स्मरण जोड़ें", "દરેક અભ્યાસ એન્ટ્રી પર ૧૦ મિનિટ પહેલાં સ્મરણ ઉમેરો"), "")}
+        </div>
+        <div class="ics-actions">
+          <button class="btn btn-primary btn-32" type="button" data-ics-download>${triText(lang, "Download calendar file", "कैलेंडर फ़ाइल डाउनलोड करें", "કેલેન્ડર ફાઇલ ડાઉનલોડ કરો")}</button>
+          <span class="ics-total" data-ics-total></span>
+        </div>
+        <div class="judge-note">
+          <p>${icsPreview.sunrise
+            ? triText(lang,
+                `Each of the 40 entries carries that day's own sunrise for ${esc(icsPreview.placeName)} — sunrise moves by around 25 minutes across a 40-day cycle, so one repeating alarm would be wrong for most of it. Sitting length is ${icsPreview.practiceMinutes} minutes, taken from the practice depth you chose.`,
+                `चालीसों प्रविष्टियाँ ${esc(icsPreview.placeName)} के उसी दिन के सूर्योदय पर बनी हैं — ४० दिनों में सूर्योदय लगभग २५ मिनट खिसकता है, अतः एक ही दोहराया अलार्म अधिकांश दिनों में ग़लत होता। बैठक की अवधि ${icsPreview.practiceMinutes} मिनट है, जो आपकी चुनी हुई अभ्यास-गहराई से आती है।`,
+                `ચાલીસેય એન્ટ્રી ${esc(icsPreview.placeName)} ના તે જ દિવસના સૂર્યોદય પર બની છે — ૪૦ દિવસમાં સૂર્યોદય આશરે ૨૫ મિનિટ ખસે છે, તેથી એક જ પુનરાવર્તિત એલાર્મ મોટા ભાગના દિવસોમાં ખોટો પડે. બેઠકની અવધિ ${icsPreview.practiceMinutes} મિનિટ છે, જે તમે પસંદ કરેલી અભ્યાસ-ઊંડાઈમાંથી આવે છે.`)
+            : triText(lang,
+                "No birthplace is on file, so the daily entries use a nominal 6:30 AM slot. Add a recognised birthplace in Edit Details and re-export to get your real sunrise on every day of the cycle.",
+                "फ़ाइल में जन्मस्थान नहीं है, अतः दैनिक प्रविष्टियाँ नाममात्र ६:३० AM पर हैं। विवरण संपादित करें में मान्य जन्मस्थान जोड़कर पुनः निर्यात करें — तब हर दिन का वास्तविक सूर्योदय मिलेगा।",
+                "ફાઇલમાં જન્મસ્થળ નથી, તેથી દૈનિક એન્ટ્રી નામમાત્ર ૬:૩૦ AM પર છે. વિગતો સંપાદિત કરોમાં માન્ય જન્મસ્થળ ઉમેરીને ફરી નિકાસ કરો — ત્યારે દરેક દિવસનો વાસ્તવિક સૂર્યોદય મળશે.")}</p>
+          <p>${triText(lang,
+            "Times are written as plain local clock times, so they stay where you put them and do not shift if you travel. The file identifies your entries by a one-way hash, never by your name or date of birth — so importing it into a shared or work calendar reveals nothing about your chart. Re-exporting updates these same entries instead of duplicating them.",
+            "समय सामान्य स्थानीय घड़ी के अनुसार लिखे गए हैं — वे वहीं रहते हैं और यात्रा करने पर नहीं खिसकते। फ़ाइल आपकी प्रविष्टियों को एकतरफ़ा hash से पहचानती है, नाम या जन्मतिथि से कभी नहीं — अतः साझा या कार्यालयी कैलेंडर में आयात करने पर आपकी कुंडली का कुछ भी उजागर नहीं होता। पुनः निर्यात इन्हीं प्रविष्टियों को अद्यतन करता है, नई नहीं बनाता।",
+            "સમય સામાન્ય સ્થાનિક ઘડિયાળ મુજબ લખાયા છે — તે ત્યાં જ રહે છે અને મુસાફરી કરતાં ખસતા નથી. ફાઇલ તમારી એન્ટ્રીઓને એકતરફી hash થી ઓળખે છે, નામ કે જન્મતારીખથી ક્યારેય નહીં — તેથી સહિયારા કે ઓફિસના કેલેન્ડરમાં આયાત કરતાં તમારી કુંડળીનું કશું ઉઘાડું પડતું નથી. ફરી નિકાસ આ જ એન્ટ્રીઓ અપડેટ કરે છે, નવી બનાવતો નથી.")}</p>
+        </div>
+      </div>`;
+
     const prioritySection = `<section class="rsection" id="plan-section" data-remedy-authority="lo-shu">
       <h2 class="rsection-title"><span class="idx">${goalsStart + goals.length}</span>${t("secPlan", "Your 40-Day Activation Plan")}</h2>
       <p class="rsection-desc">${lang === "hi" ? "४० दिन का मंडल आपके लो शू जन्म-ग्रिड के अनुपस्थित और दोहराए संकेतों से चुना जाता है। मंत्र, affirmation, crystal, Rudraksha और आदतों का यह एकमात्र remedy अभ्यास है। मूलांक/भाग्यांक के power days नीचे केवल अलग scheduling reference हैं; दशा की तारीखें और सक्रिय वास्तु क्षेत्र Timeline में रहते हैं।" : lang === "gu" ? "૪૦ દિવસનું મંડળ તમારા લો શુ જન્મ-ગ્રિડના ખૂટતા અને પુનરાવર્તિત સંકેતો પરથી પસંદ થાય છે. મંત્ર, affirmation, crystal, Rudraksha અને ટેવોનો આ એકમાત્ર remedy અભ્યાસ છે. મૂળાંક/ભાગ્યાંકના power days નીચે ફક્ત અલગ scheduling reference છે; દશાની તારીખો અને સક્રિય વાસ્તુ ક્ષેત્ર સમયરેખામાં રહે છે." : "This 40-day mandala is selected from missing and repeated signals in your Lo Shu Birth Grid. It is the one remedy practice for mantras, affirmations, crystals, Rudraksha and habits. Driver/Conductor power days below are a separate scheduling reference only; Dasha dates and the active Vastu zone live in Timeline."}</p>
@@ -8695,6 +9043,7 @@
         return `<div class="priority-item"${tier ? ` data-triage-tier="${tier}" data-triage-number="${item.n}"` : ""}><span class="cadence cadence-${item.cadence}">${cadenceLabel[item.cadence] || "Daily"}</span><span class="priority-text">${item.text}</span>${tierBadge}${moonPriorityNote}${doshaPriorityNote}</div>`;
       }).join("")}
       </div>
+      ${icsCard}
       <div class="card tracker-card" id="plan-tracker">
         <div class="goal-head">
           <div class="card-title">${lang === "hi" ? "४०-दिवसीय ट्रैकर — प्रत्येक दिन पूर्ण होने पर टैप करें" : lang === "gu" ? "૪૦ દિવસનો ટ્રેકર — પૂર્ણ થયેલ દરેક દિવસ પર ટેપ કરો" : "40-Day Tracker — tap each day you complete"}</div>
@@ -8852,6 +9201,10 @@
 
   /* ---------------- view switching & interactions ---------------- */
   let lastProfile = null;
+  /* The resolved 40-day plan for the chart currently on screen. Cached so
+     the calendar export serialises exactly the practice the client is
+     reading, rather than re-resolving it and risking a different answer. */
+  let lastActivation = null;
 
   function reportModuleFromHash(hash) {
     const id = String(hash === undefined ? window.location.hash : hash || "").replace(/^#/, "");
@@ -9083,6 +9436,64 @@
         rerenderToPlan();
       });
     });
+
+    /* Calendar export. Everything happens inside this handler: read the
+       checkboxes, serialise, hand the Blob to the browser. No fetch, no
+       registration, no permission prompt — the client gets a file and
+       the app's involvement ends there. */
+    const icsCardEl = $("[data-ics-export]", $("#reportRoot"));
+    if (icsCardEl) {
+      const readIncludes = () => {
+        const include = {};
+        $$("[data-ics-opt]", icsCardEl).forEach((box) => {
+          include[box.getAttribute("data-ics-opt")] = !!box.checked;
+        });
+        return include;
+      };
+      const refreshTotal = () => {
+        const include = readIncludes();
+        if (!lastProfile) return;
+        const preview = practiceCalendarPlan(lastProfile, lastActivation, readPlan(state.activeProfileKey || profileKeyOf(lastProfile)), {
+          include, profileKey: state.activeProfileKey || profileKeyOf(lastProfile)
+        });
+        const total = preview.events.length;
+        const totalEl = $("[data-ics-total]", icsCardEl);
+        if (totalEl) {
+          totalEl.textContent = total
+            ? triText(getLang(), `${total} entries`, `${total} प्रविष्टियाँ`, `${total} એન્ટ્રી`)
+            : triText(getLang(), "Nothing selected", "कुछ चयनित नहीं", "કશું પસંદ નથી");
+        }
+        const btn = $("[data-ics-download]", icsCardEl);
+        if (btn) btn.disabled = total === 0;
+      };
+      $$("[data-ics-opt]", icsCardEl).forEach((box) => box.addEventListener("change", refreshTotal));
+      refreshTotal();
+
+      const icsBtn = $("[data-ics-download]", icsCardEl);
+      if (icsBtn) {
+        icsBtn.addEventListener("click", () => {
+          if (!lastProfile) return;
+          const include = readIncludes();
+          const key = state.activeProfileKey || profileKeyOf(lastProfile);
+          const result = downloadPracticeCalendar(lastProfile, lastActivation, readPlan(key), {
+            include,
+            profileKey: key,
+            alarmMinutes: include.alarm ? 10 : 0
+          });
+          if (!result || !result.ok) {
+            showToast(triText(getLang(),
+              "Could not write the calendar file on this device.",
+              "इस डिवाइस पर कैलेंडर फ़ाइल नहीं बन सकी।",
+              "આ ડિવાઇસ પર કેલેન્ડર ફાઇલ બની શકી નહીં."), "warn");
+            return;
+          }
+          showToast(triText(getLang(),
+            `${result.events.length} entries saved to ${result.filename} — import it into your own calendar.`,
+            `${result.events.length} प्रविष्टियाँ ${result.filename} में सहेजी गईं — इसे अपने कैलेंडर में आयात करें।`,
+            `${result.events.length} એન્ટ્રી ${result.filename} માં સાચવાઈ — તેને તમારા કેલેન્ડરમાં આયાત કરો.`), "good");
+        });
+      }
+    }
 
     const planResetBtn = $("[data-plan-reset]", $("#reportRoot"));
     if (planResetBtn) {
@@ -9387,6 +9798,7 @@
     /* 2026-10 parity layers */
     nameArchitecture, renderNameArchitecture, premisesReport, renderPremises,
     renderPersonalCycles, renderWesternCrossRef, panchangBlock, relBadgeText, triText,
+    practiceCalendarPlan, downloadPracticeCalendar, planCalendarAnchor, lastActivation: () => lastActivation,
     /* 2026-10 operational layers */
     vastuCompassReport, renderVastuCompass, renderDigitFlow,
     loShuGridLayout: LO_SHU_GRID_LAYOUT.map((row) => row.slice()),

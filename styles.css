@@ -940,6 +940,28 @@ body {
 .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .choghadiya-night > summary { cursor: pointer; font-size: 13px; font-weight: 500; line-height: 20px; padding: 8px 0; color: var(--label-secondary); }
 
+/* Calendar export (.ics) — the agency-respecting alternative to a push
+   notification daemon: the client picks what goes in, sees the entry
+   count before committing, and gets a file they own. */
+.ics-card { border: 0.5px solid var(--separator); }
+.ics-options { display: flex; flex-direction: column; gap: 2px; margin: 10px 0 12px; }
+.ics-opt {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px;
+  border-radius: var(--r-xs); cursor: pointer;
+  font-size: 14px; line-height: 20px; color: var(--label-primary);
+}
+.ics-opt:hover { background: var(--fill-f1); }
+.ics-opt input { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--label-primary); cursor: pointer; }
+.ics-opt-label { flex: 1 1 auto; }
+.ics-count {
+  flex: none; min-width: 30px; padding: 0 6px; border-radius: var(--r-xxs);
+  background: var(--fill-f2); color: var(--label-secondary);
+  font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
+}
+.ics-count:empty { display: none; }
+.ics-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ics-total { font-size: 12px; font-weight: 500; color: var(--label-tertiary); font-variant-numeric: tabular-nums; }
+
 /* Tables */
 .rtable { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rtable th, .rtable td { text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
@@ -1568,6 +1590,8 @@ body {
   .cal-grid, .letter-strip, .date-pill, .cal-cell, .letter-chip { break-inside: avoid; page-break-inside: avoid; }
   .cal-cell, .letter-chip, .date-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .cal-cell.cal-today { outline: 1.5pt solid #000; }
+  /* A download button and its checkboxes mean nothing on paper. */
+  .ics-card { display: none; }
   /* The night Choghadiya table is a collapsed disclosure on screen; on
      paper a practitioner needs the whole sixteen-slot day, so it is
      force-expanded like every other optional block in this stylesheet. */

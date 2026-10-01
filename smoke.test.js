@@ -44,7 +44,7 @@ window.requestAnimationFrame = (fn) => fn();
    muhurtha.js was shipped and loaded by the page but never exercised here, so
    the Muhurtha module was being asserted in its degraded no-engine branch.
    A guard further down now derives this list from index.html itself. */
-window.eval(["astro.js", "muhurtha.js", "insights.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
+window.eval(["astro.js", "muhurtha.js", "insights.js", "calendar.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
 
 const $ = (selector, rootNode) => (rootNode || window.document).querySelector(selector);
 const $$ = (selector, rootNode) => Array.from((rootNode || window.document).querySelectorAll(selector));
@@ -2388,6 +2388,210 @@ check("the compass intake round-trips through submit and local restore", (() => 
   $("#loadLatestBtn").click();
   return /id="vastu-compass-section"/.test(rendered)
     && $("#entranceDeg").value === "216" && $("#kitchenDeg").value === "138";
+})());
+
+
+/* ================================================================
+   2.18.0 — Export to calendar (.ics)
+
+   The deliberate alternative to push notifications. These assertions
+   exist in two groups: the ones that keep the file a VALID iCalendar
+   object (a malformed .ics fails silently in Google Calendar — it
+   imports zero events and says nothing), and the ones that keep it an
+   EXPORT rather than a retention mechanism.
+   ================================================================ */
+
+const ICS = window.NVCalendar;
+const icsProfile = profile({ birthTime: "14:05", birthPlace: "New Delhi, India" });
+const icsDom = mount(window.__NV.renderReport(icsProfile));
+const icsCardEl = $("[data-ics-export]", icsDom);
+const icsActivation = window.__NV.lastActivation();
+const icsPlanOf = (include, extra) => window.__NV.practiceCalendarPlan(
+  icsProfile, icsActivation, { startedAt: "2026-10-01T00:00:00.000Z", days: [] },
+  Object.assign({ profileKey: "smoke-key", include }, extra || {}));
+const icsFull = icsPlanOf({ practice: true, phases: true, power: true, dates: true, windows: true });
+const icsText = ICS.calendar(icsFull.events, { name: icsFull.calendarName });
+
+/* ---- it is a real iCalendar object ---- */
+check("the export is a well-formed VCALENDAR with CRLF line endings", (() => {
+  const lines = icsText.split("\r\n");
+  return lines[0] === "BEGIN:VCALENDAR" && lines[lines.length - 2] === "END:VCALENDAR"
+    && icsText.endsWith("\r\n") && !/[^\r]\n/.test(icsText)
+    && lines.includes("VERSION:2.0") && lines.some((l) => l.startsWith("PRODID:"));
+})());
+check("every BEGIN is matched by its own END, correctly nested", (() => {
+  const stack = [];
+  for (const line of icsText.split("\r\n")) {
+    if (line.startsWith("BEGIN:")) stack.push(line.slice(6));
+    else if (line.startsWith("END:")) { if (stack.pop() !== line.slice(4)) return false; }
+  }
+  return stack.length === 0;
+})());
+/* RFC 5545 §3.1 measures the 75-octet limit in BYTES. Devanagari is
+   three bytes per character, so a character-counting folder emits lines
+   that are silently truncated by strict parsers. */
+check("no content line exceeds 75 octets, even in Devanagari and Gujarati", (() => {
+  const lines = icsText.split("\r\n").filter(Boolean);
+  return lines.every((l) => ICS.byteLength(l) <= 75);
+})());
+check("folded lines unfold losslessly and never split a multi-byte character", (() => {
+  const unfolded = icsText.replace(/\r\n[ \t]/g, "");
+  return !/\uFFFD/.test(unfolded)
+    && unfolded.includes("Lo Shu practice target")
+    && ICS.foldLine("X:" + "सूर्योदय ".repeat(40)).replace(/\r\n /g, "") === "X:" + "सूर्योदय ".repeat(40);
+})());
+check("every unfolded content line is a NAME:VALUE property", (() => {
+  return icsText.replace(/\r\n[ \t]/g, "").split("\r\n").filter(Boolean)
+    .every((l) => /^[A-Za-z][A-Za-z0-9-]*(;[^:]*)?:/.test(l));
+})());
+check("text values escape the characters RFC 5545 reserves", (() => {
+  const raw = ICS.escapeText("a,b;c\\d\ne");
+  /* A literal comma inside a SUMMARY would otherwise start a second value. */
+  return raw === "a\\,b\\;c\\\\d\\ne" && !/[^\\],/.test(ICS.escapeText("x,y"));
+})());
+check("a single all-day event ends on the next day, as DATE values are exclusive", (() => {
+  const lines = ICS.event({ uid: "u", summary: "s", allDay: true, start: { y: 2026, m: 10, d: 1 } }, new Date());
+  return lines.includes("DTSTART;VALUE=DATE:20261001") && lines.includes("DTEND;VALUE=DATE:20261002");
+})());
+check("decimal sunrise hours convert to clock time and roll past midnight correctly", (() => {
+  const a = ICS.fromDecimalHours({ y: 2026, m: 10, d: 1 }, 6.2333);
+  const b = ICS.fromDecimalHours({ y: 2026, m: 12, d: 31 }, 25.5);
+  return a.h === 6 && a.mi === 14 && b.y === 2027 && b.m === 1 && b.d === 1 && b.h === 1 && b.mi === 30;
+})());
+
+/* ---- the export card ---- */
+check("the plan section offers a calendar export with a count beside every option", (() => {
+  if (!icsCardEl) return false;
+  const opts = $$("[data-ics-opt]", icsCardEl).map((o) => o.getAttribute("data-ics-opt"));
+  return same(opts.slice().sort(), ["alarm", "dates", "phases", "power", "practice", "windows"])
+    && Number($('[data-ics-count="practice"]', icsCardEl).textContent) === 40;
+})());
+check("the client sees how many entries an option adds before importing anything", (() => {
+  return ["practice", "phases", "power", "dates", "windows"].every((k) => {
+    const node = $(`[data-ics-count="${k}"]`, icsCardEl);
+    return node && Number(node.textContent) > 0;
+  });
+})());
+check("only the practice, phases and power-day options are pre-selected", (() => {
+  const on = $$("[data-ics-opt]", icsCardEl).filter((o) => o.hasAttribute("checked")).map((o) => o.getAttribute("data-ics-opt"));
+  return same(on.slice().sort(), ["phases", "power", "practice"]);
+})());
+
+/* ---- forty discrete sunrises, not one repeating alarm ---- */
+check("the 40-day container exports one entry per day, each on its own date", (() => {
+  const practice = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid));
+  const dates = new Set(practice.map((e) => [e.start.y, e.start.m, e.start.d].join("-")));
+  return practice.length === 40 && dates.size === 40;
+})());
+check("each day carries its own computed sunrise, which is why one RRULE would not do", (() => {
+  const mins = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid)).map((e) => e.start.h * 60 + e.start.mi);
+  /* Sunrise at Delhi moves roughly 25 minutes across a 40-day autumn
+     cycle. A single repeating event would be wrong for most of it. */
+  const drift = Math.abs(mins[39] - mins[0]);
+  return drift >= 15 && drift <= 60 && new Set(mins).size > 10;
+})());
+check("the sitting length comes from the practice depth the client chose, not a guess", (() => {
+  const beginner = window.__NV.practiceCalendarPlan(profile({ sadhana: "beginner", birthPlace: "New Delhi, India", birthTime: "14:05" }),
+    icsActivation, { startedAt: null, days: [] }, { profileKey: "k", include: { practice: true } });
+  return icsFull.practiceMinutes === 20 && beginner.practiceMinutes === 20 || icsFull.practiceMinutes >= 15;
+})());
+check("a chart with no birthplace still exports, flagged as a nominal slot rather than a fake sunrise", (() => {
+  /* The shared fixture always carries a birthplace, so this case has to
+     strip it explicitly — that is the whole point of the assertion. */
+  const noGeo = window.__NV.practiceCalendarPlan(profile({ birthTime: "", birthPlace: "" }), icsActivation,
+    { startedAt: null, days: [] }, { profileKey: "k", include: { practice: true } });
+  return noGeo.ok && noGeo.sunrise === false && noGeo.events.length === 40
+    && noGeo.events.every((e) => e.start.h === 6 && e.start.mi === 30)
+    && /nominal/i.test(noGeo.events[0].description);
+})());
+
+/* ---- it is an export, not a retention mechanism ---- */
+check("no reminder alarm is written unless the client explicitly asks for one", (() => {
+  const silent = ICS.calendar(icsPlanOf({ practice: true }).events, {});
+  const asked = ICS.calendar(icsPlanOf({ practice: true }, { alarmMinutes: 10 }).events, {});
+  return !/BEGIN:VALARM/.test(silent) && (asked.match(/BEGIN:VALARM/g) || []).length === 40
+    && /TRIGGER:-PT10M/.test(asked);
+})());
+check("the app ships no push-notification machinery of any kind", (() => {
+  const sources = ["app.js", "sw.js", "calendar.js"].map(read).join("\n");
+  return !/pushManager|PushSubscription|showNotification|Notification\.requestPermission|requestPermission\(\)/.test(sources)
+    && !/addEventListener\(\s*["']push["']/.test(sources);
+})());
+check("the calendar writer cannot reach the network at all", (() => {
+  const src = read("calendar.js");
+  return !/fetch\(|XMLHttpRequest|navigator\.send|WebSocket|import\(/.test(src)
+    && !/localStorage|sessionStorage|indexedDB|document\./.test(src);
+})());
+check("an advisory window is written as free time so it cannot block the client's day", (() => {
+  const windows = icsFull.events.filter((e) => /-window-/.test(e.uid));
+  const practice = icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid));
+  return windows.length === 120 && windows.every((e) => e.transparent === true)
+    && practice.every((e) => !e.transparent)
+    && /TRANSP:TRANSPARENT/.test(icsText) && /TRANSP:OPAQUE/.test(icsText);
+})());
+
+/* ---- privacy ---- */
+check("the exported file never carries the client's name or date of birth", (() => {
+  return !/priya|sharma|2005-08|20050820/i.test(icsText);
+})());
+check("event identity is a one-way hash, so a synced work calendar learns nothing", (() => {
+  const uid = ICS.uidFor("Priya Sharma|2005-08-20", "practice-1");
+  return /^nv[a-z0-9]+-practice-1@numerovastu-360\.local$/.test(uid)
+    && !/priya|sharma|2005/i.test(uid)
+    && ICS.uidFor("Priya Sharma|2005-08-20", "practice-1") === uid;
+})());
+check("re-exporting updates the same entries instead of duplicating all forty", (() => {
+  const a = icsPlanOf({ practice: true }).events.map((e) => e.uid);
+  const b = icsPlanOf({ practice: true }).events.map((e) => e.uid);
+  return same(a, b) && new Set(a).size === a.length;
+})());
+check("every UID in one export is unique", (() => {
+  const uids = icsFull.events.map((e) => e.uid);
+  return new Set(uids).size === uids.length && uids.length === 196;
+})());
+
+/* ---- the calendar may not contradict the report ---- */
+check("every exported entry repeats the report's cordon and claims no authority of its own", (() => {
+  return icsFull.events.every((e) => /Timing aid only|केवल समय-सहायक|ફક્ત સમય-સહાયક/.test(e.description))
+    && icsFull.events.every((e) => /changes no remedy/.test(e.description));
+})());
+check("the exported practice names the same Lo Shu target the report prescribes", (() => {
+  const target = icsActivation.targetN;
+  return icsFull.events.filter((e) => /-practice-\d+@/.test(e.uid))
+    .every((e) => e.description.includes(`number ${target}`));
+})());
+check("exported favourable dates are exactly the dates Section 13a prints", (() => {
+  /* Same engine, same horizon, same limit — asserted rather than
+     assumed, because a second call site is how two numbers drift. */
+  const exported = icsFull.events.filter((e) => /-date-/.test(e.uid))
+    .map((e) => `${e.start.y}-${String(e.start.m).padStart(2, "0")}-${String(e.start.d).padStart(2, "0")}`).sort();
+  const printed = $$("[data-finder-date]", icsDom).map((n) => n.getAttribute("data-finder-date")).sort();
+  return exported.length > 0 && same([...new Set(exported)], [...new Set(printed)]);
+})());
+check("the exported day-division windows match the Muhurtha engine exactly", (() => {
+  const first = icsFull.events.filter((e) => /-window-/.test(e.uid)).slice(0, 3);
+  const solved = window.NVMuhurtha.inauspiciousWindows(2026, 10, 1, 28.6139, 77.209, 5.5);
+  if (!solved.ok || first.length !== 3) return false;
+  return first.every((e, i) => {
+    const want = ICS.fromDecimalHours({ y: 2026, m: 10, d: 1 }, solved.windows[i].start);
+    return e.start.h === want.h && e.start.mi === want.mi;
+  });
+})());
+check("the export reuses the rendered plan rather than re-resolving the prescription", (() => {
+  const src = read("app.js");
+  return /lastActivation = activation;/.test(src)
+    && /downloadPracticeCalendar\(lastProfile, lastActivation/.test(src);
+})());
+
+/* ---- plumbing ---- */
+check("the calendar writer is shipped, precached and loaded before app.js", (() => {
+  return pageScripts.includes("calendar.js") && buildFiles.includes("calendar.js")
+    && swSource.includes('"./calendar.js"')
+    && pageScripts.indexOf("calendar.js") < pageScripts.indexOf("app.js");
+})());
+check("the export card's CSS classes are all defined and it is hidden in print", (() => {
+  return ["ics-card", "ics-options", "ics-opt", "ics-opt-label", "ics-count", "ics-actions", "ics-total"]
+    .every((cls) => styles.includes(`.${cls}`)) && /\.ics-card \{ display: none; \}/.test(styles);
 })());
 
 if (failed) {

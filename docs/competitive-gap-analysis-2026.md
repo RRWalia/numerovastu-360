@@ -398,3 +398,95 @@ scan.
 | Daily timing tools | **Closed.** Full Panchang, sixteen Choghadiya, the complete day-division triad, Abhijit, a graded personal calendar and a favourable-date finder. |
 | Spatial / Vastu depth | **Materially closed** at the 16-zone degree level, with better error disclosure than the paid suites. Still behind on 45-devta, Marma and floor-plan tooling — all gated on a practitioner, not on engineering. |
 | Daily *retention* | Partly closed. The content to open the app daily now exists; the **hook** does not. Push notifications and a home-screen widget remain deferred as a product decision, because a daily nudge sits awkwardly against this product's stance on client agency. That is the honest remaining gap, and it is a choice rather than an omission. |
+
+---
+
+## 9. Addendum — the retention gap, closed without notifications (2.18.0)
+
+§8.6 left one honest gap: the content to open the app daily now exists, the **hook** did not. The
+review that prompted this release also pre-empted the obvious fix, and it was right to.
+
+### 9.1 Why push notifications were rejected
+
+A push hook needs a service-worker subscription, an OS permission prompt, a vendor push endpoint and
+a server that necessarily learns when each client practises. Every one of those is a privacy and
+sovereignty cost, and together they are daily-active-user machinery borrowed from ad-funded portals
+that must manufacture sessions to sell inventory. Pointed at someone's sadhana, it converts a
+self-directed practice into an app that nags — which is precisely the calm, client-agency stance
+this product has spent its whole history establishing.
+
+The decision is now **pinned by test**, not merely documented: smoke scans `app.js`, `sw.js` and
+`calendar.js` and fails on `pushManager`, `PushSubscription`, `showNotification`,
+`Notification.requestPermission` or a `push` event listener. A future contributor cannot add one
+quietly.
+
+### 9.2 What was built instead — export to calendar (.ics)
+
+The browser serialises a static RFC 5545 file on the device. The client imports it into the calendar
+they already live in, and from that point the app is **uninvolved**: nothing subscribed, nothing in
+the background, nothing reported back, no battery cost, nothing to revoke except an entry they can
+delete themselves.
+
+Five independently selectable sets, each showing its entry count *before* the client commits:
+
+| Set | Typical count | Notes |
+|---|---|---|
+| 40-day container | 40 | One entry per day at that day's own solved sunrise. |
+| Phase milestones | 4 | Days 1, 8, 22 and 40, from the plan's own phase badges. |
+| Power-day check-ins | 12 | Driver and Conductor weekdays inside the container. |
+| Favourable dates | 20 | Asserted to be exactly the dates Section 13a prints. |
+| Rahu / Yamaganda / Gulika | 120 | Default off, count stated, written as free time. |
+
+### 9.3 The engineering that makes it actually work
+
+A malformed `.ics` does not raise an error — Google Calendar imports zero events and says nothing —
+so the format is pinned by test rather than by inspection.
+
+- **Forty discrete entries, not one `RRULE`.** Sunrise moves about **25 minutes** across a 40-day
+  cycle at Indian latitudes. A single repeating 06:14 alarm would be wrong for most of the
+  container, and a sunrise practice that is wrong about sunrise is worse than no entry at all. The
+  per-day solve also picks up a daylight-saving shift that lands mid-cycle.
+- **Line folding measured in UTF-8 octets.** RFC 5545 §3.1 caps a content line at 75 **octets**.
+  Devanagari and Gujarati are three bytes per character, so the obvious character-counting folder
+  emits 225-byte lines that strict parsers truncate — it would have corrupted every Hindi and
+  Gujarati description while looking perfect in English. The folder counts real bytes and refuses to
+  split inside a character or a surrogate pair.
+- **All-day `DTEND` is exclusive.** A one-day event that ends on its own date renders as a two-day
+  banner. Asserted.
+- **Advisory windows are `TRANSP:TRANSPARENT`.** An inauspicious window is an almanac note, not an
+  appointment; marking the client busy would stop colleagues booking over it and turn information
+  into an obstruction.
+- **No reminder unless asked.** A `VALARM` is the client's own calendar reminding them, with no
+  permission prompt and nothing in the background — and it is still opt-in, default off.
+
+### 9.4 Privacy inside the file itself
+
+Calendar entries sync. A UID of `priya-sharma-2005-04-12@…` would quietly export a client's identity
+and birth date to Google or Exchange, which the consultation never agreed to involve. UIDs are
+therefore a one-way FNV-1a hash of the profile key; smoke asserts the rendered file contains neither
+the fixture's name nor its date of birth. The hash is stable, so **re-exporting updates the same
+forty entries instead of duplicating them** — the property a client actually wants after changing
+practice depth.
+
+### 9.5 The calendar may not become a second source of truth
+
+Descriptions are assembled from the already-rendered plan rather than re-resolving the prescription,
+the exported favourable dates are asserted equal to the dates Section 13a prints (same engine, same
+horizon, same limit), and every entry repeats the cordon: *"Timing aid only. This entry repeats text
+from your NumeroVastu 360 report and changes no remedy, dose or guardrail in it."*
+
+### 9.6 Verification
+
+```
+npm run check
+  ✓ node smoke.test.js            554 assertions, 0 failures
+  ✓ npm audit --audit-level=moderate   0 vulnerabilities
+  ✓ node scripts/build-static.cjs      calendar.js shipped and precached
+  ✓ node scripts/package-source.mjs --check
+```
+
+### 9.7 Scorecard
+
+Every dimension the two competitive reviews raised is now either closed or closed-by-choice. The
+remaining deferrals — 45-devta Mandala, Marma Sthan, floor-plan import — are gated on a practitioner
+signing off remedy doctrine, not on engineering. There is no outstanding gap that is merely unbuilt.

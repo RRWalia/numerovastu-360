@@ -22,7 +22,7 @@
    Bump CACHE_VERSION on any change to this file or to the
    precache list; the activate handler deletes old caches.
    ============================================================ */
-const CACHE_VERSION = "nv360-v2.17.0";
+const CACHE_VERSION = "nv360-v2.18.0";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const PACK_CACHE = `${CACHE_VERSION}-pack`;
 
@@ -39,6 +39,7 @@ const SHELL_ASSETS = [
      exactly the situation the offline mode exists for. */
   "./muhurtha.js",
   "./insights.js",
+  "./calendar.js",
   "./data.js",
   "./i18n.js",
   "./styles.css",

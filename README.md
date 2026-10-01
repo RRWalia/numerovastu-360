@@ -1,6 +1,8 @@
 # NumeroVastu 360
 
-**Release 2.17.0 — Operational layer: the complete day-division triad (Rahu + Yamaganda + Gulika), all sixteen Choghadiya, a 16-zone degree-precise Vastu compass with boundary and sector-flip warnings, and mobile internal digit-flow analysis — with no luck scores, pinned by test**
+**Release 2.18.0 — Export to Calendar (.ics): the client's 40-day container, phase milestones, power-day check-ins, favourable dates and Rahu/Yamaganda/Gulika windows written to a standard calendar file on-device — chosen over push notifications on purpose**
+
+Previously: **2.17.0 — Operational layer: the complete day-division triad (Rahu + Yamaganda + Gulika), all sixteen Choghadiya, a 16-zone degree-precise Vastu compass with boundary and sector-flip warnings, and mobile internal digit-flow analysis — with no luck scores, pinned by test**
 
 Previously: **2.16.0 — Competitive-parity release: Name Architecture, Premises Numerology, Personal Cycles with a graded calendar and favourable-date finder, the full five-limb Panchang with Choghadiya and Abhijit, and an optional cordoned Western cross-reference — plus the build/offline fix that was dropping `muhurtha.js` from production**
 
@@ -22,6 +24,35 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.18.0
+
+A client who wants the 40-day container to sit beside their work and family commitments can be
+served two ways, and only one of them belongs in a consultation dossier.
+
+**What was rejected.** Push notifications: a service-worker subscription, an OS permission prompt,
+a vendor push endpoint and a server that necessarily learns when each client practises. That is
+daily-active-user machinery borrowed from ad-funded portals, and pointing it at someone's sadhana
+converts a self-directed practice into an app that nags. Smoke now asserts the codebase ships no
+`pushManager`, `showNotification` or `Notification.requestPermission` anywhere — the decision is
+pinned, not just documented.
+
+**What was built instead.** The browser serialises a static RFC 5545 file on the device and hands
+it over. The client imports it into the calendar they already live in, and from that moment the app
+is out of the loop: nothing subscribed, nothing running in the background, nothing reported back,
+no battery cost, and every entry deletable without asking us.
+
+| Area | 2.18.0 behaviour |
+| --- | --- |
+| **Five independently selectable sets** | The 40-day container, phase milestones, Driver/Conductor power-day check-ins, the favourable dates from Section 13a, and the Rahu / Yamaganda / Gulika windows. Each checkbox shows **how many entries it will add** before the client commits — 40, 4, 12, 20, 120 on a typical chart. Only the first three are pre-selected. |
+| **Forty discrete sunrises, not one repeating rule** | Sunrise moves roughly **25 minutes** across a 40-day cycle at Indian latitudes, so a single `RRULE` at 06:14 would be wrong for most of the container. Each day carries its own solved sunrise, and the per-day solve picks up any daylight-saving shift mid-cycle. A chart with no birthplace falls back to a nominal 06:30 slot **that says so** rather than faking a sunrise. |
+| **Sitting length is derived, not guessed** | Taken from the Scaled Sadhana depth the client already chose — it is not a new number invented at export time. |
+| **UTF-8 octet line folding** | RFC 5545 measures its 75-character limit in **octets**. Devanagari and Gujarati are three bytes per character, so a character-counting folder emits 225-byte lines that strict parsers truncate. The folder counts real bytes and refuses to split inside a character or a surrogate pair; smoke asserts folded Devanagari unfolds losslessly with no replacement characters. |
+| **Calendar semantics done properly** | All-day events end on the *following* day, because `DATE` values are exclusive and getting this wrong renders a one-day event as a two-day banner. Advisory windows are written `TRANSP:TRANSPARENT` so an almanac note shows as free time and cannot block a colleague from booking over it — it is information, not an appointment. |
+| **Privacy in the file itself** | Event UIDs are a **one-way hash**, never the name or date of birth, because a calendar entry frequently syncs to Google or Exchange and `priya-sharma-2005-04-12@…` would quietly export a client's identity to a third party the consultation never agreed to involve. Smoke asserts the rendered file contains neither the fixture's name nor its DOB. The hash is also stable, so **re-exporting updates the same entries instead of duplicating all forty**. |
+| **Reminders are opt-in** | No `VALARM` is written unless the client ticks the box. When they do, it is their own calendar reminding them — no permission prompt, no push endpoint, nothing in the background. |
+| **The calendar cannot contradict the report** | Every description is assembled from the already-rendered plan (`lastActivation`), and the exported favourable dates are asserted to be **exactly** the dates Section 13a prints — same engine, same horizon, same limit. Every entry repeats the cordon: *"Timing aid only… changes no remedy, dose or guardrail."* |
+| **Pack / app version** | `latestVersion` stays **2.10.0**; `appVersion` → **2.18.0**. New file `calendar.js` is wired into `index.html`, the static build manifest and the service-worker precache. Smoke 524 → **554 assertions**. |
 
 ## What changed in 2.17.0
 
