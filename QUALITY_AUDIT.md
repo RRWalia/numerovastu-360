@@ -58,6 +58,10 @@ Last reviewed: 2026-10-01 — Release 2.18.0 calendar export (.ics); 2.17.0 oper
 | Full-table classical verification | Pass (2.15.0) audit | Every other table in the report was re-verified against the standard printed sources and confirmed canonical, so no change: Chaldean letter values, number → planet (1 Sun … 4 Rahu … 7 Ketu … 9 Mars), rudraksha bead counts, gemstones with the under-18 deferral, Ashta Dikpalaka compass (N Kubera/5, NE Īśāna/3, E Indra/1, SE Agni/6, S Yama/9, SW Nirṛti/4, W Varuṇa/8, NW Vāyu/2), Kua formula, Lo Shu magic square, Vedic birth grid, day colours/metals, doshas and deities, beej mantras, Vimshottari lord order and fixed 120-year cycle, Ank Jyotish Dasha arithmetic (MD = n years from the Driver, AD = MD·n/45, PD = span·n/45), Grahan + Sambhandha doctrine (kept as documented school variation), karmic debts, master numbers, pinnacles and personal year. One soft flag, no change: the mantra “full cycle” counts (7,000–23,000) match no classical japa scheme — left as house style. |
 | Production build dropped a loaded engine | Fixed (2.16.0) P0 | `index.html` loaded `muhurtha.js`, but it was in neither `scripts/build-static.cjs`'s `files` manifest nor `sw.js`'s `SHELL_ASSETS`. The production bundle therefore 404'd on it and an installed PWA went offline without the sunrise / Rahu Kaal engine — the whole Muhurtha section rendered empty in `dist/` while working perfectly in local dev, and no test caught it because `smoke.test.js` evaluated its own hand-maintained script list that also omitted the file. Three fixes: both `muhurtha.js` and the new `insights.js` are shipped and precached; the build now regex-scans `index.html` for every non-HTTP `<script src>` and **throws** if any is absent from `dist/` (verified by removing one — `index.html loads script(s) the build does not ship: insights.js`); and the smoke suite evaluates the same list the page loads, with assertions pinning page-scripts ⊆ build manifest and page-scripts ⊆ offline shell. |
 | Competitive surface-area gaps | Fixed (2.16.0) | A teardown of the Indian hubs, the global numerology apps and the professional Vastu suites found five features every comparable product ships and this one did not. All five are now built as **reading surfaces with no remedy authority** (smoke asserts zero `[data-remedy-authority]` descendants in each): §6A Name Architecture (Soul Urge / Personality / Expression split, Cornerstone, Capstone, per-letter strip), §8A Premises Numerology (door digits + full token, four-tier verdict, nameplate tuning instead of advice to move), §13a Personal Cycles (Personal Year/Month/Day, graded month calendar, 90-day favourable-date finder with full scoring trails), §13b Panchang depth (all five limbs with end times, eight Choghadiya, Abhijit with Wednesday exclusion), §17A optional Western cross-reference (cordoned exactly like Feng Shui / Kua). No `data.js` or pack field changed, so the practitioner content gate was not triggered and the pack stays at 2.10.0. |
+| Bundle size & gzip budget gate | Added (2.18.0) | `scripts/check-bundle-budget.mjs` + `bundle-budget.json` enforce per-asset gzip ceilings with ~10% headroom across all 14 distribution assets, initial-load total gzip budget (598.6 KB vs 675 KB ceiling), dist/ raw total ceiling (4263.8 KB vs 4800 KB), and exact eager script set parity with `index.html`. Integrated into `npm run check` and CI summary. |
+| Print performance benchmark & A4 contracts | Added (2.18.0) | `tests/perf/print-render.perf.spec.js` and dedicated `playwright.perf.config.mjs` (isolated worker, zero retries) benchmark compute, print reflow, and PDF export durations. Enforces structural contracts: Practitioner Cockpit is exactly 1 A4 page, and Client Dossier is strictly shorter and lighter than the Practitioner Compendium. Shared fixture extracted to `tests/support/report-fixture.mjs`. |
+| Date & coordinate runtime sanitization | Hardened (2.18.0) | Strict `Number.isFinite` validation across client-side date, time, and coordinate parsers (`parseDob`, `parseTime`, `matchPlace`, `nearestPlaces`, `dashaBirthDate`, `buildAntardashas`, `buildPratyantars`, `currentAgeYears`, `dashaTimeline`, `vimshottariTimeline`) preventing `NaN` propagation across Dasha cycle boundaries and event windows. |
+| Nested card print pagination | Hardened (2.18.0) | Added explicit `break-inside: avoid; page-break-inside: avoid;` rules in `styles.css` specifically for nested cockpit card blocks, tables, list items, and triage blocks during multi-page print and PDF exports. |
 | New-engine drift risk | Guarded (2.16.0) | `insights.js` introduces a second place where Chaldean values, the friendship matrix, the name Expression and the Personal Year are computed — exactly the conditions under which two modules start disagreeing in front of a paying client. Four drift guards in smoke: `NVInsights.CHALDEAN_FALLBACK` deep-equals `DB.chaldean`; `NVInsights.relation(a,b)` equals `__NV.relation(a,b)` for all 81 ordered pairs; the §6A Chaldean Expression equals `p.nameNum`; the §13a Personal Year equals the Dasha transit card's. |
 | Planes of Expression sourcing | Verified (2.16.0) | Four independent sources agree on the Decoz grid (Physical `E` / `W` / `D,M`; Mental `A` / `H,J,N,P` / `G,L`; Emotional `I,O,R,Z` / `B,S,T,X` / none; Intuitive `K` / `F,Q,U,Y` / `C,V`, columns being creative / vacillating / grounded), covering all 26 letters exactly once and classifying by letter character rather than numeric value — E, N and W all total 5 yet sit on three different planes. A fifth source gave a conflicting table and was rejected as a minority variant. The 26-letter partition is smoke-pinned. |
 | Favourable dates vs Muhurtha precedence | Guarded (2.16.0) | A date finder sitting beside a classical Muhurtha engine invites a client to treat the cheaper layer as authoritative. §13a states plainly that a good date is not yet a good hour, does not outrank classical Muhurtha, and routes the client to §13b to place the act inside Abhijit or a Shubh / Amrit / Labh Choghadiya, outside Rahu Kaal and outside Vishti. Pinned by smoke. |
@@ -182,15 +186,16 @@ Run this before publishing:
 npm run check
 ```
 
-The gate covers smoke tests, dependency audit and static build verification.
+The gate covers smoke tests, dependency audit, static build verification, bundle size & gzip budget validation (`npm run check:budget`), and source archive freshness (`numerovastu-360-full-source.zip`).
 CI enforces it on every pull request (`.github/workflows/ci.yml`).
 
-For screenshot regression checks, install Chromium once and run:
+For screenshot regression and performance benchmark checks, install Chromium once and run:
 
 ```bash
 npm run browsers:install
 npm run test:visual          # compare against committed baselines (read-only)
 npm run test:visual:update   # regenerate baselines after an intentional layout change
+npm run test:perf            # run A4 print rendering performance & PDF benchmark
 ```
 
 Use `npm run check:full` in CI environments where the Playwright browser is
@@ -201,6 +206,8 @@ re-runs the suite strictly against the fresh files to prove the render
 reproduces, and raises a `::warning::` annotation stating that the gate did not
 run; and if the specs genuinely fail — or the newly generated baselines fail to
 reproduce — it raises an `::error::` naming the first failure.
+
+> **Note on versioning:** The application code is versioned at `2.18.0` in `package.json`, whereas the Knowledge Pack is versioned independently up to `2.10.0` in `knowledge-pack/packs/` (supported by migration packs from 2.1.0 through 2.9.0).
 
 ## Content review gate
 

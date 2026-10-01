@@ -47,6 +47,32 @@ jobs:
           test -f dist/sw.js
           test -f dist/icons/icon-512.png
 
+      - name: Bundle size and gzip budget gate
+        run: npm run check:budget
+
+  # Performance benchmarks: benchmarks A4 reflow, single-page cockpit contract,
+  # multi-page client dossier and practitioner compendium PDF generation times.
+  perf:
+    name: Print render & PDF perf benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Run A4 print performance suite
+        run: npm run test:perf
+
   # Visual regression. Runs strictly when reviewed baselines are committed;
   # otherwise it says so loudly and uploads freshly generated baselines for a
   # maintainer to review. It never silently passes.

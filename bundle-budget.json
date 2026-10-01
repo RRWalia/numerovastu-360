@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "description": "Asset size and gzip budget gates for client-side PWA distribution",
+  "limits": {
+    "initialLoadGzipMaxKb": 675,
+    "distTotalRawMaxKb": 4800
+  },
+  "eagerAssets": [
+    "index.html",
+    "styles.css",
+    "astro.js",
+    "muhurtha.js",
+    "insights.js",
+    "calendar.js",
+    "atlas/atlas-in.js",
+    "data.js",
+    "i18n.js",
+    "app.js"
+  ],
+  "assets": {
+    "app.js": { "maxGzipKb": 295, "maxRawKb": 1100 },
+    "i18n.js": { "maxGzipKb": 125, "maxRawKb": 550 },
+    "data.js": { "maxGzipKb": 72, "maxRawKb": 260 },
+    "atlas/atlas-in.js": { "maxGzipKb": 82, "maxRawKb": 180 },
+    "atlas/atlas-world.js": { "maxGzipKb": 92, "maxRawKb": 195 },
+    "atlas/atlas-gcc.js": { "maxGzipKb": 13, "maxRawKb": 32 },
+    "astro.js": { "maxGzipKb": 36, "maxRawKb": 110 },
+    "styles.css": { "maxGzipKb": 27, "maxRawKb": 115 },
+    "insights.js": { "maxGzipKb": 15, "maxRawKb": 50 },
+    "muhurtha.js": { "maxGzipKb": 12, "maxRawKb": 40 },
+    "calendar.js": { "maxGzipKb": 7, "maxRawKb": 16 },
+    "index.html": { "maxGzipKb": 16, "maxRawKb": 60 },
+    "sw.js": { "maxGzipKb": 4, "maxRawKb": 10 },
+    "manifest.webmanifest": { "maxGzipKb": 2, "maxRawKb": 4 }
+  }
+}

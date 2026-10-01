@@ -1962,9 +1962,22 @@ body.report-mode-client .dasha-crossref[open] > .dasha-crossref-body { }
   .report-cockpit .clinical-card,
   #practitioner-cockpit .card,
   .cockpit-section .card,
+  .cockpit-card,
+  .cockpit-block,
+  .cockpit-cell,
+  .cockpit-triage,
+  .cockpit-head,
+  .cockpit-foot,
+  .cockpit-sheet > *,
   .report-cockpit > *,
   .cockpit > * {
     display: block;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cockpit-table tr,
+  .cockpit-list > li {
     break-inside: avoid;
     page-break-inside: avoid;
   }

@@ -703,12 +703,14 @@ npm test                 # Grid, authority, pack, localisation and tab regressio
 npm run atlas:build      # Rebuild compact India / Gulf / world place chunks
 npm run audit            # Dependency audit
 npm run build            # Rebuilds static dist/ from root sources
-npm run check            # test + audit + build
+npm run check:budget     # Verify bundle size and gzip budget ceilings
+npm run check            # test + audit + build + check:budget + check:source-zip
 
 # Browser checks (Chromium required once)
 npm run browsers:install
 npm run test:visual          # compare against committed baselines (read-only)
 npm run test:visual:update   # regenerate baselines after an intentional layout change
+npm run test:perf            # run A4 print rendering & PDF performance benchmarks
 ```
 
 The smoke suite checks both grid engines, Lo Shu Name/Combined coordinate

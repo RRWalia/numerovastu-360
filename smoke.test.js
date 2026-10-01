@@ -2633,6 +2633,31 @@ check("the export card's CSS classes are all defined and it is hidden in print",
     .every((cls) => styles.includes(`.${cls}`)) && /\.ics-card \{ display: none; \}/.test(styles);
 })());
 
+/* ---- Hardening: input sanitization, bundle budget and print pagination ---- */
+check("date and coordinate parser sanitization prevents NaN propagation in Dasha calculations", (() => {
+  const pMalformed = window.__NV.computeProfile({ name: "Corrupt Input", dob: "invalid-date", birthTime: "99:99", birthPlace: "unknown-place" });
+  const dasha = window.__NV.dashaTimeline(pMalformed, "invalid-ref-date");
+  if (!dasha || !Array.isArray(dasha.mahadashas)) return false;
+  const noNaN = dasha.mahadashas.every((m) => Number.isFinite(m.startMs) && Number.isFinite(m.endMs) && Number.isFinite(m.fromAge) && Number.isFinite(m.toAge));
+  const vimTimeline = window.__NV.vimshottariTimeline(pMalformed);
+  return noNaN && vimTimeline === null;
+})());
+check("bundle budget configuration and check script are present and valid", (() => {
+  const budgetJson = JSON.parse(read("bundle-budget.json"));
+  const scriptSrc = read("scripts/check-bundle-budget.mjs");
+  return Number.isFinite(budgetJson.limits.initialLoadGzipMaxKb)
+    && Array.isArray(budgetJson.eagerAssets)
+    && scriptSrc.includes("scanDist")
+    && scriptSrc.includes("Bundle Size & Gzip Budget Gate");
+})());
+check("nested cockpit card elements carry explicit page-break avoidance in print styles", (() => {
+  return styles.includes(".cockpit-card,")
+    && styles.includes(".cockpit-block,")
+    && styles.includes(".cockpit-cell,")
+    && styles.includes(".cockpit-triage,")
+    && styles.includes("page-break-inside: avoid;");
+})());
+
 if (failed) {
   console.error(`\n${failed} hybrid smoke check${failed === 1 ? "" : "s"} failed.`);
   process.exit(1);

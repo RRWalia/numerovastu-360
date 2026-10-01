@@ -12,12 +12,13 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   function reduce(n) {
-    n = Math.abs(n);
+    n = Math.abs(Number(n));
+    if (!Number.isFinite(n) || n === 0) return 9;
     while (n > 9) n = String(n).split("").reduce((a, d) => a + Number(d), 0);
     return n || 9; // guard: 0 shouldn't occur
   }
-  const digitSum = (str) => str.replace(/\D/g, "").split("").reduce((a, d) => a + Number(d), 0);
-  const digitsOf = (str) => str.replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
+  const digitSum = (str) => String(str == null ? "" : str).replace(/\D/g, "").split("").reduce((a, d) => a + Number(d), 0);
+  const digitsOf = (str) => String(str == null ? "" : str).replace(/\D/g, "").split("").map(Number).filter((d) => d > 0);
   // The Foundation uses the classical Lo Shu magic-square coordinates. The
   // advanced Vedic Ank Kundali remains a separate birth-only comparison.
   const LO_SHU_GRID_LAYOUT = [[4, 9, 2], [3, 5, 7], [8, 1, 6]];
@@ -202,10 +203,13 @@
      route the family to lifestyle anchors instead of stones. */
   const MINOR_AGE_LIMIT = 18;
   function currentAgeYears(day, month, year, nowMs) {
+    const d = Number(day), m = Number(month), y = Number(year);
+    if (!Number.isFinite(d) || !Number.isFinite(m) || !Number.isFinite(y)) return 0;
     const now = nowMs !== undefined && nowMs !== null ? new Date(nowMs) : new Date();
-    let age = now.getFullYear() - year;
-    const m = now.getMonth() + 1;
-    if (m < month || (m === month && now.getDate() < day)) age -= 1;
+    if (isNaN(now.getTime())) return 0;
+    let age = now.getFullYear() - y;
+    const curMonth = now.getMonth() + 1;
+    if (curMonth < m || (curMonth === m && now.getDate() < d)) age -= 1;
     return Math.max(0, age);
   }
   function isMinorProfile(p) {
@@ -2151,14 +2155,27 @@
 
   /* ---------------- core engine ---------------- */
   function computeProfile(input) {
-    const [y, m, d] = input.dob.split("-").map(Number);
+    let y = 1980, m = 1, d = 1;
+    if (input && input.dob) {
+      const parts = String(input.dob).split(/[-/.]/).map(Number);
+      if (parts.length === 3 && parts.every(Number.isFinite)) {
+        if (parts[0] > 31) {
+          y = parts[0]; m = parts[1]; d = parts[2];
+        } else {
+          d = parts[0]; m = parts[1]; y = parts[2];
+        }
+      }
+    }
+    d = (Number.isFinite(d) && d >= 1 && d <= 31) ? d : 1;
+    m = (Number.isFinite(m) && m >= 1 && m <= 12) ? m : 1;
+    y = (Number.isFinite(y) && y >= 1000 && y <= 2100) ? y : 1980;
     // Both engines read the same DOB but retain deliberately different
     // plotting rules. Driver/Conductor derive from the DOB itself, not from
     // a grid, so the Dasha engine has no grid dependency.
     const loShuGrid = generateLoShuGrid(d, m, y);
     const vedicGrid = generateVedicGrid(d, m, y);
     const driver = reduce(d);
-    const dobCompound = digitSum(input.dob);
+    const dobCompound = digitSum(input && input.dob ? input.dob : `${y}-${m}-${d}`);
     const conductor = reduce(d + m + y);
     const signalSets = (counts) => ({
       missing: Object.keys(counts).filter((k) => counts[k] === 0).map(Number),
@@ -3522,18 +3539,25 @@
 
   function dashaBirthDate(p) {
     let hh = 0, mm = 0;
-    if (p.birthTime) {
+    if (p && p.birthTime) {
       const parts = String(p.birthTime).split(":").map(Number);
-      if (!isNaN(parts[0])) hh = parts[0];
-      if (!isNaN(parts[1])) mm = parts[1];
+      if (Number.isFinite(parts[0]) && parts[0] >= 0 && parts[0] <= 23) hh = parts[0];
+      if (Number.isFinite(parts[1]) && parts[1] >= 0 && parts[1] <= 59) mm = parts[1];
     }
-    return new Date(p.year, p.month - 1, p.day, hh, mm);
+    const y = (p && Number.isFinite(p.year) && p.year >= 1000 && p.year <= 2100) ? p.year : 1980;
+    const mo = (p && Number.isFinite(p.month) && p.month >= 1 && p.month <= 12) ? p.month : 1;
+    const d = (p && Number.isFinite(p.day) && p.day >= 1 && p.day <= 31) ? p.day : 1;
+    const dt = new Date(y, mo - 1, d, hh, mm);
+    if (isNaN(dt.getTime())) return new Date(1980, 0, 1, 0, 0);
+    return dt;
   }
 
   function buildAntardashas(mdNumber, mdStartMs) {
-    let cur = mdStartMs;
-    return dashaSequenceFrom(mdNumber).map((adN) => {
-      const ms = (mdNumber * adN / 45) * DASHA_YEAR_MS;
+    const mdN = (Number.isFinite(mdNumber) && mdNumber >= 1 && mdNumber <= 9) ? mdNumber : 1;
+    const startMs = Number.isFinite(mdStartMs) ? mdStartMs : Date.now();
+    let cur = startMs;
+    return dashaSequenceFrom(mdN).map((adN) => {
+      const ms = (mdN * adN / 45) * DASHA_YEAR_MS;
       const seg = { n: adN, startMs: cur, endMs: cur + ms };
       cur += ms;
       return seg;
@@ -3541,9 +3565,12 @@
   }
 
   function buildPratyantars(adSeg) {
-    const span = adSeg.endMs - adSeg.startMs;
-    let cur = adSeg.startMs;
-    return dashaSequenceFrom(adSeg.n).map((pdN) => {
+    const startMs = (adSeg && Number.isFinite(adSeg.startMs)) ? adSeg.startMs : Date.now();
+    const endMs = (adSeg && Number.isFinite(adSeg.endMs)) ? adSeg.endMs : startMs + DASHA_YEAR_MS;
+    const span = Math.max(0, endMs - startMs);
+    const adN = (adSeg && Number.isFinite(adSeg.n) && adSeg.n >= 1 && adSeg.n <= 9) ? adSeg.n : 1;
+    let cur = startMs;
+    return dashaSequenceFrom(adN).map((pdN) => {
       const ms = span * pdN / 45;
       const seg = { n: pdN, startMs: cur, endMs: cur + ms };
       cur += ms;
@@ -3594,8 +3621,9 @@
     if (startIdx < 0) return null;
 
     const birth = dashaBirthDate(p);
-    const birthMs = birth.getTime();
-    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+    const birthMs = Number.isFinite(birth.getTime()) ? birth.getTime() : new Date(1980, 0, 1).getTime();
+    const refParsed = refDate ? new Date(refDate).getTime() : NaN;
+    const nowMs = Number.isFinite(refParsed) ? refParsed : Date.now();
 
     // Balance of the birth lord: how much of that nakshatra was still unspent.
     const elapsed = Math.max(0, Math.min(1, (nak.within || 0) / NAKSHATRA_SPAN_DEG));
@@ -3725,15 +3753,16 @@
 
   function dashaTimeline(p, refDate) {
     const birth = dashaBirthDate(p);
-    const birthMs = birth.getTime();
-    const nowMs = (refDate ? new Date(refDate) : new Date()).getTime();
+    const birthMs = Number.isFinite(birth.getTime()) ? birth.getTime() : new Date(1980, 0, 1).getTime();
+    const refParsed = refDate ? new Date(refDate).getTime() : NaN;
+    const nowMs = Number.isFinite(refParsed) ? refParsed : Date.now();
 
     // Lifetime Mahadasha ladder. Computed to 100 years so Antardasha and
     // Pratyantar boundaries stay exact past the 80-year average-lifespan
     // horizon (DASHA_LIFESPAN_YEARS); every Dasha read-out is guaranteed
     // inside that 80-year coverage window.
     const mahadashas = [];
-    let cur = birthMs, n = p.driver;
+    let cur = birthMs, n = (Number.isFinite(p && p.driver) && p.driver >= 1 && p.driver <= 9) ? p.driver : 1;
     while (cur < birthMs + 100 * DASHA_YEAR_MS) {
       const ms = n * DASHA_YEAR_MS;
       mahadashas.push({

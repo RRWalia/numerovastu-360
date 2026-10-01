@@ -154,6 +154,7 @@ window.NVAstro = (function () {
     const m = String(dob || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return null;
     const y = +m[1], mo = +m[2], d = +m[3];
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
     if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
     const dt = new Date(Date.UTC(y, mo - 1, d));
     if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
@@ -164,7 +165,7 @@ window.NVAstro = (function () {
     const m = String(t || "").trim().match(/^(\d{1,2}):(\d{2})/);
     if (!m) return null;
     const h = +m[1], min = +m[2];
-    if (h > 23 || min > 59) return null;
+    if (!Number.isFinite(h) || !Number.isFinite(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
     return { h, min };
   }
 
@@ -1011,6 +1012,7 @@ window.NVAstro = (function () {
   }
 
   function nearestPlaces(lat, lon, opts) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
     opts = opts || {};
     const maxKm = opts.maxKm != null ? opts.maxKm : 25;
     const limit = opts.limit || 5;
@@ -1054,9 +1056,12 @@ window.NVAstro = (function () {
       let lon = parseFloat(coordM[3]);
       if (coordM[2] === "s" || /^-\d/.test(coordM[1])) lat = -Math.abs(lat);
       if (coordM[4] === "w" || /^-\d/.test(coordM[3])) lon = -Math.abs(lon);
-      if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
       let tz = 5.5; // coordinates without an explicit offset are assumed Indian time
-      if (coordM[5] !== undefined && !isNaN(parseFloat(coordM[5])) && Math.abs(parseFloat(coordM[5])) <= 14) tz = parseFloat(coordM[5]);
+      if (coordM[5] !== undefined) {
+        const parsedTz = parseFloat(coordM[5]);
+        if (Number.isFinite(parsedTz) && Math.abs(parsedTz) <= 14) tz = parsedTz;
+      }
       const tzGiven = coordM[5] !== undefined;
       const nearest = nearestPlaces(lat, lon, { maxKm: 25, limit: 1 })[0];
       const coordLabel = `${lat}°, ${lon}°` + (tzGiven ? ` · UTC${tz >= 0 ? "+" : ""}${tz}` : " · assumed UTC+5:30");
