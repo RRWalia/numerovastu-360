@@ -1316,6 +1316,11 @@ check("the homepage ships crawlable SEO copy, FAQ and structured data", (() => {
     && !!$('link[rel="canonical"]')
     && !!$('meta[property="og:image"]');
 })());
+check("the Google Search Console verification file is present and shipped", (() => {
+  const token = "google77280abb8794a6d3";
+  return read(`${token}.html`).trim() === `google-site-verification: ${token}.html`
+    && new RegExp(`'${token}\\.html'`).test(read("scripts/build-static.cjs"));
+})());
 check("robots.txt and sitemap.xml are present and shipped by the static build", (() => {
   const buildSrc = read("scripts/build-static.cjs");
   return /Sitemap: https:\/\/[^\s]+\/sitemap\.xml/.test(read("robots.txt"))

@@ -10,7 +10,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
 const files = ['index.html', 'app.js', 'astro.js', 'data.js', 'i18n.js', 'styles.css',
-  'sw.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml'];
+  'sw.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml', 'google77280abb8794a6d3.html'];
 const dirs = ['knowledge-pack', 'atlas', 'icons'];
 
 function rm(target) {
