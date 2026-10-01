@@ -562,7 +562,11 @@ check("provenance is print-only, so the on-screen report is unchanged", /\.repor
    be filed and produced months later. The stamp is a sibling of
    .report-closing, never a child, so suppressing the brand block
    cannot suppress the audit trail. */
-check("provenance survives the cockpit-only print job", !/body\.print-cockpit \.report-provenance/.test(styles) && !!mount(liveReport).querySelector(".report-closing + [data-report-provenance], [data-report-provenance]"));
+/* Asserted against the markup string rather than a mount(): the report
+   is large and each extra detached JSDOM tree is retained for the rest
+   of the run, which was enough to push this suite over the V8 heap
+   limit intermittently. String checks are equally strict here. */
+check("provenance survives the cockpit-only print job", !/body\.print-cockpit \.report-provenance/.test(styles) && /<\/div>\s*<footer class="report-provenance"/.test(liveReport));
 check("provenance stays compact enough for the cockpit one-A4 contract", /\.report-provenance \{[^}]*font-size: 9px;[^}]*\}/.test(styles) && /\.report-provenance \{[^}]*break-inside: avoid;[^}]*\}/.test(styles));
 
 /* ---- Localisation plus static responsive/print safeguards ---- */
@@ -583,10 +587,10 @@ for (const language of ["hi", "gu"]) {
      digits, because they are identifiers a practitioner quotes back to
      us in a support thread, not prose. */
   check(`${language} provenance footer is localised and keeps Latin version identifiers`, (() => {
-    const prov = mount(report).querySelector("[data-report-provenance]");
-    if (!prov) return false;
+    const m = /<footer class="report-provenance"[^>]*data-pack-version="([^"]+)"[^>]*>([\s\S]*?)<\/footer>/.exec(report);
+    if (!m) return false;
     const label = language === "hi" ? "पैक" : "પૅક";
-    return prov.textContent.includes(label) && prov.textContent.includes("v" + prov.getAttribute("data-pack-version"));
+    return m[2].includes(label) && m[2].includes("v" + m[1]) && /^\d+\.\d+\.\d+$/.test(m[1]);
   })());
   check(`${language} hero DOB renders locale month names`, new RegExp(language === "hi" ? "जन्म तिथि: <strong>20 .+ 2005</strong>" : "જન્મ તારીખ: <strong>20 .+ 2005</strong>").test(report));
 }
