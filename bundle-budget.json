@@ -1,0 +1,31 @@
+{
+  "$comment": "Gzip ceilings in KB (1 KB = 1024 bytes) for the deployable dist/. Enforced by scripts/check-bundle-budget.mjs, which runs in `npm run check` and gates CI. `initial` is every asset dist/index.html loads eagerly — the critical path for first paint. `deferred` is loaded on demand (atlas chunks on birthplace search, knowledge pack on version negotiation) so it must not count against first paint, but is still capped. Raising a ceiling is a deliberate, reviewable act: rerun with --update and commit the diff.",
+  "headroomPercent": 10,
+  "generated": "2026-10-01",
+  "initial": {
+    "totalGzipKB": 657,
+    "files": {
+      "index.html": 15,
+      "styles.css": 25,
+      "astro.js": 34,
+      "muhurtha.js": 11,
+      "insights.js": 15,
+      "calendar.js": 6,
+      "atlas/atlas-in.js": 80,
+      "data.js": 68,
+      "i18n.js": 120,
+      "app.js": 287
+    }
+  },
+  "deferred": {
+    "files": {
+      "atlas/atlas-gcc.js": 12,
+      "atlas/atlas-world.js": 89,
+      "knowledge-pack/latest.json": 6,
+      "sw.js": 3
+    }
+  },
+  "dist": {
+    "totalRawKB": 4691
+  }
+}

@@ -38,6 +38,16 @@ jobs:
       - name: Confirm the source archive matches this commit
         run: npm run check:source-zip
 
+      # `npm run check` already runs this, but re-running it as its own step
+      # gives the size table a dedicated, linkable entry in the job log and
+      # writes the markdown table to the run summary, so a reviewer sees what
+      # a PR costs the critical path without opening the full check output.
+      # It is deliberately a hard gate: the ceilings in bundle-budget.json sit
+      # ~10% above measured size, and raising one requires committing the
+      # rebased file so the growth is reviewed rather than absorbed.
+      - name: Bundle-size budget
+        run: npm run check:budget
+
       - name: Confirm the static build produced a deployable dist/
         run: |
           test -f dist/index.html
@@ -46,6 +56,48 @@ jobs:
           test -f dist/manifest.webmanifest
           test -f dist/sw.js
           test -f dist/icons/icon-512.png
+
+  # A4 print rendering benchmark. Separate job from `visual` because timing
+  # must not share a runner with a parallel screenshot suite, and separate from
+  # `verify` because it needs a browser. Its wall-clock budgets are deliberately
+  # loose (roughly 2x observed) so shared-runner jitter cannot turn it red; what
+  # it gates strictly is the deterministic part — the cockpit sheet printing as
+  # exactly one A4 page, and the Client dossier staying shorter than the
+  # Practitioner compendium. The timing table is published to the run summary.
+  perf:
+    name: A4 print rendering benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Benchmark A4 print rendering
+        run: npm run test:perf
+        env:
+          NV_PERF_RUNS: 3
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-perf
+          path: |
+            test-results/print-perf.json
+            test-results/**/*.pdf
+            playwright-report-perf/
+          if-no-files-found: ignore
+          retention-days: 14
 
   # Visual regression. Runs strictly when reviewed baselines are committed;
   # otherwise it says so loudly and uploads freshly generated baselines for a
