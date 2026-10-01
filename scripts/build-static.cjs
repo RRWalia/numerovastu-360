@@ -9,7 +9,13 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..');
 const dist = path.join(root, 'dist');
-const files = ['index.html', 'favicon.ico', 'app.js', 'astro.js', 'data.js', 'i18n.js', 'styles.css',
+/* Every script index.html loads must appear here. `muhurtha.js` was referenced
+ * by index.html but absent from this list, so the production bundle 404'd on it
+ * and the whole Muhurtha / Rahu Kaal section silently rendered empty in dist/
+ * while working perfectly in local dev. The guard below makes that class of
+ * omission impossible to repeat. */
+const files = ['index.html', 'favicon.ico', 'app.js', 'astro.js', 'muhurtha.js', 'insights.js',
+  'data.js', 'i18n.js', 'styles.css',
   'sw.js', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml', 'google77280abb8794a6d3.html'];
 const dirs = ['knowledge-pack', 'atlas', 'icons'];
 
@@ -64,6 +70,18 @@ fs.writeFileSync(distSw, swSrc.replace(
   /^const CACHE_VERSION = "([^"]+)";/m,
   (match, version) => `const CACHE_VERSION = "${version}-${buildLabel.replace(/[^0-9A-Za-z.-]/g, '')}";`
 ));
+
+/* Guard: no script tag in index.html may point at a file the build did not
+ * copy. This is the check that would have caught the missing muhurtha.js the
+ * moment it was introduced, instead of one silent release later. */
+const indexSrc = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const referencedScripts = Array.from(indexSrc.matchAll(/<script[^>]+src="([^"]+)"/g))
+  .map((m) => m[1])
+  .filter((src) => !/^https?:/i.test(src));
+const missingScripts = referencedScripts.filter((src) => !fs.existsSync(path.join(dist, src)));
+if (missingScripts.length) {
+  throw new Error(`index.html loads script(s) the build does not ship: ${missingScripts.join(', ')}`);
+}
 
 const outputs = [];
 function collect(dir) {

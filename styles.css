@@ -827,6 +827,73 @@ body {
 
 .mantra { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--fill-f1); padding: 2px 6px; border-radius: var(--r-xxs); }
 
+/* ------------------------------------------------------------------
+   2026-10 parity layers — Name Architecture, Personal Cycles,
+   Premises numerology and the Western cross-reference.
+   Presentation only: none of these rules is read by an engine, and
+   the print block below keeps every one of them paper-safe.
+   ------------------------------------------------------------------ */
+.card-grid.three { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+
+/* Name Architecture — the vowel / consonant strip */
+.letter-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.letter-chip {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 30px; padding: 4px 6px; border-radius: var(--r-xs);
+  font-size: 14px; font-weight: 600; line-height: 18px;
+  border: 0.5px solid var(--separator); background: var(--fill-f1); color: var(--label-primary);
+}
+.letter-chip em { font-style: normal; font-size: 10px; font-weight: 500; line-height: 12px; color: var(--label-tertiary); }
+.letter-chip.letter-vowel { background: var(--light-orange-bg); border-color: rgba(255, 149, 0, 0.28); color: #7a4500; }
+.letter-chip.letter-vowel em { color: #9a6a16; }
+.letter-chip.letter-consonant { background: var(--fill-f1); }
+.arch-table .arch-move strong { color: var(--label-primary); }
+.arch-table .arch-same { color: var(--label-tertiary); }
+
+/* Personal cycles — month calendar */
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px; margin: 10px 0 8px;
+}
+.cal-head { font-size: 11px; font-weight: 500; text-align: center; color: var(--label-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+.cal-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 38px; padding: 3px 2px; border-radius: var(--r-xs);
+  border: 0.5px solid var(--separator); background: var(--bg-primary);
+}
+.cal-cell.cal-blank { border: none; background: transparent; }
+.cal-date { font-size: 13px; font-weight: 600; line-height: 16px; color: var(--label-primary); }
+.cal-pd { font-size: 10px; line-height: 12px; color: var(--label-tertiary); }
+.cal-cell.cal-excellent { background: var(--light-green-bg); border-color: rgba(22, 196, 86, 0.28); }
+.cal-cell.cal-good { background: var(--kimi-blue-10); border-color: rgba(23, 131, 255, 0.22); }
+.cal-cell.cal-workable { background: var(--fill-f1); }
+.cal-cell.cal-avoid { background: var(--light-red-bg); border-color: rgba(255, 77, 77, 0.22); }
+.cal-cell.cal-today { outline: 2px solid var(--label-primary); outline-offset: -2px; }
+.cal-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--label-secondary); }
+.cal-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 0.5px solid var(--separator); }
+.cal-key.cal-excellent { background: var(--light-green-bg); }
+.cal-key.cal-good { background: var(--kimi-blue-10); }
+.cal-key.cal-workable { background: var(--fill-f1); }
+.cal-key.cal-avoid { background: var(--light-red-bg); }
+
+/* Favourable-date pills */
+.date-pill {
+  display: inline-flex; flex-direction: column; gap: 1px;
+  padding: 4px 8px; margin: 2px 0; border-radius: var(--r-xs);
+  font-size: 13px; font-weight: 600; line-height: 17px;
+  border: 0.5px solid var(--separator); background: var(--fill-f1); color: var(--label-primary);
+}
+.date-pill em { font-style: normal; font-size: 10px; font-weight: 500; line-height: 12px; color: var(--label-tertiary); }
+.date-pill.date-excellent { background: var(--light-green-bg); border-color: rgba(22, 196, 86, 0.28); }
+.date-pill.date-good { background: var(--kimi-blue-10); border-color: rgba(23, 131, 255, 0.22); }
+
+/* Optional Western module — same collapsed treatment as Feng Shui */
+.details-block > summary {
+  cursor: pointer; font-size: 14px; font-weight: 500; line-height: 22px;
+  padding: 8px 0; color: var(--label-secondary);
+}
+.details-block > summary:focus-visible { outline: 2px solid var(--label-primary); outline-offset: 2px; border-radius: var(--r-xs); }
+
 /* Tables */
 .rtable { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rtable th, .rtable td { text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
@@ -1445,6 +1512,16 @@ body {
   .advanced-vedic-comparison:not([open]) > .details-body { display: flex !important; }
   .advanced-vedic-comparison { background: #fff; }
   .loshu-cell, .vedic-cell { break-inside: avoid; }
+  /* 2026-10 parity layers. A collapsed <details> prints as a single grey
+     line and loses its content, so the optional Western module is forced
+     open on paper; the calendar and the chip strips are kept atomic and
+     their background fills retained, otherwise a printed grade grid is
+     just a page of undifferentiated numbers. */
+  .western-details:not([open]) > .details-body { display: flex !important; }
+  .western-details > summary { list-style: none; }
+  .cal-grid, .letter-strip, .date-pill, .cal-cell, .letter-chip { break-inside: avoid; page-break-inside: avoid; }
+  .cal-cell, .letter-chip, .date-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cal-cell.cal-today { outline: 1.5pt solid #000; }
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   /* Professional print conventions: no orphan/widow lines; the closing

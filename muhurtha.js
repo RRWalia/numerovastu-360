@@ -350,6 +350,271 @@
     return { ok: true, sunrise: sunrise, sunset: sunset, transit: ss.transit, dayLength: dayLength, partDuration: part, weekday: weekday, rahuIndex: rahuIdx, rahuStart: rahuStart, rahuEnd: rahuEnd, parts: parts, alwaysDay: alwaysDay, alwaysNight: alwaysNight, lat: lat, lon: lon, tz: tzEffective, h0: ss.h0 };
   }
 
+  /* ================================================================
+     Panchang — the five limbs, Choghadiya and Abhijit
+     ================================================================
+     Added 2026-10 after a competitive review: every Indian astrology
+     product of comparable standing ships a full Panchang, and this one
+     stopped at sunrise / sunset / Rahu Kaal. Nothing here is tabulated
+     or approximated from an almanac — each limb is derived from the
+     same Meeus ephemeris the rest of the app is pinned to:
+
+       Tithi    = (Moon − Sun) / 12°            → 30 per lunar month
+       Nakshatra= sidereal Moon / 13°20′        → 27, pada = quarter
+       Yoga     = (Moon + Sun) sidereal / 13°20′→ 27
+       Karana   = half a tithi                  → 11 names, 60 per month
+       Vara     = the weekday, reckoned sunrise-to-sunrise
+
+     The Moon moves ~13°/day, so the limb is reported AT a stated
+     instant (sunrise by default) together with the time it ends —
+     never as a bare "today's tithi is X", which is the single most
+     common error in consumer Panchang output.
+
+     Requires NVAstro's lunar series. When it is absent the function
+     returns ok:false with a reason rather than guessing. */
+
+  var TITHI_NAMES = [
+    "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami",
+    "Ashtami", "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Purnima",
+    "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami",
+    "Ashtami", "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Amavasya"
+  ];
+  /* Tithi groups (Nanda / Bhadra / Jaya / Rikta / Purna) repeat every
+     five tithis; Rikta tithis (4, 9, 14) are classically avoided for
+     auspicious beginnings. */
+  var TITHI_GROUPS = ["Nanda", "Bhadra", "Jaya", "Rikta", "Purna"];
+  var NAKSHATRA_NAMES = [
+    "Ashwini", "Bharani", "Krittika", "Rohini", "Mrigashira", "Ardra", "Punarvasu", "Pushya", "Ashlesha",
+    "Magha", "Purva Phalguni", "Uttara Phalguni", "Hasta", "Chitra", "Swati", "Vishakha", "Anuradha", "Jyeshtha",
+    "Mula", "Purva Ashadha", "Uttara Ashadha", "Shravana", "Dhanishta", "Shatabhisha", "Purva Bhadrapada",
+    "Uttara Bhadrapada", "Revati"
+  ];
+  var NAKSHATRA_LORDS = [
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury",
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury",
+    "Ketu", "Venus", "Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury"
+  ];
+  var YOGA_NAMES = [
+    "Vishkambha", "Priti", "Ayushman", "Saubhagya", "Shobhana", "Atiganda", "Sukarma", "Dhriti", "Shula",
+    "Ganda", "Vriddhi", "Dhruva", "Vyaghata", "Harshana", "Vajra", "Siddhi", "Vyatipata", "Variyana",
+    "Parigha", "Shiva", "Siddha", "Sadhya", "Shubha", "Shukla", "Brahma", "Indra", "Vaidhriti"
+  ];
+  /* Inauspicious yogas named in the standard list. */
+  var YOGA_CAUTION = ["Vishkambha", "Atiganda", "Shula", "Ganda", "Vyaghata", "Vajra", "Vyatipata", "Parigha", "Vaidhriti"];
+  /* Karana: 7 movable names cycle 8 times from the second half of
+     tithi 1; 4 fixed karanas bookend the lunar month. */
+  var KARANA_MOVABLE = ["Bava", "Balava", "Kaulava", "Taitila", "Gara", "Vanija", "Vishti"];
+  var KARANA_FIXED = ["Kimstughna", "Shakuni", "Chatushpada", "Naga"];
+
+  function moonApparentLonLocal(daysTt) {
+    try {
+      if (typeof window !== "undefined" && window.NVAstro && typeof window.NVAstro.moonApparentLon === "function") {
+        return window.NVAstro.moonApparentLon(daysTt);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function ayanamsaLocal(daysSinceJ2000) {
+    try {
+      if (typeof window !== "undefined" && window.NVAstro && typeof window.NVAstro.ayanamsaAt === "function") {
+        return window.NVAstro.ayanamsaAt(daysSinceJ2000);
+      }
+    } catch (e) {}
+    return 23.8533 + (daysSinceJ2000 / 365.25) * 0.013969;
+  }
+
+  /* Solve for the local hour at which `angleFn` next crosses a
+     multiple of `step` degrees, by scanning forward in coarse steps
+     and bisecting the crossing. `angleFn(localHour)` must return a
+     monotonically increasing (mod 360) angle. */
+  function nextBoundary(angleFn, step, startHour, limitHours) {
+    var startVal = angleFn(startHour);
+    if (startVal === null) return null;
+    var target = (Math.floor(startVal / step) + 1) * step;
+    var prevH = startHour, prevDelta = startVal - target;
+    for (var h = startHour + 0.5; h <= startHour + limitHours; h += 0.5) {
+      var v = angleFn(h);
+      if (v === null) return null;
+      var delta = v - target;
+      if (delta < prevDelta - 180) delta += 360; // wrapped past 360
+      if (delta >= 0) {
+        var lo = prevH, hi = h;
+        for (var i = 0; i < 40; i++) {
+          var mid = (lo + hi) / 2;
+          var mv = angleFn(mid) - target;
+          if (mv < -180) mv += 360;
+          if (mv < 0) lo = mid; else hi = mid;
+        }
+        return (lo + hi) / 2;
+      }
+      prevH = h; prevDelta = delta;
+    }
+    return null;
+  }
+
+  /* The five limbs at a given local hour of a given date/place. */
+  function panchang(Y, M, D, lat, lon, tzEffective, opts) {
+    opts = opts || {};
+    if (!isFinite(Y) || !isFinite(M) || !isFinite(D) || !isFinite(tzEffective)) return { ok: false, reason: "bad-input" };
+    var probe = astroMomentLocal(Y, M, D, 12 - tzEffective);
+    if (moonApparentLonLocal(probe.tt) === null) return { ok: false, reason: "no-lunar-engine" };
+
+    var ss = (isFinite(lat) && isFinite(lon)) ? sunriseSunset(Y, M, D, lat, lon, tzEffective) : null;
+    var refHour = typeof opts.atHour === "number" ? opts.atHour
+      : (ss && ss.ok && ss.sunrise !== null ? ss.sunrise : 6);
+
+    function moment(localHour) { return astroMomentLocal(Y, M, D, localHour - tzEffective); }
+    function sunLon(localHour) { return clamp360(sunApparentLonLocal(moment(localHour).tt)); }
+    function moonLon(localHour) {
+      var v = moonApparentLonLocal(moment(localHour).tt);
+      return v === null ? null : clamp360(v);
+    }
+    function elong(localHour) {
+      var m = moonLon(localHour);
+      if (m === null) return null;
+      return clamp360(m - sunLon(localHour));
+    }
+    function siderealMoon(localHour) {
+      var m = moonLon(localHour);
+      if (m === null) return null;
+      return clamp360(m - ayanamsaLocal(moment(localHour).ut));
+    }
+    function yogaAngle(localHour) {
+      var m = moonLon(localHour);
+      if (m === null) return null;
+      var ay = ayanamsaLocal(moment(localHour).ut);
+      return clamp360((m - ay) + (sunLon(localHour) - ay));
+    }
+
+    var e = elong(refHour);
+    var tithiIndex = Math.floor(e / 12);                       // 0..29
+    var tithiEnd = nextBoundary(elong, 12, refHour, 36);
+    var paksha = tithiIndex < 15 ? "Shukla" : "Krishna";
+
+    var sm = siderealMoon(refHour);
+    var nakIndex = Math.floor(sm / (360 / 27));                 // 0..26
+    var pada = Math.floor((sm % (360 / 27)) / (360 / 108)) + 1; // 1..4
+    var nakEnd = nextBoundary(siderealMoon, 360 / 27, refHour, 36);
+
+    var ya = yogaAngle(refHour);
+    var yogaIndex = Math.floor(ya / (360 / 27));
+    var yogaEnd = nextBoundary(yogaAngle, 360 / 27, refHour, 36);
+
+    var karanaIndex = Math.floor(e / 6);                        // 0..59
+    var karanaEnd = nextBoundary(elong, 6, refHour, 36);
+    var karanaName;
+    if (karanaIndex === 0) karanaName = KARANA_FIXED[0];
+    else if (karanaIndex >= 57) karanaName = KARANA_FIXED[karanaIndex - 56];
+    else karanaName = KARANA_MOVABLE[(karanaIndex - 1) % 7];
+
+    var weekday = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
+    var tithiOfPaksha = (tithiIndex % 15) + 1;
+
+    return {
+      ok: true,
+      date: { y: Y, m: M, d: D },
+      atHour: refHour,
+      tz: tzEffective,
+      sunLongitude: sunLon(refHour),
+      moonLongitude: moonLon(refHour),
+      elongation: e,
+      tithi: {
+        index: tithiIndex + 1,
+        name: TITHI_NAMES[tithiIndex],
+        paksha: paksha,
+        numberInPaksha: tithiOfPaksha,
+        group: TITHI_GROUPS[(tithiOfPaksha - 1) % 5],
+        rikta: [4, 9, 14].indexOf(tithiOfPaksha) !== -1,
+        endsAt: tithiEnd,
+        percentElapsed: ((e % 12) / 12) * 100
+      },
+      nakshatra: {
+        index: nakIndex + 1,
+        name: NAKSHATRA_NAMES[nakIndex],
+        lord: NAKSHATRA_LORDS[nakIndex],
+        pada: pada,
+        endsAt: nakEnd,
+        percentElapsed: ((sm % (360 / 27)) / (360 / 27)) * 100
+      },
+      yoga: {
+        index: yogaIndex + 1,
+        name: YOGA_NAMES[yogaIndex],
+        caution: YOGA_CAUTION.indexOf(YOGA_NAMES[yogaIndex]) !== -1,
+        endsAt: yogaEnd
+      },
+      karana: { index: karanaIndex + 1, name: karanaName, vishti: karanaName === "Vishti", endsAt: karanaEnd },
+      vara: { weekday: weekday, lordNumber: [1, 2, 9, 5, 3, 6, 8][weekday] },
+      sun: ss && ss.ok ? { sunrise: ss.sunrise, sunset: ss.sunset, transit: ss.transit, dayLength: ss.dayLength } : null
+    };
+  }
+
+  /* Choghadiya — the day and night each split into eight parts, named
+     on a fixed weekday-seeded cycle. Udvega / Roga / Kaal are the
+     inauspicious three; Amrit, Shubh, Labh and Char are workable to
+     good. Night parts start from the lord five places on from the day
+     lord, which is the standard rule. */
+  var CHOGHADIYA_CYCLE = ["Udvega", "Char", "Labh", "Amrit", "Kaal", "Shubh", "Roga"];
+  var CHOGHADIYA_QUALITY = {
+    Udvega: "inauspicious", Char: "neutral", Labh: "auspicious", Amrit: "auspicious",
+    Kaal: "inauspicious", Shubh: "auspicious", Roga: "inauspicious"
+  };
+  /* Index into CHOGHADIYA_CYCLE of the FIRST day part, by weekday
+     (0 = Sunday): Sun→Udvega, Mon→Amrit, Tue→Roga, Wed→Labh,
+     Thu→Shubh, Fri→Char, Sat→Kaal. */
+  var CHOGHADIYA_DAY_START = [0, 3, 6, 2, 5, 1, 4];
+
+  function choghadiya(Y, M, D, lat, lon, tzEffective) {
+    var ss = sunriseSunset(Y, M, D, lat, lon, tzEffective);
+    if (!ss || !ss.ok || ss.sunrise === null || ss.sunset === null) {
+      return { ok: false, reason: ss && ss.ok ? "polar" : (ss ? ss.reason : "no-sun") };
+    }
+    var nextSs = sunriseSunset(Y, M, D + 1, lat, lon, tzEffective);
+    var nextSunrise = (nextSs && nextSs.ok && nextSs.sunrise !== null) ? nextSs.sunrise + 24 : ss.sunrise + 24;
+    var weekday = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
+    var dayPart = (ss.sunset - ss.sunrise) / 8;
+    var nightPart = (nextSunrise - ss.sunset) / 8;
+    var dayStart = CHOGHADIYA_DAY_START[weekday];
+    var nightStart = (dayStart + 4) % 7;
+
+    function build(count, startIdx, from, span, phase) {
+      var out = [];
+      for (var i = 0; i < count; i++) {
+        var name = CHOGHADIYA_CYCLE[(startIdx + i) % 7];
+        out.push({
+          index: i + 1, phase: phase, name: name, quality: CHOGHADIYA_QUALITY[name],
+          start: from + i * span, end: from + (i + 1) * span
+        });
+      }
+      return out;
+    }
+    return {
+      ok: true, weekday: weekday,
+      day: build(8, dayStart, ss.sunrise, dayPart, "day"),
+      night: build(8, nightStart, ss.sunset, nightPart, "night"),
+      sunrise: ss.sunrise, sunset: ss.sunset, nextSunrise: nextSunrise,
+      dayPartDuration: dayPart, nightPartDuration: nightPart
+    };
+  }
+
+  /* Abhijit Muhurta — the eighth of fifteen equal day-parts, centred on
+     solar noon; roughly 48 minutes and classically auspicious for
+     almost any beginning, with the standing exception of Wednesday. */
+  function abhijitMuhurta(Y, M, D, lat, lon, tzEffective) {
+    var ss = sunriseSunset(Y, M, D, lat, lon, tzEffective);
+    if (!ss || !ss.ok || ss.sunrise === null || ss.sunset === null) {
+      return { ok: false, reason: ss && ss.ok ? "polar" : (ss ? ss.reason : "no-sun") };
+    }
+    var part = (ss.sunset - ss.sunrise) / 15;
+    var start = ss.sunrise + 7 * part;
+    var weekday = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
+    return {
+      ok: true, start: start, end: start + part, duration: part, weekday: weekday,
+      /* Wednesday's Abhijit is traditionally not taken. */
+      excluded: weekday === 3, transit: ss.transit
+    };
+  }
+
   function sunriseForPlace(place, Y, M, D) {
     if (!place) return null;
     var now = new Date();
@@ -382,6 +647,14 @@
     effectiveTz: effectiveTz,
     isDSTActive: isDSTActive,
     getRahuKaal: getRahuKaal,
+    panchang: panchang,
+    choghadiya: choghadiya,
+    abhijitMuhurta: abhijitMuhurta,
+    TITHI_NAMES: TITHI_NAMES,
+    NAKSHATRA_NAMES: NAKSHATRA_NAMES,
+    YOGA_NAMES: YOGA_NAMES,
+    KARANA_MOVABLE: KARANA_MOVABLE,
+    CHOGHADIYA_CYCLE: CHOGHADIYA_CYCLE,
     formatSunTime: formatSunTime,
     formatSunTime24: formatSunTime24,
     sunEquatorial: sunEquatorial,

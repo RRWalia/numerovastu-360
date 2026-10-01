@@ -6,7 +6,7 @@
 <title>Free Numerology &amp; Vastu App — Lo Shu Grid, Driver &amp; Conductor | NumeroVastu 360</title>
 <meta name="description" content="NumeroVastu 360 is a free numerology and Vastu app for India: Lo Shu grid calculator, Driver and Conductor numbers, name and mobile number numerology, birth-chart insights and practical Vastu remedies. Installable on Android and iPhone, works offline, 100% private." />
 <link rel="canonical" href="https://numerovastu-360.netlify.app/" />
-<meta name="nv-version" content="2.15.0" />
+<meta name="nv-version" content="2.16.0" />
 <meta name="nv-build-label" content="Build 2026-09-19" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
@@ -73,7 +73,7 @@
    "applicationSubCategory": "Numerology & Vastu",
    "operatingSystem": "Android, iOS, Windows, macOS — any modern web browser",
    "browserRequirements": "Requires JavaScript. Works offline after first load.",
-   "softwareVersion": "2.15.0",
+   "softwareVersion": "2.16.0",
    "inLanguage": [
     "en",
     "hi",
@@ -258,7 +258,7 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.9.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.15.0 · On-device engine</span>
+        <span class="status-pill status-app" id="appBadge">App v2.16.0 · On-device engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-09-19</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>
@@ -498,6 +498,30 @@
             <select class="input select" id="staircase" name="staircase"></select>
           </div>
         </div>
+        <!-- Premises number (2026-10 parity gap): the number you actually live
+             or trade behind is a classical reading in its own right and the
+             natural meeting point of the numerology and Vastu halves of this
+             app. Optional — leaving it blank keeps every existing chart
+             byte-for-byte unchanged. -->
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="premises"><span data-i18n="premisesLabel">House / Flat / Plot number (optional)</span></label>
+            <input class="input" id="premises" name="premises" type="text" placeholder="e.g. A-402, 17, Plot 56/B" data-i18n-ph="premisesPlaceholder" autocomplete="off" aria-describedby="premisesHint" />
+            <p class="field-hint" id="premisesHint" data-i18n="premisesHint">Enter it exactly as it appears on the door or the deed, block letter included. Both readings are shown: the door digits alone and the full token with its block letter.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="premisesKind"><span data-i18n="premisesKindLabel">What is this number for?</span></label>
+            <select class="input select" id="premisesKind" name="premisesKind">
+              <option value="home">Home / house</option>
+              <option value="flat">Flat / apartment</option>
+              <option value="plot">Plot / land</option>
+              <option value="office">Office</option>
+              <option value="shop">Shop / showroom</option>
+              <option value="desk">Desk / cabin</option>
+              <option value="account">Bank account / locker</option>
+            </select>
+          </div>
+        </div>
         <div class="field">
           <label class="field-label" for="plotShape"><span data-i18n="plotShapeLabel">Plot Shape (optional)</span></label>
           <select class="input select" id="plotShape" name="plotShape">
@@ -711,6 +735,7 @@
 
 <script src="astro.js"></script>
 <script src="muhurtha.js"></script>
+<script src="insights.js"></script>
 <script src="atlas/atlas-in.js"></script>
 <script src="data.js"></script>
 <script src="i18n.js"></script>

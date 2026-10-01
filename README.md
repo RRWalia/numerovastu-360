@@ -1,6 +1,6 @@
 # NumeroVastu 360
 
-**Release 2.15.0 — Practitioner audit of the whole report: the planetary friendship matrix now follows the classical one-way Moolank Maitri chart, the North carries Water, and the Mercury (5) Dasha-Vastu zone is the North (Kubera sector) — plus the print fix that kept "What to AVOID" from jumping a page**
+**Release 2.16.0 — Competitive-parity release: Name Architecture, Premises Numerology, Personal Cycles with a graded calendar and favourable-date finder, the full five-limb Panchang with Choghadiya and Abhijit, and an optional cordoned Western cross-reference — plus the build/offline fix that was dropping `muhurtha.js` from production**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +20,31 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.16.0
+
+A competitive teardown of the Indian numerology hubs (AstroTalk, Dinesh Atrish,
+PanchangBodh, AstroVed), the global numerology apps (Numerologist, Mistic,
+SoulChart) and the professional Vastu suites (Applied Vastu, Reyansh) found the
+product ahead on rigour and behind on **surface area and cadence**. Five gaps
+are closed here; the rest are recorded with reasons in
+[docs/competitive-gap-analysis-2026.md](docs/competitive-gap-analysis-2026.md).
+
+All five new sections are **reading surfaces**: smoke asserts each contains zero
+`[data-remedy-authority]` nodes, so none can ever quietly become a prescription.
+No remedy, dosha, deity, mantra, crystal, charity, fasting or Vastu field was
+touched, so the knowledge pack stays at **2.10.0**.
+
+| Area | 2.16.0 behaviour |
+| --- | --- |
+| **§6A Name Architecture** | The Chaldean name is decomposed the way every competitor does it: vowels → **Soul Urge**, consonants → **Personality**, both → **Expression** (with `Soul Urge + Personality = Expression` pinned as an invariant), plus **Cornerstone**, **Capstone**, **First Vowel** and a per-letter chip strip showing each letter's value so the client can audit the total by eye. It stays Chaldean — the Expression here is byte-identical to the Name Number in §6, and the correction table re-states `nameSuggestions()` rather than generating a second, conflicting set of spellings. |
+| **§8A Premises Numerology** | New optional intake — house / flat / plot / office / shop / desk / bank-account number. Read in **two layers**: the door digits alone (`A-402` → 402 → 6) and the full token with its block letter. Graded against both birth numbers into excellent / supportive / neutral / hostile. A hostile verdict offers up to four **nameplate tuning** options rather than telling anyone to move house, and a closing card lists the door totals that suit the chart. Omit the field and every existing chart is byte-for-byte unchanged. |
+| **§13a Personal Cycles** | **Personal Year / Month / Day** with the arithmetic shown, a **graded month calendar** (every day carries its Personal Day and a four-tier colour grade, today outlined), and a **90-day favourable-date finder** for the five life events the knowledge pack already defines for the Dasha windows. Each date carries its full scoring trail as a tooltip. The Personal Year is pinned equal to the Dasha transit card's, and the section states plainly that a good date is not a good hour — it sends you to §13b for Abhijit / Choghadiya placement. |
+| **§13b Panchang depth** | The Muhurtha section stopped at sunrise, sunset and Rahu Kaal. It now computes all five limbs — **tithi** (paksha, Rikta flag), **nakshatra** (pada, lord), **yoga**, **karana** (Vishti / Bhadra flag) and **vara** — each **with the time it ends**, because a tithi without its boundary is false for part of the day. Plus the **eight daytime Choghadiya**, each graded, and **Abhijit Muhurta** with its classical Wednesday exclusion. All solved on the shipped Meeus ephemeris, not a printed almanac. |
+| **§17A Western cross-reference** | Clients arrive asking for "their Life Path". The honest answer is a cordoned **optional module**, built exactly like the Feng Shui / Kua one: collapsed by default, labelled as a different school, structurally forbidden from choosing a remedy, crystal, deity, Vastu zone or Dasha. Reports Life Path, Expression, Soul Urge, Personality, Maturity, Balance, Rational Thought, Karmic Lessons, Hidden Passion, Subconscious Self and the Decoz **Planes of Expression**, and states explicitly whether it **agrees** or **differs** with the Vedic reading. |
+| **P0 — production was missing an engine** | `index.html` loaded `muhurtha.js`, but `scripts/build-static.cjs` never copied it and `sw.js` never precached it: the production bundle 404'd and an installed PWA lost the whole Muhurtha section offline. Both files (and the new `insights.js`) are now shipped, **and the build throws if `index.html` references any script `dist/` does not contain**. The smoke suite now evaluates the same script list the page loads — it had been omitting `muhurtha.js`, so a shipped engine was only ever asserted in its degraded no-engine branch. |
+| **New engine** | `insights.js` (`window.NVInsights`) — a pure, DOM-free calculation module. Three drift guards tie it to what already ships: its Chaldean table must deep-equal `DB.chaldean`, its `relation()` must agree with `__NV.relation()` on all 81 ordered pairs, and its Expression / Personal Year must equal the report's. |
+| **Pack / app version** | App-logic only, so `latestVersion` stays **2.10.0**; `appVersion` moves to **2.16.0** in `knowledge-pack/latest.json`, with `APP_VERSION`, the `index.html` meta, the `sw.js` cache name, the i18n status pills and `package.json`/`package-lock.json` following. Smoke grew from 453 to **497 assertions**. Source archive regenerated from HEAD. |
 
 ## What changed in 2.15.0
 

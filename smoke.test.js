@@ -40,7 +40,11 @@ const { window } = dom;
 window.scrollTo = () => {};
 window.print = () => {};
 window.requestAnimationFrame = (fn) => fn();
-window.eval(["astro.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
+/* The eval list must mirror index.html's script tags in load order. It did not:
+   muhurtha.js was shipped and loaded by the page but never exercised here, so
+   the Muhurtha module was being asserted in its degraded no-engine branch.
+   A guard further down now derives this list from index.html itself. */
+window.eval(["astro.js", "muhurtha.js", "insights.js", "atlas/atlas-in.js", "data.js", "i18n.js", "app.js"].map(read).join("\n;\n"));
 
 const $ = (selector, rootNode) => (rootNode || window.document).querySelector(selector);
 const $$ = (selector, rootNode) => Array.from((rootNode || window.document).querySelectorAll(selector));
@@ -1202,8 +1206,12 @@ check("every localised Vimshottari key is translated in all three languages", ((
 /* Declared authority scopes. feng-shui (the cordoned-off optional Kua module)
    and vedic-direction-rulers (the classical Ashta Dikpalaka reference card)
    were added by the 2026-09 architecture audit; neither may carry Lo Shu
-   remedy obligations. */
-const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note", "feng-shui", "vedic-direction-rulers"]);
+   remedy obligations. The 2026-10 parity pass added five more — name
+   architecture, premises numerology, personal cycles, the Panchang limbs and
+   the optional Western cross-reference. Each is a reading surface only: the
+   assertion below forbids all five from carrying a remedy obligation, so a
+   Western plane or a calendar grade can never quietly become a prescription. */
+const AUTHORITY_VOCAB = new Set(["lo-shu-overlay", "driver-conductor", "vedic-tattva", "zodiac-reference", "personal-year-context", "dasha", "dasha-vastu-zone", "vimshottari", "home-vastu-context", "compatibility-reflection", "chandra-bala", "clinical-cockpit", "framework-note", "feng-shui", "vedic-direction-rulers", "name-architecture", "premises-numerology", "personal-cycles", "panchang", "western-cross-reference"]);
 const authorityNodes = $$("[data-authority]", authorityReportDom);
 check("every data-authority tag comes from the declared vocabulary", authorityNodes.length > 0 && authorityNodes.every((node) => AUTHORITY_VOCAB.has(node.getAttribute("data-authority"))));
 check("every remedy-bearing block nests inside Lo Shu authority", remedyBlocks.every((node) => !!node.closest('[data-authority="lo-shu-overlay"], [data-authority="clinical-cockpit"]') || !node.closest("[data-authority]")) && authorityNodes.filter((node) => node.getAttribute("data-authority") !== "lo-shu-overlay" && node.getAttribute("data-authority") !== "clinical-cockpit").every((node) => !node.querySelector("[data-remedy-authority]")));
@@ -1986,6 +1994,215 @@ check("the intake submission stores both spellings and restores them from local 
   return /id="legal-name-layer"/.test(rendered)
     && $("#fullName").value === "Amar K Sambhvani"
     && $("#legalName").value === "Amarkumar Kishorbhai Sambhvani";
+})());
+
+
+/* ================================================================
+   2026-10 competitive-parity layers
+   Name Architecture (§6A), Premises numerology (§8A), Personal
+   cycles + calendar + favourable dates (§13a), the optional Western
+   cross-reference (§17A) and the five Panchang limbs.
+
+   Three classes of assertion below, in order: (1) the SHIP guard —
+   every script index.html loads must be in the build manifest and
+   the service-worker shell, which is the defect that let muhurtha.js
+   ride along untested for a release; (2) DRIFT guards tying the new
+   engine to the engines already shipped, so the two can never
+   disagree in front of a client; (3) the DOM contract for each new
+   section. ================================================================ */
+
+/* ---- (1) Ship guard: nothing the page loads may be missing from the build ---- */
+const pageScripts = Array.from(html.matchAll(/<script[^>]+src="([^"]+)"/g))
+  .map((m) => m[1])
+  .filter((src) => !/^https?:/i.test(src));
+const buildManifest = read("scripts/build-static.cjs");
+check("index.html loads the Muhurtha and Insights engines in dependency order", (() => {
+  const i = pageScripts.indexOf("muhurtha.js");
+  const j = pageScripts.indexOf("insights.js");
+  return i > pageScripts.indexOf("astro.js") && j > i && j < pageScripts.indexOf("app.js");
+})());
+const buildFiles = (buildManifest.match(/const files = \[([\s\S]*?)\];/) || ["", ""])[1].match(/'([^']+)'/g).map((q) => q.slice(1, -1));
+const buildDirs = (buildManifest.match(/const dirs = \[([\s\S]*?)\];/) || ["", ""])[1].match(/'([^']+)'/g).map((q) => q.slice(1, -1));
+check("every script index.html loads is shipped by the static build", pageScripts.length >= 6 && pageScripts.every((src) => buildFiles.includes(src) || buildDirs.some((dir) => src.startsWith(`${dir}/`))));
+/* The atlas is runtime-cached behind ATLAS_PREFIX rather than precached — it is
+   a large optional dataset — so it satisfies the offline contract either way. */
+check("every script index.html loads survives offline, precached or runtime-cached", pageScripts.every((src) => swSource.includes(`"./${src}"`) || swSource.includes(`ATLAS_PREFIX`) && src.startsWith("atlas/")));
+check("the static build fails loudly if a script tag is ever dropped from the manifest", /loads script\(s\) the build does not ship/.test(buildManifest) && /throw new Error/.test(buildManifest));
+
+/* ---- (2) Drift guards: one engine, two call sites, identical answers ---- */
+const NVI = window.NVInsights;
+check("the Insights engine is published with a version", !!NVI && typeof NVI.VERSION === "string" && /^\d+\.\d+\.\d+$/.test(NVI.VERSION));
+check("the Insights Chaldean table is the shipped knowledge-pack table, not a second copy", same(NVI.CHALDEAN_FALLBACK, window.DB.chaldean));
+check("the Insights friend/enemy relation never disagrees with the report engine", (() => {
+  for (let a = 1; a <= 9; a++) for (let b = 1; b <= 9; b++) {
+    if (NVI.relation(a, b) !== window.__NV.relation(a, b)) return false;
+  }
+  return true;
+})());
+const archProfile = profile({ name: "Priya Sharma", premises: "A-402", premisesKind: "flat" });
+const archReportDom = mount(window.__NV.renderReport(archProfile));
+const archSection = $("#name-architecture-section", archReportDom);
+check("the Chaldean Expression in Name Architecture is the same number the Name section already prints", (() => {
+  const expression = $('[data-name-layer="expression"] .num-value', archSection);
+  return !!expression && Number(expression.textContent.trim()) === archProfile.nameNum;
+})());
+check("the Personal Year on the cycles card is the Personal Year the Dasha transit card uses", (() => {
+  const cycles = $("#personal-cycles-section", archReportDom);
+  const transit = $('[data-predictive-layer="personal-year-transit"]', archReportDom);
+  return !!cycles && !!transit && cycles.dataset.personalYear === transit.dataset.personalYear;
+})());
+check("the Western Life Path is the Conductor the Vedic side already derived", (() => {
+  const agree = $('[data-western-compare]', archReportDom);
+  return !!agree && agree.dataset.westernCompare === "agrees";
+})());
+
+/* ---- (3a) Name Architecture ---- */
+check("Name Architecture declares its own authority and states which system it is in", archSection.dataset.authority === "name-architecture" && archSection.dataset.nameArchitecture === "chaldean");
+check("Name Architecture separates Soul Urge, Personality and Expression", (() => {
+  const layers = $$("[data-name-layer]", archSection).map((n) => n.dataset.nameLayer);
+  return ["soul-urge", "personality", "expression"].every((k) => layers.includes(k));
+})());
+check("the letter strip accounts for every letter of the name exactly once, split vowel from consonant", (() => {
+  const chips = $$(".letter-chip", archSection);
+  const vowels = chips.filter((c) => c.dataset.letterVowel === "1").map((c) => c.dataset.letter).join("");
+  const consonants = chips.filter((c) => c.dataset.letterVowel === "0").map((c) => c.dataset.letter).join("");
+  return chips.length === archProfile.name.replace(/[^A-Za-z]/g, "").length
+    && vowels === "IAAA" && consonants === "PRYSHRM"
+    && chips.every((c) => c.classList.contains(vowels.includes(c.dataset.letter) && c.dataset.letterVowel === "1" ? "letter-vowel" : "letter-consonant"));
+})());
+check("Soul Urge plus Personality reconstructs the Expression compound", (() => {
+  const arch = window.__NV.nameArchitecture(archProfile).everyday;
+  return arch.soulUrge.compound + arch.personality.compound === arch.expression.compound
+    && arch.vowels.length + arch.consonants.length === arch.letters.length;
+})());
+check("Name Architecture reuses the existing spelling candidates instead of inventing a second set", (() => {
+  const rows = $$("[data-arch-variant]", archSection);
+  const sug = window.__NV.nameSuggestions(archProfile);
+  const variants = sug.needed ? sug.variants : (sug.optional && sug.optional.variants) || [];
+  return rows.length === variants.length && rows.length > 0;
+})());
+check("the legal-architecture layer appears only when a separate legal name was given", (() => {
+  const withLegal = $("#name-architecture-section", mount(window.__NV.renderReport(profile({ legalName: "Priyanka Sharmaa" }))));
+  const withoutLegal = $("#name-architecture-section", mount(window.__NV.renderReport(profile({}))));
+  return !!$('[data-name-layer="legal-architecture"]', withLegal) && !$('[data-name-layer="legal-architecture"]', withoutLegal);
+})());
+
+/* ---- (3b) Premises numerology ---- */
+const premisesSection = $("#premises-section", archReportDom);
+check("the premises number is optional and the section simply does not render without one", !$("#premises-section", mount(window.__NV.renderReport(profile({})))));
+check("the premises section declares its authority, its kind and its verdict", premisesSection.dataset.authority === "premises-numerology" && premisesSection.dataset.premisesKind === "flat" && ["excellent", "supportive", "neutral", "hostile"].includes(premisesSection.dataset.premisesVerdict));
+check("a lettered premises number is read twice: door digits alone, then the full token", (() => {
+  const layers = $$("[data-premises-layer]", premisesSection).map((n) => n.dataset.premisesLayer);
+  return same(layers, ["door", "full"]);
+})());
+check("a pure-digit premises number is read once, because there is no letter to add", (() => {
+  const plain = $("#premises-section", mount(window.__NV.renderReport(profile({ premises: "17" }))));
+  return same($$("[data-premises-layer]", plain).map((n) => n.dataset.premisesLayer), ["door"]);
+})());
+check("a hostile premises number is given tuning options rather than told to move house", (() => {
+  const rows = $$("[data-premises-tuning]", premisesSection);
+  return premisesSection.dataset.premisesVerdict === "hostile" && rows.length > 0 && rows.length <= 4
+    && /nameplate|नामपट्टिका|નામપટ્ટી/i.test(premisesSection.textContent);
+})());
+check("premises numerology carries no remedy obligation of its own", !premisesSection.querySelector("[data-remedy-authority]"));
+
+/* ---- (3c) Personal cycles, calendar and favourable dates ---- */
+const cyclesSection = $("#personal-cycles-section", archReportDom);
+check("the cycles section prints all three personal numbers", [cyclesSection.dataset.personalDay, cyclesSection.dataset.personalMonth, cyclesSection.dataset.personalYear].every((v) => /^(?:[1-9]|11|22|33)$/.test(v || "")));
+check("the cycles section separates the year, month and day layers", same($$("[data-cycle-layer]", cyclesSection).map((n) => n.dataset.cycleLayer), ["year", "month", "day"]));
+check("the calendar renders one cell per day of the current month and grades every one", (() => {
+  const cells = $$(".cal-cell[data-cal-day]", cyclesSection);
+  const now = new Date();
+  const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return cells.length === days
+    && cells.every((c) => ["excellent", "good", "workable", "avoid"].includes(c.dataset.calGrade))
+    && cells.every((c) => /^(?:[1-9]|11|22|33)$/.test(c.dataset.calPd))
+    && $$(".cal-cell.cal-today", cyclesSection).length === 1;
+})());
+check("the calendar grade and the cell colour class never disagree", $$(".cal-cell[data-cal-grade]", cyclesSection).every((c) => c.classList.contains(`cal-${c.dataset.calGrade}`)));
+check("favourable dates are offered for every life event the Dasha engine already tracks", (() => {
+  const purposes = $$("[data-finder-purpose]", cyclesSection).map((n) => n.dataset.finderPurpose);
+  return same(purposes.slice().sort(), Object.keys(window.DB.dasha.lifeEvents).slice().sort());
+})());
+check("every date the finder recommends is one the calendar grades good or better", (() => {
+  const pills = $$("[data-finder-date]", cyclesSection);
+  return pills.length > 0 && pills.every((pill) => ["excellent", "good"].includes(pill.dataset.finderGrade));
+})());
+check("each recommended date shows why it was picked, not just that it was", (() => {
+  const pills = $$("[data-finder-date]", cyclesSection);
+  return pills.every((pill) => (pill.getAttribute("title") || "").trim().length > 0);
+})());
+check("the favourable-date finder states that Muhurtha outranks it", /muhurt|मुहूर्त|મુહૂર્ત/i.test(cyclesSection.textContent));
+
+/* ---- (3d) Optional Western cross-reference ---- */
+const westernSection = $("#western-section", archReportDom);
+const westernDetails = $("details", westernSection);
+check("the Western layer is cordoned off as an optional module, collapsed by default", westernSection.dataset.authority === "western-cross-reference" && westernSection.dataset.module === "western-optional" && !!westernDetails && !westernDetails.hasAttribute("open"));
+check("print CSS force-expands the Western module so it still reaches the PDF", /\.western-details:not\(\[open\]\) > \.details-body \{ display: flex !important; \}/.test(styles));
+check("the Western layer states whether it agrees with the Vedic reading", ["agrees", "differs"].includes($("[data-western-compare]", westernSection).dataset.westernCompare));
+check("the four Planes of Expression are printed and partition all 26 letters", (() => {
+  const rows = $$("[data-plane]", westernSection);
+  const letters = new Set();
+  Object.keys(NVI.PLANES).forEach((plane) => Object.keys(NVI.PLANES[plane]).forEach((col) => String(NVI.PLANES[plane][col]).split("").forEach((ch) => letters.add(ch))));
+  return same(rows.map((r) => r.dataset.plane), ["physical", "mental", "emotional", "intuitive"]) && letters.size === 26;
+})());
+check("karmic lessons are listed as the digits absent from the name", (() => {
+  const node = $("[data-karmic-lessons]", westernSection);
+  const expected = NVI.karmicLessons("Priya Sharma").join(",");
+  return !!node && node.dataset.karmicLessons === expected;
+})());
+check("the Western module carries no remedy obligation and never overrides the Vedic chart", !westernSection.querySelector("[data-remedy-authority]") && /cross-reference|संदर्भ|સંદર્ભ/i.test(westernSection.textContent));
+
+/* ---- (3e) Panchang, Choghadiya, Abhijit ---- */
+const panchangCard = $("[data-panchang]", archReportDom);
+check("the Muhurtha section now prints a real Panchang instead of stopping at Rahu Kaal", !!panchangCard && panchangCard.dataset.panchang === "ok" && !!panchangCard.dataset.tithi && !!panchangCard.dataset.nakshatra);
+check("all five limbs are present, each with the time it ends", (() => {
+  if (!panchangCard) return false;
+  const text = panchangCard.textContent;
+  return ["Tithi", "Nakshatra", "Yoga", "Karana", "Vara"].every((limb) => text.includes(limb))
+    && (text.match(/until/gi) || []).length >= 4;
+})());
+check("the eight daytime Choghadiya are listed and each is graded", (() => {
+  const rows = $$("[data-choghadiya]", archReportDom);
+  return rows.length === 8 && rows.every((r) => ["auspicious", "inauspicious", "neutral"].includes(r.dataset.choghadiyaQuality));
+})());
+check("Abhijit Muhurta is printed and is suppressed on a Wednesday", (() => {
+  const node = $("[data-abhijit]", archReportDom);
+  if (!node) return false;
+  const wednesday = window.NVMuhurtha.abhijitMuhurta(2026, 10, 7, 28.6139, 77.209, 5.5);
+  const thursday = window.NVMuhurtha.abhijitMuhurta(2026, 10, 8, 28.6139, 77.209, 5.5);
+  return ["ok", "excluded"].includes(node.dataset.abhijit) && wednesday.excluded === true && thursday.excluded === false;
+})());
+check("the Panchang is computed from the shipped ephemeris, not a tabulated almanac", (() => {
+  const pc = window.NVMuhurtha.panchang(2026, 10, 1, 28.6139, 77.209, 5.5);
+  return pc.ok && pc.tithi.index >= 0 && pc.tithi.index < 30 && pc.nakshatra.pada >= 1 && pc.nakshatra.pada <= 4
+    && pc.karana.index >= 0 && pc.karana.index < 60 && pc.yoga.index >= 0 && pc.yoga.index < 27
+    && window.NVMuhurtha.panchang(2026, 10, 1, 28.6139, 77.209, 5.5).tithi.name === pc.tithi.name;
+})());
+
+/* ---- Presentation and intake plumbing ---- */
+check("every CSS class the new sections emit is actually defined", ["letter-chip", "letter-vowel", "letter-consonant", "cal-grid", "cal-cell", "cal-today", "cal-legend", "date-pill", "arch-table", "card-grid.three"].every((cls) => styles.includes(`.${cls}`)));
+check("the premises intake is wired with hint text in all three languages", (() => {
+  const ids = ["premisesLabel", "premisesPlaceholder", "premisesHint", "premisesKindLabel"];
+  return html.includes('id="premises"') && html.includes('id="premisesKind"')
+    && ["en", "hi", "gu"].every((lang) => ids.every((key) => typeof window.I18N[lang].ui[key] === "string" && window.I18N[lang].ui[key].length > 0));
+})());
+check("the premises intake round-trips through submit and local restore", (() => {
+  $("#editBtn").click();
+  $("#fullName").value = "Priya Sharma";
+  $("#legalName").value = "";
+  $("#dob").value = "20-08-2005";
+  $("#mobile").value = "9876543210";
+  $("#premises").value = "A-402";
+  $("#premisesKind").value = "shop";
+  $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+  const rendered = $("#reportRoot").innerHTML;
+  $("#editBtn").click();
+  $("#premises").value = "";
+  $("#premisesKind").value = "home";
+  $("#loadLatestBtn").click();
+  return /id="premises-section"/.test(rendered) && /data-premises-kind="shop"/.test(rendered)
+    && $("#premises").value === "A-402" && $("#premisesKind").value === "shop";
 })());
 
 if (failed) {
