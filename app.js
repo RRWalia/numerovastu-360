@@ -8287,6 +8287,12 @@
     if ($("#printBtn .btn-text")) $("#printBtn .btn-text").textContent = t("savePrint", "Save / Print Report");
     if ($("#fieldBtn .btn-text")) $("#fieldBtn .btn-text").textContent = t(fieldMode ? "fieldModeOff" : "fieldModeOn", fieldMode ? "Exit field mode" : "Field mode");
     if ($("#fieldBtn")) $("#fieldBtn").setAttribute("aria-label", t("fieldModeToggle", "Toggle field read mode"));
+    if ($("#installBtn")) {
+      const installLabel = t("installApp", "Install app");
+      $("#installBtn .btn-text").textContent = installLabel;
+      $("#installBtn").setAttribute("aria-label", installLabel);
+      $("#installBtn").setAttribute("title", installLabel);
+    }
     if ($(".brand-sub")) $(".brand-sub").textContent = t("brandSub", "Numerology & Vastu Remedy Engine");
 
     // Intake intro
@@ -8431,6 +8437,45 @@
   $("#editBtn").addEventListener("click", showIntake);
   $("#printBtn").addEventListener("click", () => window.print());
   $("#fieldBtn").addEventListener("click", toggleFieldMode);
+
+  /* ---- Install app -----------------------------------------------------
+     Chrome/Edge expose the native PWA install sheet through this event. Keep
+     the call-to-action hidden until the browser confirms that installation
+     is available, so it never nags browsers that cannot install the PWA. */
+  (function setupInstallPrompt() {
+    const installBtn = $("#installBtn");
+    if (!installBtn) return;
+    let deferredPrompt = null;
+    const isStandalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
+    const isIOSStandalone = window.navigator.standalone === true;
+    if (isStandalone || isIOSStandalone) return;
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredPrompt = event;
+      installBtn.classList.remove("hidden");
+    });
+
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      const promptEvent = deferredPrompt;
+      deferredPrompt = null;
+      installBtn.classList.add("hidden");
+      try {
+        await promptEvent.prompt();
+        await promptEvent.userChoice;
+      } catch (err) {
+        // The browser owns the sheet; a dismissed or unavailable prompt is
+        // not an application error and should not interrupt the workflow.
+      }
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredPrompt = null;
+      installBtn.classList.add("hidden");
+      showToast(t("installAppToast", "App installed successfully."), "good");
+    });
+  })();
 
 
   refreshKnowledgePack({ silent: true });
