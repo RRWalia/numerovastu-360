@@ -703,12 +703,15 @@ npm test                 # Grid, authority, pack, localisation and tab regressio
 npm run atlas:build      # Rebuild compact India / Gulf / world place chunks
 npm run audit            # Dependency audit
 npm run build            # Rebuilds static dist/ from root sources
-npm run check            # test + audit + build
+npm run check            # test + audit + build + bundle budget + archive freshness
+npm run check:budget     # gzip size of dist/ against bundle-budget.json
+npm run budget:update    # rebase the ceilings (+10%) after intended growth
 
 # Browser checks (Chromium required once)
 npm run browsers:install
 npm run test:visual          # compare against committed baselines (read-only)
 npm run test:visual:update   # regenerate baselines after an intentional layout change
+npm run test:perf            # A4 print rendering benchmark + page-count contracts
 ```
 
 The smoke suite checks both grid engines, Lo Shu Name/Combined coordinate
@@ -721,6 +724,20 @@ single-page A4 cockpit — guarantees that cannot be expressed as computed style
 Those baselines are generated on the CI image: a baseline rendered by a
 different Chromium build or font stack diffs against CI, so treat
 `npm run test:visual:update` as a deliberate, reviewed act rather than a fixup.
+
+`npm run test:perf` benchmarks the print path on top of that: it times report
+compute, the screen-to-print reflow and the Chromium A4 PDF export, and
+asserts the two contracts that are deterministic rather than machine-dependent
+— the Practitioner Cockpit printing as exactly one A4 page, and the Client
+dossier staying strictly shorter than the Practitioner compendium. Both suites
+drive the same intake fixture (`tests/support/report-fixture.mjs`), so a
+timing change can never be explained away as "different data".
+
+`npm run check:budget` keeps the offline-first promise honest: it gzips every
+asset `index.html` loads eagerly and fails the build when a file, the
+initial-load total or the whole of `dist/` passes the ceilings recorded in
+`bundle-budget.json`. A new eager `<script>` with no budget entry also fails,
+so geographic-atlas growth cannot land on the critical path unnoticed.
 
 ### Deploy
 

@@ -182,8 +182,60 @@ Run this before publishing:
 npm run check
 ```
 
-The gate covers smoke tests, dependency audit and static build verification.
-CI enforces it on every pull request (`.github/workflows/ci.yml`).
+The gate covers smoke tests, dependency audit, static build verification and
+the bundle-size budget. CI enforces it on every pull request
+(`.github/workflows/ci.yml`).
+
+### Bundle-size budget
+
+`npm run check:budget` (part of `npm run check`) measures the deployable
+`dist/` and fails when it grows past the ceilings in `bundle-budget.json`:
+
+| Gate | Why |
+| --- | --- |
+| Per-asset gzip ceiling | The app ships unbundled browser scripts, so a byte added to any file in `index.html` is a byte on the first-paint critical path. |
+| Initial-load total (gzip) | Ten assets each growing 9% would pass every per-file ceiling; the aggregate catches that. |
+| `dist/` total (raw) | What a fully warmed offline PWA cache costs the device. |
+| Declared set == real set | A new eager `<script>` without a budget entry fails, and a budget entry for an asset no longer loaded eagerly fails. Atlas expansions cannot reach the critical path unreviewed. |
+
+Measured gzipped at level 9 — the transfer cost Netlify and GitHub Pages
+actually bill the user's connection. Ceilings sit ~10% above measured size.
+Intended growth is an explicit, reviewable act:
+
+```bash
+node scripts/check-bundle-budget.mjs --update   # rebase at +10%
+git add bundle-budget.json                      # commit in the same PR
+```
+
+Current headroom at the time of writing: initial load 596.8 KB gzip against a
+657 KB ceiling (91%), of which `app.js` is 260.3 KB and `i18n.js` 108.8 KB —
+the two files worth attacking first if the budget ever needs real room, well
+ahead of the atlas chunks.
+
+### A4 print rendering benchmark
+
+```bash
+npm run test:perf            # NV_PERF_RUNS=5 for a longer sample
+```
+
+Runs from `playwright.perf.config.mjs` (single worker, no retries, no
+screenshots — timing must not share a machine with a parallel suite, and a
+flaky pass is not a pass). It reports the median of N runs for report compute,
+the screen→print reflow and the Chromium A4 PDF export, writing a table to the
+CI job summary and `test-results/print-perf.json`, and attaching the generated
+PDFs to the run.
+
+The wall-clock budgets are loose alarms for a gross regression, since shared
+runners are noisy. What it gates **exactly** is the layout contract that is
+deterministic regardless of machine speed:
+
+- the Practitioner Cockpit print job is **exactly one A4 page**;
+- the Client dossier is strictly shorter than the Practitioner compendium.
+
+That second check is why the suite exists alongside the computed-style tests:
+an element can be `display:none` in print and still leave its page break
+behind, which no `getComputedStyle` assertion will notice but a page count
+will.
 
 For screenshot regression checks, install Chromium once and run:
 

@@ -9,8 +9,15 @@ verification, and every remedy/dosha/deity change needs a practitioner review.
 ```bash
 npm ci
 npm run dev          # http://localhost:5173
-npm run check        # smoke suite + dependency audit + static build
+npm run check        # smoke suite + dependency audit + static build + bundle budget
 ```
+
+If `npm run check` fails on the bundle budget, that is the gate telling you a
+change grew the first-paint payload. Either trim it, or — when the growth is
+intended — run `npm run budget:update` and commit the rebased
+`bundle-budget.json` in the same pull request so a reviewer sees the new
+ceiling alongside the change that needed it. Never raise a ceiling in a
+separate "fix CI" commit.
 
 Before opening a pull request, `npm run check` must pass locally. CI runs the
 same gate on every PR (`.github/workflows/ci.yml`).
