@@ -9188,7 +9188,82 @@
         <div class="report-closing-brand">${t("reportClosingBrand", "NumeroVastu 360 — Private Report")}</div>
         <div class="report-closing-line">${t("reportClosingDisclaimer", "Guidance based on classical Vedic numerology &amp; Vastu principles — supportive practices, not a substitute for professional medical, legal or financial advice.")}</div>
       </div>
+      ${renderReportProvenance()}
     `;
+  }
+
+  /* --- Report provenance stamp (F4 · 2026-10 architecture audit) ----
+     The pack version, schema version and pack source were already
+     computed and shown on screen — but only in the intake view's
+     .intro-meta status pills, which sit outside #reportRoot, inside
+     .app-header, which is `display: none` under @media print.
+
+     So a delivered client PDF carried NO record of which interpretative
+     content produced it. Because remote pack updates are supported
+     (source: bundled | cached | remote), two clients can receive
+     materially different readings from identical inputs with nothing in
+     either document to explain the difference — and a practitioner
+     asked to defend a reading months later has no way to reproduce the
+     content state that generated it.
+
+     Three constraints govern this block:
+
+       1. PRINT ONLY. On screen the status pills already say all of
+          this; repeating it under every report would be noise.
+       2. NO CLIENT PII. Version strings, pack source and a render
+          timestamp only — never the name, DOB or any computed number.
+          These reports get emailed, and this footer must not widen
+          what a leaked PDF discloses.
+       3. ONE COMPACT LINE. The practitioner cockpit is packed to a
+          single-A4 contract; a tall footer would push it to a second
+          page. This stays at 9px and must not wrap on A4.
+
+     Note: the pack carries no content hash (there is no checksum field
+     in the schema), so `source` is stamped instead. For reproducibility
+     it is the more informative signal anyway — it distinguishes the
+     bundled content from a pack fetched after release. */
+  function renderReportProvenance() {
+    const pack = activePack();
+    const lang = getLang();
+    const L = (en, hi, gu) => triText(lang, en, hi, gu);
+    const packVersion = pack && pack.packVersion ? String(pack.packVersion) : APP_VERSION;
+    const schemaVersion = pack && pack.schemaVersion ? String(pack.schemaVersion) : "—";
+    const source = (pack && pack.source) || "bundled";
+    const sourceWord = source === "remote"
+      ? L("live update", "लाइव अपडेट", "લાઇવ અપડેટ")
+      : source === "cached"
+        ? L("cached update", "कैश्ड अपडेट", "કૅશ્ડ અપડેટ")
+        : L("bundled", "अंतर्निहित", "અંતર્નિહિત");
+
+    /* Local civil time, deliberately not UTC: the same reasoning the
+       rest of the app uses for birth data. A practitioner reading this
+       footer wants the wall-clock moment the sheet was produced in
+       their own consulting room. */
+    let stamp = "";
+    try {
+      const loc = lang === "hi" ? "hi-IN" : lang === "gu" ? "gu-IN" : "en-IN";
+      stamp = new Date().toLocaleString(loc, {
+        day: "numeric", month: "short", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+    } catch (e) {
+      stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    }
+
+    const bits = [
+      `${L("Pack", "पैक", "પૅક")} v${esc(packVersion)}`,
+      `${L("schema", "स्कीमा", "સ્કીમા")} v${esc(schemaVersion)}`,
+      esc(sourceWord),
+      `${L("App", "ऐप", "ઍપ")} v${esc(APP_VERSION)}`,
+      esc(String(BUILD_LABEL)),
+      `${L("Generated", "निर्मित", "નિર્મિત")} ${esc(stamp)}`
+    ];
+
+    return `<footer class="report-provenance" data-report-provenance
+      data-pack-version="${esc(packVersion)}"
+      data-schema-version="${esc(schemaVersion)}"
+      data-pack-source="${esc(source)}"
+      data-app-version="${esc(APP_VERSION)}">${bits.join(" · ")}</footer>`;
   }
 
   function numCard(label, val, sub) {

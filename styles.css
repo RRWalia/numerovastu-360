@@ -406,6 +406,15 @@ body {
 }
 .report-closing-brand { font-size: 13px; font-weight: 600; color: var(--label-primary); }
 .report-closing-line { font-size: 12px; line-height: 18px; color: var(--label-tertiary); }
+
+/* Report provenance stamp (F4 · 2026-10 audit).
+   Print-only: on screen the intake view's status pills already carry
+   the pack version, so showing it again under the report would be
+   noise. In print those pills are gone (.app-header is display:none),
+   which is exactly the gap this closes. The print rule lives in the
+   @media print block further down; hiding it here keeps the screen
+   report unchanged. */
+.report-provenance { display: none; }
 .report-nav {
   display: flex; flex-wrap: wrap; gap: 8px;
   margin-top: 4px;
@@ -1772,6 +1781,28 @@ body {
      already fills the page it would push the "Print this page" job onto a
      second page — breaking the single-page contract the sheet is packed for. */
   body.print-cockpit .report-closing { display: none !important; }
+
+  /* F4 (2026-10 audit): the provenance stamp is the one footer that
+     must survive EVERY print job, including the cockpit sheet — the
+     cockpit is the page most likely to be filed in a client folder and
+     produced months later, so it is the page that most needs to say
+     which knowledge pack generated it. It is a deliberate sibling of
+     .report-closing (hidden above in cockpit jobs) rather than a child,
+     so suppressing the brand/disclaimer block never suppresses the
+     audit trail. Kept to a single 9px line so the one-A4 contract of
+     the cockpit sheet still holds. */
+  .report-provenance {
+    display: block !important;
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 0.5px solid var(--separator);
+    font-size: 9px;
+    line-height: 13px;
+    color: var(--label-tertiary);
+    text-align: center;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
 }
 
 /* ============================================================

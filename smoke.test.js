@@ -540,6 +540,31 @@ check("report closing block: brand + privacy + disclaimer", liveReport.includes(
 check("hero DOB formatter is timezone-safe and locale-aware", window.__NV.formatBirthDate({ day: 5, month: 8, year: 1976 }) === "5 Aug 1976" && window.__NV.formatBirthDate({}) === "");
 check("closing block does not repeat the generation stamp", (() => { const closing = $("#reportRoot .report-closing") || mount(liveReport).querySelector(".report-closing"); return !!closing && !closing.textContent.includes("Report generated"); })());
 
+/* ---- F4 (2026-10 architecture audit): report provenance stamp ----
+   The pack version was computed and displayed, but only in the intake
+   view's .intro-meta status pills — outside #reportRoot, inside
+   .app-header, which is display:none in print. A delivered PDF
+   therefore recorded nothing about WHICH interpretative content
+   produced it, and remote pack updates mean identical inputs can yield
+   different readings. These checks pin the fix down. */
+const provenance = $("#reportRoot [data-report-provenance]");
+check("every report carries a provenance footer", !!provenance);
+check("provenance stamps the knowledge-pack version that produced the report", !!provenance && /^\d+\.\d+\.\d+$/.test(provenance.getAttribute("data-pack-version")) && provenance.textContent.includes("Pack v" + provenance.getAttribute("data-pack-version")));
+check("provenance stamps schema version, pack source and app build", !!provenance && !!provenance.getAttribute("data-schema-version") && ["bundled", "cached", "remote"].includes(provenance.getAttribute("data-pack-source")) && provenance.textContent.includes("App v" + provenance.getAttribute("data-app-version")) && /Build \d{4}-\d{2}-\d{2}/.test(provenance.textContent));
+check("provenance records the local civil moment the sheet was produced", !!provenance && /Generated \d{1,2} \w{3,}\.? \d{4}/.test(provenance.textContent));
+/* The reason this footer is safe to put in an emailed PDF: it widens
+   the version surface, never the client surface. */
+check("provenance leaks no client PII into the printed footer", !!provenance && !provenance.textContent.includes("Priya") && !provenance.textContent.includes("Sharma") && !provenance.textContent.includes("2005") && !provenance.textContent.includes("9876543210"));
+check("provenance is print-only, so the on-screen report is unchanged", /\.report-provenance \{ display: none; \}/.test(styles) && /\.report-provenance \{\s*display: block !important;/.test(styles));
+/* The cockpit sheet hides BOTH .report-hero (which carries the
+   generation date) and .report-closing, so without this it is the one
+   page with no provenance at all — and it is the page most likely to
+   be filed and produced months later. The stamp is a sibling of
+   .report-closing, never a child, so suppressing the brand block
+   cannot suppress the audit trail. */
+check("provenance survives the cockpit-only print job", !/body\.print-cockpit \.report-provenance/.test(styles) && !!mount(liveReport).querySelector(".report-closing + [data-report-provenance], [data-report-provenance]"));
+check("provenance stays compact enough for the cockpit one-A4 contract", /\.report-provenance \{[^}]*font-size: 9px;[^}]*\}/.test(styles) && /\.report-provenance \{[^}]*break-inside: avoid;[^}]*\}/.test(styles));
+
 /* ---- Localisation plus static responsive/print safeguards ---- */
 for (const language of ["hi", "gu"]) {
   window.__NV.setLanguage(language);
@@ -553,6 +578,16 @@ for (const language of ["hi", "gu"]) {
   /* The reading guide, generation stamp and closing block are report-level
      copy, so they must ship in all three languages — no partial translation. */
   check(`${language} reading guide, generation line and closing block are localised`, report.includes(language === "hi" ? "इस रिपोर्ट को कैसे पढ़ें" : "આ રિપોર્ટ કેવી રીતે વાંચવો") && report.includes(language === "hi" ? "NumeroVastu 360 — निजी रिपोर्ट" : "NumeroVastu 360 — ખાનગી રિપોર્ટ") && report.includes(language === "hi" ? "रिपोर्ट निर्मित" : "રિપોર્ટ બનાવ્યું") && !report.includes("How to read this report"));
+  /* The provenance footer is report-level copy like the reading guide,
+     so it localises too — but the version NUMBERS must stay in Latin
+     digits, because they are identifiers a practitioner quotes back to
+     us in a support thread, not prose. */
+  check(`${language} provenance footer is localised and keeps Latin version identifiers`, (() => {
+    const prov = mount(report).querySelector("[data-report-provenance]");
+    if (!prov) return false;
+    const label = language === "hi" ? "पैक" : "પૅક";
+    return prov.textContent.includes(label) && prov.textContent.includes("v" + prov.getAttribute("data-pack-version"));
+  })());
   check(`${language} hero DOB renders locale month names`, new RegExp(language === "hi" ? "जन्म तिथि: <strong>20 .+ 2005</strong>" : "જન્મ તારીખ: <strong>20 .+ 2005</strong>").test(report));
 }
 check("mobile timeline navigation remains horizontally reachable", /@media \(max-width: 640px\)/.test(styles) && /\.report-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles) && /\.timeline-anchor-nav \{ flex-wrap: nowrap; overflow-x: auto;/.test(styles));
