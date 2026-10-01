@@ -200,10 +200,43 @@ const TARGETS = [
   { file: "favicon-48.png", size: 48, opts: { rounded: true } }
 ];
 
+/* ICO files may contain PNG frames, which keeps this generator dependency-free
+   while giving legacy user agents both the 32px and 48px sizes they expect. */
+function encodeIco(frames) {
+  const header = Buffer.alloc(6 + frames.length * 16);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // icon type
+  header.writeUInt16LE(frames.length, 4);
+  let offset = header.length;
+  const images = [];
+  frames.forEach(({ size, png }, index) => {
+    const entry = 6 + index * 16;
+    header[entry] = size === 256 ? 0 : size;
+    header[entry + 1] = size === 256 ? 0 : size;
+    header[entry + 2] = 0; // colour count
+    header[entry + 3] = 0;
+    header.writeUInt16LE(1, entry + 4); // colour planes
+    header.writeUInt16LE(32, entry + 6); // bits per pixel
+    header.writeUInt32LE(png.length, entry + 8);
+    header.writeUInt32LE(offset, entry + 12);
+    images.push(png);
+    offset += png.length;
+  });
+  return Buffer.concat([header, ...images]);
+}
+
 mkdirSync(OUT_DIR, { recursive: true });
+const generated = new Map();
 for (const { file, size, opts } of TARGETS) {
   const png = render(size, opts);
+  generated.set(size, png);
   writeFileSync(join(OUT_DIR, file), png);
   console.log(`${file.padEnd(24)} ${String(size).padStart(4)}×${size}  ${(png.length / 1024).toFixed(1)} kB`);
 }
-console.log(`\nWrote ${TARGETS.length} icons to icons/`);
+const faviconIco = encodeIco([
+  { size: 32, png: render(32, { rounded: true }) },
+  { size: 48, png: generated.get(48) }
+]);
+writeFileSync(join(ROOT, "favicon.ico"), faviconIco);
+console.log(`favicon.ico              32×32 + 48×48  ${(faviconIco.length / 1024).toFixed(1)} kB`);
+console.log(`\nWrote ${TARGETS.length} PNG icons and favicon.ico`);
