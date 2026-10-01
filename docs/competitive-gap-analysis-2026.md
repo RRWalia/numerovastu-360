@@ -295,3 +295,106 @@ Manually verified in addition: the build guard throws when a script is removed f
 Abhijit is excluded on Wednesday 2026-10-07 and present on Thursday 2026-10-08; the Panchang for
 Delhi on 2026-10-01 returns sunrise 06:14 / sunset 18:07, Krishna Panchami ending 12:36, Rohini pada
 1 ending 04:27, yoga Siddhi ending 21:17, karana Taitila ending 12:36, and Abhijit 11:47–12:34.
+
+---
+
+## 8. Addendum — second pass (2.17.0, 2026-10-01)
+
+A follow-up review benchmarked the app against **Occult King**, **Pinnacle Vastu** and the same
+class of commercial portal, and scored it ahead on privacy, clinical safety, epistemic honesty and
+practitioner utility — and behind on **spatial tooling** and **daily retention**. That reading is
+accurate, and it names three things §3 and §5 of this document had either shipped already or
+deferred. Here is the disposition of every item.
+
+### 8.1 "Should you add Panchang, Choghadiya and Abhijit?" — already shipped in 2.16.0
+
+Shipped one release earlier: five limbs with bisection-solved end times, eight daytime Choghadiya,
+Abhijit with its Wednesday exclusion, tagged `data-authority="panchang"` — the exact tag the review
+recommended. What the review correctly identified as *still missing* is now closed:
+
+| Requested | Disposition |
+|---|---|
+| Choghadiya **night** slots | **Closed.** The engine always computed sixteen; the report printed eight. All sixteen now render, night behind a disclosure that print force-expands. |
+| **Yamaganda + Gulika** to complete the triad | **Closed.** Both cut from the same sunrise solve as Rahu Kaal — daylight ÷ 8, one fixed part per weekday. Slot tables cross-checked against five independent almanac sources and pinned in smoke for all seven weekdays. They never overlap, and each is exactly one eighth of *measured* daylight, so they move with latitude and season rather than assuming a 06:00 sunrise. |
+| "Timing & horizon readout only" disclosure | **Closed.** A scope card now states in the client's own view — not only in markup — that the module does not alter Lo Shu void remedies, crystal assignments, deity selection or Vastu zone activations. It answers *when*, never *what*. |
+| Tier-honesty badge | **Closed.** "Calculated for the local horizon at {City} — date and location only; no birth time required." |
+
+Smoke additionally asserts that no remedy obligation can ever nest inside the Panchang scope.
+
+### 8.2 Interactive 16-zone compass with degree input — **closed**, §16A
+
+§5 deferred this as "a content project, not a code project". That was half right, and the half that
+was wrong is now built. Splitting it properly:
+
+- **Geometry is code.** A 0–360° bearing for the main entrance, kitchen burner, master bed and water
+  source now resolves to a 22.5° zone (N centred on 0°, so N runs 348.75°–11.25°) **and** to the
+  classical 45° sector — with the sector computed from *the same bearing*, not from the zone name.
+  That distinction is the entire value: an N-N-E reading at 20° is governed by the North, and the
+  same zone at 30° is governed by the North-East.
+- **Doctrine is content.** No sixteenth remedy was invented. A dosh found by the compass is answered
+  with the **shipped eight-direction remedy, verbatim** — smoke asserts the rendered text matches
+  `DB.vastu.directions[sector].fix`. That is what keeps this out of the `CONTRIBUTING.md`
+  practitioner gate, and it is also simply honest: the compass found the direction more precisely, it
+  did not discover a new prescription.
+
+Two honesty flags that no surveyed competitor ships, and which are the reason to prefer this to a
+₹5,500/year suite:
+
+1. **Boundary flag** — a reading within 2° of a zone edge is marked unreliable. A handheld compass is
+   not accurate to a quarter of a degree, and a confident zone call at 33.6° is false precision.
+2. **Sector-flip flag** — a reading within 2° of an 8-sector boundary warns that ordinary compass
+   error would change *which classical direction governs the remedy*. This is the single most
+   consequential thing a degree compass can tell a practitioner, and the commercial tools say
+   nothing about it.
+
+The section also instructs the client to take bearings against **true** north and names the Indian
+magnetic declination (roughly 0°–3° east), because a phone compass reads magnetic.
+
+Still deferred, and still correctly so: the **45-devta Mandala**, **Marma Sthan** and **floor-plan
+import/gridding**. The first two are pure remedy doctrine behind the practitioner gate; the third
+needs an in-browser drawing surface and must never upload a client's floor plan.
+
+### 8.3 Mobile internal pairing analysis — **closed**, §7
+
+The report scored only the total. It now also reads the number as a sequence: adjacent digit pairs,
+digits absent from the string, over-weighted digits, and the longest hostility-free stretch.
+
+Two rules kept this from becoming the thing the review warned against:
+
+- **No invented pair table.** Each pair is classified by the *same one-way Moolank Maitri relation*
+  the rest of the report uses, so every label traces to a row of the shipped friendship chart and can
+  be argued with. Smoke pins each pair's classification against `__NV.relation`.
+- **A pair containing 0 is reported as lordless**, not forced into a relation the system does not
+  give it. Zero has no planetary ruler here, and saying so is more useful than inventing one.
+
+### 8.4 What the review said to avoid — held
+
+| Warned against | Held |
+|---|---|
+| Gemstone / remedy e-commerce bloat | No catalogue, no store, no affiliate link. The under-18 gemstone deferral and the held-japa guardrail remain the product's strongest professional signal. |
+| Black-box "luck scores" (e.g. "74% lucky") | **Pinned by test.** A smoke assertion scans the whole rendered report and fails on any `N% lucky / auspicious / compatible` pattern or any "luck score". The digit-flow card reports a *count* of hostile adjacencies you can verify by eye against its own table. The date finder likewise prints its full scoring trail instead of a verdict number. |
+
+### 8.5 Verification
+
+```
+npm run check
+  ✓ node smoke.test.js            524 assertions, 0 failures
+  ✓ npm audit --audit-level=moderate   0 vulnerabilities
+  ✓ node scripts/build-static.cjs
+  ✓ node scripts/package-source.mjs --check
+```
+
+New in this pass: the seven-weekday triad slot table, triad non-overlap and one-eighth-of-daylight
+invariants, sixteen Choghadiya, the Panchang scope cordon and tier badge, the 16-zone 22.5° partition
+over a full 360° sweep, the bearing-derived sector rule, both honesty flags, the compass reusing
+shipped remedy text, the pair classification tying back to `__NV.relation`, and the no-luck-score
+scan.
+
+### 8.6 Honest scorecard after this pass
+
+| Dimension | Where it stands |
+|---|---|
+| Privacy, clinical safety, epistemic honesty, practitioner utility | Ahead, unchanged, and not traded away for any of the above. |
+| Daily timing tools | **Closed.** Full Panchang, sixteen Choghadiya, the complete day-division triad, Abhijit, a graded personal calendar and a favourable-date finder. |
+| Spatial / Vastu depth | **Materially closed** at the 16-zone degree level, with better error disclosure than the paid suites. Still behind on 45-devta, Marma and floor-plan tooling — all gated on a practitioner, not on engineering. |
+| Daily *retention* | Partly closed. The content to open the app daily now exists; the **hook** does not. Push notifications and a home-screen widget remain deferred as a product decision, because a daily nudge sits awkwardly against this product's stance on client agency. That is the honest remaining gap, and it is a choice rather than an omission. |

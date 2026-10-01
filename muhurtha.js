@@ -350,6 +350,70 @@
     return { ok: true, sunrise: sunrise, sunset: sunset, transit: ss.transit, dayLength: dayLength, partDuration: part, weekday: weekday, rahuIndex: rahuIdx, rahuStart: rahuStart, rahuEnd: rahuEnd, parts: parts, alwaysDay: alwaysDay, alwaysNight: alwaysNight, lat: lat, lon: lon, tz: tzEffective, h0: ss.h0 };
   }
 
+  /* Gulika and Yamaganda complete the classical day-division triad.
+     All three use the identical construction already proven above for
+     Rahu Kaal — daylight split into eight equal parts, one part fixed
+     per weekday — so they are derived from the same sunrise solve
+     rather than a second code path that could drift from it.
+
+     Slot tables (1-based parts, Sunday first), cross-checked against
+     five independent almanac sources that agree:
+
+       Rahu      Sun 8  Mon 2  Tue 7  Wed 5  Thu 6  Fri 4  Sat 3
+       Yamaganda Sun 5  Mon 4  Tue 3  Wed 2  Thu 1  Fri 7  Sat 6
+       Gulika    Sun 7  Mon 6  Tue 5  Wed 4  Thu 3  Fri 2  Sat 1
+
+     Gulika runs backwards from Saturn's own day, which is the mnemonic
+     practitioners use. Verified against the standard 06:00-18:00
+     reference day: Monday Gulika 13:30-15:00, Sunday Gulika
+     15:00-16:30, Monday Yamaganda 10:30-12:00, Wednesday Yamaganda
+     07:30-09:00 — all matching the printed tables.
+
+     Stored 0-based to match getRahuKaal's existing `rahuMap`. */
+  var YAMAGANDA_SLOT = { 0: 4, 1: 3, 2: 2, 3: 1, 4: 0, 5: 6, 6: 5 };
+  var GULIKA_SLOT = { 0: 6, 1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 6: 0 };
+
+  function daySegment(Y, M, D, lat, lon, tzEffective, slotMap, key) {
+    var rk = getRahuKaal(Y, M, D, lat, lon, tzEffective);
+    if (!rk || !rk.ok) return { ok: false, reason: rk ? rk.reason : "no-sun" };
+    var idx = slotMap[rk.weekday];
+    if (idx === undefined) return { ok: false, reason: "no-slot" };
+    return {
+      ok: true, kind: key, index: idx, part: idx + 1,
+      start: rk.sunrise + idx * rk.partDuration,
+      end: rk.sunrise + (idx + 1) * rk.partDuration,
+      partDuration: rk.partDuration, weekday: rk.weekday,
+      sunrise: rk.sunrise, sunset: rk.sunset
+    };
+  }
+
+  function yamagandaKaal(Y, M, D, lat, lon, tzEffective) {
+    return daySegment(Y, M, D, lat, lon, tzEffective, YAMAGANDA_SLOT, "yamaganda");
+  }
+  function gulikaKaal(Y, M, D, lat, lon, tzEffective) {
+    return daySegment(Y, M, D, lat, lon, tzEffective, GULIKA_SLOT, "gulika");
+  }
+
+  /* The three windows together, in clock order, so the report can print
+     a single "when not to begin" strip instead of three loose cards.
+     They never overlap: the three slot tables assign a different part
+     to each on every weekday. */
+  function inauspiciousWindows(Y, M, D, lat, lon, tzEffective) {
+    var rk = getRahuKaal(Y, M, D, lat, lon, tzEffective);
+    if (!rk || !rk.ok) return { ok: false, reason: rk ? rk.reason : "no-sun" };
+    var ym = yamagandaKaal(Y, M, D, lat, lon, tzEffective);
+    var gk = gulikaKaal(Y, M, D, lat, lon, tzEffective);
+    var list = [
+      { kind: "rahu", part: rk.rahuIndex + 1, start: rk.rahuStart, end: rk.rahuEnd },
+      ym.ok ? { kind: "yamaganda", part: ym.part, start: ym.start, end: ym.end } : null,
+      gk.ok ? { kind: "gulika", part: gk.part, start: gk.start, end: gk.end } : null
+    ].filter(Boolean).sort(function (a, b) { return a.start - b.start; });
+    return {
+      ok: true, weekday: rk.weekday, sunrise: rk.sunrise, sunset: rk.sunset,
+      partDuration: rk.partDuration, windows: list
+    };
+  }
+
   /* ================================================================
      Panchang — the five limbs, Choghadiya and Abhijit
      ================================================================
@@ -647,6 +711,9 @@
     effectiveTz: effectiveTz,
     isDSTActive: isDSTActive,
     getRahuKaal: getRahuKaal,
+    yamagandaKaal: yamagandaKaal,
+    gulikaKaal: gulikaKaal,
+    inauspiciousWindows: inauspiciousWindows,
     panchang: panchang,
     choghadiya: choghadiya,
     abhijitMuhurta: abhijitMuhurta,

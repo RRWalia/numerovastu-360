@@ -1,6 +1,8 @@
 # NumeroVastu 360
 
-**Release 2.16.0 — Competitive-parity release: Name Architecture, Premises Numerology, Personal Cycles with a graded calendar and favourable-date finder, the full five-limb Panchang with Choghadiya and Abhijit, and an optional cordoned Western cross-reference — plus the build/offline fix that was dropping `muhurtha.js` from production**
+**Release 2.17.0 — Operational layer: the complete day-division triad (Rahu + Yamaganda + Gulika), all sixteen Choghadiya, a 16-zone degree-precise Vastu compass with boundary and sector-flip warnings, and mobile internal digit-flow analysis — with no luck scores, pinned by test**
+
+Previously: **2.16.0 — Competitive-parity release: Name Architecture, Premises Numerology, Personal Cycles with a graded calendar and favourable-date finder, the full five-limb Panchang with Choghadiya and Abhijit, and an optional cordoned Western cross-reference — plus the build/offline fix that was dropping `muhurtha.js` from production**
 
 NumeroVastu 360 is a private, browser-only numerology and Vastu guidance app.
 It intentionally keeps each tradition separate, and says so in the UI:
@@ -20,6 +22,25 @@ for any remedy, dosha or deity change.
 
 > Traditional/spiritual guidance only. It is not medical, legal, financial or
 > mental-health advice.
+
+## What changed in 2.17.0
+
+A second competitive review (Occult King, Pinnacle Vastu and the same class of commercial portal)
+scored the app ahead on privacy, clinical safety, epistemic honesty and practitioner utility, and
+behind on **spatial tooling** and **daily retention**. Full disposition of every item is in
+[docs/competitive-gap-analysis-2026.md §8](docs/competitive-gap-analysis-2026.md). Again app-logic
+only — no remedy, dosha, deity, mantra, crystal, charity, fasting or Vastu prescription field was
+touched, so the knowledge pack stays at **2.10.0**.
+
+| Area | 2.17.0 behaviour |
+| --- | --- |
+| **Day-division triad completed** | Rahu Kaal was half the picture. **Yamaganda** and **Gulika Kaal** now sit beside it, all three cut from the same sunrise solve — measured daylight ÷ 8, one fixed part per weekday. The slot tables (Rahu: Sun 8th … Sat 3rd; Yamaganda: Sun 5th … Sat 6th; Gulika counting backwards from Saturn's own day, Sat 1st through Sun 7th) were cross-checked against five independent almanac sources and are pinned in smoke for all seven weekdays, along with the invariants that they never overlap and each is exactly one eighth of *measured* daylight. |
+| **All sixteen Choghadiya** | The engine always computed day **and** night; the report printed only the eight daytime slots. Night Choghadiya now renders behind a disclosure that print force-expands. |
+| **Panchang stays a clock, not an oracle** | The module now states its cordon in the client's own view, not just in markup: a *"Timing & horizon readout only"* card disclaiming any effect on Lo Shu void remedies, crystal assignments, deity selection or Vastu zone activations, plus a tier-honesty badge — *"Calculated for the local horizon at {City} — date and location only; no birth time required."* Smoke asserts no remedy obligation can nest inside the Panchang scope. |
+| **§16A — 16-zone degree compass** | Optional 0–360° bearings for the main entrance, kitchen burner, master bed and water source. Each resolves to a 22.5° zone **and** to the classical 45° sector computed from *the same bearing* — so an N-N-E reading at 20° is governed by the North and the same zone at 30° by the North-East. Two honesty flags no competitor ships: a reading within 2° of a **zone edge** is called unreliable rather than reported to false precision, and a reading within 2° of a **sector boundary** warns that ordinary compass error would change which direction governs the remedy. Any dosh is answered with the **shipped eight-direction remedy verbatim** — no sixteenth doctrine was invented, which is exactly why this stays outside the content gate. Tells you to use true north and names the Indian declination. |
+| **§7 — mobile internal digit flow** | The number is now read as a sequence as well as a total: adjacent pairs, absent digits, over-weighted digits, longest hostility-free stretch. Each pair is classified by the **same one-way Moolank Maitri relation** the rest of the report uses, so every label traces to a row of the shipped friendship chart rather than an invented two-digit meaning table. A pair containing 0 is reported as **lordless** instead of being forced into a relation the system does not give it. |
+| **No luck scores — enforced** | A smoke assertion scans the entire rendered report and fails on any `N% lucky / auspicious / compatible` pattern or any "luck score". Counts you can verify by eye, never a number you cannot. |
+| **Pack / app version** | `latestVersion` stays **2.10.0**; `appVersion` → **2.17.0** across `app.js`, the `index.html` meta, the `sw.js` cache name, the i18n status pills and `package.json`/`package-lock.json`. Smoke 497 → **524 assertions**. Source archive regenerated from HEAD. |
 
 ## What changed in 2.16.0
 

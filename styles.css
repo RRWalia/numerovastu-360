@@ -894,6 +894,52 @@ body {
 }
 .details-block > summary:focus-visible { outline: 2px solid var(--label-primary); outline-offset: 2px; border-radius: var(--r-xs); }
 
+/* ------------------------------------------------------------------
+   2026-10 operational layers — 16-zone degree compass and the mobile
+   internal digit-flow strip.
+   ------------------------------------------------------------------ */
+.compass-wrap { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; margin-top: 4px; }
+.compass-dial { width: 220px; height: 220px; flex: none; }
+.compass-side { flex: 1 1 320px; min-width: 280px; }
+.cmp-face { fill: var(--bg-primary); }
+.cmp-ring { fill: none; stroke: var(--separator); stroke-width: 1; }
+.cmp-wedge { fill: var(--fill-f1); stroke: var(--bg-primary); stroke-width: 1; }
+.cmp-wedge.cmp-ideal { fill: var(--light-green-bg); }
+.cmp-wedge.cmp-acceptable { fill: var(--kimi-blue-10); }
+.cmp-wedge.cmp-avoid { fill: var(--light-red-bg); }
+.cmp-tick { font-size: 8px; font-weight: 500; fill: var(--label-tertiary); }
+.cmp-tick-card { font-size: 10px; font-weight: 600; fill: var(--label-primary); }
+.cmp-hub { fill: var(--label-primary); }
+.cmp-needle line { stroke: var(--label-primary); stroke-width: 2; stroke-linecap: round; }
+.cmp-needle circle { fill: var(--label-primary); }
+.cmp-needle-ideal line, .cmp-needle-ideal circle { stroke: #0a5a28; fill: #0a5a28; }
+.cmp-needle-avoid line, .cmp-needle-avoid circle { stroke: #a81e2a; fill: #a81e2a; }
+.cmp-needle-acceptable line, .cmp-needle-acceptable circle { stroke: #0d4ea6; fill: #0d4ea6; }
+.cmp-zonekey {
+  display: inline-block; padding: 0 5px; margin-left: 4px; border-radius: var(--r-xxs);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+  background: var(--fill-f2); color: var(--label-secondary);
+}
+.cmp-flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.compass-intake > summary { cursor: pointer; font-size: 14px; font-weight: 500; line-height: 22px; padding: 8px 0; color: var(--label-secondary); }
+.compass-intake > summary:focus-visible { outline: 2px solid var(--label-primary); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* Mobile internal digit flow */
+.flow-strip { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
+.flow-pair {
+  display: inline-flex; flex-direction: column; align-items: center;
+  min-width: 34px; padding: 4px 7px; border-radius: var(--r-xs);
+  font-size: 14px; font-weight: 600; line-height: 18px;
+  border: 0.5px solid var(--separator); background: var(--fill-f1); color: var(--label-primary);
+}
+.flow-pair em { font-style: normal; font-size: 9px; font-weight: 500; line-height: 12px; color: var(--label-tertiary); letter-spacing: 0.02em; }
+.flow-pair.flow-friend { background: var(--light-green-bg); border-color: rgba(22, 196, 86, 0.28); }
+.flow-pair.flow-enemy { background: var(--light-red-bg); border-color: rgba(255, 77, 77, 0.28); }
+.flow-pair.flow-repeat { background: var(--light-orange-bg); border-color: rgba(255, 149, 0, 0.26); }
+.flow-pair.flow-void { background: transparent; border-style: dashed; color: var(--label-tertiary); }
+.badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.choghadiya-night > summary { cursor: pointer; font-size: 13px; font-weight: 500; line-height: 20px; padding: 8px 0; color: var(--label-secondary); }
+
 /* Tables */
 .rtable { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rtable th, .rtable td { text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--separator); vertical-align: top; }
@@ -1522,6 +1568,16 @@ body {
   .cal-grid, .letter-strip, .date-pill, .cal-cell, .letter-chip { break-inside: avoid; page-break-inside: avoid; }
   .cal-cell, .letter-chip, .date-pill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .cal-cell.cal-today { outline: 1.5pt solid #000; }
+  /* The night Choghadiya table is a collapsed disclosure on screen; on
+     paper a practitioner needs the whole sixteen-slot day, so it is
+     force-expanded like every other optional block in this stylesheet. */
+  .choghadiya-night:not([open]) > .details-body { display: block !important; }
+  .choghadiya-night > summary { list-style: none; }
+  /* The dial is the one figure in the report that carries meaning in its
+     fills alone, so colour adjustment is forced and it never splits. */
+  .compass-wrap, .compass-dial, .flow-strip, .flow-pair { break-inside: avoid; page-break-inside: avoid; }
+  .compass-dial, .flow-pair { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .compass-dial { width: 180px; height: 180px; }
   body { background: #fff; }
   .page { max-width: 100%; padding: 0; }
   /* Professional print conventions: no orphan/widow lines; the closing

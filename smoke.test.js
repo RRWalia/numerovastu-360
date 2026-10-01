@@ -2162,9 +2162,12 @@ check("all five limbs are present, each with the time it ends", (() => {
   return ["Tithi", "Nakshatra", "Yoga", "Karana", "Vara"].every((limb) => text.includes(limb))
     && (text.match(/until/gi) || []).length >= 4;
 })());
-check("the eight daytime Choghadiya are listed and each is graded", (() => {
-  const rows = $$("[data-choghadiya]", archReportDom);
-  return rows.length === 8 && rows.every((r) => ["auspicious", "inauspicious", "neutral"].includes(r.dataset.choghadiyaQuality));
+check("all sixteen Choghadiya are listed — day and night — and each is graded", (() => {
+  const day = $$('[data-choghadiya-half="day"]', archReportDom);
+  const night = $$('[data-choghadiya-half="night"]', archReportDom);
+  const all = $$("[data-choghadiya]", archReportDom);
+  return day.length === 8 && night.length === 8 && all.length === 16
+    && all.every((r) => ["auspicious", "inauspicious", "neutral"].includes(r.dataset.choghadiyaQuality));
 })());
 check("Abhijit Muhurta is printed and is suppressed on a Wednesday", (() => {
   const node = $("[data-abhijit]", archReportDom);
@@ -2203,6 +2206,188 @@ check("the premises intake round-trips through submit and local restore", (() =>
   $("#loadLatestBtn").click();
   return /id="premises-section"/.test(rendered) && /data-premises-kind="shop"/.test(rendered)
     && $("#premises").value === "A-402" && $("#premisesKind").value === "shop";
+})());
+
+
+/* ================================================================
+   2026-10 operational layers (2.17.0)
+   The day-division triad, night Choghadiya and the Panchang scope
+   cordon; the 16-zone degree compass; mobile internal digit flow.
+   ================================================================ */
+
+/* ---- Day-division triad: Rahu, Yamaganda, Gulika ---- */
+const triadRows = $$("[data-day-division]", archReportDom);
+check("the classical day-division triad is complete, not Rahu Kaal alone", (() => {
+  const kinds = triadRows.map((r) => r.dataset.dayDivision).sort();
+  return same(kinds, ["gulika", "rahu", "yamaganda"]);
+})());
+check("each of the three windows names which eighth of the day it occupies", triadRows.length === 3 && triadRows.every((r) => {
+  const part = Number(r.dataset.divisionPart);
+  return Number.isInteger(part) && part >= 1 && part <= 8;
+}));
+check("the triad is printed in clock order so a practitioner can scan it", (() => {
+  const starts = triadRows.map((r) => (r.querySelectorAll("td")[1] || {}).textContent || "");
+  return starts.length === 3 && starts.every((x) => /\d/.test(x));
+})());
+/* The slot tables are the whole doctrine here, so they are pinned
+   directly against the canonical chart rather than via the DOM. */
+check("the Rahu / Yamaganda / Gulika weekday slot tables match the classical chart", (() => {
+  const M = window.NVMuhurtha;
+  if (!M || typeof M.gulikaKaal !== "function") return false;
+  // 2026-11-01 is a Sunday, so day-of-month 1..7 walks Sun..Sat.
+  const expect = {
+    0: { rahu: 8, yama: 5, gulika: 7 }, 1: { rahu: 2, yama: 4, gulika: 6 },
+    2: { rahu: 7, yama: 3, gulika: 5 }, 3: { rahu: 5, yama: 2, gulika: 4 },
+    4: { rahu: 6, yama: 1, gulika: 3 }, 5: { rahu: 4, yama: 7, gulika: 2 },
+    6: { rahu: 3, yama: 6, gulika: 1 }
+  };
+  for (let d = 1; d <= 7; d++) {
+    const rk = M.getRahuKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const ym = M.yamagandaKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const gk = M.gulikaKaal(2026, 11, d, 28.6139, 77.209, 5.5);
+    const e = expect[rk.weekday];
+    if (rk.rahuIndex + 1 !== e.rahu || ym.part !== e.yama || gk.part !== e.gulika) return false;
+  }
+  return true;
+})());
+check("the three windows are cut from one sunrise solve and never overlap", (() => {
+  const M = window.NVMuhurtha;
+  for (let d = 1; d <= 7; d++) {
+    const w = M.inauspiciousWindows(2026, 11, d, 28.6139, 77.209, 5.5);
+    if (!w.ok || w.windows.length !== 3) return false;
+    for (let i = 1; i < w.windows.length; i++) if (w.windows[i].start < w.windows[i - 1].end - 1e-9) return false;
+    // every window is exactly one eighth of the measured daylight
+    if (!w.windows.every((x) => Math.abs((x.end - x.start) - w.partDuration) < 1e-9)) return false;
+    if (Math.abs(w.partDuration * 8 - (w.sunset - w.sunrise)) > 1e-9) return false;
+  }
+  return true;
+})());
+
+/* ---- The Panchang stays a clock, never an oracle ---- */
+check("the Panchang module declares itself a timing readout and disclaims remedy authority", (() => {
+  const scope = $('[data-panchang-scope="readout"]', archReportDom);
+  if (!scope) return false;
+  const text = scope.textContent;
+  return /does not alter/i.test(text) && /Lo Shu/i.test(text) && /Vastu zone/i.test(text);
+})());
+check("the Panchang carries the tier-honesty badge naming the horizon it was cast for", (() => {
+  const badge = $('[data-panchang-tier="horizon"]', archReportDom);
+  return !!badge && /no birth time required/i.test(badge.textContent) && /New Delhi/.test(badge.textContent);
+})());
+check("no remedy obligation ever nests inside the Panchang scope", (() => {
+  const nodes = $$('[data-authority="panchang"]', archReportDom);
+  return nodes.length > 0 && nodes.every((n) => !n.querySelector("[data-remedy-authority]") && !n.querySelector("[data-dasha-vastu-zone]"));
+})());
+
+/* ---- 16-zone degree compass ---- */
+const compassProfile = profile({ entranceDeg: "216", kitchenDeg: "138", bedroomDeg: "22", waterDeg: "30" });
+const compassDom = mount(window.__NV.renderReport(compassProfile));
+const compassSection = $("#vastu-compass-section", compassDom);
+check("the degree compass is optional and absent when no bearing was measured", !$("#vastu-compass-section", mount(window.__NV.renderReport(profile({})))));
+check("the degree compass renders all sixteen zones and one needle per reading", (() => {
+  if (!compassSection) return false;
+  return $$(".cmp-wedge", compassSection).length === 16 && $$("[data-cmp-needle]", compassSection).length === 4;
+})());
+check("the sixteen zones are 22.5° wide with North centred on 0°", (() => {
+  const NI = window.NVInsights;
+  const widths = {};
+  for (let d = 0; d < 360; d += 0.25) {
+    const z = NI.vastuZone(d).zone;
+    widths[z] = (widths[z] || 0) + 0.25;
+  }
+  return Object.keys(widths).length === 16
+    && Object.values(widths).every((w) => Math.abs(w - 22.5) < 1e-9)
+    && NI.vastuZone(0).zone === "N" && NI.vastuZone(11).zone === "N" && NI.vastuZone(11.3).zone === "NNE"
+    && NI.vastuZone(355).zone === "N" && NI.vastuZone(45).zone === "NE" && NI.vastuZone(247.5).zone === "WSW";
+})());
+check("the governing 8-direction is derived from the bearing, not from the zone name", (() => {
+  const NI = window.NVInsights;
+  // The same intermediate zone falls under two different classical
+  // sectors depending on where inside it the reading sits.
+  return NI.vastuZone(20).zone === "NNE" && NI.vastuZone(20).sector === "N"
+    && NI.vastuZone(30).zone === "NNE" && NI.vastuZone(30).sector === "NE";
+})());
+check("a reading near a sector boundary is flagged, because compass error would change the governing direction", (() => {
+  const NI = window.NVInsights;
+  return NI.vastuZone(22).sectorFlip === true && NI.vastuZone(30).sectorFlip === false
+    && !!$('[data-cmp-flag="sector-flip"]', compassSection);
+})());
+check("a reading within 2° of a zone edge is called unreliable rather than reported to false precision", (() => {
+  const NI = window.NVInsights;
+  return NI.vastuZone(11).boundary === true && NI.vastuZone(0).boundary === false && NI.vastuZone(33.7).boundary === true;
+})());
+check("the compass prints both the fine zone and the classical sector for every reading", (() => {
+  const rows = $$("[data-cmp-reading]", compassSection);
+  return rows.length === 4 && rows.every((r) => !!r.dataset.cmpZone16 && !!r.dataset.cmpSector
+    && ["ideal", "acceptable", "avoid"].includes(r.dataset.cmpVerdict));
+})());
+check("a compass dosh reuses the shipped direction remedy instead of inventing a sixteenth one", (() => {
+  const remedy = $("[data-cmp-remedy]", compassSection);
+  if (!remedy) return false;
+  const shipped = window.DB.vastu.directions;
+  const text = remedy.textContent;
+  return Object.keys(shipped).some((dir) => shipped[dir].fix && text.includes(shipped[dir].fix));
+})());
+check("the compass adds no remedy authority of its own and introduces no new direction data", (() => {
+  const vocabOk = compassSection.getAttribute("data-authority") === "home-vastu-context";
+  const noRemedyTag = !compassSection.querySelector("[data-remedy-authority]");
+  // The engine must not carry a parallel direction table.
+  const NI = window.NVInsights;
+  return vocabOk && noRemedyTag && NI.SECTION8 === undefined && same(NI.SECTOR8.slice(), ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+})());
+check("the compass tells the client to use true north and names the Indian declination", /true north/i.test(compassSection.textContent) && /magnetic/i.test(compassSection.textContent));
+
+/* ---- Mobile internal digit flow ---- */
+const flowProfile = profile({ mobile: "8155056910" });
+const flowDom = mount(window.__NV.renderReport(flowProfile));
+const flowCard = $("[data-digit-flow]", flowDom);
+check("the mobile section reads the number as a sequence, not only as a total", (() => {
+  if (!flowCard) return false;
+  const pairs = $$("[data-flow-pair]", flowCard);
+  return pairs.length === 9 && pairs.map((x) => x.dataset.flowPair).join(",") === "81,15,55,50,05,56,69,91,10";
+})());
+check("every adjacent pair is classified by the shipped friendship chart, not an invented pair table", (() => {
+  const NI = window.NVInsights;
+  const f = NI.digitFlow("8155056910", { driver: 2, conductor: 8 }, { relationFn: window.__NV.relation });
+  return f.pairs.every((pr) => {
+    if (pr.a === 0 || pr.b === 0) return pr.kind === "void";
+    if (pr.a === pr.b) return pr.kind === "repeat";
+    return pr.kind === window.__NV.relation(pr.a, pr.b);
+  });
+})());
+check("a pair containing 0 is reported as lordless instead of forced into a relation", (() => {
+  const voids = $$('[data-flow-kind="void"]', flowCard);
+  return voids.length === 3 && voids.every((v) => /0/.test(v.dataset.flowPair));
+})());
+check("the digit flow names the digits absent from the number", (() => {
+  const node = $("[data-flow-missing]", flowCard);
+  return !!node && node.dataset.flowMissing === "2,3,4,7";
+})());
+check("the digit flow emits no black-box luck score anywhere in the report", (() => {
+  const text = flowDom.textContent;
+  // No "<n>% lucky", no "luck score", no bare percentage verdict on a number.
+  return !/\d+\s*%\s*(lucky|luck|auspicious|compatible|match)/i.test(text)
+    && !/luck(iness)?\s*score/i.test(text)
+    && flowCard.getAttribute("data-flow-hostile-count") === "0";
+})());
+check("the digit flow states that the total still governs the recommendation", /does not overrule|overrule it|पलटता नहीं|પલટતું નથી/i.test(flowCard.textContent));
+check("the digit-flow and compass CSS classes are all defined", ["flow-pair", "flow-friend", "flow-enemy", "flow-void", "compass-dial", "cmp-wedge", "cmp-needle", "cmp-zonekey"].every((cls) => styles.includes(`.${cls}`)));
+check("print CSS force-expands the night Choghadiya and keeps the dial's fills", /\.choghadiya-night:not\(\[open\]\) > \.details-body \{ display: block !important; \}/.test(styles) && /\.compass-dial, \.flow-pair \{ -webkit-print-color-adjust: exact/.test(styles));
+check("the compass intake round-trips through submit and local restore", (() => {
+  $("#editBtn").click();
+  $("#fullName").value = "Priya Sharma";
+  $("#dob").value = "20-08-2005";
+  $("#mobile").value = "9876543210";
+  $("#entranceDeg").value = "216";
+  $("#kitchenDeg").value = "138";
+  $("#intakeForm").dispatchEvent(new window.Event("submit", { cancelable: true }));
+  const rendered = $("#reportRoot").innerHTML;
+  $("#editBtn").click();
+  $("#entranceDeg").value = "";
+  $("#kitchenDeg").value = "";
+  $("#loadLatestBtn").click();
+  return /id="vastu-compass-section"/.test(rendered)
+    && $("#entranceDeg").value === "216" && $("#kitchenDeg").value === "138";
 })());
 
 if (failed) {

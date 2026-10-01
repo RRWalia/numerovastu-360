@@ -6,7 +6,7 @@
 <title>Free Numerology &amp; Vastu App — Lo Shu Grid, Driver &amp; Conductor | NumeroVastu 360</title>
 <meta name="description" content="NumeroVastu 360 is a free numerology and Vastu app for India: Lo Shu grid calculator, Driver and Conductor numbers, name and mobile number numerology, birth-chart insights and practical Vastu remedies. Installable on Android and iPhone, works offline, 100% private." />
 <link rel="canonical" href="https://numerovastu-360.netlify.app/" />
-<meta name="nv-version" content="2.16.0" />
+<meta name="nv-version" content="2.17.0" />
 <meta name="nv-build-label" content="Build 2026-09-19" />
 <meta name="theme-color" content="#1e1b4b" />
 <meta name="color-scheme" content="light" />
@@ -73,7 +73,7 @@
    "applicationSubCategory": "Numerology & Vastu",
    "operatingSystem": "Android, iOS, Windows, macOS — any modern web browser",
    "browserRequirements": "Requires JavaScript. Works offline after first load.",
-   "softwareVersion": "2.16.0",
+   "softwareVersion": "2.17.0",
    "inLanguage": [
     "en",
     "hi",
@@ -258,7 +258,7 @@
       <div class="intro-meta">
         <span class="status-pill status-private" data-i18n="statusPrivate">Private &amp; local</span>
         <span class="status-pill status-knowledge" id="knowledgeBadge">Knowledge pack v2.9.0</span>
-        <span class="status-pill status-app" id="appBadge">App v2.16.0 · On-device engine</span>
+        <span class="status-pill status-app" id="appBadge">App v2.17.0 · On-device engine</span>
         <span class="status-pill status-build" id="buildBadge">Build 2026-09-19</span>
         <span class="status-pill status-memory" id="memoryBadge">Local memory ready</span>
       </div>
@@ -538,6 +538,37 @@
             <option value="extended-southwest">Extension in Southwest</option>
           </select>
         </div>
+        <!-- Degree-precise Vastu readings. Entirely optional and purely
+             additive: the eight-direction dropdowns above still drive every
+             remedy in Section 16, and a blank set of degrees leaves an
+             existing chart byte-for-byte identical. Take the bearing facing
+             OUT through the element, against true north. -->
+        <details class="details-block compass-intake">
+          <summary data-i18n="compassIntakeSummary">Measured compass bearings (optional) — adds the 16-zone degree reading</summary>
+          <div class="details-body">
+            <p class="field-hint" data-i18n="compassIntakeHint">Stand inside the property facing out through each element and note the bearing in degrees (0–360, where 0 is north). Leave any box blank to skip it. Use true north — a phone compass usually reads magnetic north, which in India sits roughly 0°–3° east of true.</p>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="entranceDeg"><span data-i18n="entranceDegLabel">Main entrance facing (°)</span></label>
+                <input class="input" id="entranceDeg" name="entranceDeg" type="number" min="0" max="360" step="0.1" inputmode="decimal" placeholder="e.g. 42.5" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="kitchenDeg"><span data-i18n="kitchenDegLabel">Kitchen burner (°)</span></label>
+                <input class="input" id="kitchenDeg" name="kitchenDeg" type="number" min="0" max="360" step="0.1" inputmode="decimal" placeholder="e.g. 138" autocomplete="off" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="bedroomDeg"><span data-i18n="bedroomDegLabel">Master bed (°)</span></label>
+                <input class="input" id="bedroomDeg" name="bedroomDeg" type="number" min="0" max="360" step="0.1" inputmode="decimal" placeholder="e.g. 226" autocomplete="off" />
+              </div>
+              <div class="field">
+                <label class="field-label" for="waterDeg"><span data-i18n="waterDegLabel">Water source / tank (°)</span></label>
+                <input class="input" id="waterDeg" name="waterDeg" type="number" min="0" max="360" step="0.1" inputmode="decimal" placeholder="e.g. 28" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+        </details>
         <div class="field">
           <label class="field-label" for="watchType"><span data-i18n="watchTypeLabel">Watch You Currently Wear (optional)</span></label>
           <select class="input select" id="watchType" name="watchType">

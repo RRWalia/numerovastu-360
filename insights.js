@@ -643,6 +643,269 @@
      Exports
      --------------------------------------------------------------- */
 
+
+  /* ==================================================================
+     16-zone Vastu compass — degree-precise zone resolution
+     ==================================================================
+     Commercial Vastu suites sell a 16-zone / degree-based compass; this
+     app read eight fixed 45-degree sectors chosen from a dropdown. The
+     gap is real, and it is pure geometry — no new remedy doctrine is
+     introduced here. A degree resolves to BOTH:
+
+       - its 16-zone (22.5 degrees wide, N centred on 0), and
+       - its classical 8-direction sector (45 degrees wide),
+
+     and the 8-direction parent is computed from the SAME degree rather
+     than from the zone, so the existing shipped remedy for that
+     direction continues to govern. That is deliberate: inventing
+     sixteen new remedy prescriptions would cross the practitioner
+     sign-off gate in CONTRIBUTING.md, and geometry does not.
+
+     Two honesty features no surveyed competitor offers:
+
+       1. BOUNDARY FLAG. A reading within `edgeTolerance` degrees of a
+          zone edge is flagged as unreliable, because a handheld compass
+          is not accurate to a quarter of a degree and a confident zone
+          call at 33.6 degrees is false precision.
+       2. SPLIT FLAG. Where the 16-zone and the 8-sector disagree about
+          which side of a classical boundary a reading falls on (NNE at
+          20 degrees is in the N sector; NNE at 30 degrees is in the NE
+          sector), that is stated rather than silently resolved. */
+
+  var ZONE16 = Object.freeze([
+    { key: "N", label: "North" }, { key: "NNE", label: "North-North-East" },
+    { key: "NE", label: "North-East" }, { key: "ENE", label: "East-North-East" },
+    { key: "E", label: "East" }, { key: "ESE", label: "East-South-East" },
+    { key: "SE", label: "South-East" }, { key: "SSE", label: "South-South-East" },
+    { key: "S", label: "South" }, { key: "SSW", label: "South-South-West" },
+    { key: "SW", label: "South-West" }, { key: "WSW", label: "West-South-West" },
+    { key: "W", label: "West" }, { key: "WNW", label: "West-North-West" },
+    { key: "NW", label: "North-West" }, { key: "NNW", label: "North-North-West" }
+  ]);
+  var SECTOR8 = Object.freeze(["N", "NE", "E", "SE", "S", "SW", "W", "NW"]);
+
+  function normDeg(d) {
+    var x = Number(d);
+    if (!isFinite(x)) return null;
+    x = x % 360;
+    if (x < 0) x += 360;
+    return x;
+  }
+
+  /* Zone index: N spans 348.75..11.25, so shift by half a zone before
+     dividing. Same construction for the 8 sectors at 45 degrees. */
+  function zone16Of(deg) {
+    var d = normDeg(deg);
+    if (d === null) return null;
+    return Math.floor(((d + 11.25) % 360) / 22.5);
+  }
+  function sector8Of(deg) {
+    var d = normDeg(deg);
+    if (d === null) return null;
+    return Math.floor(((d + 22.5) % 360) / 45);
+  }
+
+  function vastuZone(deg, opts) {
+    var o = opts || {};
+    var tol = isFinite(o.edgeTolerance) ? Number(o.edgeTolerance) : 2;
+    var d = normDeg(deg);
+    if (d === null) return { ok: false, reason: "not-a-degree" };
+    var zi = zone16Of(d), si = sector8Of(d);
+    var zone = ZONE16[zi], sector = SECTOR8[si];
+    var zoneStart = (zi * 22.5 - 11.25 + 360) % 360;
+    var zoneEnd = (zoneStart + 22.5) % 360;
+    var centre = (zoneStart + 11.25) % 360;
+    /* Signed distance from the zone centre, and absolute distance to the
+       nearer edge, both wrapped across 0/360. */
+    var fromCentre = ((d - centre + 540) % 360) - 180;
+    var toEdge = 11.25 - Math.abs(fromCentre);
+    var sectorStart = (si * 45 - 22.5 + 360) % 360;
+    var sectorCentre = (sectorStart + 22.5) % 360;
+    var fromSectorCentre = ((d - sectorCentre + 540) % 360) - 180;
+    return {
+      ok: true,
+      degree: d,
+      zone: zone.key,
+      zoneLabel: zone.label,
+      zoneIndex: zi,
+      zoneStart: zoneStart,
+      zoneEnd: zoneEnd,
+      zoneCentre: centre,
+      offCentre: fromCentre,
+      toEdge: toEdge,
+      sector: sector,
+      sectorIndex: si,
+      sectorOffCentre: fromSectorCentre,
+      /* An intermediate zone (NNE, ESE, ...) straddles two of the eight
+         classical sectors, so which direction GOVERNS THE REMEDY depends
+         on exactly where inside the zone the reading falls: NNE at 20
+         degrees is governed by the North, NNE at 30 degrees by the
+         North-East. `sectorFlip` fires when the reading is close enough
+         to that boundary that ordinary compass error would change the
+         governing direction — the single most consequential thing a
+         degree-based compass can tell a practitioner, and the reason
+         this is worth more than a dropdown. */
+      intermediate: SECTOR8.indexOf(zone.key) === -1,
+      toSectorEdge: 22.5 - Math.abs(fromSectorCentre),
+      sectorFlip: (22.5 - Math.abs(fromSectorCentre)) <= tol,
+      boundary: toEdge <= tol,
+      edgeTolerance: tol
+    };
+  }
+
+  /* Several tagged readings at once, plus the pairs a practitioner is
+     actually asked about. Each element declares the sectors it wants and
+     the sectors it must avoid, using ONLY the eight classical
+     directions already shipped in DB.vastu — this function returns
+     structure, never prescription text. */
+  var VASTU_ELEMENTS = Object.freeze({
+    entrance: { ideal: ["N", "NE", "E"], avoid: ["SW", "S"], label: "Main entrance" },
+    kitchen: { ideal: ["SE"], avoid: ["NE", "N", "SW"], label: "Kitchen / burner" },
+    bedroom: { ideal: ["SW"], avoid: ["NE", "SE", "NW"], label: "Master bed" },
+    water: { ideal: ["NE", "N", "E"], avoid: ["SE", "SW", "S"], label: "Water source / tank" },
+    toilet: { ideal: ["NW", "W"], avoid: ["NE", "SW", "SE"], label: "Toilet" },
+    cash: { ideal: ["N", "SW"], avoid: ["SE", "S"], label: "Cash locker" }
+  });
+
+  function vastuCompass(readings, opts) {
+    var o = opts || {};
+    var out = { ok: false, readings: [], boundaryCount: 0, flipCount: 0, idealCount: 0, avoidCount: 0 };
+    if (!readings || typeof readings !== "object") return out;
+    Object.keys(readings).forEach(function (key) {
+      var raw = readings[key];
+      if (raw === "" || raw === null || raw === undefined) return;
+      var z = vastuZone(raw, o);
+      if (!z.ok) return;
+      var meta = VASTU_ELEMENTS[key] || { ideal: [], avoid: [], label: key };
+      z.element = key;
+      z.elementLabel = meta.label;
+      z.verdict = meta.avoid.indexOf(z.sector) !== -1 ? "avoid"
+        : meta.ideal.indexOf(z.sector) !== -1 ? "ideal" : "acceptable";
+      z.ideal = meta.ideal.slice();
+      z.avoidList = meta.avoid.slice();
+      /* How far, in degrees, to the nearest ideal sector's centre. This
+         is the number a consultant actually wants: "your burner is 18
+         degrees off the Agni corner", not "your kitchen is wrong". */
+      var best = null;
+      meta.ideal.forEach(function (want) {
+        var wi = SECTOR8.indexOf(want);
+        if (wi === -1) return;
+        var wc = (wi * 45) % 360;
+        var delta = ((z.degree - wc + 540) % 360) - 180;
+        if (best === null || Math.abs(delta) < Math.abs(best.delta)) best = { sector: want, delta: delta, centre: wc };
+      });
+      z.nearestIdeal = best;
+      if (z.boundary) out.boundaryCount++;
+      if (z.sectorFlip) out.flipCount = (out.flipCount || 0) + 1;
+      if (z.verdict === "ideal") out.idealCount++;
+      if (z.verdict === "avoid") out.avoidCount++;
+      out.readings.push(z);
+    });
+    out.ok = out.readings.length > 0;
+    out.zones = ZONE16.map(function (z) { return z.key; });
+    return out;
+  }
+
+
+  /* ==================================================================
+     Mobile number — internal digit flow
+     ==================================================================
+     The app already scores a mobile number's TOTAL against the Driver
+     and Conductor. Commercial tools go further and read the number as a
+     sequence: adjacent digit pairs, repeats, absent digits. That extra
+     reading is genuinely useful to a business client who stares at the
+     string all day, and it is cheap to do honestly.
+
+     Two rules govern this implementation:
+
+       1. NO BLACK-BOX SCORES. Nothing here emits "74% lucky". Every
+          pair is classified by the SAME one-way Moolank Maitri relation
+          the rest of the app uses — friendly, neutral or enemy — so any
+          verdict can be traced to a row of the shipped friendship
+          chart and argued with.
+       2. NO SECOND DOCTRINE. No table of invented two-digit meanings is
+          introduced. A pair is read as the relation between its two
+          digits, nothing more.
+
+     `relationFn` is injected so the caller passes the live
+     DB.friendship-backed relation rather than this module's fallback,
+     keeping one friendship chart in the product. */
+
+  function digitFlow(raw, chart, opts) {
+    var o = opts || {};
+    var rel = typeof o.relationFn === "function" ? o.relationFn : relation;
+    var digits = String(raw == null ? "" : raw).replace(/\D/g, "");
+    if (digits.length < 2) return { ok: false, reason: "too-short", digits: digits };
+
+    var counts = {};
+    for (var n = 0; n <= 9; n++) counts[n] = 0;
+    digits.split("").forEach(function (d) { counts[Number(d)]++; });
+
+    /* Adjacent pairs. A pair containing 0 has no planetary ruler in this
+       system, so it is reported as `void` rather than forced into a
+       relation it cannot have — the honest answer, and the one the
+       classical texts imply by giving 0 no lord. */
+    var pairs = [];
+    for (var i = 0; i < digits.length - 1; i++) {
+      var a = Number(digits[i]), b = Number(digits[i + 1]);
+      var kind, r = null;
+      if (a === 0 || b === 0) kind = "void";
+      else if (a === b) kind = "repeat";
+      else { r = rel(a, b); kind = r; }
+      pairs.push({ index: i, a: a, b: b, text: String(a) + String(b), kind: kind, relation: r });
+    }
+
+    var tally = { friend: 0, neutral: 0, enemy: 0, repeat: 0, void: 0 };
+    pairs.forEach(function (pr) {
+      var k = pr.kind === "friendly" ? "friend" : pr.kind === "enemy" ? "enemy" : pr.kind === "neutral" ? "neutral" : pr.kind;
+      if (tally[k] !== undefined) tally[k]++;
+    });
+
+    /* Longest unbroken run of non-hostile adjacency — the "clean stretch"
+       a practitioner points at when explaining why one number reads more
+       smoothly than another of the same total. */
+    var best = 0, run = 0;
+    pairs.forEach(function (pr) {
+      if (pr.kind === "enemy") { run = 0; } else { run++; if (run > best) best = run; }
+    });
+
+    var missing = [];
+    for (var m = 1; m <= 9; m++) if (!counts[m]) missing.push(m);
+    var repeated = [];
+    for (var q = 1; q <= 9; q++) if (counts[q] >= 3) repeated.push({ digit: q, count: counts[q] });
+
+    /* Which digits in the string are hostile to the birth numbers. This
+       is the one place the chart enters, and it uses the same relation
+       function as everything else. */
+    var hostileToChart = [], friendlyToChart = [];
+    if (chart && chart.driver) {
+      for (var d2 = 1; d2 <= 9; d2++) {
+        if (!counts[d2]) continue;
+        var rd = rel(d2, chart.driver);
+        var rc = chart.conductor ? rel(d2, chart.conductor) : "neutral";
+        if (rd === "enemy" || rc === "enemy") hostileToChart.push({ digit: d2, count: counts[d2], toDriver: rd, toConductor: rc });
+        else if (rd === "friendly" || rc === "friendly") friendlyToChart.push({ digit: d2, count: counts[d2], toDriver: rd, toConductor: rc });
+      }
+    }
+
+    return {
+      ok: true,
+      digits: digits,
+      length: digits.length,
+      counts: counts,
+      pairs: pairs,
+      tally: tally,
+      longestCleanRun: best,
+      missing: missing,
+      repeated: repeated,
+      hostileToChart: hostileToChart,
+      friendlyToChart: friendlyToChart,
+      /* Deliberately NOT a score. A plain count of hostile adjacencies,
+         which the reader can verify by eye against the table. */
+      hostileAdjacencies: tally.enemy
+    };
+  }
+
   var api = {
     VERSION: VERSION,
     PYTHAGOREAN: PYTHAGOREAN,
@@ -672,7 +935,15 @@
     gradeDate: gradeDate,
     personalCalendar: personalCalendar,
     favourableDates: favourableDates,
-    premisesNumerology: premisesNumerology
+    premisesNumerology: premisesNumerology,
+    ZONE16: ZONE16,
+    SECTOR8: SECTOR8,
+    VASTU_ELEMENTS: VASTU_ELEMENTS,
+    zone16Of: zone16Of,
+    sector8Of: sector8Of,
+    vastuZone: vastuZone,
+    vastuCompass: vastuCompass,
+    digitFlow: digitFlow
   };
 
   if (typeof window !== "undefined") window.NVInsights = api;

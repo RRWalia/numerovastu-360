@@ -897,7 +897,7 @@
     };
   }
 
-  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.16.0";
+  const APP_VERSION = ($('meta[name="nv-version"]') && $('meta[name="nv-version"]').content) || "2.17.0";
   const BUILD_LABEL = ($('meta[name="nv-build-label"]') && $('meta[name="nv-build-label"]').content) || "Build 2026-09-19";
   const DEFAULT_MANIFEST_PATH = "knowledge-pack/latest.json";
   const STORAGE_KEYS = {
@@ -919,7 +919,7 @@
     // appendix so the two systems never read as contradicting each other.
     dashaEngine: "nv360.dashaEngine.v1"
   };
-  const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, nameArch: "6A", mobile: 7, vehicle: 8, premises: "8A", watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, cycles: "13a", dasha: 14, memory: 15, vastu: 16, kua: 17, western: "17A", compatibility: 18, goalsStart: 19 };
+  const SECTION = { core: 1, traits: 2, grid: 3, weak: 4, tattva: "4A", zodiac: 5, name: 6, nameArch: "6A", mobile: 7, vehicle: 8, premises: "8A", watch: 9, crystal: 10, colours: 11, career: 12, timing: 13, cycles: "13a", dasha: 14, memory: 15, vastu: 16, compass: "16A", kua: 17, western: "17A", compatibility: 18, goalsStart: 19 };
 
   /* ---------------- Scaled Sadhana (client lifestyle bandwidth) ----------------
      A consultation fails on adherence, not on knowledge: a corporate consultee
@@ -2022,6 +2022,9 @@
     // restore exactly as before with the inputs left at their defaults.
     if ($("#premises")) $("#premises").value = snapshot.input.premises || "";
     if ($("#premisesKind")) $("#premisesKind").value = snapshot.input.premisesKind || "home";
+    ["entranceDeg", "kitchenDeg", "bedroomDeg", "waterDeg"].forEach((key) => {
+      if ($("#" + key)) $("#" + key).value = snapshot.input[key] || "";
+    });
     if ($("#entrance")) $("#entrance").value = snapshot.input.entrance || "unsure";
     if ($("#kitchen")) $("#kitchen").value = snapshot.input.kitchen || "unsure";
     if ($("#bedroom")) $("#bedroom").value = snapshot.input.bedroom || "unsure";
@@ -2287,6 +2290,13 @@
          section and leaves every other engine output untouched. */
       premises: String(input.premises || "").trim(),
       premisesKind: String(input.premisesKind || "home"),
+      // Degree readings survive onto the profile as plain strings; the
+      // compass engine parses and validates them, so a typo degrades to
+      // "no reading" rather than to a wrong zone.
+      entranceDeg: String(input.entranceDeg || "").trim(),
+      kitchenDeg: String(input.kitchenDeg || "").trim(),
+      bedroomDeg: String(input.bedroomDeg || "").trim(),
+      waterDeg: String(input.waterDeg || "").trim(),
       goals: input.goals || [],
       // Optional Health sub-tags from the intake form (respiratory / heat /
       // fatigue). "respiratory" drives the Moon-cold guardrail; all three
@@ -6959,13 +6969,54 @@
 
       const limb = (icon, label, value, note) => `<div class="kit-row"><div class="kit-ico">${icon}</div><div class="kit-body"><div class="kit-label">${label}</div><div class="kit-value">${value}<div class="card-sub">${note}</div></div></div></div>`;
 
-      const chogRows = chog && chog.ok ? chog.day.map((c) => `<tr data-choghadiya="${esc(c.name)}" data-choghadiya-quality="${esc(c.quality)}">
+      /* Day AND night. The engine always computed sixteen slots; the first
+         cut of this section printed only the eight daytime ones, which is
+         useless to the practitioner whose client asks about a 9 pm griha
+         pravesh or an overnight journey. */
+      const chogRow = (c, half) => `<tr data-choghadiya="${esc(c.name)}" data-choghadiya-half="${half}" data-choghadiya-quality="${esc(c.quality)}">
         <td>${esc(c.name)}</td>
         <td>${fmt(c.start)} – ${fmt(c.end)}</td>
         <td><span class="badge ${c.quality === "auspicious" ? "good" : c.quality === "inauspicious" ? "bad" : "info"}">${c.quality === "auspicious" ? L("Auspicious", "शुभ", "શુભ") : c.quality === "inauspicious" ? L("Avoid", "त्याज्य", "ત્યાજ્ય") : L("Neutral", "तटस्थ", "તટસ્થ")}</span></td>
+      </tr>`;
+      const chogDayRows = chog && chog.ok ? chog.day.map((c) => chogRow(c, "day")).join("") : "";
+      const chogNightRows = chog && chog.ok ? chog.night.map((c) => chogRow(c, "night")).join("") : "";
+
+      /* The classical day-division triad. Rahu Kaal alone was half the
+         picture: Yamaganda and Gulika are cast by the identical
+         construction (daylight / 8, one fixed part per weekday) and a
+         practitioner checking a start time checks all three. */
+      const triad = typeof astro.inauspiciousWindows === "function" ? astro.inauspiciousWindows(Y, M, D, place.lat, place.lon, tzEff) : null;
+      const triadMeta = {
+        rahu: { label: L("Rahu Kaal", "राहु काल", "રાહુ કાળ"), note: L("Confusion and reversal — avoid all new beginnings.", "भ्रम एवं उलटफेर — कोई भी शुभारंभ न करें।", "ભ્રમ અને ઉલટફેર — કોઈ પણ શુભારંભ ન કરો.") },
+        yamaganda: { label: L("Yamaganda Kaal", "यमगण्ड काल", "યમગંડ કાળ"), note: L("Yama's window — classically withheld from ceremony and travel.", "यम की अवधि — शास्त्रतः संस्कार एवं यात्रा से वर्जित।", "યમની અવધિ — શાસ્ત્ર મુજબ સંસ્કાર અને યાત્રાથી વર્જિત.") },
+        gulika: { label: L("Gulika Kaal", "गुलिक काल", "ગુલિક કાળ"), note: L("Saturn's son Mandi — whatever is begun here tends to repeat, so it is withheld from one-time acts and tolerated for recurring ones.", "शनिपुत्र मांदी — यहाँ आरंभ किया कार्य दोहराने की प्रवृत्ति रखता है, अतः एकबारगी कार्यों से वर्जित, आवर्ती कार्यों में सह्य।", "શનિપુત્ર માંદી — અહીં શરૂ કરેલું કાર્ય પુનરાવર્તનની વૃત્તિ ધરાવે છે, તેથી એકવારના કાર્યોથી વર્જિત, આવર્તી કાર્યોમાં સહ્ય.") }
+      };
+      const triadRows = triad && triad.ok ? triad.windows.map((wn) => `<tr data-day-division="${esc(wn.kind)}" data-division-part="${wn.part}">
+        <td><strong>${triadMeta[wn.kind].label}</strong></td>
+        <td>${fmt(wn.start)} – ${fmt(wn.end)}</td>
+        <td>${L("part", "भाग", "ભાગ")} ${wn.part}/8</td>
+        <td>${triadMeta[wn.kind].note}</td>
       </tr>`).join("") : "";
 
-      return `<div class="card-grid two" data-panchang="ok" data-tithi="${esc(pc.tithi.name)}" data-nakshatra="${esc(pc.nakshatra.name)}" data-authority="panchang">
+      /* Authority boundary, stated in the client's own view rather than
+         only in the markup. This module is a clock: it reports when, and
+         it is forbidden from touching what. Same cordon the Vimshottari
+         card carries. */
+      const horizonBadge = `<div class="card" data-panchang-scope="readout">
+        <div class="card-title">${L("Timing &amp; horizon readout only", "केवल काल एवं क्षितिज गणना", "માત્ર કાળ અને ક્ષિતિજ ગણતરી")}</div>
+        <div class="card-sub">${L(
+        "Derived from geocentric Sun and Moon coordinates for your local horizon. This module does not alter Lo Shu void remedies, crystal assignments, deity selection or Vastu zone activations — it answers <em>when</em>, never <em>what</em>.",
+        "आपके स्थानीय क्षितिज हेतु भूकेन्द्रित सूर्य-चंद्र निर्देशांकों से व्युत्पन्न। यह मॉड्यूल लो शु रिक्त-अंक उपाय, रत्न, देवता-चयन अथवा वास्तु-क्षेत्र सक्रियण में कोई परिवर्तन नहीं करता — यह <em>कब</em> का उत्तर देता है, <em>क्या</em> का कभी नहीं।",
+        "તમારા સ્થાનિક ક્ષિતિજ માટે ભૂકેન્દ્રિત સૂર્ય-ચંદ્ર યામોથી વ્યુત્પન્ન. આ મોડ્યુલ લો શુ રિક્ત-અંક ઉપાય, રત્ન, દેવતા-પસંદગી કે વાસ્તુ-ક્ષેત્ર સક્રિયકરણમાં કોઈ ફેરફાર કરતું નથી — તે <em>ક્યારે</em> નો જવાબ આપે છે, <em>શું</em> નો ક્યારેય નહીં."
+      )}</div>
+        <div class="badge-row"><span class="badge info" data-panchang-tier="horizon">${L(
+        `Calculated for the local horizon at ${esc(place.displayName || place.name || "your location")} — date and location only; no birth time required.`,
+        `${esc(place.displayName || place.name || "आपके स्थान")} के स्थानीय क्षितिज हेतु गणित — केवल तिथि एवं स्थान; जन्म-समय आवश्यक नहीं।`,
+        `${esc(place.displayName || place.name || "તમારા સ્થાન")} ના સ્થાનિક ક્ષિતિજ માટે ગણિત — માત્ર તારીખ અને સ્થાન; જન્મ-સમય જરૂરી નથી.`
+      )}</span></div>
+      </div>`;
+
+      return `${horizonBadge}<div class="card-grid two" data-panchang="ok" data-tithi="${esc(pc.tithi.name)}" data-nakshatra="${esc(pc.nakshatra.name)}" data-authority="panchang">
         <div class="card">
           <div class="card-title">${L("Panchang — the five limbs (at sunrise)", "पंचांग — पाँच अंग (सूर्योदय पर)", "પંચાંગ — પાંચ અંગ (સૂર્યોદય પર)")}</div>
           <div class="kit">
@@ -6992,20 +7043,261 @@
         <div class="card">
           <div class="card-title">${L("Choghadiya & Abhijit (today, daytime)", "चौघड़िया एवं अभिजित (आज, दिन)", "ચોઘડિયા અને અભિજિત (આજે, દિવસ)")}</div>
           ${abh && abh.ok ? `<div class="kit"><div class="kit-row"><div class="kit-ico">🎯</div><div class="kit-body"><div class="kit-label">${L("Abhijit Muhurta", "अभिजित मुहूर्त", "અભિજિત મુહૂર્ત")}</div><div class="kit-value" data-abhijit="${abh.excluded ? "excluded" : "ok"}">${fmt(abh.start)} – ${fmt(abh.end)}${abh.excluded ? ` · ${L("not taken on a Wednesday", "बुधवार को नहीं लिया जाता", "બુધવારે લેવાતું નથી")}` : ` · ${L("the day's safest window for almost any beginning", "लगभग हर शुभारंभ के लिए दिन की सबसे सुरक्षित खिड़की", "લગભગ દરેક શુભારંભ માટે દિવસની સૌથી સલામત બારી")}`}</div></div></div></div>` : ""}
-          ${chogRows ? `<div class="table-scroll"><table class="rtable micro-forecast-table">
-            <thead><tr><th>${L("Choghadiya", "चौघड़िया", "ચોઘડિયા")}</th><th>${L("Window", "समय", "સમય")}</th><th>${L("Quality", "गुण", "ગુણ")}</th></tr></thead>
-            <tbody>${chogRows}</tbody>
+          ${chogDayRows ? `<div class="table-scroll"><table class="rtable micro-forecast-table">
+            <thead><tr><th>${L("Day Choghadiya", "दिन चौघड़िया", "દિવસ ચોઘડિયા")}</th><th>${L("Window", "समय", "સમય")}</th><th>${L("Quality", "गुण", "ગુણ")}</th></tr></thead>
+            <tbody>${chogDayRows}</tbody>
           </table></div>` : ""}
+          ${chogNightRows ? `<details class="details-block choghadiya-night">
+            <summary>${L("Night Choghadiya — sunset to sunrise", "रात्रि चौघड़िया — सूर्यास्त से सूर्योदय", "રાત્રિ ચોઘડિયા — સૂર્યાસ્તથી સૂર્યોદય")}</summary>
+            <div class="details-body"><div class="table-scroll"><table class="rtable micro-forecast-table">
+              <thead><tr><th>${L("Night Choghadiya", "रात्रि चौघड़िया", "રાત્રિ ચોઘડિયા")}</th><th>${L("Window", "समय", "સમય")}</th><th>${L("Quality", "गुण", "ગુણ")}</th></tr></thead>
+              <tbody>${chogNightRows}</tbody>
+            </table></div></div>
+          </details>` : ""}
           <div class="card-sub">${L(
-                "The eight day-parts run sunrise to sunset on the standard weekday cycle; Amrit, Shubh and Labh are the workable windows, Udvega, Roga and Kaal are the ones to route around. Rahu Kaal above still overrides a good Choghadiya.",
+                "The eight day-parts run sunrise to sunset on the standard weekday cycle; Amrit, Shubh and Labh are the workable windows, Udvega, Roga and Kaal are the ones to route around. A window below still overrides a good Choghadiya.",
                 "आठ दिन-भाग सूर्योदय से सूर्यास्त तक, मानक वार-चक्र पर; अमृत, शुभ और लाभ उपयोगी खिड़कियाँ हैं, उद्वेग, रोग और काल से बचें। ऊपर दिया राहु काल अच्छे चौघड़िया पर भी भारी पड़ता है।",
-                "આઠ દિવસ-ભાગ સૂર્યોદયથી સૂર્યાસ્ત સુધી, પ્રમાણભૂત વાર-ચક્ર પર; અમૃત, શુભ અને લાભ ઉપયોગી બારીઓ છે, ઉદ્વેગ, રોગ અને કાળથી બચો. ઉપરનો રાહુ કાળ સારા ચોઘડિયા પર પણ ભારે પડે છે."
+                "આઠ દિવસ-ભાગ સૂર્યોદયથી સૂર્યાસ્ત સુધી, પ્રમાણભૂત વાર-ચક્ર પર; અમૃત, શુભ અને લાભ ઉપયોગી બારીઓ છે, ઉદ્વેગ, રોગ અને કાળથી બચો. નીચેની બારી સારા ચોઘડિયા પર પણ ભારે પડે છે."
               )}</div>
         </div>
-      </div>`;
+      </div>
+      ${triadRows ? `<div class="card" data-day-division-triad="ok">
+        <div class="card-title">${L("When not to begin — the three daylight windows", "कब आरंभ न करें — दिन की तीन अवधियाँ", "ક્યારે શરૂ ન કરવું — દિવસની ત્રણ અવધિઓ")}</div>
+        <div class="table-scroll"><table class="rtable micro-forecast-table">
+          <thead><tr><th>${L("Window", "अवधि", "અવધિ")}</th><th>${L("Today", "आज", "આજે")}</th><th>${L("Slot", "भाग", "ભાગ")}</th><th>${L("Why it is withheld", "क्यों वर्जित", "કેમ વર્જિત")}</th></tr></thead>
+          <tbody>${triadRows}</tbody>
+        </table></div>
+        <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${L(
+      "all three are cast by one construction — your actual daylight, sunrise to sunset, divided into eight equal parts, with one part fixed to each window per weekday (Rahu: Sun 8th, Mon 2nd, Tue 7th, Wed 5th, Thu 6th, Fri 4th, Sat 3rd; Yamaganda: Sun 5th, Mon 4th, Tue 3rd, Wed 2nd, Thu 1st, Fri 7th, Sat 6th; Gulika counts backwards from Saturn's own day: Sat 1st through Sun 7th). They never overlap. Because they are cut from your real sunrise rather than a 6 AM assumption, they move with your latitude and the season — which is the whole point.",
+      "तीनों एक ही विधि से बनते हैं — आपका वास्तविक दिनमान, सूर्योदय से सूर्यास्त तक, आठ बराबर भागों में, और प्रत्येक वार हेतु एक भाग नियत (राहु: रवि ८, सोम २, मंगल ७, बुध ५, गुरु ६, शुक्र ४, शनि ३; यमगण्ड: रवि ५, सोम ४, मंगल ३, बुध २, गुरु १, शुक्र ७, शनि ६; गुलिक शनि के दिन से उल्टा गिनता है: शनि १ से रवि ७)। ये कभी नहीं टकरातीं। चूँकि ये आपके वास्तविक सूर्योदय से कटती हैं, न कि ६ बजे की कल्पना से, ये आपके अक्षांश और ऋतु के साथ चलती हैं — यही इसका उद्देश्य है।",
+      "ત્રણેય એક જ રીતથી બને છે — તમારું વાસ્તવિક દિનમાન, સૂર્યોદયથી સૂર્યાસ્ત સુધી, આઠ સરખા ભાગમાં, અને દરેક વાર માટે એક ભાગ નિયત (રાહુ: રવિ ૮, સોમ ૨, મંગળ ૭, બુધ ૫, ગુરુ ૬, શુક્ર ૪, શનિ ૩; યમગંડ: રવિ ૫, સોમ ૪, મંગળ ૩, બુધ ૨, ગુરુ ૧, શુક્ર ૭, શનિ ૬; ગુલિક શનિના દિવસથી ઊલટું ગણે છે: શનિ ૧ થી રવિ ૭). આ ક્યારેય ટકરાતી નથી. કારણ કે આ તમારા વાસ્તવિક સૂર્યોદયથી કપાય છે, ૬ વાગ્યાની કલ્પનાથી નહીં, આ તમારા અક્ષાંશ અને ઋતુ સાથે ચાલે છે — એ જ એનો હેતુ છે."
+    )}</div>
+      </div>` : ""}`;
     } catch (e) {
       return "";
     }
+  }
+
+  /* --- 16A · Degree-precise Vastu compass -------------------------
+     Professional Vastu suites sell a 16-zone / degree compass; this app
+     read eight fixed sectors from a dropdown. The gap closes here, and
+     it closes as GEOMETRY only: the sixteen zones resolve a degree, but
+     the remedy that governs is still the shipped eight-direction remedy
+     for the sector that degree falls in. No new prescription doctrine is
+     introduced, which is why this does not cross the practitioner
+     sign-off gate in CONTRIBUTING.md.
+
+     The two things worth paying for are the honesty flags: a reading
+     within 2 degrees of a zone edge is called unreliable instead of
+     being reported to a false quarter-degree, and a reading near an
+     8-sector boundary warns that ordinary compass error would change
+     which classical direction governs the remedy. */
+  function vastuCompassReport(p) {
+    const NI = insightsEngine();
+    if (!NI || typeof NI.vastuCompass !== "function") return null;
+    const readings = { entrance: p.entranceDeg, kitchen: p.kitchenDeg, bedroom: p.bedroomDeg, water: p.waterDeg };
+    const c = NI.vastuCompass(readings, { edgeTolerance: 2 });
+    return c && c.ok ? c : null;
+  }
+
+  function renderVastuCompass(p) {
+    const c = vastuCompassReport(p);
+    if (!c) return "";
+    const NI = insightsEngine();
+    const lang = getLang();
+    const db = getActiveDB();
+    const L = (en, hi, gu) => triText(lang, en, hi, gu);
+    const dirs = (db.vastu && db.vastu.directions) || {};
+    const elementLabel = {
+      entrance: L("Main entrance", "मुख्य द्वार", "મુખ્ય દ્વાર"),
+      kitchen: L("Kitchen / burner", "रसोई / चूल्हा", "રસોડું / ચૂલો"),
+      bedroom: L("Master bed", "मुख्य शयनकक्ष", "મુખ્ય શયનખંડ"),
+      water: L("Water source / tank", "जल स्रोत / टंकी", "જળ સ્રોત / ટાંકી")
+    };
+    const zoneLabel = {
+      N: L("North", "उत्तर", "ઉત્તર"), NNE: L("N-N-E", "उत्तर-उत्तर-पूर्व", "ઉત્તર-ઉત્તર-પૂર્વ"),
+      NE: L("North-East", "ईशान", "ઈશાન"), ENE: L("E-N-E", "पूर्व-उत्तर-पूर्व", "પૂર્વ-ઉત્તર-પૂર્વ"),
+      E: L("East", "पूर्व", "પૂર્વ"), ESE: L("E-S-E", "पूर्व-दक्षिण-पूर्व", "પૂર્વ-દક્ષિણ-પૂર્વ"),
+      SE: L("South-East", "आग्नेय", "અગ્નિ"), SSE: L("S-S-E", "दक्षिण-दक्षिण-पूर्व", "દક્ષિણ-દક્ષિણ-પૂર્વ"),
+      S: L("South", "दक्षिण", "દક્ષિણ"), SSW: L("S-S-W", "दक्षिण-दक्षिण-पश्चिम", "દક્ષિણ-દક્ષિણ-પશ્ચિમ"),
+      SW: L("South-West", "नैऋत्य", "નૈઋત્ય"), WSW: L("W-S-W", "पश्चिम-दक्षिण-पश्चिम", "પશ્ચિમ-દક્ષિણ-પશ્ચિમ"),
+      W: L("West", "पश्चिम", "પશ્ચિમ"), WNW: L("W-N-W", "पश्चिम-उत्तर-पश्चिम", "પશ્ચિમ-ઉત્તર-પશ્ચિમ"),
+      NW: L("North-West", "वायव्य", "વાયવ્ય"), NNW: L("N-N-W", "उत्तर-उत्तर-पश्चिम", "ઉત્તર-ઉત્તર-પશ્ચિમ")
+    };
+    const verdictBadge = { ideal: "good", acceptable: "info", avoid: "bad" };
+    const verdictWord = {
+      ideal: L("Ideal", "उत्तम", "ઉત્તમ"),
+      acceptable: L("Acceptable", "स्वीकार्य", "સ્વીકાર્ય"),
+      avoid: L("Classical dosh", "शास्त्रीय दोष", "શાસ્ત્રીય દોષ")
+    };
+
+    /* The dial. Sixteen 22.5-degree wedges drawn as SVG paths, with a
+       needle per tagged reading. Screen-reader users get the table
+       below, so the figure itself is aria-hidden. */
+    const R = 96, CX = 110, CY = 110;
+    const pol = (deg, r) => {
+      const a = (deg - 90) * Math.PI / 180;
+      return [(CX + r * Math.cos(a)).toFixed(2), (CY + r * Math.sin(a)).toFixed(2)];
+    };
+    const wedges = NI.ZONE16.map((z, i) => {
+      const start = i * 22.5 - 11.25, end = start + 22.5;
+      const [x1, y1] = pol(start, R), [x2, y2] = pol(end, R);
+      const hit = c.readings.filter((r) => r.zoneIndex === i);
+      const cls = hit.length ? `cmp-wedge cmp-${hit[0].verdict}` : "cmp-wedge";
+      return `<path class="${cls}" data-cmp-zone="${z.key}" d="M ${CX} ${CY} L ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2} Z" />`;
+    }).join("");
+    const ticks = NI.ZONE16.map((z, i) => {
+      const [tx, ty] = pol(i * 22.5, R + 13);
+      const cardinal = ["N", "E", "S", "W"].includes(z.key);
+      return `<text class="cmp-tick${cardinal ? " cmp-tick-card" : ""}" x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="middle">${z.key}</text>`;
+    }).join("");
+    const needles = c.readings.map((r) => {
+      const [nx, ny] = pol(r.degree, R - 6);
+      return `<g class="cmp-needle cmp-needle-${r.verdict}" data-cmp-needle="${r.element}">
+        <line x1="${CX}" y1="${CY}" x2="${nx}" y2="${ny}" />
+        <circle cx="${nx}" cy="${ny}" r="4" />
+      </g>`;
+    }).join("");
+
+    const rows = c.readings.map((r) => {
+      const parent = dirs[r.sector] || {};
+      const flags = [];
+      if (r.boundary) flags.push(`<span class="badge warn" data-cmp-flag="boundary">${L("within 2° of a zone edge", "क्षेत्र-सीमा से २° भीतर", "ક્ષેત્ર-સીમાથી ૨° અંદર")}</span>`);
+      if (r.sectorFlip) flags.push(`<span class="badge warn" data-cmp-flag="sector-flip">${L("a 2° error changes the governing direction", "२° की त्रुटि शासक दिशा बदल देती है", "૨° ની ભૂલ શાસક દિશા બદલે છે")}</span>`);
+      const off = r.nearestIdeal
+        ? `${Math.abs(r.nearestIdeal.delta).toFixed(1)}° ${r.nearestIdeal.delta > 0 ? L("clockwise of", "से दक्षिणावर्त", "થી ઘડિયાળ દિશામાં") : L("anticlockwise of", "से वामावर्त", "થી ઘડિયાળ વિરુદ્ધ")} ${esc(zoneLabel[r.nearestIdeal.sector] || r.nearestIdeal.sector)}`
+        : "—";
+      return `<tr data-cmp-reading="${esc(r.element)}" data-cmp-degree="${r.degree}" data-cmp-zone16="${esc(r.zone)}" data-cmp-sector="${esc(r.sector)}" data-cmp-verdict="${esc(r.verdict)}">
+        <td><strong>${esc(elementLabel[r.element] || r.element)}</strong><div class="card-sub">${r.degree.toFixed(1)}°</div></td>
+        <td><strong>${esc(zoneLabel[r.zone] || r.zone)}</strong> <span class="cmp-zonekey">${esc(r.zone)}</span>${r.intermediate ? `<div class="card-sub">${L("intermediate zone", "मध्यवर्ती क्षेत्र", "મધ્યવર્તી ક્ષેત્ર")}</div>` : ""}</td>
+        <td>${esc(parent.label || zoneLabel[r.sector] || r.sector)}</td>
+        <td><span class="badge ${verdictBadge[r.verdict]}">${verdictWord[r.verdict]}</span>${flags.length ? `<div class="cmp-flags">${flags.join(" ")}</div>` : ""}</td>
+        <td>${off}</td>
+      </tr>`;
+    }).join("");
+
+    const doshRows = c.readings.filter((r) => r.verdict === "avoid").map((r) => {
+      const parent = dirs[r.sector] || {};
+      return `<div class="kit-row" data-cmp-remedy="${esc(r.element)}"><div class="kit-ico">⚠️</div><div class="kit-body">
+        <div class="kit-label">${esc(elementLabel[r.element] || r.element)} · ${esc(parent.label || r.sector)}</div>
+        <div class="kit-value">${esc(parent.fix || "")}</div>
+      </div></div>`;
+    }).join("");
+
+    return `<section class="rsection" id="vastu-compass-section" data-authority="home-vastu-context" data-vastu-compass="ok" data-compass-readings="${c.readings.length}" data-compass-avoid="${c.avoidCount}">
+      <h2 class="rsection-title"><span class="idx idx-wide">${SECTION.compass}</span>${L("Degree Compass — the 16 zones", "अंश दिक्सूचक — १६ क्षेत्र", "અંશ દિશાસૂચક — ૧૬ ક્ષેત્ર")}</h2>
+      <p class="rsection-desc">${L(
+      "Section " + SECTION.vastu + " reads eight 45° sectors chosen from a list. This reads the actual bearing you measured, to the 22.5° zone. The finer zone tells you where you are; the classical 45° sector it falls in still decides the remedy, which is why both are printed side by side.",
+      "खंड " + SECTION.vastu + " सूची से चुने आठ ४५° खंड पढ़ता है। यह आपके मापे वास्तविक अंश को २२.५° क्षेत्र तक पढ़ता है। सूक्ष्म क्षेत्र बताता है आप कहाँ हैं; उपाय अब भी वही शास्त्रीय ४५° खंड तय करता है जिसमें वह पड़ता है — इसीलिए दोनों साथ दिए हैं।",
+      "વિભાગ " + SECTION.vastu + " યાદીમાંથી પસંદ કરેલા આઠ ૪૫° ખંડ વાંચે છે. આ તમારા માપેલા વાસ્તવિક અંશને ૨૨.૫° ક્ષેત્ર સુધી વાંચે છે. સૂક્ષ્મ ક્ષેત્ર કહે છે તમે ક્યાં છો; ઉપાય હજી એ જ શાસ્ત્રીય ૪૫° ખંડ નક્કી કરે છે જેમાં તે પડે છે — તેથી બંને સાથે આપ્યા છે."
+    )}</p>
+      <div class="compass-wrap">
+        <svg class="compass-dial" viewBox="0 0 220 220" role="img" aria-hidden="true" focusable="false">
+          <circle class="cmp-face" cx="${CX}" cy="${CY}" r="${R}" />
+          ${wedges}
+          <circle class="cmp-ring" cx="${CX}" cy="${CY}" r="${R}" />
+          ${needles}
+          <circle class="cmp-hub" cx="${CX}" cy="${CY}" r="5" />
+          ${ticks}
+        </svg>
+        <div class="compass-side">
+          <div class="table-scroll"><table class="rtable micro-forecast-table">
+            <thead><tr>
+              <th>${L("Element", "तत्व", "તત્વ")}</th>
+              <th>${L("16-zone", "१६-क्षेत्र", "૧૬-ક્ષેત્ર")}</th>
+              <th>${L("Governing direction", "शासक दिशा", "શાસક દિશા")}</th>
+              <th>${L("Verdict", "निर्णय", "ચુકાદો")}</th>
+              <th>${L("Off the ideal by", "आदर्श से अंतर", "આદર્શથી અંતર")}</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table></div>
+        </div>
+      </div>
+      ${doshRows ? `<div class="card" data-compass-dosh>
+        <div class="card-title">${L("Where the bearing puts you in a classical dosh", "जहाँ यह अंश शास्त्रीय दोष में डालता है", "જ્યાં આ અંશ શાસ્ત્રીય દોષમાં મૂકે છે")}</div>
+        <div class="kit">${doshRows}</div>
+        <div class="card-sub">${L(
+      "These are the same remedies Section " + SECTION.vastu + " prescribes for those directions — the compass only identified the direction more precisely. It does not add, replace or re-source a single remedy.",
+      "ये वही उपाय हैं जो खंड " + SECTION.vastu + " उन दिशाओं हेतु देता है — दिक्सूचक ने केवल दिशा अधिक सूक्ष्मता से पहचानी है। यह कोई उपाय जोड़ता, बदलता या पुनः-स्रोत नहीं करता।",
+      "આ એ જ ઉપાયો છે જે વિભાગ " + SECTION.vastu + " એ દિશાઓ માટે આપે છે — દિશાસૂચકે ફક્ત દિશા વધુ ચોકસાઈથી ઓળખી છે. તે કોઈ ઉપાય ઉમેરતો, બદલતો કે પુનઃ-સ્રોત કરતો નથી."
+    )}</div>
+      </div>` : ""}
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${L(
+      "the sixteen zones are 22.5° wide with North centred on 0°, so N runs 348.75°–11.25°. The eight classical sectors are 45° wide and are computed from the same bearing, not from the zone name — which is why an N-N-E reading at 20° is governed by the North and the same zone at 30° is governed by the North-East. Two flags protect you from false precision: a reading within 2° of a zone edge is marked unreliable, and a reading within 2° of a sector boundary is marked as one where ordinary compass error would change the governing direction. Take bearings against TRUE north; a phone compass usually shows magnetic north, which in India runs roughly 0°–3° east of true.",
+      "सोलह क्षेत्र २२.५° चौड़े हैं और उत्तर ०° पर केन्द्रित — अतः उत्तर ३४८.७५°–११.२५° तक। आठ शास्त्रीय खंड ४५° के हैं और उसी अंश से गिने जाते हैं, क्षेत्र-नाम से नहीं — इसीलिए २०° पर उत्तर-उत्तर-पूर्व को उत्तर शासित करता है और ३०° पर वही क्षेत्र ईशान से। दो संकेत मिथ्या-सूक्ष्मता से बचाते हैं: क्षेत्र-किनारे से २° भीतर का पाठ अविश्वसनीय अंकित है, और खंड-सीमा से २° भीतर का पाठ वह है जहाँ सामान्य त्रुटि शासक दिशा बदल देगी। सदैव वास्तविक (ट्रू) उत्तर से मापें; मोबाइल दिक्सूचक प्रायः चुंबकीय उत्तर दिखाता है, जो भारत में वास्तविक से लगभग ०°–३° पूर्व रहता है।",
+      "સોળ ક્ષેત્ર ૨૨.૫° પહોળા છે અને ઉત્તર ૦° પર કેન્દ્રિત — તેથી ઉત્તર ૩૪૮.૭૫°–૧૧.૨૫° સુધી. આઠ શાસ્ત્રીય ખંડ ૪૫° ના છે અને એ જ અંશથી ગણાય છે, ક્ષેત્ર-નામથી નહીં — તેથી ૨૦° પર ઉત્તર-ઉત્તર-પૂર્વને ઉત્તર શાસિત કરે છે અને ૩૦° પર એ જ ક્ષેત્ર ઈશાનથી. બે સંકેત મિથ્યા-ચોકસાઈથી બચાવે છે: ક્ષેત્ર-કિનારાથી ૨° અંદરનું વાચન અવિશ્વસનીય ગણાયું છે, અને ખંડ-સીમાથી ૨° અંદરનું વાચન એ છે જ્યાં સામાન્ય ભૂલ શાસક દિશા બદલી નાખશે. હંમેશાં સાચા (ટ્રૂ) ઉત્તરથી માપો; મોબાઇલ દિશાસૂચક સામાન્ય રીતે ચુંબકીય ઉત્તર બતાવે છે, જે ભારતમાં સાચાથી આશરે ૦°–૩° પૂર્વ રહે છે."
+    )}</div>
+    </section>`;
+  }
+
+  /* --- 7 (continued) · Internal digit flow ------------------------
+     The total was the whole reading; the sequence was ignored. A client
+     who recites their number twenty times a day is living with its
+     internal adjacencies, not only its sum, and every commercial tool
+     reads them. Two constraints make this worth shipping rather than
+     a gimmick: each pair is classified by the SAME one-way Moolank
+     Maitri relation the rest of the report uses (so the verdict is
+     traceable to a row of the shipped chart, not to an invented table
+     of two-digit meanings), and nothing here produces a percentage.
+     "74% lucky" is unfalsifiable; "three hostile adjacencies, here
+     they are" can be checked by eye. */
+  function renderDigitFlow(p) {
+    const NI = insightsEngine();
+    if (!NI || typeof NI.digitFlow !== "function" || !p.mobile) return "";
+    /* Inject the live relation so the pair table and the rest of the
+       report can never disagree about who is friendly to whom. */
+    const f = NI.digitFlow(p.mobile, { driver: p.driver, conductor: p.conductor }, { relationFn: relation });
+    if (!f || !f.ok) return "";
+    const lang = getLang();
+    const db = getActiveDB();
+    const L = (en, hi, gu) => triText(lang, en, hi, gu);
+    const planetOf = (n) => esc(String(((db.numbers || {})[n] || {}).planet || n).split(" ")[0]);
+    const kindWord = {
+      friendly: L("friendly", "मैत्री", "મૈત્રી"), neutral: L("neutral", "तटस्थ", "તટસ્થ"),
+      enemy: L("hostile", "शत्रु", "શત્રુ"), repeat: L("repeat", "पुनरावृत्ति", "પુનરાવર્તન"),
+      void: L("no lord (0)", "स्वामी रहित (०)", "સ્વામી રહિત (૦)")
+    };
+    const kindClass = { friendly: "flow-friend", neutral: "flow-neutral", enemy: "flow-enemy", repeat: "flow-repeat", void: "flow-void" };
+
+    const chain = f.pairs.map((pr) => `<span class="flow-pair ${kindClass[pr.kind]}" data-flow-pair="${esc(pr.text)}" data-flow-kind="${esc(pr.kind)}" title="${esc(`${pr.a}–${pr.b} · ${kindWord[pr.kind]}`)}">${pr.text}<em>${kindWord[pr.kind]}</em></span>`).join("");
+
+    const hostileRows = f.pairs.filter((pr) => pr.kind === "enemy").map((pr) => `<tr data-flow-hostile="${esc(pr.text)}">
+      <td><strong>${pr.text}</strong></td>
+      <td>${planetOf(pr.a)} → ${planetOf(pr.b)}</td>
+      <td>${L("position", "स्थान", "સ્થાન")} ${pr.index + 1}–${pr.index + 2}</td>
+    </tr>`).join("");
+
+    return `<div class="card" data-digit-flow="ok" data-flow-hostile-count="${f.hostileAdjacencies}" data-flow-clean-run="${f.longestCleanRun}">
+      <div class="card-title">${L("Internal digit flow — how the number reads left to right", "आंतरिक अंक-प्रवाह — नंबर बाएँ से दाएँ कैसे पढ़ा जाता है", "આંતરિક અંક-પ્રવાહ — નંબર ડાબેથી જમણે કેવી રીતે વંચાય છે")}</div>
+      <div class="flow-strip" data-flow-strip>${chain}</div>
+      <div class="kit">
+        <div class="kit-row"><div class="kit-ico">🔗</div><div class="kit-body">
+          <div class="kit-label">${L("Adjacent pairs", "सन्निकट युग्म", "નજીકની જોડી")}</div>
+          <div class="kit-value">${f.tally.friend} ${L("friendly", "मैत्री", "મૈત્રી")} · ${f.tally.neutral} ${L("neutral", "तटस्थ", "તટસ્થ")} · <strong>${f.tally.enemy}</strong> ${L("hostile", "शत्रु", "શત્રુ")}${f.tally.repeat ? ` · ${f.tally.repeat} ${L("repeat", "पुनरावृत्ति", "પુનરાવર્તન")}` : ""}${f.tally.void ? ` · ${f.tally.void} ${L("with 0", "शून्य सहित", "શૂન્ય સહિત")}` : ""}</div>
+        </div></div>
+        <div class="kit-row"><div class="kit-ico">📶</div><div class="kit-body">
+          <div class="kit-label">${L("Longest unbroken stretch", "सबसे लंबी अखंड शृंखला", "સૌથી લાંબી અખંડ શૃંખલા")}</div>
+          <div class="kit-value">${f.longestCleanRun} / ${f.pairs.length} ${L("pairs with no hostility", "युग्म बिना शत्रुता", "જોડી શત્રુતા વિના")}</div>
+        </div></div>
+        <div class="kit-row"><div class="kit-ico">🕳️</div><div class="kit-body">
+          <div class="kit-label">${L("Digits absent from the number", "नंबर में अनुपस्थित अंक", "નંબરમાં ગેરહાજર અંકો")}</div>
+          <div class="kit-value" data-flow-missing="${f.missing.join(",")}">${f.missing.length ? f.missing.map((m) => `${m} (${planetOf(m)})`).join(" · ") : L("none — all nine appear", "कोई नहीं — नौ ही उपस्थित", "કોઈ નહીં — નવેય હાજર")}</div>
+        </div></div>
+        ${f.repeated.length ? `<div class="kit-row"><div class="kit-ico">🔁</div><div class="kit-body">
+          <div class="kit-label">${L("Digits carrying extra weight", "अधिक भार वाले अंक", "વધુ ભાર ધરાવતા અંકો")}</div>
+          <div class="kit-value">${f.repeated.map((r) => `${r.digit} (${planetOf(r.digit)}) ×${r.count}`).join(" · ")}</div>
+        </div></div>` : ""}
+      </div>
+      ${hostileRows ? `<div class="table-scroll"><table class="rtable micro-forecast-table">
+        <thead><tr><th>${L("Hostile pair", "शत्रु युग्म", "શત્રુ જોડી")}</th><th>${L("Planets", "ग्रह", "ગ્રહો")}</th><th>${L("Where", "कहाँ", "ક્યાં")}</th></tr></thead>
+        <tbody>${hostileRows}</tbody>
+      </table></div>` : ""}
+      <div class="judge-note"><strong>${t("howWeJudge", "How we judge this:")}</strong> ${L(
+      "each adjacent pair is classified by the same one-way Moolank Maitri relation the whole report uses, so every label here can be traced to a row of the friendship chart rather than to a table of invented two-digit meanings. Pairs containing 0 are reported as having no lord instead of being forced into a relation the system does not give them. There is deliberately no percentage: a count of hostile adjacencies you can verify by eye is worth more than a score you cannot. The total in the card above still governs the recommendation — this reading refines it, it does not overrule it.",
+      "प्रत्येक सन्निकट युग्म उसी एकपक्षीय मूलांक मैत्री संबंध से वर्गीकृत है जो पूरी रिपोर्ट प्रयोग करती है — अतः यहाँ का हर लेबल मैत्री-चक्र की पंक्ति तक जाता है, किसी गढ़ी हुई दो-अंकी अर्थ-तालिका तक नहीं। शून्य वाले युग्म स्वामी-रहित बताए गए हैं, न कि किसी ऐसे संबंध में डाले गए जो शास्त्र देता ही नहीं। प्रतिशत जान-बूझकर नहीं है: आँखों से जाँची जा सकने वाली शत्रु-युग्मों की गिनती उस अंक से अधिक मूल्यवान है जिसे जाँचा नहीं जा सकता। ऊपर का कुल योग ही सिफ़ारिश तय करता है — यह पाठ उसे सूक्ष्म करता है, पलटता नहीं।",
+      "દરેક નજીકની જોડી એ જ એકપક્ષીય મૂળાંક મૈત્રી સંબંધથી વર્ગીકૃત છે જે આખો અહેવાલ વાપરે છે — તેથી અહીંનું દરેક લેબલ મૈત્રી-ચક્રની પંક્તિ સુધી જાય છે, કોઈ ઘડેલી બે-અંકી અર્થ-યાદી સુધી નહીં. શૂન્ય ધરાવતી જોડી સ્વામી-રહિત બતાવી છે, એવા સંબંધમાં નાખી નથી જે શાસ્ત્ર આપતું જ નથી. ટકાવારી જાણીજોઈને નથી: આંખે ચકાસી શકાય એવી શત્રુ-જોડીની ગણતરી એ આંક કરતાં વધુ મૂલ્યવાન છે જે ચકાસી શકાતો નથી. ઉપરનો કુલ સરવાળો જ ભલામણ નક્કી કરે છે — આ વાચન તેને સૂક્ષ્મ કરે છે, પલટતું નથી."
+    )}</div>
+    </div>`;
   }
 
   function renderReport(p) {
@@ -7255,6 +7547,7 @@
             ? `<div class="kit-value" data-mobile-verdict="off-target">${lang === "hi" ? `आपका मोबाइल नंबर जन्म अंकों के विरुद्ध नहीं है — कोई तत्काल बदलाव आवश्यक नहीं। परन्तु कुल योग <strong>${p.mobCompound}</strong> अंक <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}) तक जाता है, जो आपके चालक ${p.driver} और कंडक्टर ${p.conductor} दोनों के साथ मैत्रीपूर्ण नहीं है। यदि आप अपने सर्वाधिक प्रयुक्त उपकरण के लिए सर्वश्रेष्ठ कंपन चाहते हैं, तो कुल योग <strong>${mobSug.goodTotals.join(", ")}</strong> वाले नंबर अभी भी आपके सर्वोत्तम विकल्प हैं।` : lang === "gu" ? `તમારો મોબાઈલ નંબર જન્મ અંકોની વિરુદ્ધ નથી — કોઈ તાત્કાલિક ફેરફાર જરૂરી નથી. પરંતુ કુલ સરવાળો <strong>${p.mobCompound}</strong> અંક <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}) સુધી જાય છે, જે તમારા ડ્રાઈવર ${p.driver} અને કંડક્ટર ${p.conductor} બંને સાથે મૈત્રીપૂર્ણ નથી. જો તમે તમારા સૌથી વધુ વપરાતા ઉપકરણ માટે શ્રેષ્ઠ કંપન ઈચ્છતા હો, તો કુલ સરવાળો <strong>${mobSug.goodTotals.join(", ")}</strong> વાળા નંબર હજી પણ તમારા શ્રેષ્ઠ વિકલ્પો છે.` : `Your mobile number is not hostile to your birth numbers — no urgent change required. But it totals <strong>${p.mobCompound}</strong>, reducing to Number <strong>${p.mobNum}</strong> (${esc(db.numbers[p.mobNum].planet)}), which is not friendly to <em>both</em> Driver ${p.driver} and Conductor ${p.conductor}, so it sits outside your ideal set. Your number is keepable; if you want the strongest vibration for your most-used device, totals <strong>${mobSug.goodTotals.join(", ")}</strong> remain your best picks. Activate any new SIM on a ${dayOf(p.driver)} or ${dayOf(p.conductor)} morning.`}</div>`
             : `<div class="kit-value" data-mobile-verdict="optimal">${lang === "hi" ? "आपका मोबाइल नंबर आपके जन्म अंकों के अनुकूल है — बदलने की आवश्यकता नहीं है।" : lang === "gu" ? "તમારો મોબાઈલ નંબર તમારા જન્મ અંકો સાથે સુમેળભર્યો છે — બદલવાની જરૂર નથી." : "Your mobile number vibrates acceptably with your birth numbers — no change required."}</div>`}
       </div>
+      ${renderDigitFlow(p)}
     </section>`;
 
     const vehicleSection = `<section class="rsection">
@@ -8536,6 +8829,7 @@
         ${muhurthaSection}
         ${dashaSection}
         ${vastuSection}
+        ${renderVastuCompass(p)}
       </section>
       <section class="report-module-panel cockpit-panel" id="cockpit-panel" role="tabpanel" aria-labelledby="cockpit-tab"${cockpitHidden}>
         <div class="module-panel-heading cockpit-panel-heading" id="cockpit-top"><p class="summary-kicker">${t("tabCockpit", "Cockpit · Practitioner")}</p><h2>${t("cockpitPanelTitle", "Your one-page clinical cockpit")}</h2><p>${t("cockpitPanelDesc", "A single printable consultation sheet: identity, both grids, the live Dasha stack judged by classical Sambhandha, the triaged prescription and graded event windows. It never recalculates anything — it condenses.")}</p></div>
@@ -8957,6 +9251,12 @@
       // Premises number — optional; absent keeps every existing chart identical.
       premises: ($("#premises") && $("#premises").value.trim()) || "",
       premisesKind: ($("#premisesKind") && $("#premisesKind").value) || "home",
+      // Degree-precise Vastu readings — optional, and purely additive: the
+      // eight-direction dropdowns above still drive every existing remedy.
+      entranceDeg: ($("#entranceDeg") && $("#entranceDeg").value.trim()) || "",
+      kitchenDeg: ($("#kitchenDeg") && $("#kitchenDeg").value.trim()) || "",
+      bedroomDeg: ($("#bedroomDeg") && $("#bedroomDeg").value.trim()) || "",
+      waterDeg: ($("#waterDeg") && $("#waterDeg").value.trim()) || "",
       goals: Array.from(selectedGoals),
       healthTags: Array.from(selectedHealthTags),
       sadhana: selectedSadhana,
@@ -9087,6 +9387,8 @@
     /* 2026-10 parity layers */
     nameArchitecture, renderNameArchitecture, premisesReport, renderPremises,
     renderPersonalCycles, renderWesternCrossRef, panchangBlock, relBadgeText, triText,
+    /* 2026-10 operational layers */
+    vastuCompassReport, renderVastuCompass, renderDigitFlow,
     loShuGridLayout: LO_SHU_GRID_LAYOUT.map((row) => row.slice()),
     vedicGridLayout: VEDIC_GRID_LAYOUT.map((row) => row.slice())
   };
